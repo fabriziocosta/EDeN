@@ -22,6 +22,11 @@ http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/lea
 
 *parameter exploration*
 
+http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/parameter_exploration.ipynb
+
+*serialization*
+
+http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/serialization.ipynb
 
 *string*
 
