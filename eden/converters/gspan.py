@@ -2,28 +2,46 @@ from sklearn.kernel_approximation import Nystroem
 import json
 import networkx as nx
 
-from eden.hasher import WTA_hash
 
+def gspan_to_eden(name, input_type='url'):
+    """
+    Return a numpy array of integers to be used as target vector.
 
+    Parameters
+    ----------
+    name : string
+        A pointer to the data source.
 
-def gspan_to_eden(name, is_file=False, is_url=False, hasher=WTA_hash()):
-    if is_file :
+    input_type : ['url','file','string_file']
+        If type is 'url' then 'name' is interpreted as a URL pointing to a file.
+        If type is 'file' then 'name' is interpreted as a file name.
+        If type is 'string_file' then 'name' is interpreted as a file name for a file 
+        that contains strings rather than integers. The set of strings are mapped to 
+        unique increasing integers and the corresponding vector of integers is returned.
+    """
+
+    input_types = ['url','file','list']
+    assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
+
+    if input_type is 'file':
         with open(name,'r') as f:
-            return _gspan_to_eden(f,hasher)
-    elif is_url :
+            return _gspan_to_eden(f)
+    elif input_type is 'url':
         import requests
         f=requests.get(name).text.split('\n')
-        return _gspan_to_eden(f,hasher)
-    else :
-        return _gspan_to_eden(name,hasher)
+        return _gspan_to_eden(f)
+    elif input_type is 'list':
+        return _gspan_to_eden(name)        
+    else:
+        raise Exception('Unidentified input_type:%s'%input_type)
 
 
 
-def _gspan_to_eden(data_str_list, hasher=WTA_hash()):
+def _gspan_to_eden(data_str_list):
     def gspan_to_networkx(string_list):
         G=nx.Graph()
         for line in string_list:
-            if len(line) > 0 :
+            if line.strip():
                 line_list=line.split()
                 fc=line_list[0]
                 if fc == 'v' : #insert vertex
@@ -33,7 +51,7 @@ def _gspan_to_eden(data_str_list, hasher=WTA_hash()):
                     G.add_node(vid, label=vlabel, hlabel=hvlabel)
                     #extract the rest of the line  as a JSON string
                     attribute_str=' '.join(line_list[3:])
-                    if len(attribute_str) > 0:
+                    if attribute_str.strip():
                         attribute_dict = json.loads(attribute_str)
                         G.node[vid].update(attribute_dict)
                 if fc == 'e' : #insert edge
@@ -43,7 +61,7 @@ def _gspan_to_eden(data_str_list, hasher=WTA_hash()):
                     helabel=[hash(elabel)]
                     G.add_edge(srcid,destid, label=elabel, hlabel=helabel)
                     attribute_str=' '.join(line_list[4:])
-                    if len(attribute_str) > 0:
+                    if attribute_str.strip():
                         attribute_dict=json.loads(attribute_str)
                         G.edge[srcid][destid].update(attribute_dict)
         assert(len(G)>0),'ERROR: generated empty graph'

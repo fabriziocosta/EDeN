@@ -3,7 +3,7 @@ import numpy as np
 import math
 from scipy.sparse import csr_matrix
 
-class feature_constructor():
+class vectorizer():
     def __init__(self, 
         r=3, 
         d=3, 
