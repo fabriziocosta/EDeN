@@ -22,29 +22,29 @@ class Vectorizer():
         self.feature_size = self.bitmask+2
 
 
-    def transform(self,seq_list, multiprocessing=True):
+    def transform(self,seq_list, n_jobs=1):
         """
         Parameters
         ----------
         seq_list : list of strings 
             The data.
 
-        multiprocessing : bool 
-            Switch to activate multi-core processing.
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
         """
-        if multiprocessing:
-            return self._transform_parallel(seq_list)
-        else:
+        if n_jobs is 1:
             return self._transform_serial(seq_list)
+        else:
+            return self._transform_parallel(seq_list, n_jobs)
 
 
-    def _transform_parallel(self,seq_list):
+    def _transform_parallel(self,seq_list, n_jobs):
         feature_dict = {}
         
         def my_callback( result ):
             feature_dict.update( result )
         
-        pool = multiprocessing.Pool()
+        pool = multiprocessing.Pool(n_jobs)
         for instance_id,seq in enumerate(seq_list):
             util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
         pool.close()
