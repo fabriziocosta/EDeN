@@ -2,7 +2,7 @@ import dill
 
 def run_dill_encoded(what):
     """
-    Use dill as replacement for pickle to enable multiprocessing on instancemethods
+    Use dill as replacement for pickle to enable multiprocessing on instance methods
     """
     fun, args = dill.loads(what)
     return fun(*args)
@@ -26,8 +26,16 @@ def fast_hash( vec, bitmask ):
 def fast_hash_vec( vec, bitmask ):
     hash_vec=[]
     running_hash = 0xAAAAAAAA
-    for i,list_item_str in enumerate(vec):
-        list_item=ord(list_item_str)
+    for i,list_item in enumerate(vec):
+        running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
+        hash_vec+=[int(running_hash & bitmask)+1]
+    return hash_vec
+
+def fast_hash_vec_char( vec, bitmask ):
+    hash_vec=[]
+    running_hash = 0xAAAAAAAA
+    for i,list_item_char in enumerate(vec):
+        list_item=ord(list_item_char)
         running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
         hash_vec+=[int(running_hash & bitmask)+1]
     return hash_vec
