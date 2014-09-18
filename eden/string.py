@@ -22,12 +22,23 @@ class Vectorizer():
         self.feature_size = self.bitmask+2
 
 
-    def transform(self,seq_list):
-        #return self.transform_parallel(seq_list)
-        return self.transform_serial(seq_list)
+    def transform(self,seq_list, multiprocessing=True):
+        """
+        Parameters
+        ----------
+        seq_list : list of strings 
+            The data.
+
+        multiprocessing : bool 
+            Switch to activate multi-core processing.
+        """
+        if multiprocessing:
+            return self._transform_parallel(seq_list)
+        else:
+            return self._transform_serial(seq_list)
 
 
-    def transform_parallel(self,seq_list):
+    def _transform_parallel(self,seq_list):
         feature_dict = {}
         
         def my_callback( result ):
@@ -42,7 +53,7 @@ class Vectorizer():
         return self._convert_to_sparse_vector(feature_dict)
 
 
-    def transform_serial(self,seq_list):
+    def _transform_serial(self,seq_list):
         feature_dict={}
         for instance_id,seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id,seq))

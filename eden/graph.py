@@ -122,11 +122,29 @@ class Vectorizer(object):
         return G
 
 
-    def transform(self,G_list):
+    def transform(self,G_list, multiprocessing=False):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        multiprocessing : bool 
+            Switch to activate multi-core processing.
         """
+        if multiprocessing:
+            return self._transform_parallel(G_list)
+        else:
+            return self._transform_serial(G_list)
+
+
+    #TODO: _transform_parallel(G_list)
+    
+
+    def _transform_serial(self,G_list):
         feature_dict={}
         for instance_id , G in enumerate(G_list):
             feature_dict.update(self._transform(instance_id,G))
