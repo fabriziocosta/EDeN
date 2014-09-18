@@ -77,11 +77,11 @@ class vectorizer():
                     feature+=[radius]
                     for distance in range(self.d):
                         if pos+distance+radius<len(seq):
-                            feature+=[distance]
-                            feature+=[neighborhood_hash_cache[pos+distance][radius]]
-                            feature_code=self._fast_hash(feature)
-                            key=self._fast_hash([radius,distance])
-                            feature_list[key][feature_code]+=1
+                            feature += [distance]
+                            feature += [neighborhood_hash_cache[ pos + distance ][ radius ]]
+                            feature_code = util.fast_hash( feature, self.bitmask )
+                            key = util.fast_hash( [radius,distance], self.bitmask )
+                            feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
 
 
@@ -116,21 +116,5 @@ class vectorizer():
         at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
         """
         subseq=seq[pos:pos+self.r]
-        return self._fast_hash_vec(subseq)
+        return util.fast_hash_vec( subseq, self.bitmask )
 
-
-    def _fast_hash(self, vec):
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-        return int(running_hash & self.bitmask)+1
-
-
-    def _fast_hash_vec(self, vec):
-        hash_vec=[]
-        running_hash = 0xAAAAAAAA
-        for i,list_item_str in enumerate(vec):
-            list_item=ord(list_item_str)
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-            hash_vec+=[int(running_hash & self.bitmask)+1]
-        return hash_vec

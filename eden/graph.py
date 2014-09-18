@@ -12,9 +12,7 @@ import itertools
 
 import networkx as nx
 from scipy import stats
-
-
-
+from eden.util import util
 
 class vectorizer(object):
     """
@@ -203,18 +201,18 @@ class vectorizer(object):
             for label_index in range(G.graph['label_size']):
                 if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a pair of neighbourhoods at a radius,distance 
-                    t=[G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
-                    feature=self._fast_hash(t)
-                    key=self._fast_hash([radius,distance])
+                    t = [G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                    feature = util.fast_hash( t, self.bitmask )
+                    key = util.fast_hash( [radius,distance], self.bitmask )
                     if self.weighted == False :
                         feature_list[key][feature]+=1
                     else :
                         feature_list[key][feature]+=G.node[v]['neighborhood_graph_weight'][radius]+G.node[u]['neighborhood_graph_weight'][radius]
                     if self.additional_pure_neighborhood_features:
                         #feature as a radius, distance and a neighbourhood 
-                        t=[G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
-                        feature=self._fast_hash(t)
-                        key=self._fast_hash([radius,distance])
+                        t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                        feature = util.fast_hash( t, self.bitmask )
+                        key = util.fast_hash( [radius,distance], self.bitmask )
                         if self.weighted == False :
                             feature_list[key][feature]+=1
                         else :
@@ -274,10 +272,10 @@ class vectorizer(object):
                 #sort it
                 hash_label_list.sort()
                 #hash it
-                hashed_nodes_at_distance_d_in_neighborhood_set=self._fast_hash(hash_label_list)
+                hashed_nodes_at_distance_d_in_neighborhood_set = util.fast_hash( hash_label_list, self.bitmask )
                 hash_list.append(hashed_nodes_at_distance_d_in_neighborhood_set)
             #hash the sequence of hashes of the node set at increasing distances into a list of features
-            hash_neighborhood=self._fast_hash_vec(hash_list)
+            hash_neighborhood = util.fast_hash_vec( hash_list, self.bitmask )
             hash_neighborhood_list.append(hash_neighborhood)
         G.node[root]['neighborhood_graph_hash']=hash_neighborhood_list
     
@@ -318,25 +316,6 @@ class vectorizer(object):
             weight=node_average*edge_average
             neighborhood_graph_weight_list.append(weight)
         G.node[root]['neighborhood_graph_weight']=neighborhood_graph_weight_list
-            
-            
-    
-    def _fast_hash(self, vec):
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-        return int(running_hash & self.bitmask)+1
-    
-   
-
-    def _fast_hash_vec(self, vec):
-        hash_vec=[]
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-            hash_vec+=[int(running_hash & self.bitmask)+1]
-        return hash_vec
-    
 
 
     def _single_vertex_breadth_first_visit(self, G, root, max_depth):
