@@ -1,5 +1,5 @@
 """
-Collection of classes and functions for the transformation of graphs into sparse vectors.
+Collection of classes and functions for the transformation of annotated graphs into sparse vectors.
 """
 from collections import defaultdict
 import numpy as np
@@ -16,7 +16,7 @@ from scipy import stats
 
 
 
-class feature_constructor(object):
+class vectorizer(object):
     """
     Transforms graphs in sparse vectors.
     """
@@ -380,9 +380,27 @@ class feature_constructor(object):
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
         
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from sklearn.linear_model import SGDClassifier
 
-class annotator(feature_constructor):
+class importance_annotator(vectorizer):
     def __init__(self,
         estimator=SGDClassifier(),
         r=3,
@@ -393,7 +411,7 @@ class annotator(feature_constructor):
         additional_pure_neighborhood_features=False,
         weighted=False
         ):
-        super(annotator, self).__init__(r=r, 
+        super(importance_annotator, self).__init__(r=r, 
             d=d, 
             nbits=nbits, 
             normalization=normalization, 
