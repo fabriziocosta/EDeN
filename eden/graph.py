@@ -5,13 +5,14 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
-
+from scipy import stats
+from sklearn.linear_model import SGDClassifier
 from collections import deque
 from operator import itemgetter, attrgetter
 import itertools
 
 import networkx as nx
-from scipy import stats
+from eden.util import util
 
 
 
@@ -71,10 +72,8 @@ class Vectorizer(object):
         self.weighted = weighted
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
-        
-    
-    
-    
+
+
     def _edge_to_vertex_transform(self, G_orig):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
@@ -99,14 +98,13 @@ class Vectorizer(object):
             G.add_edge(new_node_id,v, label=1)    
         G.graph['label_size']=label_size
         return G
-        
-        
-        
+
+
     def _revert_edge_to_vertex_transform(self, G_orig):
         """Converts nodes of type 'edge' to edges. Useful for display reasons."""
         #start from a copy of the original graph
-        G=nx.Graph(G_orig)
-        #re-wire the endpoints of edge-vertices  
+        G = nx.Graph(G_orig)
+        #re-wire the endpoints of edge-vertices
         for n,d in G_orig.nodes_iter(data=True):
             if d.get('edge', False) == True :
                 #extract the endpoints
@@ -122,9 +120,8 @@ class Vectorizer(object):
                 #remove stale information
                 G.node[n].pop('distant_neighbours', None)
         return G
-            
-        
-        
+
+
     def transform(self,G_list):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
@@ -134,9 +131,8 @@ class Vectorizer(object):
         for instance_id , G in enumerate(G_list):
             feature_dict.update(self._transform(instance_id,G))
         return self._convert_to_sparse_vector(feature_dict)
-        
-        
-        
+
+
     def transform_iter(self,G_list):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
@@ -146,8 +142,7 @@ class Vectorizer(object):
         for instance_id , G in enumerate(G_list):
             yield self._convert_to_sparse_vector(self._transform(instance_id,G))
 
-    
-    
+
     def _convert_to_sparse_vector(self,feature_dict):
         data=feature_dict.values()
         row_col=feature_dict.keys()
@@ -157,7 +152,7 @@ class Vectorizer(object):
         return X
    
 
-                
+
     def _transform(self, instance_id , G):
         G=self._edge_to_vertex_transform(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))       
@@ -172,9 +167,8 @@ class Vectorizer(object):
             if d.get('nesting', False): #only for vertices of type 'nesting'
                 self._transform_nesting_vertex(G, v, feature_list)
         return self._normalization(feature_list, instance_id)
-        
-        
-        
+
+
     def _transform_nesting_vertex(self, G, nesting_vertex, feature_list):
         #extract endpoints
         nesting_endpoints=[u for u in G.neighbors(nesting_vertex)]
@@ -184,8 +178,7 @@ class Vectorizer(object):
         distance=1
         self._transform_vertex_pair(G, v, u, distance, feature_list)
 
-                                
-                                
+
     def _transform_vertex(self, G, v, feature_list):
         #for all distances 
         root_dist_dict=G.node[v]['distant_neighbours']
@@ -195,26 +188,25 @@ class Vectorizer(object):
                 for u in node_set:
                     self._transform_vertex_pair(G, v, u, distance, feature_list)
 
-                    
-            
+
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
         #for all radii
         for radius in range(0,self.r,2):
             for label_index in range(G.graph['label_size']):
                 if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a pair of neighbourhoods at a radius,distance 
-                    t=[G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
-                    feature=self._fast_hash(t)
-                    key=self._fast_hash([radius,distance])
+                    t = [G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                    feature = util.fast_hash( t, self.bitmask )
+                    key = util.fast_hash( [radius,distance], self.bitmask )
                     if self.weighted == False :
                         feature_list[key][feature]+=1
                     else :
                         feature_list[key][feature]+=G.node[v]['neighborhood_graph_weight'][radius]+G.node[u]['neighborhood_graph_weight'][radius]
                     if self.additional_pure_neighborhood_features:
                         #feature as a radius, distance and a neighbourhood 
-                        t=[G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
-                        feature=self._fast_hash(t)
-                        key=self._fast_hash([radius,distance])
+                        t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                        feature = util.fast_hash( t, self.bitmask )
+                        key = util.fast_hash( [radius,distance], self.bitmask )
                         if self.weighted == False :
                             feature_list[key][feature]+=1
                         else :
@@ -246,17 +238,15 @@ class Vectorizer(object):
             return normalizationd_feature_vector    
         else :
             return feature_vector
-    
-    
-    
+
+
     def _compute_neighborhood_graph_hash_cache(self, G):
         assert (len(G)>0), 'ERROR: Empty graph'
         for u,d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 self._compute_neighborhood_graph_hash(u,G)
-    
-    
-    
+
+
     def _compute_neighborhood_graph_hash(self,root,G):
         hash_neighborhood_list=[]
         #for all labels
@@ -274,23 +264,21 @@ class Vectorizer(object):
                 #sort it
                 hash_label_list.sort()
                 #hash it
-                hashed_nodes_at_distance_d_in_neighborhood_set=self._fast_hash(hash_label_list)
+                hashed_nodes_at_distance_d_in_neighborhood_set = util.fast_hash( hash_label_list, self.bitmask )
                 hash_list.append(hashed_nodes_at_distance_d_in_neighborhood_set)
             #hash the sequence of hashes of the node set at increasing distances into a list of features
-            hash_neighborhood=self._fast_hash_vec(hash_list)
+            hash_neighborhood = util.fast_hash_vec( hash_list, self.bitmask )
             hash_neighborhood_list.append(hash_neighborhood)
         G.node[root]['neighborhood_graph_hash']=hash_neighborhood_list
-    
-    
-           
+
+
     def _compute_neighborhood_graph_weight_cache(self, G):
         assert (len(G)>0), 'ERROR: Empty graph'
         for u,d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 self._compute_neighborhood_graph_weight(u,G)
-    
-    
-    
+
+
     def _compute_neighborhood_graph_weight(self,root,G):
         #list all nodes at increasing distances
         #at each distance
@@ -318,25 +306,6 @@ class Vectorizer(object):
             weight=node_average*edge_average
             neighborhood_graph_weight_list.append(weight)
         G.node[root]['neighborhood_graph_weight']=neighborhood_graph_weight_list
-            
-            
-    
-    def _fast_hash(self, vec):
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-        return int(running_hash & self.bitmask)+1
-    
-   
-
-    def _fast_hash_vec(self, vec):
-        hash_vec=[]
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-            hash_vec+=[int(running_hash & self.bitmask)+1]
-        return hash_vec
-    
 
 
     def _single_vertex_breadth_first_visit(self, G, root, max_depth):
@@ -371,34 +340,14 @@ class Vectorizer(object):
                             else :
                                 dist_list[d].add(v)
         G.node[root]['distant_neighbours']=dist_list
-    
-    
-    
+
+
     def _compute_distant_neighbours(self, G, max_depth):
         for n,d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
         
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-from sklearn.linear_model import SGDClassifier
 
 class ImportanceAnnotator(Vectorizer):
     def __init__(self,
@@ -419,9 +368,8 @@ class ImportanceAnnotator(Vectorizer):
             additional_pure_neighborhood_features=additional_pure_neighborhood_features, 
             weighted=weighted)
         self._estimator=estimator
-    
- 
-    
+
+
     def transform(self,G_list):
         """
         Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
@@ -432,9 +380,8 @@ class ImportanceAnnotator(Vectorizer):
         """
         for G in G_list:
             yield self._annotate_vertex_importance(G)
-            
-    
-    
+
+
     def _annotate_vertex_importance(self, G_orig):
         #pre-processing phase: compute caches
         G=self._edge_to_vertex_transform(G_orig)
