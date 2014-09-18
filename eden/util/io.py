@@ -10,7 +10,7 @@ def load_target(name, input_type='url'):
     name : string
         A pointer to the data source.
 
-    type : ['url','file','string_file']
+    input_type : ['url','file','string_file']
         If type is 'url' then 'name' is interpreted as a URL pointing to a file.
         If type is 'file' then 'name' is interpreted as a file name.
         If type is 'string_file' then 'name' is interpreted as a file name for a file 

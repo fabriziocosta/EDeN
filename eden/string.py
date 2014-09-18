@@ -5,7 +5,7 @@ from scipy.sparse import csr_matrix
 import multiprocessing
 from eden.util import util
 
-class feature_constructor():
+class vectorizer():
     def __init__(self, 
         r=3, 
         d=3, 
