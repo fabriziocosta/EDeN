@@ -3,6 +3,7 @@ import numpy as np
 import math
 from scipy.sparse import csr_matrix
 import multiprocessing
+from eden.util import util
 
 class Vectorizer():
     def __init__(self, 
@@ -11,7 +12,7 @@ class Vectorizer():
         nbits=20,
         normalization=True,
         inner_normalization=True):
-        
+
         self.r = r+1
         self.d = d+1
         self.nbits = nbits
@@ -19,46 +20,40 @@ class Vectorizer():
         self.inner_normalization = inner_normalization
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
-        
-        
-        
+
+
     def transform(self,seq_list):
         #return self.transform_parallel(seq_list)
         return self.transform_serial(seq_list)
-    
-    
-    
+
+
     def transform_parallel(self,seq_list):
-        feature_dict={}
+        feature_dict = {}
         
         def my_callback( result ):
             feature_dict.update( result )
         
         pool = multiprocessing.Pool()
         for instance_id,seq in enumerate(seq_list):
-            print instance_id
-            pool.apply_async( self._transform, args=(instance_id, 4), callback = my_callback)
+            util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
         pool.close()
         pool.join()
-        print feature_dict
+
         return self._convert_to_sparse_vector(feature_dict)
-            
-        
-        
+
+
     def transform_serial(self,seq_list):
         feature_dict={}
         for instance_id,seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id,seq))
         return self._convert_to_sparse_vector(feature_dict)
-        
-        
-        
+
+
     def transform_iter(self, seq_list):
         for instance_id , seq in enumerate(seq_list):
             yield self._convert_to_sparse_vector(self._transform(instance_id,seq))
 
-    
-    
+
     def _convert_to_sparse_vector(self,feature_dict):
         data=feature_dict.values()
         row_col=feature_dict.keys()
@@ -66,9 +61,8 @@ class Vectorizer():
         col=[j for i,j in row_col]
         X=csr_matrix( (data,(row,col)), shape=(max(row)+1, self.feature_size))
         return X
-        
-        
-        
+
+
     def _transform(self, instance_id , seq):
         #extract kmer hash codes for all kmers up to r in all positions in seq
         neighborhood_hash_cache=[self._compute_neighborhood_hash(seq, pos) for pos in range(len(seq))]
@@ -83,11 +77,11 @@ class Vectorizer():
                     feature+=[radius]
                     for distance in range(self.d):
                         if pos+distance+radius<len(seq):
-                            feature+=[distance]
-                            feature+=[neighborhood_hash_cache[pos+distance][radius]]
-                            feature_code=self._fast_hash(feature)
-                            key=self._fast_hash([radius,distance])
-                            feature_list[key][feature_code]+=1
+                            feature += [distance]
+                            feature += [neighborhood_hash_cache[ pos + distance ][ radius ]]
+                            feature_code = util.fast_hash( feature, self.bitmask )
+                            key = util.fast_hash( [radius,distance], self.bitmask )
+                            feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
     
 
@@ -120,26 +114,8 @@ class Vectorizer():
 
 
     def _compute_neighborhood_hash(self,seq, pos):
-        #given the seq and the pos, extract all kmers up to size r in a vector
-        #at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
+        """Given the seq and the pos, extract all kmers up to size r in a vector
+        at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
+        """
         subseq=seq[pos:pos+self.r]
-        return self._fast_hash_vec_char(subseq)
-
-
-
-    def _fast_hash(self, vec):
-        running_hash = 0xAAAAAAAA
-        for i,list_item in enumerate(vec):
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-        return int(running_hash & self.bitmask)+1
-
-
-
-    def _fast_hash_vec_char(self, vec):
-        hash_vec=[]
-        running_hash = 0xAAAAAAAA
-        for i,list_item_str in enumerate(vec):
-            list_item=ord(list_item_str)
-            running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-            hash_vec+=[int(running_hash & self.bitmask)+1]
-        return hash_vec
+        return util.fast_hash_vec_char( subseq, self.bitmask )
