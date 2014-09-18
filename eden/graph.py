@@ -74,6 +74,45 @@ class Vectorizer(object):
         self.feature_size = self.bitmask+2
 
 
+    def transform(self,G_list, multiprocessing=False):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        (Compressed Sparse Row matrix).
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        multiprocessing : bool 
+            Switch to activate multi-core processing.
+        """
+        if multiprocessing:
+            return self._transform_parallel(G_list)
+        else:
+            return self._transform_serial(G_list)
+
+
+    #TODO: _transform_parallel(G_list)
+    
+
+    def _transform_serial(self,G_list):
+        feature_dict={}
+        for instance_id , G in enumerate(G_list):
+            feature_dict.update(self._transform(instance_id,G))
+        return self._convert_to_sparse_vector(feature_dict)
+
+
+    def transform_iter(self,G_list):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        (Compressed Sparse Row matrix) and returns one sparse row at a time.
+        This is a generator.
+        """
+        for instance_id , G in enumerate(G_list):
+            yield self._convert_to_sparse_vector(self._transform(instance_id,G))
+
+
     def _edge_to_vertex_transform(self, G_orig):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
@@ -122,45 +161,6 @@ class Vectorizer(object):
         return G
 
 
-    def transform(self,G_list, multiprocessing=False):
-        """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
-        (Compressed Sparse Row matrix).
-
-        Parameters
-        ----------
-        G_list : list of networkx graphs. 
-            The data.
-
-        multiprocessing : bool 
-            Switch to activate multi-core processing.
-        """
-        if multiprocessing:
-            return self._transform_parallel(G_list)
-        else:
-            return self._transform_serial(G_list)
-
-
-    #TODO: _transform_parallel(G_list)
-    
-
-    def _transform_serial(self,G_list):
-        feature_dict={}
-        for instance_id , G in enumerate(G_list):
-            feature_dict.update(self._transform(instance_id,G))
-        return self._convert_to_sparse_vector(feature_dict)
-
-
-    def transform_iter(self,G_list):
-        """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
-        (Compressed Sparse Row matrix) and returns one sparse row at a time.
-        This is a generator.
-        """
-        for instance_id , G in enumerate(G_list):
-            yield self._convert_to_sparse_vector(self._transform(instance_id,G))
-
-
     def _convert_to_sparse_vector(self,feature_dict):
         data=feature_dict.values()
         row_col=feature_dict.keys()
@@ -169,7 +169,6 @@ class Vectorizer(object):
         X=csr_matrix( (data,(row,col)), shape=(max(row)+1, self.feature_size))
         return X
    
-
 
     def _transform(self, instance_id , G):
         G=self._edge_to_vertex_transform(G)
