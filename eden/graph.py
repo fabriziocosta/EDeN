@@ -74,7 +74,7 @@ class Vectorizer(object):
         self.feature_size = self.bitmask+2
 
 
-    def transform(self,G_list, multiprocessing=False):
+    def fit(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -84,16 +84,42 @@ class Vectorizer(object):
         G_list : list of networkx graphs. 
             The data.
 
-        multiprocessing : bool 
-            Switch to activate multi-core processing.
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
         """
-        if multiprocessing:
-            return self._transform_parallel(G_list)
+        if n_jobs is 1:
+            return self._fit_serial(G_list, kernel_dict, hasher_dict)
         else:
+            return self._fit_parallel(G_list, kernel_dict, hasher_dict, n_jobs)
+
+
+    def transform(self,G_list, n_jobs=1):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        (Compressed Sparse Row matrix).
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
+        """
+        if n_jobs is 1:
             return self._transform_serial(G_list)
+        else:
+            return self._transform_parallel(G_list, n_jobs)
 
 
-    #TODO: _transform_parallel(G_list)
+    def _fit_serial(self, G_list, kernel_dict, hasher_dict):
+        for G in G_list:
+            self._fit(G, kernel_dict, hasher_dict)
+
+
+    #TODO: _fit_parallel(self, G_list, kernel_dict, hasher_dict):
+
+    #TODO: _transform_parallel(self,G_list):
     
 
     def _transform_serial(self,G_list):
