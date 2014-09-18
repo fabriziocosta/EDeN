@@ -16,7 +16,7 @@ from scipy import stats
 
 
 
-class vectorizer(object):
+class Vectorizer(object):
     """
     Transforms graphs in sparse vectors.
     """
@@ -400,7 +400,7 @@ class vectorizer(object):
 
 from sklearn.linear_model import SGDClassifier
 
-class importance_annotator(vectorizer):
+class ImportanceAnnotator(Vectorizer):
     def __init__(self,
         estimator=SGDClassifier(),
         r=3,
@@ -411,7 +411,7 @@ class importance_annotator(vectorizer):
         additional_pure_neighborhood_features=False,
         weighted=False
         ):
-        super(importance_annotator, self).__init__(r=r, 
+        super(ImportanceAnnotator, self).__init__(r=r, 
             d=d, 
             nbits=nbits, 
             normalization=normalization, 
