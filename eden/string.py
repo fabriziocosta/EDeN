@@ -2,8 +2,9 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
+import multiprocessing
 
-class vectorizer():
+class Vectorizer():
     def __init__(self, 
         r=3, 
         d=3, 
@@ -122,7 +123,7 @@ class vectorizer():
         #given the seq and the pos, extract all kmers up to size r in a vector
         #at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
         subseq=seq[pos:pos+self.r]
-        return self._fast_hash_vec(subseq)
+        return self._fast_hash_vec_char(subseq)
 
 
 
@@ -134,7 +135,7 @@ class vectorizer():
 
 
 
-    def _fast_hash_vec(self, vec):
+    def _fast_hash_vec_char(self, vec):
         hash_vec=[]
         running_hash = 0xAAAAAAAA
         for i,list_item_str in enumerate(vec):
