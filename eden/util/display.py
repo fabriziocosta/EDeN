@@ -1,15 +1,30 @@
 import networkx as nx
 import pylab as plt
 
-def draw_graph(graph, vertex_label='label', edge_label='label', vertex_color='', size=10, layout='graphviz', node_size=600):
+def draw_graph(graph, 
+    vertex_label='label', 
+    secondary_vertex_label='', 
+    edge_label='label', 
+    secondary_edge_label='', 
+    vertex_color='', 
+    size=10, 
+    layout='graphviz', 
+    node_size=600):
     
     plt.figure(figsize=(size,size))
     plt.grid(False)
     plt.axis('off')
     
-    vertex_labels=dict([(u,d[vertex_label]) for u,d in graph.nodes(data=True)])
-    edge_labels=dict([((u,v,),d[edge_label]) for u,v,d in graph.edges(data=True)])
+    if secondary_vertex_label:
+        vertex_labels=dict([(u,'%s\n%s'%(d[vertex_label],d[secondary_vertex_label])) for u,d in graph.nodes(data=True)])
+    else:
+        vertex_labels=dict([(u,d[vertex_label]) for u,d in graph.nodes(data=True)])
     
+    if secondary_edge_label:
+        edge_labels=dict([((u,v,),'%s\n%s'%(d[edge_label],d[secondary_edge_label])) for u,v,d in graph.edges(data=True)])
+    else:
+        edge_labels=dict([((u,v,),d[edge_label]) for u,v,d in graph.edges(data=True)])
+
     if vertex_color == '':
         node_color = 'white'
     else:
