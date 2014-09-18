@@ -6,13 +6,13 @@ import multiprocessing
 from eden.util import util
 
 class vectorizer():
-    def __init__(self, 
-        r=3, 
-        d=3, 
+    def __init__(self,
+        r=3,
+        d=3,
         nbits=20,
         normalization=True,
         inner_normalization=True):
-        
+
         self.r = r+1
         self.d = d+1
         self.nbits = nbits
@@ -20,17 +20,15 @@ class vectorizer():
         self.inner_normalization = inner_normalization
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
-        
-        
-        
+
+
     def transform(self,seq_list):
         #return self.transform_parallel(seq_list)
         return self.transform_serial(seq_list)
-    
-    
-    
+
+
     def transform_parallel(self,seq_list):
-        feature_dict={}
+        feature_dict = {}
         
         def my_callback( result ):
             feature_dict.update( result )
@@ -63,9 +61,8 @@ class vectorizer():
         col=[j for i,j in row_col]
         X=csr_matrix( (data,(row,col)), shape=(max(row)+1, self.feature_size))
         return X
-        
-        
-        
+
+
     def _transform(self, instance_id , seq):
         #extract kmer hash codes for all kmers up to r in all positions in seq
         neighborhood_hash_cache=[self._compute_neighborhood_hash(seq, pos) for pos in range(len(seq))]
@@ -104,7 +101,7 @@ class vectorizer():
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
                 total_norm += feature_vector_value*feature_vector_value
-        #global normalization
+
         if self.normalization:
             normalizationd_feature_vector = {}
             for feature, value in feature_vector.iteritems():
@@ -114,13 +111,12 @@ class vectorizer():
             return feature_vector
 
 
-
     def _compute_neighborhood_hash(self,seq, pos):
-        #given the seq and the pos, extract all kmers up to size r in a vector
-        #at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
+        """Given the seq and the pos, extract all kmers up to size r in a vector
+        at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
+        """
         subseq=seq[pos:pos+self.r]
         return self._fast_hash_vec(subseq)
-
 
 
     def _fast_hash(self, vec):
@@ -128,7 +124,6 @@ class vectorizer():
         for i,list_item in enumerate(vec):
             running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
         return int(running_hash & self.bitmask)+1
-
 
 
     def _fast_hash_vec(self, vec):
