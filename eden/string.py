@@ -2,6 +2,8 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
+import multiprocessing
+from eden.util import util
 
 class feature_constructor():
     def __init__(self, 
@@ -35,29 +37,25 @@ class feature_constructor():
         
         pool = multiprocessing.Pool()
         for instance_id,seq in enumerate(seq_list):
-            print instance_id
-            pool.apply_async( self._transform, args=(instance_id, 4), callback = my_callback)
+            util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
         pool.close()
         pool.join()
-        print feature_dict
+
         return self._convert_to_sparse_vector(feature_dict)
-            
-        
-        
+
+
     def transform_serial(self,seq_list):
         feature_dict={}
         for instance_id,seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id,seq))
         return self._convert_to_sparse_vector(feature_dict)
-        
-        
-        
+
+
     def transform_iter(self, seq_list):
         for instance_id , seq in enumerate(seq_list):
             yield self._convert_to_sparse_vector(self._transform(instance_id,seq))
 
-    
-    
+
     def _convert_to_sparse_vector(self,feature_dict):
         data=feature_dict.values()
         row_col=feature_dict.keys()
@@ -88,7 +86,6 @@ class feature_constructor():
                             key=self._fast_hash([radius,distance])
                             feature_list[key][feature_code]+=1
         return self._normalization(feature_list, instance_id)
-    
 
 
     def _normalization(self, feature_list, instance_id):
