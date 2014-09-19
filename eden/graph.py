@@ -109,7 +109,7 @@ class Vectorizer(object):
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs and then transforms a list of networkx graphs 
         into a Numpy csr sparse matrix (Compressed Sparse Row matrix).
-        
+
         The 'kernel_dict' dictionary specifies the appropriate approximate kernel mapping 
         strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
         hashing strategy to discretize the resulting approximate kernel mapping.
@@ -156,6 +156,15 @@ class Vectorizer(object):
 
 
     def _fit_serial(self, G_list, kernel_dict, hasher_dict):
+        #for all classes in kernel_dict 
+        #extract the data field in all graphs and build a Numpy csr sparse matrix
+        #fit the callable and store the fitted version as data member
+        #in transform:
+        #extract the data field in all graphs and build a Numpy csr sparse matrix
+        #extract a map row_id->(graph_id,node_id)
+        #apply the hasher
+        #store the resutl in the hlabel vector
+        #run the base transform
         for G in G_list:
             self._fit(G, kernel_dict, hasher_dict)
 

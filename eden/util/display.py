@@ -39,3 +39,32 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos, alpha=0.5)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
     plt.show()
+
+
+def draw_adjacency_graph (A,
+    node_color=[], 
+    size=10,
+    layout='graphviz', 
+    node_size=80):
+
+    graph=nx.from_scipy_sparse_matrix(A)
+
+    plt.figure(figsize=(size,size))
+    plt.grid(False)
+    plt.axis('off')
+
+    if layout == 'graphviz':
+        pos = nx.graphviz_layout(graph)
+    else:
+        pos = nx.spring_layout(graph)
+
+    if len(node_color)==0:
+        node_color='gray'
+    nx.draw_networkx_nodes(graph, pos, 
+                           node_color=node_color, 
+                           alpha=0.6, 
+                           node_size=node_size, 
+                           linewidths=0.1, 
+                           cmap = plt.get_cmap('PiYG'))
+    nx.draw_networkx_edges(graph, pos, alpha=0.5)
+    plt.show()
