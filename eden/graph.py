@@ -76,13 +76,24 @@ class Vectorizer(object):
 
     def fit(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
         """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
-        (Compressed Sparse Row matrix).
+        Constructs an approximate explicit mapping of a kernel function on the data 
+        stored in the nodes of the graphs.
+        The 'kernel_dict' dictionary specifies the appropriate approximate kernel mapping 
+        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
+        hashing strategy to discretize the resulting approximate kernel mapping.
 
         Parameters
         ----------
         G_list : list of networkx graphs. 
             The data.
+
+        kernel_dict : list of approximate mappers. 
+            The key matches the 'class' of nodes. The assocaited value is 
+            a pair (kernel approximation callable, parameters).
+
+        hasher_dict : list of localoty sensitive hashing (LSH) functions.
+            The key matches the 'class' of nodes. The assocaited value is 
+            a pair (LSH callable, parameters).
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
@@ -91,6 +102,38 @@ class Vectorizer(object):
             return self._fit_serial(G_list, kernel_dict, hasher_dict)
         else:
             return self._fit_parallel(G_list, kernel_dict, hasher_dict, n_jobs)
+
+
+    def fit_transform(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
+        """
+        Constructs an approximate explicit mapping of a kernel function on the data 
+        stored in the nodes of the graphs and then transforms a list of networkx graphs 
+        into a Numpy csr sparse matrix (Compressed Sparse Row matrix).
+        
+        The 'kernel_dict' dictionary specifies the appropriate approximate kernel mapping 
+        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
+        hashing strategy to discretize the resulting approximate kernel mapping.
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        kernel_dict : list of approximate mappers. 
+            The key matches the 'class' of nodes. The assocaited value is 
+            a pair (kernel approximation callable, parameters).
+
+        hasher_dict : list of localoty sensitive hashing (LSH) functions.
+            The key matches the 'class' of nodes. The assocaited value is 
+            a pair (LSH callable, parameters).
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
+        """
+        if n_jobs is 1:
+            return self._fit_transform_serial(G_list, kernel_dict, hasher_dict)
+        else:
+            return self._fit_transform_parallel(G_list, kernel_dict, hasher_dict, n_jobs)
 
 
     def transform(self,G_list, n_jobs=1):
