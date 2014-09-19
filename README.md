@@ -30,6 +30,10 @@ http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/ann
 
 http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/classification.ipynb
 
+*nearest neighbour and Gram matrix*
+
+http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/Nearest%20Neighbors%20and%20Gram%20Matrix.ipynb
+
 *learning curve*
 
 http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/learning_curve.ipynb
