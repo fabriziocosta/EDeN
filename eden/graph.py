@@ -10,8 +10,8 @@ from sklearn.linear_model import SGDClassifier
 from collections import deque
 from operator import itemgetter, attrgetter
 import itertools
-
 import networkx as nx
+import multiprocessing
 from eden.util import util
 
 
@@ -171,8 +171,19 @@ class Vectorizer(object):
 
     #TODO: _fit_parallel(self, G_list, kernel_dict, hasher_dict):
 
-    #TODO: _transform_parallel(self,G_list):
-    
+    def _transform_parallel(self,G_list, n_jobs):
+        feature_dict = {}
+        
+        def my_callback( result ):
+            feature_dict.update( result )
+        
+        pool = multiprocessing.Pool(n_jobs)
+        for instance_id , G in enumerate(G_list):
+            util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
+        pool.close()
+        pool.join()
+        return self._convert_to_sparse_vector(feature_dict)
+
 
     def _transform_serial(self,G_list):
         feature_dict={}
