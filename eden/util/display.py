@@ -64,7 +64,6 @@ def draw_adjacency_graph (A,
                            node_color=node_color, 
                            alpha=0.6, 
                            node_size=node_size, 
-                           linewidths=0.1, 
-                           cmap = plt.get_cmap('PiYG'))
+                           cmap = plt.get_cmap('autumn'))
     nx.draw_networkx_edges(graph, pos, alpha=0.5)
     plt.show()
