@@ -9,7 +9,8 @@ def draw_graph(graph,
     vertex_color='', 
     size=10, 
     layout='graphviz', 
-    node_size=600):
+    node_size=600,
+    node_border=True):
     
     plt.figure(figsize=(size,size))
     plt.grid(False)
@@ -33,8 +34,16 @@ def draw_graph(graph,
         pos = nx.graphviz_layout(graph)
     else:
         pos = nx.spring_layout(graph)
-    nx.draw_networkx_nodes(graph,pos,node_color=node_color,
-        alpha=0.6,node_size=node_size, cmap = plt.get_cmap('YlOrRd'))
+    if node_border == False :
+        linewidths = 0.001
+    else:
+        linewidths = 1
+    nx.draw_networkx_nodes(graph,pos,
+        node_color=node_color,
+        alpha=0.6,
+        node_size=node_size, 
+        linewidths=linewidths,
+        cmap = plt.get_cmap('YlOrRd'))
     nx.draw_networkx_labels(graph,pos, vertex_labels, font_size=9,font_color='black')
     nx.draw_networkx_edges(graph, pos, alpha=0.5)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
