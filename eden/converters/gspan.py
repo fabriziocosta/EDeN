@@ -24,17 +24,14 @@ def gspan_to_eden(name, input_type='url'):
     assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
 
     if input_type is 'file':
-        with open(name,'r') as f:
-            return _gspan_to_eden(f)
+        f=open(name,'r')
     elif input_type is 'url':
         import requests
         f=requests.get(name).text.split('\n')
-        return _gspan_to_eden(f)
-    elif input_type is 'list':
-        return _gspan_to_eden(name)        
-    else:
-        raise Exception('Unidentified input_type:%s'%input_type)
-
+    elif input_type == "list":
+        f = name
+    return _gspan_to_eden(f)        
+   
 
 
 def _gspan_to_eden(data_str_list):
