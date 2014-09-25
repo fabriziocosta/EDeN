@@ -272,7 +272,8 @@ class Vectorizer(object):
         feature_list=defaultdict(lambda : defaultdict(float))
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): #only for vertices of type 'node', i.e. not for the 'edge' type
-                self._transform_vertex(G, v, feature_list)
+                if d.get('viewpoint', False): #only for vertices with attribute 'viewpoint'
+                    self._transform_vertex(G, v, feature_list)
             if d.get('nesting', False): #only for vertices of type 'nesting'
                 self._transform_nesting_vertex(G, v, feature_list)
         return self._normalization(feature_list, instance_id)
