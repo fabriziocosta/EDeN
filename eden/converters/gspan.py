@@ -41,11 +41,16 @@ def _gspan_to_eden(data_str_list):
             if line.strip():
                 line_list=line.split()
                 fc=line_list[0]
-                if fc == 'v' : #insert vertex
+                if fc in ['v','V'] : #insert vertex
                     vid = int(line_list[1])
                     vlabel = line_list[2]
                     hvlabel = [hash(vlabel)]
-                    G.add_node(vid, label=vlabel, hlabel=hvlabel)
+                    if fc is 'v':
+                        viewpoint = True
+                    else:
+                        viewpoint = False
+                    G.add_node(vid, label=vlabel, hlabel=hvlabel, viewpoint=viewpoint)
+
                     #extract the rest of the line  as a JSON string
                     attribute_str=' '.join(line_list[3:])
                     if attribute_str.strip():
@@ -56,7 +61,7 @@ def _gspan_to_eden(data_str_list):
                     destid = int(line_list[2])
                     elabel = line_list[3]
                     helabel=[hash(elabel)]
-                    G.add_edge(srcid,destid, label=elabel, hlabel=helabel)
+                    G.add_edge(srcid,destid, label=elabel, hlabel=helabel, viewpoint=True)
                     attribute_str=' '.join(line_list[4:])
                     if attribute_str.strip():
                         attribute_dict=json.loads(attribute_str)
