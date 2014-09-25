@@ -6,15 +6,15 @@ import argparse
 import logging
 
 import numpy as np
-from sklearn import metrics
 from scipy import io
+from sklearn.neighbors import kneighbors_graph
 
 from eden import graph
 from eden.converters import gspan,node_link_data,obabel
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
-Gram matrix computation.
+Nearest neighbor computation.
 """
 EPILOG="""
 Cite:Costa, Fabrizio, and Kurt De Grave. 
@@ -30,6 +30,14 @@ def setup_parameters(parser):
 	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
     	help = "File format.", 
     	default = "gspan")
+	parser.add_argument( "-k","--num-nearest-neighbors",
+		dest = "num_neighbours",
+		type = int, 
+		help = "Number of nearest neighbors to compute.", 
+		default = 3)
+	parser.add_argument("-m", "--mode",  choices = ["connectivity", "distance"],
+    	help = "Type of returned matrix: 'connectivity' will return the connectivity matrix with ones and zeros, in 'distance' the edges are Euclidean distance between points.", 
+    	default = "distance")
 	parser.add_argument( "-r","--radius",
 		type = int, 
 		help = "Size of the largest radius used in EDeN.", 
@@ -47,17 +55,13 @@ def setup_parameters(parser):
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
 		default = "out")	
-	parser.add_argument("-t", "--output-format",  choices = ["numpy", "MatrixMarket"],
-    	dest = "output_format",
-    	help = "Output file format.", 
-    	default = "numpy")
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
 
 def main(args):
 	"""
-	Gram matrix computation.
+	Nearest neighbor computation.
 	"""
 	g_it = gspan.gspan_to_eden(args.input_file, input_type = "file")
 	if args.format is "node_link_data":
@@ -71,17 +75,13 @@ def main(args):
 	else:
 		n_jobs = args.n_jobs
 	X = vec.transform(g_it, n_jobs = n_jobs)
-
-	K = metrics.pairwise.pairwise_kernels(X, metric = "linear")
+	A = kneighbors_graph(X, args.num_neighbours, mode = args.mode)
 	
 	if not os.path.exists(args.output_dir_path) :
 		os.mkdir(args.output_dir_path)
-	out_file_name  =  "matrix"
+	out_file_name  =  "neighbors"
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
-	if args.output_format is "MatrixMarket":
-		io.mmwrite(full_out_file_name, K, precision=4)
-	elif args.output_format is "numpy":
-		np.savetxt(full_out_file_name, K, fmt = "%.4f")
+	io.mmwrite(full_out_file_name, A, precision=4)
 
 
 if __name__  == "__main__":
