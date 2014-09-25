@@ -31,6 +31,7 @@ class Vectorizer():
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
+            Use None to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._transform_serial(seq_list)

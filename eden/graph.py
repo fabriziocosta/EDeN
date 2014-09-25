@@ -97,6 +97,7 @@ class Vectorizer(object):
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
+            Use None to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._fit_serial(G_list, kernel_dict, hasher_dict)
@@ -129,6 +130,7 @@ class Vectorizer(object):
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
+            Use None to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._fit_transform_serial(G_list, kernel_dict, hasher_dict)
@@ -147,7 +149,8 @@ class Vectorizer(object):
             The data.
 
         n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1).
+            Number of jobs to run in parallel (default 1). 
+            Use None to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._transform_serial(G_list)
