@@ -41,22 +41,27 @@ def _gspan_to_eden(data_str_list):
             if line.strip():
                 line_list=line.split()
                 fc=line_list[0]
-                if fc in ['v','V'] : #insert vertex
+                #process vertices
+                if fc in ['v','V'] : 
                     vid = int(line_list[1])
                     vlabel = line_list[2]
                     hvlabel = [hash(vlabel)]
-                    if fc is 'v':
+                    #lowercase v indicates active viewpoint
+                    if fc == 'v':
                         viewpoint = True
-                    else:
+                    else: #uppercase v indicates no-viewpoint
                         viewpoint = False
                     G.add_node(vid, label=vlabel, hlabel=hvlabel, viewpoint=viewpoint)
-
-                    #extract the rest of the line  as a JSON string
+                    #abstract vertices
+                    if vlabel[0] == '^':
+                        G.node[vid]['nesting'] = True
+                    #extract the rest of the line  as a JSON string that contains all attributes
                     attribute_str=' '.join(line_list[3:])
                     if attribute_str.strip():
                         attribute_dict = json.loads(attribute_str)
                         G.node[vid].update(attribute_dict)
-                if fc == 'e' : #insert edge
+                #process edges
+                if fc == 'e' : 
                     srcid = int(line_list[1])
                     destid = int(line_list[2])
                     elabel = line_list[3]
