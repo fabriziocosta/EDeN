@@ -1,4 +1,7 @@
 import numpy as np
+from scipy import io
+from sklearn.externals import joblib
+import os
 
 
 def load_target(name, input_type='url'):
@@ -41,3 +44,14 @@ def load_target(name, input_type='url'):
 			return np.array(Y,int)
 	else:
 		raise Exception('Unidentified input_type:%s'%input_type)
+
+def output_matrix(output_dir_path='', out_file_name='', output_format='', matrix=''):
+	if not os.path.exists(output_dir_path) :
+		os.mkdir(output_dir_path)
+	full_out_file_name = os.path.join(output_dir_path, out_file_name)
+	if output_format == "MatrixMarket":
+		io.mmwrite(full_out_file_name, matrix, precision = None)
+	elif output_format == "numpy":
+		np.save(full_out_file_name, matrix)
+	elif output_format == "joblib":
+		joblib.dump(matrix, full_out_file_name) 
