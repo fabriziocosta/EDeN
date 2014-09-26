@@ -227,7 +227,10 @@ class Vectorizer(object):
             #and the corresponding edges
             G.add_edge(new_node_id,u, label=1)
             G.add_edge(new_node_id,v, label=1)    
-        G.graph['label_size']=label_size
+        G.graph['label_size'] = label_size
+        #we expect all vertices to have the attribute 'weight' in a weighted graph
+        if G.node[0].get('weight', False) == True:
+            G.graph['weighted'] = True
         return G
 
 
@@ -236,13 +239,13 @@ class Vectorizer(object):
         #start from a copy of the original graph
         G = nx.Graph(G_orig)
         #re-wire the endpoints of edge-vertices
-        for n,d in G_orig.nodes_iter(data=True):
+        for n,d in G_orig.nodes_iter(data = True):
             if d.get('edge', False) == True :
                 #extract the endpoints
-                endpoints=[u for u in G_orig.neighbors(n)]
-                assert (len(endpoints)==2), 'ERROR: more than 2 endpoints'
-                u=endpoints[0]
-                v=endpoints[1]
+                endpoints = [u for u in G_orig.neighbors(n)]
+                assert (len(endpoints) == 2), 'ERROR: more than 2 endpoints'
+                u = endpoints[0]
+                v = endpoints[1]
                 #add the corresponding edge
                 G.add_edge(u,v,d)
                 #remove the edge-vertex
@@ -254,11 +257,11 @@ class Vectorizer(object):
 
 
     def _convert_to_sparse_vector(self,feature_dict):
-        data=feature_dict.values()
-        row_col=feature_dict.keys()
-        row=[i for i,j in row_col]
-        col=[j for i,j in row_col]
-        X=csr_matrix( (data,(row,col)), shape=(max(row)+1, self.feature_size))
+        data = feature_dict.values()
+        row_col = feature_dict.keys()
+        row = [i for i,j in row_col]
+        col = [j for i,j in row_col]
+        X = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
         return X
    
 
@@ -266,11 +269,11 @@ class Vectorizer(object):
         G=self._edge_to_vertex_transform(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))       
         self._compute_neighborhood_graph_hash_cache(G)
-        if self.weighted :
+        if G.graph.get('weighted',False):#if self.weighted :
             self._compute_neighborhood_graph_weight_cache(G)
         #collect all features for all vertices for each  label_index
-        feature_list=defaultdict(lambda : defaultdict(float))
-        for v,d in G.nodes_iter(data=True):
+        feature_list = defaultdict(lambda : defaultdict(float))
+        for v,d in G.nodes_iter(data = True):
             if d.get('node', False): #only for vertices of type 'node', i.e. not for the 'edge' type
                 if d.get('viewpoint', False): #only for vertices with attribute 'viewpoint'
                     self._transform_vertex(G, v, feature_list)
@@ -281,12 +284,29 @@ class Vectorizer(object):
 
     def _transform_nesting_vertex(self, G, nesting_vertex, feature_list):
         #extract endpoints
-        nesting_endpoints=[u for u in G.neighbors(nesting_vertex)]
-        assert (len(nesting_endpoints)==2), 'ERROR: nesting error'
-        u=nesting_endpoints[0]
-        v=nesting_endpoints[1]
-        distance=1
-        self._transform_vertex_pair(G, v, u, distance, feature_list)
+        nesting_endpoints = [u for u in G.neighbors(nesting_vertex)]
+        if len(nesting_endpoints) == 2:
+            #new-style for nesting, in the original graph representation there are nesting edges 
+            u = nesting_endpoints[0]
+            v = nesting_endpoints[1]
+            distance = 1
+            self._transform_vertex_pair(G, v, u, distance, feature_list)
+        else:
+            #old-style for nesting, in the original graph representation there are nesting vertices 
+            #separate ^ from @ nodes
+            hat_nodes = [u for u in nesting_endpoints if G.node[u]['label'][0] == '^']
+            at_nodes = [u for u in nesting_endpoints if G.node[u]['label'][0] == '@']
+            #consider the neighbors of the neighbors
+            for h_node in hat_nodes:
+                hat_neighbors += [u for u in G.neighbors(h_node)]
+            hat_neighbors = set(hat_neighbors)
+            for a_node in at_nodes:
+                at_neighbors += [u for u in G.neighbors(a_node)]
+            at_neighbors = set(at_neighbors)
+            pair_list = [(u,v) for u in hat_neighbors for v in at_neighbors if G.node[u]['label'][0] != '^' and G.node[v]['label'][0] != '^']
+            for u,v in pair_list:
+                distance = 1
+                self._transform_vertex_pair(G, v, u, distance, feature_list)
 
 
     def _transform_vertex(self, G, v, feature_list):
@@ -308,7 +328,7 @@ class Vectorizer(object):
                     t = [G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
                     feature = util.fast_hash( t, self.bitmask )
                     key = util.fast_hash( [radius,distance], self.bitmask )
-                    if self.weighted == False :
+                    if G.graph.get('weighted',False) == False : #if self.weighted == False :
                         feature_list[key][feature]+=1
                     else :
                         feature_list[key][feature]+=G.node[v]['neighborhood_graph_weight'][radius]+G.node[u]['neighborhood_graph_weight'][radius]
@@ -317,7 +337,7 @@ class Vectorizer(object):
                         t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
                         feature = util.fast_hash( t, self.bitmask )
                         key = util.fast_hash( [radius,distance], self.bitmask )
-                        if self.weighted == False :
+                        if G.graph.get('weighted',False) == False : #if self.weighted == False :
                             feature_list[key][feature]+=1
                         else :
                             feature_list[key][feature]+=G.node[u]['neighborhood_graph_weight'][radius]

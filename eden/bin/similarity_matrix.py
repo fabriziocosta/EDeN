@@ -8,52 +8,22 @@ import logging
 import numpy as np
 from sklearn import metrics
 from scipy import io
+from sklearn.externals import joblib
 
 from eden import graph
 from eden.converters import gspan,node_link_data,obabel
+
+from eden.util.globals import EPILOG
+from eden.util import argument_parser
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
 Gram matrix computation.
 """
-EPILOG="""
-Cite:Costa, Fabrizio, and Kurt De Grave. 
-Fast neighborhood subgraph pairwise distance kernel. 
-Proceedings of the 26th International Conference on Machine Learning. 2010.
-"""
 
 def setup_parameters(parser):
-	parser.add_argument("-i", "--input-file",  
-    	dest = "input_file",
-    	help = "File name with graphs.", 
-    	required = True)
-	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
-    	help = "File format.", 
-    	default = "gspan")
-	parser.add_argument( "-r","--radius",
-		type = int, 
-		help = "Size of the largest radius used in EDeN.", 
-		default = 2)
-	parser.add_argument( "-d", "--distance",
-		type = int, 
-		help = "Size of the largest distance used in EDeN.", 
-		default = 5)
-	parser.add_argument( "-j", "--num-jobs",
-		dest = "n_jobs",
-		type = int, 
-		help = "The number of CPUs to use. -1 means 'all CPUs'.", 
-		default = -1)
-	parser.add_argument("-o", "--output-dir", 
-		dest = "output_dir_path", 
-		help = "Path to output directory.",
-		default = "out")	
-	parser.add_argument("-t", "--output-format",  choices = ["numpy", "MatrixMarket"],
-    	dest = "output_format",
-    	help = "Output file format.", 
-    	default = "numpy")
-	parser.add_argument("-v", "--verbosity", 
-		action = "count",
-		help = "Increase output verbosity")
+	argument_parser.setup_common_parameters(parser)
+
 
 def main(args):
 	"""
@@ -65,7 +35,7 @@ def main(args):
 	if args.format is "obabel":
 		g_it = obabel.obabel_to_eden(args.input_file, input_type = "file")
 	
-	vec = graph.Vectorizer(r = args.radius,d = args.distance)
+	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
 	if args.n_jobs is -1:
 		n_jobs = None
 	else:
@@ -78,10 +48,13 @@ def main(args):
 		os.mkdir(args.output_dir_path)
 	out_file_name  =  "matrix"
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
-	if args.output_format is "MatrixMarket":
+	if args.output_format == "MatrixMarket":
 		io.mmwrite(full_out_file_name, K, precision=4)
-	elif args.output_format is "numpy":
+	elif args.output_format == "numpy":
 		np.savetxt(full_out_file_name, K, fmt = "%.4f")
+		np.save(full_out_file_name, K)
+	elif args.output_format == "joblib":
+		joblib.dump(K, full_out_file_name) 
 
 
 if __name__  == "__main__":
