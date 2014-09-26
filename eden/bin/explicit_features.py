@@ -2,19 +2,22 @@
 
 import sys
 import os
-import argparse
 import logging
 
-import numpy as np
 from sklearn import metrics
+
+import numpy as np
 from scipy import io
 from sklearn.externals import joblib
 
 from eden import graph
 from eden.converters import gspan,node_link_data,obabel
 
-from eden.util.globals import EPILOG
+
 from eden.util import argument_parser
+from eden.util import logging_setup
+from eden.util import io as eden_io
+
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -34,40 +37,21 @@ def main(args):
 		g_it = node_link_data.node_link_data_to_eden(args.input_file, input_type = "file")
 	if args.format is "obabel":
 		g_it = obabel.obabel_to_eden(args.input_file, input_type = "file")
-	
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
 	if args.n_jobs is -1:
 		n_jobs = None
 	else:
 		n_jobs = args.n_jobs
 	X = vec.transform(g_it, n_jobs = n_jobs)
-
-	if not os.path.exists(args.output_dir_path) :
-		os.mkdir(args.output_dir_path)
-	out_file_name  =  "features"
-	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
-	if args.output_format == "MatrixMarket":
-		io.mmwrite(full_out_file_name, X, precision = None)
-	elif args.output_format == "numpy":
-		np.save(full_out_file_name, X)
-	elif args.output_format == "joblib":
-		joblib.dump(X, full_out_file_name) 
+	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0]))
+	eden_io.output_matrix(output_dir_path=args.output_dir_path, 
+		out_file_name="features", 
+		output_format=args.output_format, 
+		matrix=X)
 
 
 if __name__  == "__main__":
-	parser = argparse.ArgumentParser(description = DESCRIPTION,
-		epilog = EPILOG,
-		formatter_class = argparse.ArgumentDefaultsHelpFormatter)
-	setup_parameters(parser)
-	args = parser.parse_args()
-
-	log_level = logging.INFO
-	if args.verbosity == 1:
-		log_level = logging.WARNING
-		print "WARNING"
-	elif args.verbosity >= 2:
-		log_level = logging.DEBUG
-		print "DEBUG"
-	logging.basicConfig(level = log_level)
-
+	args=logging_setup.setup(DESCRIPTION, setup_parameters)
+	logging.info('Started')
 	main(args)
+	logging.info('Finished')
