@@ -28,10 +28,11 @@ def setup_common_parameters(parser):
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
 		default = "out")	
-	parser.add_argument("-t", "--output-format",  choices = ["numpy", "MatrixMarket", "joblib"],
+	parser.add_argument("-t", "--output-format",  choices = ["text", "numpy", "MatrixMarket", "joblib"],
     	dest = "output_format",
     	help = "Output file format.", 
     	default = "MatrixMarket")
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
+	return parser

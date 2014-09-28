@@ -97,7 +97,7 @@ class Vectorizer(object):
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
-            Use None to indicate the total number of CPUs available.
+            Use -1 to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._fit_serial(G_list, kernel_dict, hasher_dict)
@@ -130,7 +130,7 @@ class Vectorizer(object):
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
-            Use None to indicate the total number of CPUs available.
+            Use -1 to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._fit_transform_serial(G_list, kernel_dict, hasher_dict)
@@ -150,7 +150,7 @@ class Vectorizer(object):
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1). 
-            Use None to indicate the total number of CPUs available.
+            Use -1 to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._transform_serial(G_list)
@@ -180,6 +180,8 @@ class Vectorizer(object):
         def my_callback( result ):
             feature_dict.update( result )
         
+        if n_jobs == -1:
+            n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
         for instance_id , G in enumerate(G_list):
             util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
