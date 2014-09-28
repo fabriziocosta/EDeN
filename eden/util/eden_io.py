@@ -4,7 +4,7 @@ from sklearn.externals import joblib
 import os
 
 
-def load_target(name, input_type='url'):
+def load_target(name, input_type = 'url'):
 	"""
     Return a numpy array of integers to be used as target vector.
 
@@ -43,9 +43,9 @@ def load_target(name, input_type='url'):
 			Y=[target_map[target] for target in Ys]
 			return np.array(Y,int)
 	else:
-		raise Exception('Unidentified input_type:%s'%input_type)
+		raise Exception("Unidentified input_type:%s" % input_type)
 
-def output_matrix(output_dir_path='', out_file_name='', output_format='', matrix=''):
+def store_matrix(matrix = '', output_dir_path = '', out_file_name = '', output_format = ''):
 	if not os.path.exists(output_dir_path) :
 		os.mkdir(output_dir_path)
 	full_out_file_name = os.path.join(output_dir_path, out_file_name)
@@ -54,4 +54,25 @@ def output_matrix(output_dir_path='', out_file_name='', output_format='', matrix
 	elif output_format == "numpy":
 		np.save(full_out_file_name, matrix)
 	elif output_format == "joblib":
-		joblib.dump(matrix, full_out_file_name) 
+		joblib.dump(matrix, full_out_file_name)
+	elif output_format == "text":
+		with open(full_out_file_name, "w") as f:
+			if len(matrix.shape) == 1:
+				data_str = [str(x) for x in matrix]
+				f.write('\n'.join(data_str))
+			else:
+				raise Exception("Currently 'text' format supports only mono dimensional array and not matrices")
+
+
+def dump(obj, output_dir_path = '', out_file_name = ''):
+	if not os.path.exists(output_dir_path) :
+		os.mkdir(output_dir_path)
+	full_out_file_name = os.path.join(output_dir_path, out_file_name) + ".pkl"
+	joblib.dump(obj, full_out_file_name) 
+
+def load(output_dir_path = '', out_file_name = ''):
+	if not os.path.exists(output_dir_path) :
+		os.mkdir(output_dir_path)
+	full_out_file_name = os.path.join(output_dir_path, out_file_name) + ".pkl"
+	obj=joblib.load(full_out_file_name) 
+	return obj

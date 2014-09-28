@@ -31,7 +31,7 @@ class Vectorizer():
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
-            Use None to indicate the total number of CPUs available.
+            Use -1 to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
             return self._transform_serial(seq_list)
@@ -45,6 +45,8 @@ class Vectorizer():
         def my_callback( result ):
             feature_dict.update( result )
         
+        if n_jobs == -1:
+            n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
         for instance_id,seq in enumerate(seq_list):
             util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
