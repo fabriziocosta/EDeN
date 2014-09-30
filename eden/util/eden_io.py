@@ -50,7 +50,10 @@ def store_matrix(matrix = '', output_dir_path = '', out_file_name = '', output_f
 		os.mkdir(output_dir_path)
 	full_out_file_name = os.path.join(output_dir_path, out_file_name)
 	if output_format == "MatrixMarket":
-		io.mmwrite(full_out_file_name, matrix, precision = None)
+		if len(matrix.shape) == 1:
+			raise Exception("'MatrixMarket' format supports only 2D dimensional array and not vectors")
+		else:
+			io.mmwrite(full_out_file_name, matrix, precision = None)
 	elif output_format == "numpy":
 		np.save(full_out_file_name, matrix)
 	elif output_format == "joblib":
