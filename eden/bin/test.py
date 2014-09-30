@@ -40,9 +40,12 @@ def main(args):
 	#test SGD predicitve model
 	predictions = clf.predict(X)
 	margins = clf.decision_function(X)
-
 	logging.info('Prediction: %d instances' % (predictions.shape[0]))
+
 	#save results
+	#temporary hack
+	if args.output_format == "MatrixMarket":
+		args.output_format = "text"
 	eden_io.store_matrix(matrix = predictions, output_dir_path = args.output_dir_path, out_file_name = "predictions", output_format = args.output_format)
 	eden_io.store_matrix(matrix = margins, output_dir_path = args.output_dir_path, out_file_name = "margins", output_format = args.output_format)
 

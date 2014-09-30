@@ -230,8 +230,11 @@ class Vectorizer(object):
             G.add_edge(new_node_id,u, label=1)
             G.add_edge(new_node_id,v, label=1)    
         G.graph['label_size'] = label_size
+
+        #determine if weighted graph
         #we expect all vertices to have the attribute 'weight' in a weighted graph
-        if G.node[0].get('weight', False) == True:
+        assert(G.number_of_nodes() > 0),'ERROR: Empty graph'
+        if 'weight' in G.nodes(data=True)[0][1]: #check the attributes of the first node
             G.graph['weighted'] = True
         return G
 
@@ -259,6 +262,7 @@ class Vectorizer(object):
 
 
     def _convert_to_sparse_vector(self,feature_dict):
+        assert(len(feature_dict)>0),'ERROR: something went wrong, empty feature_dict'
         data = feature_dict.values()
         row_col = feature_dict.keys()
         row = [i for i,j in row_col]
@@ -268,7 +272,7 @@ class Vectorizer(object):
    
 
     def _transform(self, instance_id , G):
-        G=self._edge_to_vertex_transform(G)
+        G = self._edge_to_vertex_transform(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))       
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):#if self.weighted :
@@ -418,26 +422,26 @@ class Vectorizer(object):
         #compute the geometric mean weight on edges
         #compute the pruduct of the two
         #make a list of the neighborhood_graph_weight at every distance
-        neighborhood_graph_weight_list=[]
-        w=G.node[root]['weight']
-        node_weight_list=np.array([w])
-        node_average=node_weight_list[0]
-        edge_weight_list=np.array([1])
-        edge_average=edge_weight_list[0]
+        neighborhood_graph_weight_list = []
+        w = G.node[root]['weight']
+        node_weight_list = np.array([w])
+        node_average = node_weight_list[0]
+        edge_weight_list = np.array([1])
+        edge_average = edge_weight_list[0]
         #for all distances 
-        root_dist_dict=G.node[root]['distant_neighbours']
+        root_dist_dict = G.node[root]['distant_neighbours']
         for distance, node_set in root_dist_dict.iteritems():
             #extract array of weights at given distance
-            weight_array_at_d=np.array([G.node[v]['weight'] for v in node_set])
+            weight_array_at_d = np.array([G.node[v]['weight'] for v in node_set])
             if distance % 2 == 0: #nodes
-                node_weight_list=np.concatenate((node_weight_list, weight_array_at_d))
-                node_average=mean(node_weight_list)
-            else :
-                edge_weight_list=np.concatenate((edge_weight_list, weight_array_at_d))
-                edge_average=stats.mstats.gmean(edge_weight_list)
-            weight=node_average*edge_average
+                node_weight_list = np.concatenate((node_weight_list, weight_array_at_d))
+                node_average = np.mean(node_weight_list)
+            else : #edges
+                edge_weight_list = np.concatenate((edge_weight_list, weight_array_at_d))
+                edge_average = np.mean(edge_weight_list)
+            weight = node_average + edge_average
             neighborhood_graph_weight_list.append(weight)
-        G.node[root]['neighborhood_graph_weight']=neighborhood_graph_weight_list
+        G.node[root]['neighborhood_graph_weight'] = neighborhood_graph_weight_list
 
 
     def _single_vertex_breadth_first_visit(self, G, root, max_depth):
@@ -490,16 +494,19 @@ class ImportanceAnnotator(Vectorizer):
         normalization=True,
         inner_normalization=True,
         additional_pure_neighborhood_features=False,
-        weighted=False
+        reweight=False
         ):
         super(ImportanceAnnotator, self).__init__(r=r, 
             d=d, 
             nbits=nbits, 
             normalization=normalization, 
             inner_normalization=inner_normalization, 
-            additional_pure_neighborhood_features=additional_pure_neighborhood_features, 
-            weighted=weighted)
+            additional_pure_neighborhood_features=additional_pure_neighborhood_features)
         self._estimator=estimator
+        if reweight:
+            self.score_key = "weight"
+        else:
+            self.score_key = "importance"
 
 
     def transform(self,G_list):
@@ -534,9 +541,11 @@ class ImportanceAnnotator(Vectorizer):
         #compute distance from hyperplane as proxy of vertex importance
         margins=self._estimator.decision_function(X)
         #annotate graph structure with vertex importance
-        vertex_id=0
+        vertex_id = 0
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): 
-                G.node[v]['importance']=margins[vertex_id]
-                vertex_id+=1
+                G.node[v][self.score_key] = margins[vertex_id]
+                vertex_id += 1
+            if d.get('edge', False): 
+                G.node[v][self.score_key] = 1
         return self._revert_edge_to_vertex_transform(G)
