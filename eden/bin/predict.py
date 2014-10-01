@@ -13,7 +13,7 @@ from eden.util import argument_parser, setup, eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
-Test predictive model.
+Predict using model.
 """
 
 def setup_parameters(parser):
@@ -23,7 +23,7 @@ def setup_parameters(parser):
 
 def main(args):
 	"""
-	Test predictive model.
+	Predict using model.
 	"""
 	#load models
 	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
@@ -37,7 +37,7 @@ def main(args):
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 
-	#test SGD predicitve model
+	#compute predictions using SGD model
 	predictions = clf.predict(X)
 	margins = clf.decision_function(X)
 	logging.info('Prediction: %d instances' % (predictions.shape[0]))
