@@ -28,8 +28,7 @@ class Vectorizer(object):
         nbits=20,
         normalization=True,
         inner_normalization=True,
-        additional_pure_neighborhood_features=False,
-        weighted=False):
+        additional_pure_neighborhood_features=False):
         """
         Parameters
         ----------
@@ -57,11 +56,6 @@ class Vectorizer(object):
             with the caveat that the first neighborhood is omitted.
             The purpose of these features is to allow vertices that have similar contexts to be 
             matched, even when they are completely different. 
-
-        weighted : bool 
-            If set the occurrence of each neighborhood is weighted by 
-            aritmetic_mean(w(V))*geometric_mean(w(E)), where w(V) is the weight function for the 
-            vertices and w(E) is the weight function for the edges. 
         """
         self.r = (r+1)*2
         self.d = (d+1)*2
@@ -69,7 +63,6 @@ class Vectorizer(object):
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.additional_pure_neighborhood_features = additional_pure_neighborhood_features
-        self.weighted = weighted
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
 
@@ -271,12 +264,17 @@ class Vectorizer(object):
         return X
    
 
-    def _transform(self, instance_id , G):
-        G = self._edge_to_vertex_transform(G)
+    def _graph_preprocessing(self, G_orig):
+        G=self._edge_to_vertex_transform(G_orig)
         self._compute_distant_neighbours(G, max(self.r,self.d))       
         self._compute_neighborhood_graph_hash_cache(G)
-        if G.graph.get('weighted',False):#if self.weighted :
+        if G.graph.get('weighted',False):
             self._compute_neighborhood_graph_weight_cache(G)
+        return G
+
+
+    def _transform(self, instance_id , G_orig):
+        G = self._graph_preprocessing(G_orig)
         #collect all features for all vertices for each  label_index
         feature_list = defaultdict(lambda : defaultdict(float))
         for v,d in G.nodes_iter(data = True):
@@ -438,8 +436,8 @@ class Vectorizer(object):
                 node_average = np.mean(node_weight_list)
             else : #edges
                 edge_weight_list = np.concatenate((edge_weight_list, weight_array_at_d))
-                edge_average = np.mean(edge_weight_list)
-            weight = node_average + edge_average
+                edge_average = stats.gmean(edge_weight_list)
+            weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
         G.node[root]['neighborhood_graph_weight'] = neighborhood_graph_weight_list
 
@@ -485,28 +483,38 @@ class Vectorizer(object):
         
 
 
-class ImportanceAnnotator(Vectorizer):
+class Annotator(Vectorizer):
     def __init__(self,
-        estimator=SGDClassifier(),
-        r=3,
-        d=3,
-        nbits=20,
-        normalization=True,
-        inner_normalization=True,
-        additional_pure_neighborhood_features=False,
-        reweight=False
-        ):
-        super(ImportanceAnnotator, self).__init__(r=r, 
-            d=d, 
-            nbits=nbits, 
-            normalization=normalization, 
-            inner_normalization=inner_normalization, 
-            additional_pure_neighborhood_features=additional_pure_neighborhood_features)
+        estimator = SGDClassifier(),
+        vectorizer = Vectorizer(),
+        reweight = 1.0):
+        """
+        Parameters
+        ----------
+        estimator : scikit-learn style predictor 
+            
+
+        vectorizer : EDeN graph vectorizer 
+            
+
+        reweight : float
+            Update the 'weight' information as a linear combination of the previuous weight and 
+            the absolute value of the margin. 
+            If reweight = 0 then do not update.
+            If reweight = 1 then discard previous weight information and use only abs(margin)
+            If reweight = 0.5 then update with the aritmetic mean of the previous weight information 
+            and the abs(margin)
+        """
         self._estimator=estimator
-        if reweight:
-            self.score_key = "weight"
-        else:
-            self.score_key = "importance"
+        self.reweight = reweight
+        self.r = vectorizer.r 
+        self.d = vectorizer.d
+        self.nbits = vectorizer.nbits
+        self.normalization = vectorizer.normalization
+        self.inner_normalization = vectorizer.inner_normalization
+        self.additional_pure_neighborhood_features = vectorizer.additional_pure_neighborhood_features
+        self.bitmask = vectorizer.bitmask
+        self.feature_size = vectorizer.feature_size
 
 
     def transform(self,G_list):
@@ -523,12 +531,30 @@ class ImportanceAnnotator(Vectorizer):
 
     def _annotate_vertex_importance(self, G_orig):
         #pre-processing phase: compute caches
-        G=self._edge_to_vertex_transform(G_orig)
-        self._compute_distant_neighbours(G, max(self.r,self.d))       
-        self._compute_neighborhood_graph_hash_cache(G)
-        if self.weighted :
-            self._compute_neighborhood_graph_weight_cache(G)
+        G = self._graph_preprocessing(G_orig)
         #extract per vertex feature representation
+        X = self._compute_vertex_based_features(G)
+        #compute distance from hyperplane as proxy of vertex importance
+        margins=self._estimator.decision_function(X)
+        #annotate graph structure with vertex importance
+        vertex_id = 0
+        for v,d in G.nodes_iter(data=True):
+            if d.get('node', False): 
+                #annotate the 'importance' attribute with the margin
+                G.node[v]["importance"] = margins[vertex_id] 
+                #update the 'weight' information as a linear combination of the previuous weight and the absolute margin 
+                if G.node[v].has_key("weight") and self.reweight != 0:
+                    G.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1-self.reweight) * G.node[v]["weight"] 
+                else: #in case the original graph was not weighted then instantiate the 'weight' with the absolute margin 
+                    G.node[v]["weight"] = abs(margins[vertex_id])
+                vertex_id += 1
+            if d.get('edge', False): #keep the weight of edges
+                if G.node[v].has_key("weight") == False: #..unless they were unweighted, in this case add unit weight
+                    G.node[v]["weight"] = 1
+        return self._revert_edge_to_vertex_transform(G)
+
+
+    def _compute_vertex_based_features(self, G):
         feature_dict={}
         vertex_id=0
         for v,d in G.nodes_iter(data=True):
@@ -538,14 +564,4 @@ class ImportanceAnnotator(Vectorizer):
                 feature_dict.update(self._normalization(feature_list,vertex_id))
                 vertex_id+=1
         X=self._convert_to_sparse_vector(feature_dict)
-        #compute distance from hyperplane as proxy of vertex importance
-        margins=self._estimator.decision_function(X)
-        #annotate graph structure with vertex importance
-        vertex_id = 0
-        for v,d in G.nodes_iter(data=True):
-            if d.get('node', False): 
-                G.node[v][self.score_key] = margins[vertex_id]
-                vertex_id += 1
-            if d.get('edge', False): 
-                G.node[v][self.score_key] = 1
-        return self._revert_edge_to_vertex_transform(G)
+        return X
