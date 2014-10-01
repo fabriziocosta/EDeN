@@ -18,7 +18,7 @@ from eden.util import argument_parser, setup, eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
-Train predictive model.
+Fit predictive model.
 """
 
 def setup_parameters(parser):
@@ -71,7 +71,7 @@ def optimize_predictor(clf, X, y, n_iter_search = 20, cv = 3, scoring = "roc_auc
 
 def main(args):
 	"""
-	Train predictive model.
+	Fit predictive model.
 	"""
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
