@@ -1,3 +1,0 @@
-time ./eden/bin/fit.py -i examples/bursi.gspan -y examples/bursi.target -r 1 -d 3 --output-CV-performance
-time ./eden/bin/annotate.py -i examples/bursi.gspan
-time ./eden/bin/fit.py -i out/annotated_node_link_data -y examples/bursi.target -r 1 -d 3 -f node_link_data --output-CV-performance -o out_ann
