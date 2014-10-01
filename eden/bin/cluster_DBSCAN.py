@@ -5,7 +5,7 @@ import os
 import logging
 
 from sklearn.cluster import DBSCAN
-from sklearn.decomposition import RandomizedPCA
+from sklearn.decomposition import TruncatedSVD
 import numpy as np
 
 from eden import graph
@@ -23,11 +23,11 @@ def setup_parameters(parser):
 		type = float, 
 		default = 0.5,
 		help = "The maximum distance between two samples for them to be considered as in the same neighborhood.")
-	parser.add_argument( "-g","--num-components",
-		dest = "num_components",
+	parser.add_argument( "-n","--num-components",
+		dest = "n_components",
 		type = int, 
 		help = "Number of dimensions for PCA approximation.", 
-		default = 256)
+		default = 128)
 	return parser
 
 
@@ -44,15 +44,23 @@ def main(args):
 	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 
 	#project to lower dimensional space to use clustering algorithms
-	pca = RandomizedPCA(n_components=args.num_components)
-	X_dense=pca.fit_transform(X)
+	transformer = TruncatedSVD(n_components=args.n_components)
+	X_dense=transformer.fit_transform(X)
+
+	#log statistics on data
+	logging.info('Dimensionality reduction Instances: %d Features: %d with an avg of %d features per instance' % (X_dense.shape[0], X_dense.shape[1], X.getnnz() / X.shape[0]))
 
 	#clustering
 	clustering_algo = DBSCAN(eps = args.eps)
-	y = clustering_algo.fit_predict(X_dense) 
+	y = clustering_algo.fit_predict(X_dense)
+
+	#log statistics on data
+	logging.info('Clusters: %d ' % len(set(y)))
 
 	#save model
 	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
+	
+	#save result
 	eden_io.store_matrix(matrix = y, output_dir_path = args.output_dir_path, out_file_name = "labels", output_format = "text")
 
 
