@@ -66,6 +66,7 @@ def draw_adjacency_graph (A,
     node_color=[], 
     size=10,
     layout='graphviz', 
+    prog = 'neato',
     node_size=80):
 
     graph=nx.from_scipy_sparse_matrix(A)
@@ -75,7 +76,7 @@ def draw_adjacency_graph (A,
     plt.axis('off')
 
     if layout == 'graphviz':
-        pos = nx.graphviz_layout(graph)
+        pos = nx.graphviz_layout(graph, prog = prog)
     else:
         pos = nx.spring_layout(graph)
 
