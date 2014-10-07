@@ -208,6 +208,9 @@ class Vectorizer(object):
         label_size=0
         for n,d in G_orig.nodes_iter(data=True):
             d['node']=True
+            #if hlabel is not present than create one
+            if d.get('hlabel', False) == False :
+                d['hlabel'] = [hash(d['label'])]
             if label_size == 0 :
                 label_size = len(d['hlabel'])
             else :
@@ -217,6 +220,9 @@ class Vectorizer(object):
         for u,v,d in G_orig.edges_iter(data=True):
             new_node_id='%s|%s'%(u,v)
             d['edge']=True
+            #if hlabel is not present than create one
+            if d.get('hlabel', False) == False :
+                d['hlabel'] = [hash(d['label'])]
             assert(label_size == len(d['hlabel'])),'ERROR: not all label vectors have the same length: edge: %s-%s on graph:\n %s'%(u,v, self._serialize(G_orig))
             G.add_node(new_node_id, d)
             #and the corresponding edges
