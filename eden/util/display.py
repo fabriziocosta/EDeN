@@ -9,6 +9,7 @@ def draw_graph(graph,
     vertex_color='', 
     size=10, 
     layout='graphviz', 
+    prog = 'neato',
     node_size=600,
     node_border=True):
     
@@ -31,9 +32,20 @@ def draw_graph(graph,
     else:
         node_color=[graph.node[u][vertex_color] for u in graph.nodes()]
     if layout == 'graphviz':
-        pos = nx.graphviz_layout(graph)
-    else:
+        pos = nx.graphviz_layout(graph, prog = prog)
+    elif layout == 'circular':
+        pos = nx.circular_layout(graph)
+    elif layout == 'random':
+        pos = nx.random_layout(graph)
+    elif layout == 'spring':
         pos = nx.spring_layout(graph)
+    elif layout == 'shell':
+        pos = nx.shell_layout(graph)
+    elif layout == 'spectral':
+        pos = nx.spectral_layout(graph)
+    else:
+        raise Exception('Unknown layout format: %s' % layout)
+
     if node_border == False :
         linewidths = 0.001
     else:
