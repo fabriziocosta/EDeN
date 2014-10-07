@@ -42,13 +42,12 @@ def _gspan_to_eden(data_str_list):
                 if fc in ['v','V'] : 
                     vid = int(line_list[1])
                     vlabel = line_list[2]
-                    hvlabel = [hash(vlabel)]
                     #lowercase v indicates active viewpoint
                     if fc == 'v':
                         viewpoint = True
                     else: #uppercase v indicates no-viewpoint
                         viewpoint = False
-                    G.add_node(vid, label = vlabel, hlabel = hvlabel, viewpoint = viewpoint)
+                    G.add_node(vid, label = vlabel, viewpoint = viewpoint)
                     #abstract vertices
                     if vlabel[0] == '^':
                         G.node[vid]['nesting'] = True
@@ -62,8 +61,7 @@ def _gspan_to_eden(data_str_list):
                     srcid = int(line_list[1])
                     destid = int(line_list[2])
                     elabel = line_list[3]
-                    helabel=[hash(elabel)]
-                    G.add_edge(srcid, destid, label = elabel, hlabel = helabel, viewpoint = True)
+                    G.add_edge(srcid, destid, label = elabel, viewpoint = True)
                     attribute_str=' '.join(line_list[4:])
                     if attribute_str.strip():
                         attribute_dict=json.loads(attribute_str)
