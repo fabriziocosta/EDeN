@@ -204,6 +204,11 @@ class Vectorizer(object):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
         G=nx.Graph()
+        #determine if weighted graph
+        #we expect all vertices to have the attribute 'weight' in a weighted graph
+        assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
+        if 'weight' in G_orig.nodes(data=True)[0][1]: #check the attributes of the first node
+            G.graph['weighted'] = True
         #build a graph that has as vertices the original vertex set
         label_size=0
         for n,d in G_orig.nodes_iter(data=True):
@@ -224,17 +229,14 @@ class Vectorizer(object):
             if d.get('hlabel', False) == False :
                 d['hlabel'] = [hash(d['label'])]
             assert(label_size == len(d['hlabel'])),'ERROR: not all label vectors have the same length: edge: %s-%s on graph:\n %s'%(u,v, self._serialize(G_orig))
+            #if the graph has to be weighted but does not contain edge weights then assume unitary edge weights
+            if d.get('weight', False) == False :
+                d['weight'] = 1
             G.add_node(new_node_id, d)
             #and the corresponding edges
             G.add_edge(new_node_id,u, label=1)
             G.add_edge(new_node_id,v, label=1)    
         G.graph['label_size'] = label_size
-
-        #determine if weighted graph
-        #we expect all vertices to have the attribute 'weight' in a weighted graph
-        assert(G.number_of_nodes() > 0),'ERROR: Empty graph'
-        if 'weight' in G.nodes(data=True)[0][1]: #check the attributes of the first node
-            G.graph['weighted'] = True
         return G
 
 
