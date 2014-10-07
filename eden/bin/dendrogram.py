@@ -64,11 +64,11 @@ def main(args):
 	#compute distance matrix
  	D = metrics.pairwise.pairwise_distances(X, metric = 'cosine')
 	
-	# Compute and plot dendrogram.
+	#compute dendrogram
 	fig = pl.figure(figsize = (args.plot_size,args.plot_size//10))
 	dendrogram(linkage(D, method = args.linkage), color_threshold = args.color_threshold,labels = annotations)
-	#dendrogram(linkage(D, method='average'), color_threshold=5)
 
+	#plot dendrogram
 	ax = fig.add_subplot(111)
 	ax.plot([1,2,3])
 	labels = ax.get_xticklabels()
