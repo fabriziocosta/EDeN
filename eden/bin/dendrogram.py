@@ -62,7 +62,7 @@ def main(args):
 		annotations = ['%d:%s' % (num,y.strip()) for num,y in enumerate(f)]
 
 	#compute distance matrix
- 	D = metrics.pairwise.pairwise_distances(X, metric = 'cosine')
+ 	D = metrics.pairwise.pairwise_distances(X, metric = 'cosine', n_jobs = args.n_jobs)
 	
 	#compute dendrogram
 	fig = pl.figure(figsize = (args.plot_size//10,args.plot_size))
@@ -70,10 +70,6 @@ def main(args):
 		color_threshold = args.color_threshold,
 		labels = annotations, 
 		orientation = 'right')
-
-	#plot dendrogram
-#	ax = fig.add_subplot(111)
-#	ax.plot([1,2,3])
 
 	#save plot
 	out_file_name = 'dendrogram.pdf'
@@ -87,6 +83,7 @@ if __name__  == "__main__":
 	args = setup.setup(DESCRIPTION, setup_parameters)
 	logging.info('Program: %s' % sys.argv[0])
 	logging.info('Started')
+	logging.info('Parameters: %s' % args)
 	main(args)
 	logging.info('Finished')
 
