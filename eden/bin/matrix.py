@@ -17,15 +17,15 @@ Pairwise matrix computation.
 
 def setup_parameters(parser):
 	parser = argument_parser.setup_common_parameters(parser)
-	parser.add_argument("-t", "--type",  choices = ["similarity","distance"],
-    	help = "", 
+	parser.add_argument("-m", "--mode",  choices = ["similarity","distance"],
+    	help = "switch between pairwise similarity or distance computation.", 
     	default = "similarity")
 	parser.add_argument("--distance-metric",  choices = ["cityblock", "cosine", "euclidean", "l1", "l2", "manhattan"],
     	dest = "distance_metric",
-    	help = """Note that in the case of ‘cityblock’, ‘cosine’ and ‘euclidean’ 
+    	help = """Note that in the case of 'cityblock', 'cosine' and 'euclidean' 
     	(which are valid scipy.spatial.distance metrics), the scikit-learn implementation 
     	will be used, which is faster and has support for sparse matrices 
-    	(except for ‘cityblock’).""", 
+    	(except for 'cityblock').""", 
     	default = "euclidean")
 	parser.add_argument("--similarity-metric",  choices = ["rbf", "sigmoid", "polynomial", "poly", "linear", "cosine"],
     	dest = "similarity_metric",
@@ -33,6 +33,7 @@ def setup_parameters(parser):
     	default = "linear")
 	return parser
 
+#TODO:support for kernel parameters from arguments
 
 def main(args):
 	"""
@@ -46,10 +47,11 @@ def main(args):
 	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0]))
 
 	#compute pairwise matrix
-	if args.type == "similarity":
+	if args.mode == "similarity":
 		K = metrics.pairwise.pairwise_kernels(X, metric = args.similarity_metric, n_jobs = args.n_jobs)
-	elif args.type == "distance":
+	elif args.mode == "distance":
 		K = metrics.pairwise.pairwise_distances(X, metric = args.distance_metric, n_jobs = args.n_jobs)
+	
 	#output
 	eden_io.store_matrix(matrix = K, output_dir_path = args.output_dir_path, out_file_name = "matrix", output_format = args.output_format)
 
@@ -58,5 +60,6 @@ if __name__  == "__main__":
 	args = setup.setup(DESCRIPTION, setup_parameters)
 	logging.info('Program: %s' % sys.argv[0])
 	logging.info('Started')
+	logging.info('Parameters: %s' % args)
 	main(args)
 	logging.info('Finished')

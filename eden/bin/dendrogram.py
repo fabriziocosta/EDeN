@@ -16,6 +16,12 @@ from eden.util import argument_parser, setup, eden_io
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
 Generate dendrogram plot.
+
+A (n-1) by 4 linkage matrix Z is returned. At the i-th iteration, clusters with indices 
+Z[i, 0] and Z[i, 1] are combined to form cluster n + i. A cluster with an index 
+less than n corresponds to one of the n original observations. The distance between 
+clusters Z[i, 0] and Z[i, 1] is given by Z[i, 2]. The fourth value Z[i, 3] represents 
+the number of original observations in the newly formed cluster.
 """
 
 def setup_parameters(parser):
@@ -34,15 +40,29 @@ def setup_parameters(parser):
 		type = float, 
 		default = 4,
 		help = "Distance threshold for changing color in plot.")
-	parser.add_argument("-l", "--linkage",  choices = ["ward","complete","average"],
+	parser.add_argument("-l", "--linkage",  choices = [ "median","centroid","weighted","single","ward","complete","average"],
     	help = """Which linkage criterion to use. 
     	The linkage criterion determines which distance to use between sets of observation. 
     	The algorithm will merge the pairs of cluster that minimize this criterion.
-        ward minimizes the variance of the clusters being merged.
-        average uses the average of the distances of each observation of the two sets.
-        complete or maximum linkage uses the maximum distances between all observations of the two sets.
+        - ward minimizes the variance of the clusters being merged.
+        - average uses the average of the distances of each observation of the two sets.
+        - complete or maximum linkage uses the maximum distances between all observations of the two sets.
+        - single also known as the Nearest Point Algorithm.
+        - weighted also called WPGMA.
+        - centroid when two clusters s and t are combined into a new cluster u, the new centroid 
+        is computed over all the original objects in clusters s and t. The distance then becomes 
+        the Euclidean distance between the centroid of u and the centroid of a remaining cluster 
+        v in the forest. This is also known as the UPGMC algorithm.
+        - median when two clusters s and t are combined into a new cluster u, the average of 
+        centroids s and t give the new centroid u. This is also known as the WPGMC algorithm.
     	""", 
     	default = "average")
+	parser.add_argument("--distance-metric",  choices = ["cosine", "euclidean", "l1", "l2", "manhattan"],
+    	dest = "distance_metric",
+    	help = """Note that in the case of 'cosine' and 'euclidean' 
+    	(which are valid scipy.spatial.distance metrics), the scikit-learn implementation 
+    	will be used, which is faster and has support for sparse matrices.""", 
+    	default = "euclidean")
 	return parser
 
 
@@ -62,11 +82,17 @@ def main(args):
 		annotations = ['%d:%s' % (num,y.strip()) for num,y in enumerate(f)]
 
 	#compute distance matrix
- 	D = metrics.pairwise.pairwise_distances(X, metric = 'cosine', n_jobs = args.n_jobs)
+ 	D = metrics.pairwise.pairwise_distances(X, metric = args.distance_metric, n_jobs = args.n_jobs)	
+	Z = linkage(D, method = args.linkage)
 	
+	#output
+	out_file_name = "linkage_matrix"
+	eden_io.store_matrix(matrix = Z, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = args.output_format)
+	logging.info('Saved file: %s' % out_file_name)
+
 	#compute dendrogram
 	fig = pl.figure(figsize = (args.plot_size//10,args.plot_size))
-	dendrogram(linkage(D, method = args.linkage), 
+	dendrogram(Z, 
 		color_threshold = args.color_threshold,
 		labels = annotations, 
 		orientation = 'right')
@@ -77,6 +103,7 @@ def main(args):
 		os.mkdir(args.output_dir_path)
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	fig.savefig(full_out_file_name)
+	logging.info('Saved file: %s' % out_file_name)
 
 
 if __name__  == "__main__":
@@ -86,7 +113,3 @@ if __name__  == "__main__":
 	logging.info('Parameters: %s' % args)
 	main(args)
 	logging.info('Finished')
-
-
-
-
