@@ -24,14 +24,14 @@ def setup_parameters(parser):
 		dest = "annotation_file",
 		required = True,
 		help = "File containing instance labels")
-	parser.add_argument("-s","--plot-size",
+	parser.add_argument("--plot-size",
 		dest = "plot_size",
 		type = int, 
 		default = 120,
 		help = "Size of the plot area.")
-	parser.add_argument("-c","--color-threshold",
+	parser.add_argument("--color-threshold",
 		dest = "color_threshold",
-		type = int, 
+		type = float, 
 		default = 4,
 		help = "Distance threshold for changing color in plot.")
 	parser.add_argument("-l", "--linkage",  choices = ["ward","complete","average"],
@@ -65,17 +65,15 @@ def main(args):
  	D = metrics.pairwise.pairwise_distances(X, metric = 'cosine')
 	
 	#compute dendrogram
-	fig = pl.figure(figsize = (args.plot_size,args.plot_size//10))
-	dendrogram(linkage(D, method = args.linkage), color_threshold = args.color_threshold,labels = annotations)
+	fig = pl.figure(figsize = (args.plot_size//10,args.plot_size))
+	dendrogram(linkage(D, method = args.linkage), 
+		color_threshold = args.color_threshold,
+		labels = annotations, 
+		orientation = 'right')
 
 	#plot dendrogram
-	ax = fig.add_subplot(111)
-	ax.plot([1,2,3])
-	labels = ax.get_xticklabels()
-	for label in labels:
-	    label.set_rotation(90) 
-	    label.set_fontname('Bitstream Vera Sans')
-	    label.set_fontsize(4)
+#	ax = fig.add_subplot(111)
+#	ax.plot([1,2,3])
 
 	#save plot
 	out_file_name = 'dendrogram.pdf'
