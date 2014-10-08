@@ -65,16 +65,16 @@ class Vectorizer(object):
         self.additional_pure_neighborhood_features = additional_pure_neighborhood_features
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
-        self.kernel_dict = {}
+        self.approximate_kernel_mapper_dict = {}
         self.hasher_dict = {}
 
 
 
-    def fit(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
+    def fit(self, G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs=1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
-        The 'kernel_dict' dictionary specifies the appropriate approximate kernel mapping 
+        The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate kernel mapping 
         strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
         hashing strategy to discretize the resulting approximate kernel mapping.
 
@@ -83,7 +83,62 @@ class Vectorizer(object):
         G_list : list of networkx graphs. 
             The data.
 
-        kernel_dict : list of approximate mappers. 
+        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
+            The key matches the 'label' of nodes. The assocaited value is 
+            a pair (kernel approximation callable, parameters dictionary) that can work on the
+            matrix of all 'data' extracted from the nodes.
+
+        hasher_dict : list of locality sensitive hashing (LSH) functions.
+            The key matches the 'label' of nodes. The assocaited value is 
+            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
+            approximated 'data' extracted from nodes and processed by the kernel 
+            approximate mappers.
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
+            Use -1 to indicate the total number of CPUs available.
+        """
+        #for all classes in approximate_kernel_mapper_dict 
+        #extract the data field in all graphs and build a Numpy csr sparse matrix
+        #fit the callable and store the fitted version as data member
+        #in transform:
+        #extract the data field in all graphs and build a Numpy csr sparse matrix
+        #extract a map row_id->(graph_id,node_id)
+        #apply the hasher
+        #store the resutl in the hlabel vector
+        #run the base transform
+        super_X=defaultdict(lambda : list(list()))
+        label_set = set()
+        for G in G_list:
+            for n,d in G.nodes_iter(data = True):
+                label = d['label']
+                label_set.add/(label)
+                super_X[label] += d['data']
+
+        for label in label_set:
+            X = np.array(super_X[label])
+            approximate_kernel_mapper, parameters_dict = approximate_kernel_mapper_dict[label]
+            approximate_kernel_mapper.fit(X, **parameters_dict)
+            self.approximate_kernel_mapper_dict[label] = approximate_kernel_mapper
+            self.hasher_dict[label] = hasher_dict[label]
+
+
+    def fit_transform(self, G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs=1):
+        """
+        Constructs an approximate explicit mapping of a kernel function on the data 
+        stored in the nodes of the graphs and then transforms a list of networkx graphs 
+        into a Numpy csr sparse matrix (Compressed Sparse Row matrix).
+
+        The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate kernel mapping 
+        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
+        hashing strategy to discretize the resulting approximate kernel mapping.
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
             The key matches the 'label' of nodes. The assocaited value is 
             a pair (kernel approximation callable, parameters dictionary) that can work on the
             matrix of all 'data' extracted from the nodes.
@@ -99,42 +154,9 @@ class Vectorizer(object):
             Use -1 to indicate the total number of CPUs available.
         """
         if n_jobs is 1:
-            return self._fit_serial(G_list, kernel_dict, hasher_dict)
+            return self._fit_transform_serial(G_list, approximate_kernel_mapper_dict, hasher_dict)
         else:
-            return self._fit_parallel(G_list, kernel_dict, hasher_dict, n_jobs)
-
-
-    def fit_transform(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
-        """
-        Constructs an approximate explicit mapping of a kernel function on the data 
-        stored in the nodes of the graphs and then transforms a list of networkx graphs 
-        into a Numpy csr sparse matrix (Compressed Sparse Row matrix).
-
-        The 'kernel_dict' dictionary specifies the appropriate approximate kernel mapping 
-        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
-        hashing strategy to discretize the resulting approximate kernel mapping.
-
-        Parameters
-        ----------
-        G_list : list of networkx graphs. 
-            The data.
-
-        kernel_dict : list of approximate mappers. 
-            The key matches the 'class' of nodes. The assocaited value is 
-            a pair (kernel approximation callable, parameters).
-
-        hasher_dict : list of localoty sensitive hashing (LSH) functions.
-            The key matches the 'class' of nodes. The assocaited value is 
-            a pair (LSH callable, parameters).
-
-        n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1).
-            Use -1 to indicate the total number of CPUs available.
-        """
-        if n_jobs is 1:
-            return self._fit_transform_serial(G_list, kernel_dict, hasher_dict)
-        else:
-            return self._fit_transform_parallel(G_list, kernel_dict, hasher_dict, n_jobs)
+            return self._fit_transform_parallel(G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs)
 
 
     def transform(self,G_list, n_jobs=1):
@@ -157,21 +179,15 @@ class Vectorizer(object):
             return self._transform_parallel(G_list, n_jobs)
 
 
-    def _fit_serial(self, G_list, kernel_dict, hasher_dict):
-        #for all classes in kernel_dict 
-        #extract the data field in all graphs and build a Numpy csr sparse matrix
-        #fit the callable and store the fitted version as data member
-        #in transform:
-        #extract the data field in all graphs and build a Numpy csr sparse matrix
-        #extract a map row_id->(graph_id,node_id)
-        #apply the hasher
-        #store the resutl in the hlabel vector
-        #run the base transform
-        for G in G_list:
-            self._fit(G, kernel_dict, hasher_dict)
-
-
-    #TODO: _fit_parallel(self, G_list, kernel_dict, hasher_dict):
+    def _convert_to_sparse_vector(self,feature_dict):
+        assert(len(feature_dict)>0),'ERROR: something went wrong, empty feature_dict'
+        data = feature_dict.values()
+        row_col = feature_dict.keys()
+        row = [i for i,j in row_col]
+        col = [j for i,j in row_col]
+        X = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
+        return X
+   
 
     def _transform_parallel(self,G_list, n_jobs):
         feature_dict = {}
@@ -226,14 +242,16 @@ class Vectorizer(object):
 
 
     def _hlabel_preprocessing(self, G):
-        G.graph['label_size'] = 1
-        for n,d in G.nodes_iter(data = True):
-            G.node[n]['hlabel'] = [hash(d['label'])]
+        if len(self.approximate_kernel_mapper_dict) == 0:
+            G.graph['label_size'] = 1
+            for n,d in G.nodes_iter(data = True):
+                G.node[n]['hlabel'] = [hash(d['label'])]
 
 
     def _weight_preprocessing(self, G):
         #we expect all vertices to have the attribute 'weight' in a weighted graph
-        if 'weight' in G.nodes(data=True)[0][1]: #check the attributes of the first node
+        #sniff the attributes of the first node to determine if graph is weighted
+        if 'weight' in G.nodes(data=True)[0][1]: 
             G.graph['weighted'] = True
             #check that edges are weighted, if not assign unitary weight
             for n,d in G.nodes_iter(data = True):
@@ -263,16 +281,6 @@ class Vectorizer(object):
                 G.node[n].pop('remote_neighbours', None)
         return G
 
-
-    def _convert_to_sparse_vector(self,feature_dict):
-        assert(len(feature_dict)>0),'ERROR: something went wrong, empty feature_dict'
-        data = feature_dict.values()
-        row_col = feature_dict.keys()
-        row = [i for i,j in row_col]
-        col = [j for i,j in row_col]
-        X = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
-        return X
-   
 
     def _graph_preprocessing(self, G_orig):
         assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
@@ -337,6 +345,12 @@ class Vectorizer(object):
 
 
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
+        self._transform_vertex_pair_base(G, v, u, distance, feature_list)
+        if self.additional_pure_neighborhood_features:
+            self._transform_vertex_pair_pure_neighborhood(G, v, u, distance, feature_list)
+
+
+    def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         #for all radii
         for radius in range(0,self.r,2):
             for label_index in range(G.graph['label_size']):
@@ -349,16 +363,21 @@ class Vectorizer(object):
                         feature_list[key][feature]+=1
                     else :
                         feature_list[key][feature]+=G.node[v]['neighborhood_graph_weight'][radius]+G.node[u]['neighborhood_graph_weight'][radius]
-                    if self.additional_pure_neighborhood_features:
-                        #feature as a radius, distance and a neighbourhood 
-                        t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
-                        feature = util.fast_hash( t, self.bitmask )
-                        key = util.fast_hash( [radius,distance], self.bitmask )
-                        if G.graph.get('weighted',False) == False : #if self.weighted == False :
-                            feature_list[key][feature]+=1
-                        else :
-                            feature_list[key][feature]+=G.node[u]['neighborhood_graph_weight'][radius]
+                    
 
+    def _transform_vertex_pair_pure_neighborhood(self, G, v, u, distance, feature_list):
+        #for all radii
+        for radius in range(0,self.r,2):
+            for label_index in range(G.graph['label_size']):
+                if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
+                    #feature as a radius, distance and a neighbourhood 
+                    t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                    feature = util.fast_hash( t, self.bitmask )
+                    key = util.fast_hash( [radius,distance], self.bitmask )
+                    if G.graph.get('weighted',False) == False : #if self.weighted == False :
+                        feature_list[key][feature]+=1
+                    else :
+                        feature_list[key][feature]+=G.node[u]['neighborhood_graph_weight'][radius]
 
                                 
     def _normalization(self, feature_list, instance_id):
