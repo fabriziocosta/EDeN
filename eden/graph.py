@@ -65,6 +65,9 @@ class Vectorizer(object):
         self.additional_pure_neighborhood_features = additional_pure_neighborhood_features
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
+        self.kernel_dict = {}
+        self.hasher_dict = {}
+
 
 
     def fit(self, G_list, kernel_dict, hasher_dict, n_jobs=1):
@@ -81,12 +84,15 @@ class Vectorizer(object):
             The data.
 
         kernel_dict : list of approximate mappers. 
-            The key matches the 'class' of nodes. The assocaited value is 
-            a pair (kernel approximation callable, parameters).
+            The key matches the 'label' of nodes. The assocaited value is 
+            a pair (kernel approximation callable, parameters dictionary) that can work on the
+            matrix of all 'data' extracted from the nodes.
 
-        hasher_dict : list of localoty sensitive hashing (LSH) functions.
-            The key matches the 'class' of nodes. The assocaited value is 
-            a pair (LSH callable, parameters).
+        hasher_dict : list of locality sensitive hashing (LSH) functions.
+            The key matches the 'label' of nodes. The assocaited value is 
+            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
+            approximated 'data' extracted from nodes and processed by the kernel 
+            approximate mappers.
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
@@ -204,40 +210,36 @@ class Vectorizer(object):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
         G=nx.Graph()
-        #determine if weighted graph
-        #we expect all vertices to have the attribute 'weight' in a weighted graph
-        assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
-        if 'weight' in G_orig.nodes(data=True)[0][1]: #check the attributes of the first node
-            G.graph['weighted'] = True
         #build a graph that has as vertices the original vertex set
-        label_size=0
         for n,d in G_orig.nodes_iter(data=True):
             d['node']=True
-            #if hlabel is not present than create one
-            if d.get('hlabel', False) == False :
-                d['hlabel'] = [hash(d['label'])]
-            if label_size == 0 :
-                label_size = len(d['hlabel'])
-            else :
-                assert(label_size == len(d['hlabel'])),'ERROR: not all label vectors have the same length'
             G.add_node(n,d)            
         #and in addition a vertex for each edge
         for u,v,d in G_orig.edges_iter(data=True):
             new_node_id='%s|%s'%(u,v)
             d['edge']=True
-            #if hlabel is not present than create one
-            if d.get('hlabel', False) == False :
-                d['hlabel'] = [hash(d['label'])]
-            assert(label_size == len(d['hlabel'])),'ERROR: not all label vectors have the same length: edge: %s-%s on graph:\n %s'%(u,v, self._serialize(G_orig))
-            #if the graph has to be weighted but does not contain edge weights then assume unitary edge weights
-            if d.get('weight', False) == False :
-                d['weight'] = 1
             G.add_node(new_node_id, d)
             #and the corresponding edges
             G.add_edge(new_node_id,u, label=1)
             G.add_edge(new_node_id,v, label=1)    
-        G.graph['label_size'] = label_size
         return G
+
+
+    def _hlabel_preprocessing(self, G):
+        G.graph['label_size'] = 1
+        for n,d in G.nodes_iter(data = True):
+            G.node[n]['hlabel'] = [hash(d['label'])]
+
+
+    def _weight_preprocessing(self, G):
+        #we expect all vertices to have the attribute 'weight' in a weighted graph
+        if 'weight' in G.nodes(data=True)[0][1]: #check the attributes of the first node
+            G.graph['weighted'] = True
+            #check that edges are weighted, if not assign unitary weight
+            for n,d in G.nodes_iter(data = True):
+                if d.get('edge', False) == True :
+                    if d.get('weight', False) == False :
+                        G.node[n]['weight'] = 1
 
 
     def _revert_edge_to_vertex_transform(self, G_orig):
@@ -258,7 +260,7 @@ class Vectorizer(object):
                 G.remove_node(n)
             if d.get('node', False) == True :
                 #remove stale information
-                G.node[n].pop('distant_neighbours', None)
+                G.node[n].pop('remote_neighbours', None)
         return G
 
 
@@ -273,7 +275,10 @@ class Vectorizer(object):
    
 
     def _graph_preprocessing(self, G_orig):
+        assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
         G=self._edge_to_vertex_transform(G_orig)
+        self._weight_preprocessing(G)
+        self._hlabel_preprocessing(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))       
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):
@@ -323,7 +328,7 @@ class Vectorizer(object):
 
     def _transform_vertex(self, G, v, feature_list):
         #for all distances 
-        root_dist_dict=G.node[v]['distant_neighbours']
+        root_dist_dict=G.node[v]['remote_neighbours']
         for distance in range(0,self.d,2):
             if root_dist_dict.has_key(distance):
                 node_set=root_dist_dict[distance]
@@ -396,7 +401,7 @@ class Vectorizer(object):
             #list all hashed labels at increasing distances
             hash_list=[]
             #for all distances 
-            root_dist_dict=G.node[root]['distant_neighbours']
+            root_dist_dict=G.node[root]['remote_neighbours']
             for distance, node_set in root_dist_dict.iteritems():
                 #create a list of hashed labels
                 hash_label_list=[]
@@ -435,7 +440,7 @@ class Vectorizer(object):
         edge_weight_list = np.array([1])
         edge_average = edge_weight_list[0]
         #for all distances 
-        root_dist_dict = G.node[root]['distant_neighbours']
+        root_dist_dict = G.node[root]['remote_neighbours']
         for distance, node_set in root_dist_dict.iteritems():
             #extract array of weights at given distance
             weight_array_at_d = np.array([G.node[v]['weight'] for v in node_set])
@@ -481,7 +486,7 @@ class Vectorizer(object):
                                 dist_list[d].add(v)
                             else :
                                 dist_list[d].add(v)
-        G.node[root]['distant_neighbours']=dist_list
+        G.node[root]['remote_neighbours']=dist_list
 
 
     def _compute_distant_neighbours(self, G, max_depth):
