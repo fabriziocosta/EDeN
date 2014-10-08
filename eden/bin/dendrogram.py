@@ -71,10 +71,6 @@ def main(args):
 		labels = annotations, 
 		orientation = 'right')
 
-	#plot dendrogram
-#	ax = fig.add_subplot(111)
-#	ax.plot([1,2,3])
-
 	#save plot
 	out_file_name = 'dendrogram.pdf'
 	if not os.path.exists(args.output_dir_path) :
