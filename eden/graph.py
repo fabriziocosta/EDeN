@@ -105,7 +105,7 @@ class Vectorizer(object):
         for G in G_list:
             for n,d in G.nodes_iter(data = True):
                 ktype = d['ktype']
-                ktype_set.add/(ktype)
+                ktype_set.add(ktype)
                 #extract the label field in all graphs and build a dict of matrices 
                 #or rather of lists of labels that are themselves lists
                 super_X[ktype] += d['label']
@@ -113,10 +113,10 @@ class Vectorizer(object):
         #for all types 
         for ktype in ktype_set:
             X = np.array(super_X[ktype])
-            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[ktype]
+            approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
             #fit the approximate_kernel_mapper and store it
-            approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **parameters_dict)
-            hasher, parameters_dict = self.hasher_dict[ktype]
+            approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **approximate_kernel_mapper_parameters_dict)
+            hasher, approximate_kernel_mapper_parameters_dict = self.hasher_dict[ktype]
             hasher
 
     def fit_transform(self, G_list, n_jobs = 1):
@@ -146,19 +146,31 @@ class Vectorizer(object):
         for G in G_list:
             for n,d in G.nodes_iter(data = True):
                 ktype = d['ktype']
-                ktype_set.add/(ktype)
+                ktype_set.add(ktype)
                 #extract the label field in all graphs and build a dict of matrices 
                 #or rather of lists of labels that are themselves lists
                 super_X[ktype] += d['label']
 
         super_X_approx=defaultdict(lambda : list(list()))
+        super_X_disc=defaultdict(lambda : list(list()))
         #for all types 
         for ktype in ktype_set:
+            approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
             X = np.array(super_X[ktype])
-            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[ktype]
             #transform data
-            super_X_approx[ktype] = approximate_kernel_mapper.transform(X, n_jobs = n_jobs)
-
+            X_approx = approximate_kernel_mapper.transform(X, n_jobs = n_jobs)
+            #discretize data
+            hasher, hasher_parameters_dict = self.hasher_dict[ktype]
+            hasher.set_params(**hasher_parameters_dict)
+            super_X_disc[ktype] = hasher.transform(X_approx) #TODO: make parallel version of hasher.transform
+        for G in G_list:
+            for n,d in G.nodes_iter(data = True):
+                ktype = d['ktype']
+                #TODO
+                #extract the correspondent transformed and discretized vector
+                #replace the node hlabel
+        #apply the base transform on the new G_list
+        #return X
 
 
     def transform(self,G_list, n_jobs = 1):
