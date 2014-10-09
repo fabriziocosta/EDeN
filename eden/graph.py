@@ -16,21 +16,20 @@ from eden.util import util
 
 
 
-
 class Vectorizer(object):
     """
-    Transforms graphs in sparse vectors.
+    Transforms labeled, weighted, nested graphs in sparse vectors.
     """
 
     def __init__(self,
-        r=3,
-        d=3,
-        nbits=20,
-        normalization=True,
-        inner_normalization=True,
-        pure_neighborhood_features=False,
-        approximate_kernel_mapper_dict=dict(),
-        hasher_dict=dict()):
+        r = 3,
+        d = 3,
+        nbits = 20,
+        normalization = True,
+        inner_normalization = True,
+        pure_neighborhood_features = False,
+        approximate_kernel_mapper_dict = {},
+        hasher_dict = {}):
         """
         Parameters
         ----------
@@ -63,12 +62,16 @@ class Vectorizer(object):
             The key matches the 'type' of nodes. The assocaited value is 
             a pair (kernel approximation callable, parameters dictionary) that can work on the
             matrix of all 'label' extracted from the nodes.
+            The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate 
+            kernel mapping strategy for different node 'classes'. 
 
         hasher_dict : list of locality sensitive hashing (LSH) functions.
             The key matches the 'type' of nodes. The assocaited value is 
             a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
             approximated 'label' extracted from nodes and processed by the kernel 
             approximate mappers.
+            The 'hasher_dict' specifies the locality sensitive hashing strategy to discretize 
+            the resulting approximate kernel mapping.
         """
         self.r = (r+1)*2
         self.d = (d+1)*2
@@ -82,14 +85,10 @@ class Vectorizer(object):
         self.hasher_dict = hasher_dict
 
 
-
-    def fit(self, G_list, n_jobs=1):
+    def fit(self, G_list, n_jobs = 1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
-        The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate kernel mapping 
-        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
-        hashing strategy to discretize the resulting approximate kernel mapping.
 
         Parameters
         ----------
@@ -101,25 +100,26 @@ class Vectorizer(object):
             Use -1 to indicate the total number of CPUs available.
         """
         super_X=defaultdict(lambda : list(list()))
-        type_set = set()
+        ktype_set = set()
         #for all types in every node of every graph
         for G in G_list:
             for n,d in G.nodes_iter(data = True):
-                type = d['type']
-                type_set.add/(type)
-                #extract the label field in all graphs and build a list of matrices 
-                #in fact lists of labels that are themselves lists
-                super_X[type] += d['label']
+                ktype = d['ktype']
+                ktype_set.add/(ktype)
+                #extract the label field in all graphs and build a dict of matrices 
+                #or rather of lists of labels that are themselves lists
+                super_X[ktype] += d['label']
 
         #for all types 
-        for type in type_set:
-            X = np.array(super_X[type])
-            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[type]
+        for ktype in ktype_set:
+            X = np.array(super_X[ktype])
+            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[ktype]
             #fit the approximate_kernel_mapper and store it
             approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **parameters_dict)
+            hasher, parameters_dict = self.hasher_dict[ktype]
+            hasher
 
-
-    def fit_transform(self, G_list, n_jobs=1):
+    def fit_transform(self, G_list, n_jobs = 1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs and then transforms a list of networkx graphs 
@@ -138,13 +138,30 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        if n_jobs is 1:
-            return self._fit_transform_serial(G_list, approximate_kernel_mapper_dict, hasher_dict)
-        else:
-            return self._fit_transform_parallel(G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs)
+        self.fit(G_list, n_jobs = n_jobs)
+
+        super_X=defaultdict(lambda : list(list()))
+        ktype_set = set()
+        #for all types in every node of every graph
+        for G in G_list:
+            for n,d in G.nodes_iter(data = True):
+                ktype = d['ktype']
+                ktype_set.add/(ktype)
+                #extract the label field in all graphs and build a dict of matrices 
+                #or rather of lists of labels that are themselves lists
+                super_X[ktype] += d['label']
+
+        super_X_approx=defaultdict(lambda : list(list()))
+        #for all types 
+        for ktype in ktype_set:
+            X = np.array(super_X[ktype])
+            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[ktype]
+            #transform data
+            super_X_approx[ktype] = approximate_kernel_mapper.transform(X, n_jobs = n_jobs)
 
 
-    def transform(self,G_list, n_jobs=1):
+
+    def transform(self,G_list, n_jobs = 1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -518,13 +535,13 @@ class Annotator(Vectorizer):
 
         reweight : float
             Update the 'weight' information as a linear combination of the previuous weight and 
-            the absolute value of the margin. 
+            the absolute value of the margin predicted by the estimator. 
             If reweight = 0 then do not update.
             If reweight = 1 then discard previous weight information and use only abs(margin)
             If reweight = 0.5 then update with the aritmetic mean of the previous weight information 
             and the abs(margin)
         """
-        self._estimator=estimator
+        self._estimator = estimator
         self.reweight = reweight
         self.r = vectorizer.r 
         self.d = vectorizer.d
@@ -534,6 +551,8 @@ class Annotator(Vectorizer):
         self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
         self.bitmask = vectorizer.bitmask
         self.feature_size = vectorizer.feature_size
+        self.approximate_kernel_mapper_dict = vectorizer.approximate_kernel_mapper_dict
+        self.hasher_dict = vectorizer.hasher_dict
 
 
     def transform(self,G_list):
@@ -574,13 +593,13 @@ class Annotator(Vectorizer):
 
 
     def _compute_vertex_based_features(self, G):
-        feature_dict={}
-        vertex_id=0
+        feature_dict = {}
+        vertex_id = 0
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): #only for vertices of type 'node', i.e. not for the 'edge' type
-                feature_list=defaultdict(lambda : defaultdict(float))
+                feature_list = defaultdict(lambda : defaultdict(float))
                 self._transform_vertex(G, v, feature_list)
                 feature_dict.update(self._normalization(feature_list,vertex_id))
-                vertex_id+=1
-        X=self._convert_to_sparse_vector(feature_dict)
+                vertex_id += 1
+        X = self._convert_to_sparse_vector(feature_dict)
         return X
