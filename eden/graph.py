@@ -28,7 +28,9 @@ class Vectorizer(object):
         nbits=20,
         normalization=True,
         inner_normalization=True,
-        additional_pure_neighborhood_features=False):
+        pure_neighborhood_features=False,
+        approximate_kernel_mapper_dict=dict(),
+        hasher_dict=dict()):
         """
         Parameters
         ----------
@@ -50,27 +52,38 @@ class Vectorizer(object):
             When used together with the 'normalization' flag it will be applied first and 
             then the resulting feature vector will be normalized.
 
-        additional_pure_neighborhood_features : bool 
+        pure_neighborhood_features : bool 
             If set additional features are going to be generated. 
-            These features are generated in a similar fashion as the original features, 
+            These features are generated in a similar fashion as the base features, 
             with the caveat that the first neighborhood is omitted.
             The purpose of these features is to allow vertices that have similar contexts to be 
             matched, even when they are completely different. 
+
+        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
+            The key matches the 'type' of nodes. The assocaited value is 
+            a pair (kernel approximation callable, parameters dictionary) that can work on the
+            matrix of all 'label' extracted from the nodes.
+
+        hasher_dict : list of locality sensitive hashing (LSH) functions.
+            The key matches the 'type' of nodes. The assocaited value is 
+            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
+            approximated 'label' extracted from nodes and processed by the kernel 
+            approximate mappers.
         """
         self.r = (r+1)*2
         self.d = (d+1)*2
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
-        self.additional_pure_neighborhood_features = additional_pure_neighborhood_features
+        self.pure_neighborhood_features = pure_neighborhood_features
         self.bitmask = pow(2,nbits)-1
         self.feature_size = self.bitmask+2
-        self.approximate_kernel_mapper_dict = {}
-        self.hasher_dict = {}
+        self.approximate_kernel_mapper_dict = approximate_kernel_mapper_dict
+        self.hasher_dict = hasher_dict
 
 
 
-    def fit(self, G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs=1):
+    def fit(self, G_list, n_jobs=1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -83,47 +96,30 @@ class Vectorizer(object):
         G_list : list of networkx graphs. 
             The data.
 
-        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
-            The key matches the 'label' of nodes. The assocaited value is 
-            a pair (kernel approximation callable, parameters dictionary) that can work on the
-            matrix of all 'data' extracted from the nodes.
-
-        hasher_dict : list of locality sensitive hashing (LSH) functions.
-            The key matches the 'label' of nodes. The assocaited value is 
-            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
-            approximated 'data' extracted from nodes and processed by the kernel 
-            approximate mappers.
-
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        #for all classes in approximate_kernel_mapper_dict 
-        #extract the data field in all graphs and build a Numpy csr sparse matrix
-        #fit the callable and store the fitted version as data member
-        #in transform:
-        #extract the data field in all graphs and build a Numpy csr sparse matrix
-        #extract a map row_id->(graph_id,node_id)
-        #apply the hasher
-        #store the resutl in the hlabel vector
-        #run the base transform
         super_X=defaultdict(lambda : list(list()))
-        label_set = set()
+        type_set = set()
+        #for all types in every node of every graph
         for G in G_list:
             for n,d in G.nodes_iter(data = True):
-                label = d['label']
-                label_set.add/(label)
-                super_X[label] += d['data']
+                type = d['type']
+                type_set.add/(type)
+                #extract the label field in all graphs and build a list of matrices 
+                #in fact lists of labels that are themselves lists
+                super_X[type] += d['label']
 
-        for label in label_set:
-            X = np.array(super_X[label])
-            approximate_kernel_mapper, parameters_dict = approximate_kernel_mapper_dict[label]
-            approximate_kernel_mapper.fit(X, **parameters_dict)
-            self.approximate_kernel_mapper_dict[label] = approximate_kernel_mapper
-            self.hasher_dict[label] = hasher_dict[label]
+        #for all types 
+        for type in type_set:
+            X = np.array(super_X[type])
+            approximate_kernel_mapper, parameters_dict = self.approximate_kernel_mapper_dict[type]
+            #fit the approximate_kernel_mapper and store it
+            approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **parameters_dict)
 
 
-    def fit_transform(self, G_list, approximate_kernel_mapper_dict, hasher_dict, n_jobs=1):
+    def fit_transform(self, G_list, n_jobs=1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs and then transforms a list of networkx graphs 
@@ -137,17 +133,6 @@ class Vectorizer(object):
         ----------
         G_list : list of networkx graphs. 
             The data.
-
-        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
-            The key matches the 'label' of nodes. The assocaited value is 
-            a pair (kernel approximation callable, parameters dictionary) that can work on the
-            matrix of all 'data' extracted from the nodes.
-
-        hasher_dict : list of locality sensitive hashing (LSH) functions.
-            The key matches the 'label' of nodes. The assocaited value is 
-            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
-            approximated 'data' extracted from nodes and processed by the kernel 
-            approximate mappers.
 
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1).
@@ -346,9 +331,11 @@ class Vectorizer(object):
 
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
         self._transform_vertex_pair_base(G, v, u, distance, feature_list)
-        if self.additional_pure_neighborhood_features:
+        if self.pure_neighborhood_features:
             self._transform_vertex_pair_pure_neighborhood(G, v, u, distance, feature_list)
 
+#TODO: add features of type radius_1 + radius_2 = r_max
+#TODO: add features of type radius_1 - radius_1 on each fronteer vertex
 
     def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         #for all radii
@@ -544,7 +531,7 @@ class Annotator(Vectorizer):
         self.nbits = vectorizer.nbits
         self.normalization = vectorizer.normalization
         self.inner_normalization = vectorizer.inner_normalization
-        self.additional_pure_neighborhood_features = vectorizer.additional_pure_neighborhood_features
+        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
         self.bitmask = vectorizer.bitmask
         self.feature_size = vectorizer.feature_size
 
