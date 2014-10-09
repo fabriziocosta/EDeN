@@ -1,7 +1,7 @@
 import json
 import networkx as nx
 
-def gspan_to_eden(name, input_type='url'):
+def gspan_to_eden(name, input_type = 'url'):
     """
     Takes a string list in the extended gSpan format and yields networkx graphs.
 
@@ -22,10 +22,10 @@ def gspan_to_eden(name, input_type='url'):
     assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
 
     if input_type is 'file':
-        f=open(name,'r')
+        f = open(name,'r')
     elif input_type is 'url':
         import requests
-        f=requests.get(name).text.split('\n')
+        f = requests.get(name).text.split('\n')
     elif input_type == "list":
         f = name
     return _gspan_to_eden(f)        
@@ -33,11 +33,11 @@ def gspan_to_eden(name, input_type='url'):
 
 def _gspan_to_eden(data_str_list):
     def gspan_to_networkx(string_list):
-        G=nx.Graph()
+        G = nx.Graph()
         for line in string_list:
             if line.strip():
-                line_list=line.split()
-                fc=line_list[0]
+                line_list = line.split()
+                fc = line_list[0]
                 #process vertices
                 if fc in ['v','V'] : 
                     vid = int(line_list[1])
@@ -66,17 +66,17 @@ def _gspan_to_eden(data_str_list):
                     if attribute_str.strip():
                         attribute_dict=json.loads(attribute_str)
                         G.edge[srcid][destid].update(attribute_dict)
-        assert(len(G)>0),'ERROR: generated empty graph'
+        assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
         return G
 
-    string_list=[]
+    string_list = []
     for line in data_str_list:
         if line.strip():
             if line[0] in ['g','t']:
                 if len(string_list) != 0:
                     yield gspan_to_networkx(string_list)
-                string_list=[]
-            string_list+=[line]
+                string_list = []
+            string_list += [line]
 
     if len(string_list) != 0:
         yield gspan_to_networkx(string_list)
