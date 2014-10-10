@@ -513,20 +513,20 @@ class Vectorizer(object):
                 for v in G.neighbors(u):
                     if v not in visited:
                         #skip nesting edge-nodes
-                        if G.node[v].get('nesting',False) == False :
+                        if G.node[v].get('nesting', False) == False :
                             dist[v] = d
                             visited.add(v)
                             q.append(v)
                             if dist_list.has_key(d) == False :
                                 dist_list[d] = set()
                                 dist_list[d].add(v)
-                            else :
+                            else:
                                 dist_list[d].add(v)
-        G.node[root]['remote_neighbours']=dist_list
+        G.node[root]['remote_neighbours'] = dist_list
 
 
     def _compute_distant_neighbours(self, G, max_depth):
-        for n,d in G.nodes_iter(data=True):
+        for n, d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
 

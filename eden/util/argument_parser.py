@@ -25,7 +25,7 @@ def setup_common_parameters(parser):
 	parser.add_argument( "-j", "--num-jobs",
 		dest = "n_jobs",
 		type = int, 
-		help = "The number of CPUs to use. -1 means 'all CPUs'.", 
+		help = "The number of CPUs to use. -1 means all available CPUs.", 
 		default = -1)
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
