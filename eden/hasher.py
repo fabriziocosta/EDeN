@@ -19,11 +19,7 @@ class WTA_hash:
 
     def transform(self, X):
         #NOTE: we assume X is a numpy 2D array
-        X_new = []
-        for vec in X: 
-            vec_new = self.signature(vec.tolist())
-            X_new += vec_new
-        return X_new
+        return [self.signature(vec.tolist()) for vec in X]
 
 
     def signature(self, vec):
