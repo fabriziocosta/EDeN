@@ -1,20 +1,20 @@
-class WTA_hash:
+class WTA_hash():
     def __init__(self, num_functions = 1, dimensionality = 1, sparse = False):
         self.num_functions = num_functions
         self.dimensionality = dimensionality
-        self.sparse=sparse
+        self.sparse = sparse
 
 
     def set_params(self, num_functions = 1, dimensionality = 1, sparse = False):
         self.num_functions = num_functions
         self.dimensionality = dimensionality
-        self.sparse=sparse
+        self.sparse = sparse
 
 
     def fast_hash(self, item, seed = 0xAAAAAAAA):
         hashv = seed
         hashv  ^= ((~(((seed << 11) + item) ^ (seed >> 5))),((seed << 7) ^ item * (seed >> 3)))[True]
-        return hashv+1
+        return hashv + 1
 
 
     def transform(self, X):
@@ -23,7 +23,7 @@ class WTA_hash:
 
 
     def signature(self, vec):
-        if self.sparse :
+        if self.sparse:
             return self.signature_sparse(vec)
         else :
             return self.signature_dense(vec)
@@ -49,7 +49,7 @@ class WTA_hash:
         max_id = 0
         max_val = vec[0][1]
         for i,(h,val) in enumerate(vec):
-            if max_val < val :
+            if max_val < val:
                 max_id = i
                 max_val = val
         return max_id
