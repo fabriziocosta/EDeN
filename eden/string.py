@@ -6,23 +6,27 @@ import multiprocessing
 from eden.util import util
 
 class Vectorizer():
+    """
+
+    """
+
     def __init__(self, 
-        r=3, 
-        d=3, 
-        nbits=20,
-        normalization=True,
-        inner_normalization=True):
+        r = 3,
+        d = 3,
+        nbits = 20,
+        normalization = True,
+        inner_normalization = True):
 
-        self.r = r+1
-        self.d = d+1
+        self.r = r + 1
+        self.d = d + 1
         self.nbits = nbits
-        self.normalization=normalization
+        self.normalization = normalization
         self.inner_normalization = inner_normalization
-        self.bitmask = pow(2,nbits)-1
-        self.feature_size = self.bitmask+2
+        self.bitmask = pow(2, nbits) - 1
+        self.feature_size = self.bitmask + 2
 
 
-    def transform(self,seq_list, n_jobs=1):
+    def transform(self, seq_list, n_jobs = 1):
         """
         Parameters
         ----------
@@ -39,16 +43,16 @@ class Vectorizer():
             return self._transform_parallel(seq_list, n_jobs)
 
 
-    def _transform_parallel(self,seq_list, n_jobs):
+    def _transform_parallel(self, seq_list, n_jobs):
         feature_dict = {}
-        
+
         def my_callback( result ):
             feature_dict.update( result )
         
         if n_jobs == -1:
             n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
-        for instance_id,seq in enumerate(seq_list):
+        for instance_id, seq in enumerate(seq_list):
             util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
         pool.close()
         pool.join()
@@ -68,50 +72,49 @@ class Vectorizer():
             yield self._convert_to_sparse_vector(self._transform(instance_id,seq))
 
 
-    def _convert_to_sparse_vector(self,feature_dict):
-        data=feature_dict.values()
-        row_col=feature_dict.keys()
-        row=[i for i,j in row_col]
-        col=[j for i,j in row_col]
-        X=csr_matrix( (data,(row,col)), shape=(max(row)+1, self.feature_size))
+    def _convert_to_sparse_vector(self, feature_dict):
+        data = feature_dict.values()
+        row, col = [], []
+        for i, j in feature_dict.iterkeys():
+            row.append( i )
+            col.append( j )
+        X = csr_matrix( (data, (row,col)), shape=( max(row) + 1, self.feature_size) )
         return X
 
 
     def _transform(self, instance_id , seq):
         #extract kmer hash codes for all kmers up to r in all positions in seq
-        neighborhood_hash_cache=[self._compute_neighborhood_hash(seq, pos) for pos in range(len(seq))]
-        
+        seq_len = len(seq)
+        neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range( seq_len )]
+
         #construct features as pairs of kmers up to distance d for all radii up to r
-        feature_list=defaultdict(lambda : defaultdict(float))
-        for pos in range(len(seq)):
-            for radius in range(self.r):
-                if radius<len(neighborhood_hash_cache[pos]):
-                    feature=[]
-                    feature+=[neighborhood_hash_cache[pos][radius]]
-                    feature+=[radius]
-                    for distance in range(self.d):
-                        if pos+distance+radius<len(seq):
-                            feature += [distance]
-                            feature += [neighborhood_hash_cache[ pos + distance ][ radius ]]
+        feature_list = defaultdict(lambda : defaultdict(float))
+        for pos in range( seq_len ):
+            for radius in range( self.r ):
+                if radius < len( neighborhood_hash_cache[pos] ):
+                    feature = [ neighborhood_hash_cache[pos][radius], radius ]
+                    for distance in range( self.d ):
+                        if pos + distance + radius < seq_len:
+                            feature += [ distance, neighborhood_hash_cache[ pos + distance ][ radius ] ]
                             feature_code = util.fast_hash( feature, self.bitmask )
-                            key = util.fast_hash( [radius,distance], self.bitmask )
+                            key = util.fast_hash( [radius, distance], self.bitmask )
                             feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
-    
 
 
     def _normalization(self, feature_list, instance_id):
         #inner normalization per radius-distance
         feature_vector = {}
         total_norm = 0.0
-        for key, features in feature_list.iteritems():
+        for features in feature_list.itervalues():
             norm = 0
-            for feature, count in features.iteritems():
+            for count in features.itervalues():
                 norm += count*count
+            sqrt_norm = math.sqrt(norm)
             for feature, count in features.iteritems():
-                feature_vector_key = (instance_id,feature)
+                feature_vector_key = ( instance_id, feature )
                 if self.inner_normalization:
-                    feature_vector_value = float(count)/math.sqrt(norm)
+                    feature_vector_value = float(count)/sqrt_norm
                 else :
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
@@ -119,17 +122,17 @@ class Vectorizer():
         #global normalization
         if self.normalization:
             normalizationd_feature_vector = {}
+            sqrt_total_norm = math.sqrt(float(total_norm))
             for feature, value in feature_vector.iteritems():
-                normalizationd_feature_vector[feature]=value/math.sqrt(float(total_norm))
-            return normalizationd_feature_vector    
+                normalizationd_feature_vector[feature] = value/sqrt_total_norm
+            return normalizationd_feature_vector
         else :
             return feature_vector
-
 
 
     def _compute_neighborhood_hash(self,seq, pos):
         """Given the seq and the pos, extract all kmers up to size r in a vector
         at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
         """
-        subseq=seq[pos:pos+self.r]
+        subseq = seq[ pos:pos + self.r ]
         return util.fast_hash_vec_char( subseq, self.bitmask )

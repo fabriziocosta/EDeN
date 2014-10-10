@@ -20,7 +20,7 @@ def fast_hash( vec, bitmask ):
     running_hash = 0xAAAAAAAA
     for i,list_item in enumerate(vec):
         running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
-    return int(running_hash & bitmask)+1
+    return int(running_hash & bitmask) + 1
 
 
 def fast_hash_vec( vec, bitmask ):
@@ -30,6 +30,7 @@ def fast_hash_vec( vec, bitmask ):
         running_hash  ^= ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((i & 1) == 0)]
         hash_vec+=[int(running_hash & bitmask)+1]
     return hash_vec
+
 
 def fast_hash_vec_char( vec, bitmask ):
     hash_vec=[]
