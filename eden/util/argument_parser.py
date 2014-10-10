@@ -1,4 +1,7 @@
 def setup_common_parameters(parser):
+    """
+    Common commandline arguments.
+    """
 	parser.add_argument("-i", "--input-file",
     	dest = "input_file",
     	help = "Path to your graph file.", 
