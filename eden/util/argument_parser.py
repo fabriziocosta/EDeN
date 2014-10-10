@@ -1,7 +1,7 @@
 def setup_common_parameters(parser):
-	parser.add_argument("-i", "--input-file",  
+	parser.add_argument("-i", "--input-file",
     	dest = "input_file",
-    	help = "File name with graphs.", 
+    	help = "Path to your graph file.", 
     	required = True)
 	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
     	help = "File format.", 
@@ -27,7 +27,7 @@ def setup_common_parameters(parser):
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
-		default = "out")	
+		default = "out")
 	parser.add_argument("-t", "--output-format",  choices = ["text", "numpy", "MatrixMarket", "joblib"],
     	dest = "output_format",
     	help = "Output file format.", 
