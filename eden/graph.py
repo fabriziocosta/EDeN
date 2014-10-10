@@ -15,7 +15,6 @@ import multiprocessing
 from eden.util import util
 
 
-
 class Vectorizer(object):
     """
     Transforms labeled, weighted, nested graphs in sparse vectors.
@@ -73,14 +72,14 @@ class Vectorizer(object):
             The 'hasher_dict' specifies the locality sensitive hashing strategy to discretize 
             the resulting approximate kernel mapping.
         """
-        self.r = (r+1)*2
-        self.d = (d+1)*2
+        self.r = (r + 1) * 2
+        self.d = (d + 1) * 2
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.pure_neighborhood_features = pure_neighborhood_features
-        self.bitmask = pow(2,nbits)-1
-        self.feature_size = self.bitmask+2
+        self.bitmask = pow(2, nbits) - 1
+        self.feature_size = self.bitmask + 2
         self.approximate_kernel_mapper_dict = approximate_kernel_mapper_dict
         self.hasher_dict = hasher_dict
 
@@ -99,7 +98,7 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        super_X=defaultdict(lambda : list(list()))
+        super_X = defaultdict( lambda : list( list() ) )
         ktype_set = set()
         #for all types in every node of every graph
         for G in G_list:
@@ -110,14 +109,13 @@ class Vectorizer(object):
                 #or rather of lists of labels that are themselves lists
                 super_X[ktype] += d['label']
 
-        #for all types 
+        #for all types
         for ktype in ktype_set:
-            X = np.array(super_X[ktype])
+            X = np.array( super_X[ktype] )
             approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
             #fit the approximate_kernel_mapper and store it
             approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **approximate_kernel_mapper_parameters_dict)
             hasher, approximate_kernel_mapper_parameters_dict = self.hasher_dict[ktype]
-            hasher
 
     def fit_transform(self, G_list, n_jobs = 1):
         """
@@ -151,8 +149,8 @@ class Vectorizer(object):
                 #or rather of lists of labels that are themselves lists
                 super_X[ktype] += d['label']
 
-        super_X_approx=defaultdict(lambda : list(list()))
-        super_X_disc=defaultdict(lambda : list(list()))
+        super_X_approx = defaultdict(lambda : list(list()))
+        super_X_disc = defaultdict(lambda : list(list()))
         #for all types 
         for ktype in ktype_set:
             approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
@@ -173,7 +171,7 @@ class Vectorizer(object):
         #return X
 
 
-    def transform(self,G_list, n_jobs = 1):
+    def transform(self, G_list, n_jobs = 1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -193,22 +191,23 @@ class Vectorizer(object):
             return self._transform_parallel(G_list, n_jobs)
 
 
-    def _convert_to_sparse_vector(self,feature_dict):
-        assert(len(feature_dict)>0),'ERROR: something went wrong, empty feature_dict'
+    def _convert_to_sparse_vector(self, feature_dict):
+        assert( len(feature_dict) > 0 ), 'ERROR: something went wrong, empty feature_dict'
         data = feature_dict.values()
-        row_col = feature_dict.keys()
-        row = [i for i,j in row_col]
-        col = [j for i,j in row_col]
+        row, col = [], []
+        for i, j in feature_dict.iterkeys():
+            row.append( i )
+            col.append( j )
         X = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
         return X
-   
+
 
     def _transform_parallel(self,G_list, n_jobs):
         feature_dict = {}
-        
+
         def my_callback( result ):
             feature_dict.update( result )
-        
+
         if n_jobs == -1:
             n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
@@ -216,42 +215,42 @@ class Vectorizer(object):
             util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
-        return self._convert_to_sparse_vector(feature_dict)
+        return self._convert_to_sparse_vector( feature_dict )
 
 
-    def _transform_serial(self,G_list):
+    def _transform_serial(self, G_list):
         feature_dict={}
-        for instance_id , G in enumerate(G_list):
-            feature_dict.update(self._transform(instance_id,G))
-        return self._convert_to_sparse_vector(feature_dict)
+        for instance_id , G in enumerate( G_list ):
+            feature_dict.update(self._transform( instance_id, G ))
+        return self._convert_to_sparse_vector( feature_dict )
 
 
-    def transform_iter(self,G_list):
+    def transform_iter(self, G_list):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix) and returns one sparse row at a time.
         This is a generator.
         """
-        for instance_id , G in enumerate(G_list):
-            yield self._convert_to_sparse_vector(self._transform(instance_id,G))
+        for instance_id , G in enumerate( G_list ):
+            yield self._convert_to_sparse_vector( self._transform(instance_id, G) )
 
 
     def _edge_to_vertex_transform(self, G_orig):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
-        G=nx.Graph()
+        G = nx.Graph()
         #build a graph that has as vertices the original vertex set
         for n,d in G_orig.nodes_iter(data=True):
             d['node']=True
-            G.add_node(n,d)            
+            G.add_node(n,d)
         #and in addition a vertex for each edge
-        for u,v,d in G_orig.edges_iter(data=True):
-            new_node_id='%s|%s'%(u,v)
-            d['edge']=True
+        for u, v, d in G_orig.edges_iter( data=True ):
+            new_node_id = '%s|%s' % (u,v)
+            d['edge'] = True
             G.add_node(new_node_id, d)
             #and the corresponding edges
-            G.add_edge(new_node_id,u, label=1)
-            G.add_edge(new_node_id,v, label=1)    
+            G.add_edge(new_node_id,u, label = 1)
+            G.add_edge(new_node_id,v, label = 1)
         return G
 
 
@@ -287,10 +286,10 @@ class Vectorizer(object):
                 u = endpoints[0]
                 v = endpoints[1]
                 #add the corresponding edge
-                G.add_edge(u,v,d)
+                G.add_edge( u, v, d )
                 #remove the edge-vertex
                 G.remove_node(n)
-            if d.get('node', False) == True :
+            if d.get('node', False) == True:
                 #remove stale information
                 G.node[n].pop('remote_neighbours', None)
         return G
@@ -301,7 +300,7 @@ class Vectorizer(object):
         G=self._edge_to_vertex_transform(G_orig)
         self._weight_preprocessing(G)
         self._hlabel_preprocessing(G)
-        self._compute_distant_neighbours(G, max(self.r,self.d))       
+        self._compute_distant_neighbours(G, max(self.r,self.d))
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):
             self._compute_neighborhood_graph_weight_cache(G)
@@ -350,10 +349,10 @@ class Vectorizer(object):
 
     def _transform_vertex(self, G, v, feature_list):
         #for all distances 
-        root_dist_dict=G.node[v]['remote_neighbours']
-        for distance in range(0,self.d,2):
+        root_dist_dict = G.node[v]['remote_neighbours']
+        for distance in range(0, self.d, 2):
             if root_dist_dict.has_key(distance):
-                node_set=root_dist_dict[distance]
+                node_set = root_dist_dict[distance]
                 for u in node_set:
                     self._transform_vertex_pair(G, v, u, distance, feature_list)
 
@@ -379,45 +378,47 @@ class Vectorizer(object):
                         feature_list[key][feature]+=1
                     else :
                         feature_list[key][feature]+=G.node[v]['neighborhood_graph_weight'][radius]+G.node[u]['neighborhood_graph_weight'][radius]
-                    
+
 
     def _transform_vertex_pair_pure_neighborhood(self, G, v, u, distance, feature_list):
         #for all radii
-        for radius in range(0,self.r,2):
+        for radius in range(0, self.r, 2):
             for label_index in range(G.graph['label_size']):
-                if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
+                if radius < len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a radius, distance and a neighbourhood 
                     t = [G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
                     feature = util.fast_hash( t, self.bitmask )
                     key = util.fast_hash( [radius,distance], self.bitmask )
-                    if G.graph.get('weighted',False) == False : #if self.weighted == False :
+                    if G.graph.get('weighted',False) == False: #if self.weighted == False :
                         feature_list[key][feature]+=1
-                    else :
+                    else:
                         feature_list[key][feature]+=G.node[u]['neighborhood_graph_weight'][radius]
 
-                                
+
     def _normalization(self, feature_list, instance_id):
         #inner normalization per radius-distance
         feature_vector = {}
         total_norm = 0.0
-        for key, features in feature_list.iteritems():
+        for features in feature_list.itervalues():
             norm = 0
-            for feature, count in features.iteritems():
+            for count in features.itervalues():
                 norm += count*count
+            sqrt_norm = math.sqrt(norm)
             for feature, count in features.iteritems():
                 feature_vector_key = (instance_id,feature)
                 if self.inner_normalization:
-                    feature_vector_value = float(count)/math.sqrt(norm)
-                else :
+                    feature_vector_value = float(count)/sqrt_norm
+                else:
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
                 total_norm += feature_vector_value*feature_vector_value
         #global normalization
         if self.normalization:
             normalizationd_feature_vector = {}
+            sqrt_total_norm = math.sqrt( float(total_norm) )
             for feature, value in feature_vector.iteritems():
-                normalizationd_feature_vector[feature]=value/math.sqrt(float(total_norm))
-            return normalizationd_feature_vector    
+                normalizationd_feature_vector[feature] = value/sqrt_total_norm
+            return normalizationd_feature_vector
         else :
             return feature_vector
 
@@ -429,20 +430,20 @@ class Vectorizer(object):
                 self._compute_neighborhood_graph_hash(u,G)
 
 
-    def _compute_neighborhood_graph_hash(self,root,G):
-        hash_neighborhood_list=[]
+    def _compute_neighborhood_graph_hash(self, root, G):
+        hash_neighborhood_list = []
         #for all labels
         for label_index in range(G.graph['label_size']):
             #list all hashed labels at increasing distances
-            hash_list=[]
+            hash_list = []
             #for all distances 
-            root_dist_dict=G.node[root]['remote_neighbours']
-            for distance, node_set in root_dist_dict.iteritems():
+            root_dist_dict = G.node[root]['remote_neighbours']
+            for node_set in root_dist_dict.itervalues():
                 #create a list of hashed labels
-                hash_label_list=[]
+                hash_label_list = []
                 for v in node_set:
-                    vhlabel=G.node[v]['hlabel'][label_index]
-                    hash_label_list.append(vhlabel) 
+                    vhlabel = G.node[v]['hlabel'][label_index]
+                    hash_label_list.append(vhlabel)
                 #sort it
                 hash_label_list.sort()
                 #hash it
@@ -450,13 +451,13 @@ class Vectorizer(object):
                 hash_list.append(hashed_nodes_at_distance_d_in_neighborhood_set)
             #hash the sequence of hashes of the node set at increasing distances into a list of features
             hash_neighborhood = util.fast_hash_vec( hash_list, self.bitmask )
-            hash_neighborhood_list.append(hash_neighborhood)
+            hash_neighborhood_list.append( hash_neighborhood )
         G.node[root]['neighborhood_graph_hash']=hash_neighborhood_list
 
 
     def _compute_neighborhood_graph_weight_cache(self, G):
         assert (len(G)>0), 'ERROR: Empty graph'
-        for u,d in G.nodes_iter(data=True):
+        for u, d in G.nodes_iter( data=True ):
             if d.get('node', False): 
                 self._compute_neighborhood_graph_weight(u,G)
 
@@ -493,31 +494,31 @@ class Vectorizer(object):
     def _single_vertex_breadth_first_visit(self, G, root, max_depth):
         #the map associates to each distance value (from 1:max_depth) 
         #the list of ids of the vertices at that distance from the root 
-        dist_list={} 
+        dist_list = {}
         visited= set() #use a set as we can end up exploring few nodes
-        q=deque() #q is the queue containing the frontieer to be expanded in the BFV
+        q = deque() #q is the queue containing the frontieer to be expanded in the BFV
         q.append(root)
-        dist={} #the map associates to each vertex id the distance from the root
-        dist[root]=0
+        dist = {} #the map associates to each vertex id the distance from the root
+        dist[root] = 0
         visited.add(root)
         #add vertex at distance 0
-        dist_list[0]=set()
+        dist_list[0] = set()
         dist_list[0].add(root)
-        while len(q) > 0 :
+        while len(q) > 0:
             #extract the current vertex
-            u=q.popleft()
-            d=dist[u]+1
-            if d <= max_depth :
+            u = q.popleft()
+            d = dist[u] + 1
+            if d <= max_depth:
                 #iterate over the neighbors of the current vertex
-                for v in G.neighbors(u) :
-                    if v not in visited :
+                for v in G.neighbors(u):
+                    if v not in visited:
                         #skip nesting edge-nodes
                         if G.node[v].get('nesting',False) == False :
-                            dist[v]=d
+                            dist[v] = d
                             visited.add(v)
                             q.append(v)
                             if dist_list.has_key(d) == False :
-                                dist_list[d]=set()
+                                dist_list[d] = set()
                                 dist_list[d].add(v)
                             else :
                                 dist_list[d].add(v)
@@ -528,7 +529,6 @@ class Vectorizer(object):
         for n,d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
-        
 
 
 class Annotator(Vectorizer):
@@ -540,10 +540,8 @@ class Annotator(Vectorizer):
         Parameters
         ----------
         estimator : scikit-learn style predictor 
-            
 
         vectorizer : EDeN graph vectorizer 
-            
 
         reweight : float
             Update the 'weight' information as a linear combination of the previuous weight and 
@@ -585,7 +583,7 @@ class Annotator(Vectorizer):
         #extract per vertex feature representation
         X = self._compute_vertex_based_features(G)
         #compute distance from hyperplane as proxy of vertex importance
-        margins=self._estimator.decision_function(X)
+        margins = self._estimator.decision_function(X)
         #annotate graph structure with vertex importance
         vertex_id = 0
         for v,d in G.nodes_iter(data=True):
