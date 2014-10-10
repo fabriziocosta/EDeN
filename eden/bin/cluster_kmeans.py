@@ -27,9 +27,7 @@ def setup_parameters(parser):
 		dest = "n_init",
 		type = int, 
 		default = 3,
-		help = """File name for negative instances. 
-		If set then  --input-file is assumed containing positive instance.
-		This option is mutually exclusive with the --target-file-name option.""")
+		help = """Number of random initializations.""")
 	return parser
 
 
