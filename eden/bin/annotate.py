@@ -17,7 +17,7 @@ Annotate graphs using a predictive model.
 """
 
 def setup_parameters(parser):
-	parser.add_argument("-i", "--input-file",  
+	parser.add_argument("-i", "--input-file",
     	dest = "input_file",
     	help = "File name with graphs.", 
     	required = True)
@@ -27,10 +27,10 @@ def setup_parameters(parser):
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
-		default = "out")	
+		default = "out")
 	parser.add_argument( "-w", "--reweight-factor",
 		dest = "reweight",
-		type = int, 
+		type = float,
 		help = """
             Update the 'weight' information as a linear combination of the previuous weight and 
             the absolute value of the margin. 
@@ -64,7 +64,7 @@ def main(args):
 	ann=graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
 	
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
 	
 	#annotate
 	ann_g_list=[g for g in  ann.transform(g_it)]

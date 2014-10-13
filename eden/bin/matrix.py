@@ -17,6 +17,7 @@ Pairwise matrix computation.
 
 def setup_parameters(parser):
 	parser = argument_parser.setup_common_parameters(parser)
+    # mode is not needed, or?
 	parser.add_argument("-m", "--mode",  choices = ["similarity","distance"],
     	help = "switch between pairwise similarity or distance computation.", 
     	default = "similarity")
@@ -41,7 +42,7 @@ def main(args):
 	"""
 
 	#input data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0]))

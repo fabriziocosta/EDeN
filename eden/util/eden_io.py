@@ -26,22 +26,22 @@ def load_target(name, input_type = 'url'):
 	
 	if input_type is 'file':
 		with open(name,'r') as f:
-			Y=[y.strip() for y in f]
+			Y = [y.strip() for y in f]
 	    	return np.array(Y,int)
 	elif input_type is 'url':
 		import requests
 		r = requests.get(name)
-		Y=[y for y in r.text.split()]
-		return np.array(Y,int)
+		Y = [y for y in r.text.split()]
+		return np.array(Y, int)
 	elif input_type is 'string_file':
 		with open(name,'r') as f:
-			Ys=[y.strip() for y in f]
-			target_dict=set(Ys)
-			target_map={}
-			for id,name in enumerate(target_dict):
-				target_map[name]=id
-			Y=[target_map[target] for target in Ys]
-			return np.array(Y,int)
+			Ys = [y.strip() for y in f]
+			target_dict = set(Ys)
+			target_map = {}
+			for id, name in enumerate(target_dict):
+				target_map[name] = id
+			Y = [target_map[target] for target in Ys]
+			return np.array(Y, int)
 	else:
 		raise Exception("Unidentified input_type:%s" % input_type)
 
@@ -61,7 +61,7 @@ def store_matrix(matrix = '', output_dir_path = '', out_file_name = '', output_f
 	elif output_format == "text":
 		with open(full_out_file_name, "w") as f:
 			if len(matrix.shape) == 1:
-				data_str = [str(x) for x in matrix]
+				data_str = map(str, matrix)
 				f.write('\n'.join(data_str))
 			else:
 				raise Exception("Currently 'text' format supports only mono dimensional array and not matrices")

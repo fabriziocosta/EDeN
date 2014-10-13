@@ -29,7 +29,7 @@ def get_remote_data(RESTQ, args, out_file_name):
 	reply=requests.get(RESTQ)
 	listkey = reply.json()['IdentifierList']['ListKey']
 	size = reply.json()['IdentifierList']['Size'] 
-	if not os.path.exists(args.output_dir_path) :		
+	if not os.path.exists(args.output_dir_path) :
 		os.mkdir(args.output_dir_path)
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	get_compound_set(fname = full_out_file_name, size = size, listkey = listkey)

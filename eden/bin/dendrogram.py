@@ -57,7 +57,7 @@ def setup_parameters(parser):
         centroids s and t give the new centroid u. This is also known as the WPGMC algorithm.
     	""", 
     	default = "average")
-	parser.add_argument("--distance-metric",  choices = ["cosine", "euclidean", "l1", "l2", "manhattan"],
+	parser.add_argument("--distance-metric",  choices = ["cityblock","cosine", "euclidean", "l1", "l2", "manhattan"],
     	dest = "distance_metric",
     	help = """Note that in the case of 'cosine' and 'euclidean' 
     	(which are valid scipy.spatial.distance metrics), the scikit-learn implementation 
