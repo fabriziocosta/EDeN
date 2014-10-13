@@ -31,6 +31,7 @@ def draw_graph(graph,
         node_color = 'white'
     else:
         node_color=[graph.node[u][vertex_color] for u in graph.nodes()]
+
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog = prog)
     elif layout == 'circular':
@@ -50,6 +51,7 @@ def draw_graph(graph,
         linewidths = 0.001
     else:
         linewidths = 1
+
     nx.draw_networkx_nodes(graph,pos,
         node_color=node_color,
         alpha=0.6,
@@ -69,7 +71,7 @@ def draw_adjacency_graph (A,
     prog = 'neato',
     node_size=80):
 
-    graph=nx.from_scipy_sparse_matrix(A)
+    graph = nx.from_scipy_sparse_matrix(A)
 
     plt.figure(figsize=(size,size))
     plt.grid(False)
@@ -80,12 +82,12 @@ def draw_adjacency_graph (A,
     else:
         pos = nx.spring_layout(graph)
 
-    if len(node_color)==0:
+    if not node_color:
         node_color='gray'
-    nx.draw_networkx_nodes(graph, pos, 
-                           node_color=node_color, 
-                           alpha=0.6, 
-                           node_size=node_size, 
+    nx.draw_networkx_nodes(graph, pos,
+                           node_color = node_color, 
+                           alpha = 0.6, 
+                           node_size = node_size, 
                            cmap = plt.get_cmap('autumn'))
-    nx.draw_networkx_edges(graph, pos, alpha=0.5)
+    nx.draw_networkx_edges(graph, pos, alpha = 0.5)
     plt.show()
