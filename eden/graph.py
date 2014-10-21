@@ -7,6 +7,7 @@ import math
 from scipy.sparse import csr_matrix
 from scipy import stats
 from sklearn.linear_model import SGDClassifier
+from sklearn.cluster import KMeans
 from collections import deque
 from operator import itemgetter, attrgetter
 import itertools
@@ -27,8 +28,8 @@ class Vectorizer(object):
         normalization = True,
         inner_normalization = True,
         pure_neighborhood_features = False,
-        approximate_kernel_mapper_dict = {},
-        hasher_dict = {}):
+        discretization_size = 0,
+        discretization_dimension = 1):
         """
         Parameters
         ----------
@@ -57,20 +58,12 @@ class Vectorizer(object):
             The purpose of these features is to allow vertices that have similar contexts to be 
             matched, even when they are completely different. 
 
-        approximate_kernel_mapper_dict : list of approximate kernel mappers. 
-            The key matches the 'type' of nodes. The assocaited value is 
-            a pair (kernel approximation callable, parameters dictionary) that can work on the
-            matrix of all 'label' extracted from the nodes.
-            The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate 
-            kernel mapping strategy for different node 'classes'. 
+        discretization_size : int
+            Number of discretization levels for real vector labels.
+            If 0 then treat all labels as strings. 
 
-        hasher_dict : list of locality sensitive hashing (LSH) functions.
-            The key matches the 'type' of nodes. The assocaited value is 
-            a pair (LSH callable, parameters dictionary) that can work on the matrix of the 
-            approximated 'label' extracted from nodes and processed by the kernel 
-            approximate mappers.
-            The 'hasher_dict' specifies the locality sensitive hashing strategy to discretize 
-            the resulting approximate kernel mapping.
+        discretization_dimension : int
+            Size of the discretized label vector.
         """
         self.r = (r + 1) * 2
         self.d = (d + 1) * 2
@@ -80,8 +73,34 @@ class Vectorizer(object):
         self.pure_neighborhood_features = pure_neighborhood_features
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
-        self.approximate_kernel_mapper_dict = approximate_kernel_mapper_dict
-        self.hasher_dict = hasher_dict
+        self.discretization_size = discretization_size
+        self.discretization_model_dict = dict()
+
+
+    def _extract_label_data_from_graph_list(self, G_list):
+        label_data_dict = defaultdict( lambda : list( list() ) )
+        #for all types in every node of every graph
+        for instance_id, G in enumerate(G_list):
+            label_data_dict.update(self._extract_label_data(G))
+        #convert into dict of numpy matrices
+        return self._convert_to_dict_of_dense_matrix(label_data_dict)
+
+
+    def _extract_label_data(self, G):
+        label_data_dict = defaultdict( lambda : list( list() ) )
+        #for all types in every node of every graph
+        for n, d in G.nodes_iter(data = True):
+            kclass = d['class']
+            label_data_dict[kclass] += d['label']
+            reference_data_dict[kclass] += (instance_id, n)
+        return label_data_dict
+
+
+    def _convert_to_dict_of_dense_matrix(self, label_data_dict):
+        label_matrix_dict = dict()
+        for kclass in label_data_dict:
+            label_matrix_dict[kclass] = np.array(label_data_dict[kclass])
+        return label_matrix_dict
 
 
     def fit(self, G_list, n_jobs = 1):
@@ -98,34 +117,17 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        super_X = defaultdict( lambda : list( list() ) )
-        ktype_set = set()
-        #for all types in every node of every graph
-        for G in G_list:
-            for n,d in G.nodes_iter(data = True):
-                ktype = d['ktype']
-                ktype_set.add(ktype)
-                #extract the label field in all graphs and build a dict of matrices 
-                #or rather of lists of labels that are themselves lists
-                super_X[ktype] += d['label']
+        label_data_dict = self._extract_label_data(G_list, n_jobs = n_jobs)
+        for kclass in label_data_dict:
+            #TODO: parameters for KMeans
+            for m in range(self.discretization_dimension):
+                discretization_model = KMeans(init = 'random', n_clusters = self.discretization_size, n_jobs = n_jobs, n_init = 1)
+                discretization_model.fit(label_data_dict[kclass])
+                self.discretization_model_dict[kclass] += [discretization_model]
 
-        #for all types
-        for ktype in ktype_set:
-            X = np.array( super_X[ktype] )
-            approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
-            #fit the approximate_kernel_mapper and store it
-            approximate_kernel_mapper.fit(X, n_jobs = n_jobs, **approximate_kernel_mapper_parameters_dict)
-            hasher, approximate_kernel_mapper_parameters_dict = self.hasher_dict[ktype]
 
     def fit_transform(self, G_list, n_jobs = 1):
         """
-        Constructs an approximate explicit mapping of a kernel function on the data 
-        stored in the nodes of the graphs and then transforms a list of networkx graphs 
-        into a Numpy csr sparse matrix (Compressed Sparse Row matrix).
-
-        The 'approximate_kernel_mapper_dict' dictionary specifies the appropriate approximate kernel mapping 
-        strategy for different node 'classes'. The 'hasher_dict' specifies the locality sensitive 
-        hashing strategy to discretize the resulting approximate kernel mapping.
 
         Parameters
         ----------
@@ -137,38 +139,7 @@ class Vectorizer(object):
             Use -1 to indicate the total number of CPUs available.
         """
         self.fit(G_list, n_jobs = n_jobs)
-
-        super_X=defaultdict(lambda : list(list()))
-        ktype_set = set()
-        #for all types in every node of every graph
-        for G in G_list:
-            for n,d in G.nodes_iter(data = True):
-                ktype = d['ktype']
-                ktype_set.add(ktype)
-                #extract the label field in all graphs and build a dict of matrices 
-                #or rather of lists of labels that are themselves lists
-                super_X[ktype] += d['label']
-
-        super_X_approx = defaultdict(lambda : list(list()))
-        super_X_disc = defaultdict(lambda : list(list()))
-        #for all types 
-        for ktype in ktype_set:
-            approximate_kernel_mapper, approximate_kernel_mapper_parameters_dict = self.approximate_kernel_mapper_dict[ktype]
-            X = np.array(super_X[ktype])
-            #transform data
-            X_approx = approximate_kernel_mapper.transform(X, n_jobs = n_jobs)
-            #discretize data
-            hasher, hasher_parameters_dict = self.hasher_dict[ktype]
-            hasher.set_params(**hasher_parameters_dict)
-            super_X_disc[ktype] = hasher.transform(X_approx) #TODO: make parallel version of hasher.transform
-        for G in G_list:
-            for n,d in G.nodes_iter(data = True):
-                ktype = d['ktype']
-                #TODO
-                #extract the correspondent transformed and discretized vector
-                #replace the node hlabel
-        #apply the base transform on the new G_list
-        #return X
+        return self.transform(G_list, n_jobs = n_jobs)
 
 
     def transform(self, G_list, n_jobs = 1):
@@ -191,7 +162,7 @@ class Vectorizer(object):
             return self._transform_parallel(G_list, n_jobs)
 
 
-    def _convert_to_sparse_vector(self, feature_dict):
+    def _convert_to_sparse_matrix(self, feature_dict):
         assert( len(feature_dict) > 0 ), 'ERROR: something went wrong, empty feature_dict'
         data = feature_dict.values()
         row, col = [], []
@@ -215,14 +186,14 @@ class Vectorizer(object):
             util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
-        return self._convert_to_sparse_vector( feature_dict )
+        return self._convert_to_sparse_matrix( feature_dict )
 
 
     def _transform_serial(self, G_list):
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
             feature_dict.update(self._transform( instance_id, G ))
-        return self._convert_to_sparse_vector( feature_dict )
+        return self._convert_to_sparse_matrix( feature_dict )
 
 
     def transform_iter(self, G_list):
@@ -232,7 +203,7 @@ class Vectorizer(object):
         This is a generator.
         """
         for instance_id , G in enumerate( G_list ):
-            yield self._convert_to_sparse_vector( self._transform(instance_id, G) )
+            yield self._convert_to_sparse_matrix( self._transform(instance_id, G) )
 
 
     def _edge_to_vertex_transform(self, G_orig):
@@ -254,11 +225,16 @@ class Vectorizer(object):
         return G
 
 
-    def _hlabel_preprocessing(self, G):
-        if len(self.approximate_kernel_mapper_dict) == 0:
+    def _label_preprocessing(self, G):
+        if len(self.discretization_size) == 0:
             G.graph['label_size'] = 1
             for n,d in G.nodes_iter(data = True):
                 G.node[n]['hlabel'] = [hash(d['label'])]
+        else:
+            for n,d in G.nodes_iter(data = True):
+                kclass = d['class']
+                data = np.array(d['label'])
+                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data) for m in range(self.discretization_dimension)]
 
 
     def _weight_preprocessing(self, G):
@@ -299,7 +275,7 @@ class Vectorizer(object):
         assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
         G=self._edge_to_vertex_transform(G_orig)
         self._weight_preprocessing(G)
-        self._hlabel_preprocessing(G)
+        self._label_preprocessing(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):
@@ -561,8 +537,8 @@ class Annotator(Vectorizer):
         self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
         self.bitmask = vectorizer.bitmask
         self.feature_size = vectorizer.feature_size
-        self.approximate_kernel_mapper_dict = vectorizer.approximate_kernel_mapper_dict
-        self.hasher_dict = vectorizer.hasher_dict
+        self.kernel_dict = vectorizer.kernel_dict
+        self.discretizer_dict = vectorizer.discretizer_dict
 
 
     def transform(self,G_list):
@@ -611,5 +587,5 @@ class Annotator(Vectorizer):
                 self._transform_vertex(G, v, feature_list)
                 feature_dict.update(self._normalization(feature_list,vertex_id))
                 vertex_id += 1
-        X = self._convert_to_sparse_vector(feature_dict)
+        X = self._convert_to_sparse_matrix(feature_dict)
         return X
