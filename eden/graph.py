@@ -74,6 +74,7 @@ class Vectorizer(object):
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.discretization_size = discretization_size
+        self.discretization_dimension = discretization_dimension
         self.discretization_model_dict = dict()
 
 
@@ -81,18 +82,20 @@ class Vectorizer(object):
         label_data_dict = defaultdict( lambda : list( list() ) )
         #for all types in every node of every graph
         for instance_id, G in enumerate(G_list):
-            label_data_dict.update(self._extract_label_data(G))
+            label_data = self._extract_label_data(G)
+            for kclass in label_data:
+                label_data_dict[kclass] += label_data[kclass]
         #convert into dict of numpy matrices
         return self._convert_to_dict_of_dense_matrix(label_data_dict)
 
 
-    def _extract_label_data(self, G):
+    def _extract_label_data(self, G_orig):
         label_data_dict = defaultdict( lambda : list( list() ) )
         #for all types in every node of every graph
+        G=self._edge_to_vertex_transform(G_orig)
         for n, d in G.nodes_iter(data = True):
             kclass = d['class']
-            label_data_dict[kclass] += d['label']
-            reference_data_dict[kclass] += (instance_id, n)
+            label_data_dict[kclass] += [d['label']]
         return label_data_dict
 
 
@@ -117,9 +120,10 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        label_data_dict = self._extract_label_data(G_list, n_jobs = n_jobs)
+        label_data_dict = self._extract_label_data_from_graph_list(G_list)
         for kclass in label_data_dict:
             #TODO: parameters for KMeans
+            self.discretization_model_dict[kclass] = []
             for m in range(self.discretization_dimension):
                 discretization_model = KMeans(init = 'random', n_clusters = self.discretization_size, n_jobs = n_jobs, n_init = 1)
                 discretization_model.fit(label_data_dict[kclass])
@@ -163,7 +167,8 @@ class Vectorizer(object):
 
 
     def _convert_to_sparse_matrix(self, feature_dict):
-        assert( len(feature_dict) > 0 ), 'ERROR: something went wrong, empty feature_dict'
+        if len(feature_dict) == 0:
+            raise Exception('ERROR: something went wrong, empty feature_dict. Perhaps wrong data format, i.e. do nodes have the "viewpoint" attribute?')
         data = feature_dict.values()
         row, col = [], []
         for i, j in feature_dict.iterkeys():
@@ -226,15 +231,16 @@ class Vectorizer(object):
 
 
     def _label_preprocessing(self, G):
-        if len(self.discretization_size) == 0:
+        if self.discretization_size == 0:
             G.graph['label_size'] = 1
             for n,d in G.nodes_iter(data = True):
-                G.node[n]['hlabel'] = [hash(d['label'])]
+                G.node[n]['hlabel'] = [hash(str(d['label']))]
         else:
+            G.graph['label_size'] = self.discretization_dimension
             for n,d in G.nodes_iter(data = True):
                 kclass = d['class']
                 data = np.array(d['label'])
-                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data) for m in range(self.discretization_dimension)]
+                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data)[0]+1 for m in range(self.discretization_dimension)]
 
 
     def _weight_preprocessing(self, G):
@@ -280,6 +286,14 @@ class Vectorizer(object):
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):
             self._compute_neighborhood_graph_weight_cache(G)
+        ################################################################################
+        from eden.util import display
+        display.draw_graph(G, size=6, 
+                   node_size=2500, 
+                   node_border=2, 
+                   prog = 'neato', 
+                   secondary_vertex_label='hlabel')
+        ################################################################################
         return G
 
 
