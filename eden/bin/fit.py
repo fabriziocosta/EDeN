@@ -75,7 +75,7 @@ def main(args):
 	"""
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
-	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
+	vec = graph.Vectorizer(r = args.radius, d = args.distance, min_r = args.min_r, min_d = args.min_d ,nbits = args.nbits)
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	
 	#if data is provided as individual files for positive and negative isntances then join the data matrices and create a corresonding target vector
@@ -97,7 +97,7 @@ def main(args):
 	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 
 	#train and optimize a SGD predicitve model
-	clf = SGDClassifier(n_jobs=args.n_jobs, class_weight = 'auto', shuffle = True)
+	clf = SGDClassifier(n_jobs = args.n_jobs, class_weight = 'auto', shuffle = True)
 	if args.optimization == "none":
 		clf.fit(X,y)
 	elif args.optimization == "predictor":
