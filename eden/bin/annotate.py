@@ -25,13 +25,6 @@ def setup_parameters(parser):
     	dest = "input_file",
     	help = "File name with graphs.", 
     	required = True)
-	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
-    	help = "File format.", 
-    	default = "gspan")
-	parser.add_argument("-o", "--output-dir", 
-		dest = "output_dir_path", 
-		help = "Path to output directory.",
-		default = "out")
 	parser.add_argument( "-w", "--reweight-factor",
 		dest = "reweight",
 		type = float,
@@ -44,6 +37,13 @@ def setup_parameters(parser):
             and the abs(margin)
             """,
         default = 1)
+	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
+    	help = "File format.", 
+    	default = "gspan")
+	parser.add_argument("-o", "--output-dir", 
+		dest = "output_dir_path", 
+		help = "Path to output directory.",
+		default = "out")
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
@@ -65,13 +65,13 @@ def main(args):
 	logging.info('Model: %s' % clf)
 
 	#initialize annotator
-	ann=graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
+	ann = graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
 	
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
 	
 	#annotate
-	ann_g_list=[g for g in  ann.transform(g_it)]
+	ann_g_list = [g for g in  ann.transform(g_it)]
 	
 	#serialize graphs
 	serialized_list = [ line for line in node_link_data.eden_to_node_link_data(ann_g_list)]
