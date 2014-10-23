@@ -24,6 +24,8 @@ class Vectorizer(object):
     def __init__(self,
         r = 3,
         d = 3,
+        min_r = 0,
+        min_d = 0,
         nbits = 20,
         normalization = True,
         inner_normalization = True,
@@ -34,10 +36,16 @@ class Vectorizer(object):
         Parameters
         ----------
         r : int 
-            The radius size.
+            The maximal radius size.
 
         d : int 
-            The distance size.
+            The maximal distance size.
+
+        min_r : int 
+            The minimal radius size.
+
+        min_d : int 
+            The minimal distance size.
 
         nbits : int 
             The number of bits that defines the feature space size: |feature space|=2^nbits.
@@ -65,8 +73,10 @@ class Vectorizer(object):
         discretization_dimension : int
             Size of the discretized label vector.
         """
-        self.r = (r + 1) * 2
-        self.d = (d + 1) * 2
+        self.r = r * 2
+        self.d = d * 2
+        self.min_r = min_r * 2
+        self.min_d = min_d * 2
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -76,17 +86,6 @@ class Vectorizer(object):
         self.discretization_size = discretization_size
         self.discretization_dimension = discretization_dimension
         self.discretization_model_dict = dict()
-
-
-    def _extract_label_data_from_graph_list(self, G_list):
-        label_data_dict = defaultdict( lambda : list( list() ) )
-        #for all types in every node of every graph
-        for instance_id, G in enumerate(G_list):
-            label_data = self._extract_label_data(G)
-            for kclass in label_data:
-                label_data_dict[kclass] += label_data[kclass]
-        #convert into dict of numpy matrices
-        return self._convert_to_dict_of_dense_matrix(label_data_dict)
 
 
     def _extract_label_data(self, G_orig):
@@ -104,6 +103,17 @@ class Vectorizer(object):
         for kclass in label_data_dict:
             label_matrix_dict[kclass] = np.array(label_data_dict[kclass])
         return label_matrix_dict
+
+
+    def _extract_label_data_from_graph_list(self, G_list):
+        label_data_dict = defaultdict( lambda : list( list() ) )
+        #for all types in every node of every graph
+        for instance_id, G in enumerate(G_list):
+            label_data = self._extract_label_data(G)
+            for kclass in label_data:
+                label_data_dict[kclass] += label_data[kclass]
+        #convert into dict of numpy matrices
+        return self._convert_to_dict_of_dense_matrix(label_data_dict)
 
 
     def fit(self, G_list, n_jobs = 1):
@@ -125,7 +135,12 @@ class Vectorizer(object):
             #TODO: parameters for KMeans
             self.discretization_model_dict[kclass] = []
             for m in range(self.discretization_dimension):
-                discretization_model = KMeans(init = 'random', n_clusters = self.discretization_size, n_jobs = n_jobs, n_init = 1)
+                discretization_model = KMeans(init = 'random', 
+                    n_clusters = self.discretization_size, 
+                    max_iter = 100,
+                    n_jobs = n_jobs, 
+                    n_init = 1,
+                    random_state = m + 1)
                 discretization_model.fit(label_data_dict[kclass])
                 self.discretization_model_dict[kclass] += [discretization_model]
 
@@ -287,12 +302,12 @@ class Vectorizer(object):
         if G.graph.get('weighted',False):
             self._compute_neighborhood_graph_weight_cache(G)
         ################################################################################
-        from eden.util import display
-        display.draw_graph(G, size=6, 
-                   node_size=2500, 
-                   node_border=2, 
-                   prog = 'neato', 
-                   secondary_vertex_label='hlabel')
+        # from eden.util import display
+        # display.draw_graph(G, size=6, 
+        #            node_size=2500, 
+        #            node_border=2, 
+        #            prog = 'neato', 
+        #            secondary_vertex_label='hlabel')
         ################################################################################
         return G
 
@@ -340,7 +355,7 @@ class Vectorizer(object):
     def _transform_vertex(self, G, v, feature_list):
         #for all distances 
         root_dist_dict = G.node[v]['remote_neighbours']
-        for distance in range(0, self.d, 2):
+        for distance in range(self.min_d, self.d + 2, 2):
             if root_dist_dict.has_key(distance):
                 node_set = root_dist_dict[distance]
                 for u in node_set:
@@ -357,7 +372,7 @@ class Vectorizer(object):
 
     def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         #for all radii
-        for radius in range(0,self.r,2):
+        for radius in range(self.min_r,self.r + 2,2):
             for label_index in range(G.graph['label_size']):
                 if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a pair of neighbourhoods at a radius,distance 
@@ -372,7 +387,7 @@ class Vectorizer(object):
 
     def _transform_vertex_pair_pure_neighborhood(self, G, v, u, distance, feature_list):
         #for all radii
-        for radius in range(0, self.r, 2):
+        for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(G.graph['label_size']):
                 if radius < len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a radius, distance and a neighbourhood 
@@ -545,14 +560,18 @@ class Annotator(Vectorizer):
         self.reweight = reweight
         self.r = vectorizer.r 
         self.d = vectorizer.d
+        self.min_r = vectorizer.min_r 
+        self.min_d = vectorizer.min_d
         self.nbits = vectorizer.nbits
         self.normalization = vectorizer.normalization
         self.inner_normalization = vectorizer.inner_normalization
         self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
         self.bitmask = vectorizer.bitmask
         self.feature_size = vectorizer.feature_size
-        self.kernel_dict = vectorizer.kernel_dict
-        self.discretizer_dict = vectorizer.discretizer_dict
+        self.discretization_size = vectorizer.discretization_size
+        self.discretization_dimension = vectorizer.discretization_dimension
+        self.discretization_model_dict = vectorizer.discretization_model_dict
+
 
 
     def transform(self,G_list):

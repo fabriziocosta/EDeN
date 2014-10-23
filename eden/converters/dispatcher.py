@@ -8,6 +8,9 @@ def any_format_to_eden(input_file = "", format = "gspan", input_type = "file"):
 	elif format == "obabel":
 		from eden.converters import obabel
 		g_it = obabel.obabel_to_eden(input_file, input_type = input_type)
+	elif format == "sequence":
+		from eden.converters import sequence
+		g_it = sequence.sequence_to_eden(input_file, input_type = input_type)
 	else:
 		raise Exception('Unknown format: %s' % format)
 	return g_it

@@ -36,7 +36,7 @@ def setup_parameters(parser):
 	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "full"],
     	help = "Type of hyper parameter optimization for the classifier.", 
     	default = "none")
-	parser.add_argument("--output-CV-performance", 
+	parser.add_argument("-x", "--output-CV-performance", 
 		dest = "output_CV_performance",
 		help = "Performe cross validated predictive performace estimation.",
 		action = "store_true")
@@ -123,5 +123,6 @@ if __name__  == "__main__":
 	args = setup.setup(DESCRIPTION, setup_parameters)
 	logging.info('Program: %s' % sys.argv[0])
 	logging.info('Started')
+	logging.info('Parameters: %s' % args)
 	main(args)
 	logging.info('Finished')

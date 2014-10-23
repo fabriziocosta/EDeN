@@ -56,5 +56,6 @@ if __name__  == "__main__":
 	args = setup.setup(DESCRIPTION, setup_parameters)
 	logging.info('Program: %s' % sys.argv[0])
 	logging.info('Started')
+	logging.info('Parameters: %s' % args)
 	main(args)
 	logging.info('Finished')
