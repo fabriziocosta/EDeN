@@ -10,13 +10,23 @@ def setup_common_parameters(parser):
     	help = "File format.", 
     	default = "gspan")
     parser.add_argument( "-r","--radius",
-		type = int, 
-		help = "Size of the largest radius used in EDeN.", 
-		default = 2)
+        type = int, 
+        help = "Size of the largest radius used in EDeN.", 
+        default = 2)
     parser.add_argument( "-d", "--distance",
-		type = int, 
-		help = "Size of the largest distance used in EDeN.", 
-		default = 5)
+        type = int, 
+        help = "Size of the largest distance used in EDeN.", 
+        default = 5)
+    parser.add_argument( "--min-radius",
+        dest = "min_r", 
+        type = int, 
+        help = "Size of the smallest radius used in EDeN.", 
+        default = 0)
+    parser.add_argument( "--min-distance",
+        dest = "min_d", 
+        type = int, 
+        help = "Size of the smallest distance used in EDeN.", 
+        default = 0)
     parser.add_argument( "-b", "--num-bits",
 		dest = "nbits",
 		type = int, 

@@ -26,6 +26,16 @@ def setup_parameters(parser):
 		dest = "input_file",
     	help = "File name with graphs.", 
     	required = True)
+	parser.add_argument( "-k", "--min-motif-size",
+		dest = "min_motif_size",
+		type = int,
+		help = "Minimal length of the motif to extract.",
+        default = 5)
+	parser.add_argument( "-m", "--max-motif-size",
+		dest = "max_motif_size",
+		type = int,
+		help = "Maximal length of the motif to extract. Use -1 for no limit.",
+        default = -1)
 	parser.add_argument("-f", "--format",  
 		choices = ["gspan", "node_link_data", "obabel", "sequence"],
     	help = "File format.", 
@@ -46,11 +56,6 @@ def setup_parameters(parser):
             and the abs(margin)
             """,
         default = 1)
-	parser.add_argument( "-k", "--min-motif-size",
-		dest = "min_motif_size",
-		type = int,
-		help = "Minimal length of the motif to extract.",
-        default = 5)
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
@@ -70,18 +75,18 @@ def main(args):
 	logging.info('Model: %s' % clf)
 
 	#initialize annotator
-	ann=graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
+	ann = graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
 	
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
 	
 	#annotate
-	ann_g_list=[g for g in  ann.transform(g_it)]
+	ann_g_list = [g for g in  ann.transform(g_it)]
 	
 	#extract_motifs for each graph
 	motif_list = []
 	for g in ann_g_list:
-		motifs = iterated_maximum_subarray.extract_motifs(graph = g, min_motif_size = args.min_motif_size)
+		motifs = iterated_maximum_subarray.extract_motifs(graph = g, min_motif_size = args.min_motif_size, max_motif_size = args.max_motif_size)
 		if motifs:
 			motif_list += [motifs]
 	
