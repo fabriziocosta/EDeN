@@ -91,3 +91,10 @@ def draw_adjacency_graph (A,
                            cmap = plt.get_cmap('autumn'))
     nx.draw_networkx_edges(graph, pos, alpha = 0.5)
     plt.show()
+
+def serialize_graph(graph):
+    import json
+    from networkx.readwrite import json_graph
+    json_data = json_graph.node_link_data(graph)
+    serial_data = json.dumps(json_data, separators=(',',':'), indent=4)
+    return serial_data

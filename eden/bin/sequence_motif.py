@@ -8,26 +8,28 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.converters import dispatcher, node_link_data
+from eden.converters import dispatcher
 from eden.util import argument_parser, setup, eden_io
+from eden import iterated_maximum_subarray
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
-Annotate graphs using a predictive model.
+Extract linear motifs by annotating graphs using a predictive model.
 
 Note: the program assumes the existence of an output directory that contains 
-a file called 'model' and a file colled 'vectorizer'. You can create these files by 
+a file called 'model' and a file called 'vectorizer'. You can create these files by 
 first running the fit.py program on the same dataset.  
 """
 
 def setup_parameters(parser):
 	parser.add_argument("-i", "--input-file",
-    	dest = "input_file",
+		dest = "input_file",
     	help = "File name with graphs.", 
     	required = True)
-	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
+	parser.add_argument("-f", "--format",  
+		choices = ["gspan", "node_link_data", "obabel", "sequence"],
     	help = "File format.", 
-    	default = "gspan")
+    	default = "sequence")
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
@@ -44,17 +46,20 @@ def setup_parameters(parser):
             and the abs(margin)
             """,
         default = 1)
+	parser.add_argument( "-k", "--min-motif-size",
+		dest = "min_motif_size",
+		type = int,
+		help = "Minimal length of the motif to extract.",
+        default = 5)
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
-
-
 	return parser
 
 
 def main(args):
 	"""
-	Annotate graphs using a predictive model.
+	Extract linear motifs by annotating graphs using a predictive model.
 	"""
 	#load vectorizer
 	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
@@ -73,13 +78,26 @@ def main(args):
 	#annotate
 	ann_g_list=[g for g in  ann.transform(g_it)]
 	
-	#serialize graphs
-	serialized_list = [ line for line in node_link_data.eden_to_node_link_data(ann_g_list)]
+	#extract_motifs for each graph
+	motif_list = []
+	for g in ann_g_list:
+		motifs = iterated_maximum_subarray.extract_motifs(graph = g, min_motif_size = args.min_motif_size)
+		if motifs:
+			motif_list += [motifs]
 	
 	#save results
-	full_out_file_name = os.path.join(args.output_dir_path, "annotated_node_link_data")
+	full_out_file_name = os.path.join(args.output_dir_path, "motifs.data")
 	with open(full_out_file_name, "w") as f:
-		f.write("\n".join(serialized_list))
+		for motif in motif_list:
+			if "".join(motif[0]):
+				line = "motif:%s begin:%d end:%d seq:%s\n" % ("".join(motif[0]),motif[1],motif[2],"".join(motif[3]))
+				f.write(line)
+	full_out_file_name = os.path.join(args.output_dir_path, "motifs")
+	with open(full_out_file_name, "w") as f:
+		for motif in motif_list:
+			if "".join(motif[0]):
+				line = "%s\n" % "".join(motif[0])
+				f.write(line)
 
 
 if __name__  == "__main__":
