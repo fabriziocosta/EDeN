@@ -1,8 +1,8 @@
-def solve_maximum_subarray_problem(score_vec):
+def solve_maximum_subarray_problem(score_vector = None):
     begin_temp = begin = end = 0
-    start_val = score_vec[0]
+    start_val = score_vector[0]
     max_ending_here = max_so_far = start_val
-    for pos,x in enumerate(score_vec[1:],1):
+    for pos,x in enumerate(score_vector[1:],1):
         if max_ending_here < 0:
             max_ending_here = x
             begin_temp = pos
@@ -15,11 +15,11 @@ def solve_maximum_subarray_problem(score_vec):
     return begin,end
 
 
-def compute_iterated_maximum_subarray(seq = '', score = '', min_motif_size = '', max_motif_size = ''):
+def compute_iterated_maximum_subarray(seq = None, score = None, min_motif_size = None, max_motif_size = None):
     motif_list = []
     while 1 :
     	#find (begin,end) of motif in each element
-    	begin,end = solve_maximum_subarray_problem(score)
+    	begin,end = solve_maximum_subarray_problem(score_vector = score)
     	if end - begin < min_motif_size -1 :
     		break
         else :
@@ -38,11 +38,11 @@ def compute_iterated_maximum_subarray(seq = '', score = '', min_motif_size = '',
 	return motif_list
 
 
-def extract_motifs(graph='', min_motif_size='', max_motif_size='' ):
+def extract_motifs(graph = None, min_motif_size = None, max_motif_size = None ):
 	#NOTE: the sequential order of nodes in the graph are used as the sequential constrain   
 	#extract sequence of labels
-	seq=[d['label'] for u,d in graph.nodes(data=True)]
+	seq=[d['label'] for u,d in graph.nodes(data = True)]
 	#extact sequence of scores
-	score=[d['importance'] for u,d in graph.nodes(data=True)]
+	score=[d['importance'] for u,d in graph.nodes(data = True)]
 	#extract motifs
 	return compute_iterated_maximum_subarray(seq = seq, score = score, min_motif_size = min_motif_size, max_motif_size = max_motif_size)

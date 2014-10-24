@@ -1,3 +1,7 @@
 time ./eden/bin/fit.py -i examples/bursi.gspan -y examples/bursi.target -r 1 -d 3 --output-CV-performance
 time ./eden/bin/annotate.py -i examples/bursi.gspan
 time ./eden/bin/fit.py -i out/annotated_node_link_data -y examples/bursi.target -r 1 -d 3 -f node_link_data --output-CV-performance -o out_ann
+
+
+#to extract motifs
+./eden/misc/create_motif_artificial_dataset.py -k 8 -s 100 -d 300; time ./eden/bin/fit.py -i dataset.seq -y dataset.target -f sequence -r 2 -d 0 -x; time ./eden/bin/sequence_motif.py -i dataset_positive.seq -f sequence -k 8 ; cat out/motifs | awk '{print ">ID" NR; print $0}' > motif.fa
