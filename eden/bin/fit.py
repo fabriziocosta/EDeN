@@ -61,9 +61,6 @@ def extract_data_matrix(args, vectorizer = None):
 	else:
 		#load target
 		y = eden_io.load_target(args.target, input_type = "file")
-	#save model
-	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	
 	#export data
 	return X,y
 
@@ -134,6 +131,10 @@ def optimize(args, predictor = None):
 		
 	score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
 	logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+
+	#save model for vectorizer
+	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
+	
 	return predictor,score,std	
 
 def main(args):
