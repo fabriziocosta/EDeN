@@ -43,39 +43,10 @@ def setup_parameters(parser):
 	return parser
 
 
-def performace_estimation(clf, X, y, cv = 10, scoring = "roc_auc"):
-	scores = cross_validation.cross_val_score(clf, X, y, cv = cv, scoring = scoring)
-	perf = np.mean(scores)
-	std = np.std(scores)
-	return (perf,std)
-
-
-def optimize_predictor(clf, X, y, n_iter_search = 20, cv = 3, scoring = "roc_auc", n_jobs = -1):
-	param_dist = {"n_iter": randint(5, 100),
-		"power_t": uniform(0.1),
-		"alpha": uniform(1e-08,1e-03),
-		"eta0" : uniform(1e-03,10),
-		"penalty": ["l1", "l2", "elasticnet"],
-		"learning_rate": ["invscaling", "constant","optimal"]}
-	optclf = RandomizedSearchCV(clf, param_distributions = param_dist, 
-		n_iter = n_iter_search, 
-		cv = cv, 
-		scoring = scoring, 
-		refit = True,
-		n_jobs = n_jobs)
-	optclf.fit(X, y)
-	logging.info("Best parameter configuration")
-	logging.info(optclf.best_params_)
-	return optclf.best_estimator_
-
-
-def main(args):
-	"""
-	Fit predictive model.
-	"""
+def extract_data_matrix(args, max_r = None, max_d = None, min_r = None, min_d = None):
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
-	vec = graph.Vectorizer(r = args.radius, d = args.distance, min_r = args.min_r, min_d = args.min_d ,nbits = args.nbits)
+	vec = graph.Vectorizer(r = max_r, d = max_d, min_r = min_r, min_d = min_d, nbits = args.nbits)
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	
 	#if data is provided as individual files for positive and negative isntances then join the data matrices and create a corresonding target vector
@@ -83,40 +54,97 @@ def main(args):
 		g_neg_it = dispatcher.any_format_to_eden(input_file = args.neg_file_name, format = args.format)	
 		X_neg = vec.transform(g_neg_it, n_jobs = args.n_jobs)
 		#create target array	
-		yp=[1]*X.shape[0]
-		yn=[-1]*X_neg.shape[0]
-		y=np.array(yp+yn)
+		yp = [1] * X.shape[0]
+		yn = [-1] * X_neg.shape[0]
+		y = np.array(yp + yn)
 		#update data matrix
 		X = vstack( [X,X_neg] , format = "csr")
 	else:
 		#load target
 		y = eden_io.load_target(args.target, input_type = "file")
-
-	#log statistics on data
-	logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
-	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
-
-	#train and optimize a SGD predicitve model
-	clf = SGDClassifier(n_jobs = args.n_jobs, class_weight = 'auto', shuffle = True)
-	if args.optimization == "none":
-		clf.fit(X,y)
-	elif args.optimization == "predictor":
-		clf = optimize_predictor(clf, X, y, n_jobs = args.n_jobs)	
-	elif args.optimization == "full":
-		#TODO: run through r and d
-		#log partial runs
-		raise Exception("full optimization is not supproted yet")
-
 	#save model
 	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	eden_io.dump(clf, output_dir_path = args.output_dir_path, out_file_name = "model")
+	
+	#export data
+	return X,y
+
+
+def performace_estimation(predictor = None, data_matrix = None, target = None, cv = 10, scoring = "roc_auc"):
+	scores = cross_validation.cross_val_score(predictor, data_matrix, target, cv = cv, scoring = scoring)
+	perf = np.mean(scores)
+	std = np.std(scores)
+	return (perf,std)
+
+
+def optimize_predictor(predictor = None, data_matrix = None, target = None, n_iter_search = 20, cv = 3, scoring = "roc_auc", n_jobs = -1):
+	param_dist = {"n_iter": randint(5, 100),
+		"power_t": uniform(0.1),
+		"alpha": uniform(1e-08,1e-03),
+		"eta0" : uniform(1e-03,10),
+		"penalty": ["l1", "l2", "elasticnet"],
+		"learning_rate": ["invscaling", "constant","optimal"]}
+	optclf = RandomizedSearchCV(predictor, param_distributions = param_dist, n_iter = n_iter_search, cv = cv, scoring = scoring, refit = True, n_jobs = n_jobs)
+	optclf.fit(data_matrix, target)
+	return optclf.best_estimator_
+
+
+def optimize_vectorizer(args, predictor = None):
+	max_predictor = None
+	max_score = 0
+	#iterate over r
+	for r in range(args.min_r,args.radius):
+		#iterate over selected d
+		for d in [0,r/2,r,2*r]:
+			if d >= args.min_d and d <= args.distance:
+				#load data and extract features
+				X,y = extract_data_matrix(args, max_r = r, max_d = d, min_r = args.min_r, min_d = args.min_d)
+				#optimize for predictor
+				predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
+				score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
+				#keep max
+				if max_score < score :
+					max_score = score
+					max_predictor = predictor
+					logging.info("Increased performance for r: %d   d: %d   score: %.4f (std: %.4f)" % (r, d, score, std))
+					#log statistics on data
+					logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
+					logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+	return max_predictor
+
+
+def optimize(args, predictor = None):
+	if args.optimization == "none" or args.optimization == "predictor":
+		#load data and extract features
+		X,y = extract_data_matrix(args, max_r = args.radius, max_d = args.distance, min_r = args.min_r, min_d = args.min_d)
+		#log statistics on data
+		logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
+		logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+
+	if args.optimization == "none":
+		predictor.fit(X,y)
+	elif args.optimization == "predictor":
+		predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
+	elif args.optimization == "full":
+		predictor = optimize_vectorizer(args, predictor = predictor)	
+	score, std = performace_estimation(predictor = predictor, data_matrix = data_matrix, target = target)
+	logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+	
+
+def main(args):
+	"""
+	Fit predictive model.
+	"""
+	predictor = SGDClassifier(n_jobs = args.n_jobs, class_weight = 'auto', shuffle = True)
+			
+	#train and optimize a SGD predicitve model
+	predictor,score,std = optimize(args, predictor = predictor)
 
 	#optionally output predictive performance
 	if args.output_CV_performance:
-		perf, std = performace_estimation(clf, X, y)
-		results = "CV estimate of AUC ROC predictive performance: %.4f (std: %.4f)" % (perf, std)
-		print(results)
-		logging.info(results)
+		print("CV estimate of AUC ROC predictive performance: %.4f (std: %.4f)" % (score, std))
+	
+	#save model
+	eden_io.dump(predictor, output_dir_path = args.output_dir_path, out_file_name = "model")
 
 
 if __name__  == "__main__":
