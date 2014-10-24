@@ -12,11 +12,11 @@ def setup_common_parameters(parser):
     parser.add_argument( "-r","--radius",
         type = int, 
         help = "Size of the largest radius used in EDeN.", 
-        default = 2)
+        default = 4)
     parser.add_argument( "-d", "--distance",
         type = int, 
         help = "Size of the largest distance used in EDeN.", 
-        default = 5)
+        default = 8)
     parser.add_argument( "--min-radius",
         dest = "min_r", 
         type = int, 
