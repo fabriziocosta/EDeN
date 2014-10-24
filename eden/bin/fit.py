@@ -35,8 +35,11 @@ def setup_parameters(parser):
 		default = "")
 	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "predictor_and_vectorizer"],
     	help = """Type of hyper parameter optimization for the classifier. 
-    	[none]:	uses default values for the SGD classifier
-    	[predictor]:	optimize all hyper-parameters of the SGD classifier, such as  the type of penalty, the num of iterations, etc.
+    	[none]:	uses default values for the SGD classifier;
+    	[predictor]:	optimize all hyper-parameters of the SGD classifier: "penalty" chosen among 
+    	["l1", "l2", "elasticnet"], "learning_rate" chosen among  ["invscaling", "constant","optimal"], 
+    	"n_iter" in the interval (5, 100), "power_t" in the interval (0.1),	"alpha" in the interval (1e-08,1e-03),
+		"eta0" in the interval (1e-03,10);
     	[predictor_and_vectorizer]:	jointly optimize the vectorizer and the predictor; 
     	namely all radius values between min-r and r and up to 4 values of 
     	distance between min-d and d are evaluated, specifically d = [0, r/2, r, 2 * r].
