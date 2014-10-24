@@ -92,9 +92,9 @@ def optimize_vectorizer(args, predictor = None):
 	max_predictor = None
 	max_score = 0
 	#iterate over r
-	for r in range(args.min_r,args.radius):
+	for r in range(args.min_r,args.radius + 1):
 		#iterate over selected d
-		for d in [0,r/2,r,2*r]:
+		for d in set([0,r / 2,r,2 * r]):
 			if d >= args.min_d and d <= args.distance:
 				#load data and extract features
 				X,y = extract_data_matrix(args, max_r = r, max_d = d, min_r = args.min_r, min_d = args.min_d)
@@ -126,8 +126,10 @@ def optimize(args, predictor = None):
 		predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
 	elif args.optimization == "full":
 		predictor = optimize_vectorizer(args, predictor = predictor)	
-	score, std = performace_estimation(predictor = predictor, data_matrix = data_matrix, target = target)
-	logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+
+	if args.optimization == "none" or args.optimization == "predictor":
+		score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
+		logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
 	
 
 def main(args):
