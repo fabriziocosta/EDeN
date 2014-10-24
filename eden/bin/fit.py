@@ -44,7 +44,7 @@ def setup_parameters(parser):
     	namely all radius values between min-r and r and up to 4 values of 
     	distance between min-d and d are evaluated, specifically d = [0, r/2, r, 2 * r].
     	""", 
-    	default = "none")
+    	default = "predictor_and_vectorizer")
 	parser.add_argument("-x", "--output-CV-performance", 
 		dest = "output_CV_performance",
 		help = "Performe cross validated predictive performace estimation.",
