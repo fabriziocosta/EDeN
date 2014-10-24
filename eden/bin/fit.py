@@ -34,7 +34,12 @@ def setup_parameters(parser):
 		This option is mutually exclusive with the --target-file-name option.""",
 		default = "")
 	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "full"],
-    	help = "Type of hyper parameter optimization for the classifier.", 
+    	help = """Type of hyper parameter optimization for the classifier. 
+    	none:	uses default values for the SGD classifier
+    	predictor: optimizes all hyper-parameters of the SGD classifier, such as  the type of penalty, the num of iterations, etc.
+    	full: optimizes the vectorizer and the predictor; all radius values between min-r and r are evalauted and selected values of 
+    	distance between min-d and d are evaluated.
+    	""", 
     	default = "none")
 	parser.add_argument("-x", "--output-CV-performance", 
 		dest = "output_CV_performance",
