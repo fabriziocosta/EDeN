@@ -43,16 +43,15 @@ def setup_parameters(parser):
 	return parser
 
 
-def extract_data_matrix(args, max_r = None, max_d = None, min_r = None, min_d = None):
+def extract_data_matrix(args, vectorizer = None):
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
-	vec = graph.Vectorizer(r = max_r, d = max_d, min_r = min_r, min_d = min_d, nbits = args.nbits)
-	X = vec.transform(g_it, n_jobs = args.n_jobs)
+	X = vectorizer.transform(g_it, n_jobs = args.n_jobs)
 	
 	#if data is provided as individual files for positive and negative isntances then join the data matrices and create a corresonding target vector
 	if args.neg_file_name != "":
 		g_neg_it = dispatcher.any_format_to_eden(input_file = args.neg_file_name, format = args.format)	
-		X_neg = vec.transform(g_neg_it, n_jobs = args.n_jobs)
+		X_neg = vectorizer.transform(g_neg_it, n_jobs = args.n_jobs)
 		#create target array	
 		yp = [1] * X.shape[0]
 		yn = [-1] * X_neg.shape[0]
@@ -91,13 +90,15 @@ def optimize_predictor(predictor = None, data_matrix = None, target = None, n_it
 def optimize_vectorizer(args, predictor = None):
 	max_predictor = None
 	max_score = 0
+	max_vectorizer = None
 	#iterate over r
 	for r in range(args.min_r,args.radius + 1):
 		#iterate over selected d
 		for d in set([0,r / 2,r,2 * r]):
 			if d >= args.min_d and d <= args.distance:
+				vectorizer = graph.Vectorizer(r = r, d = d, min_r = args.min_r, min_d = args.min_d, nbits = args.nbits)
 				#load data and extract features
-				X,y = extract_data_matrix(args, max_r = r, max_d = d, min_r = args.min_r, min_d = args.min_d)
+				X,y = extract_data_matrix(args, vectorizer)
 				#optimize for predictor
 				predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
 				score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
@@ -105,17 +106,19 @@ def optimize_vectorizer(args, predictor = None):
 				if max_score < score :
 					max_score = score
 					max_predictor = predictor
+					max_vectorizer = vectorizer
 					logging.info("Increased performance for r: %d   d: %d   score: %.4f (std: %.4f)" % (r, d, score, std))
 					#log statistics on data
 					logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
 					logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
-	return max_predictor
+	return max_predictor,vectorizer
 
 
-def optimize(args, predictor = None):
+def optimize(args, predictor = None):	
 	if args.optimization == "none" or args.optimization == "predictor":
+		vectorizer = graph.Vectorizer(r = args.radius, d = args.distance, min_r = args.min_r, min_d = args.min_d, nbits = args.nbits)
 		#load data and extract features
-		X,y = extract_data_matrix(args, max_r = args.radius, max_d = args.distance, min_r = args.min_r, min_d = args.min_d)
+		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 		#log statistics on data
 		logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
 		logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
@@ -125,12 +128,13 @@ def optimize(args, predictor = None):
 	elif args.optimization == "predictor":
 		predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
 	elif args.optimization == "full":
-		predictor = optimize_vectorizer(args, predictor = predictor)	
-
-	if args.optimization == "none" or args.optimization == "predictor":
-		score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
-		logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
-	
+		predictor,vectorizer = optimize_vectorizer(args, predictor = predictor)	
+		#extract data amtrix for evaluation 
+		X,y = extract_data_matrix(args, vectorizer = vectorizer)
+		
+	score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
+	logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+	return predictor,score,std	
 
 def main(args):
 	"""
