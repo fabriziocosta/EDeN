@@ -33,12 +33,16 @@ def setup_parameters(parser):
 		If set then  --input-file is assumed containing positive instance.
 		This option is mutually exclusive with the --target-file-name option.""",
 		default = "")
-	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "full"],
+	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "predictor_and_vectorizer"],
     	help = """Type of hyper parameter optimization for the classifier. 
+
     	none:	uses default values for the SGD classifier
-    	predictor: optimizes all hyper-parameters of the SGD classifier, such as  the type of penalty, the num of iterations, etc.
-    	full: optimizes the vectorizer and the predictor; all radius values between min-r and r are evalauted and selected values of 
-    	distance between min-d and d are evaluated.
+    	
+    	predictor: optimize all hyper-parameters of the SGD classifier, such as  the type of penalty, the num of iterations, etc.
+    	
+    	predictor_and_vectorizer: jointly optimize the vectorizer and the predictor; 
+    	namely all radius values between min-r and r and up to 4 values of 
+    	distance between min-d and d are evaluated, specifically d = [0, r/2, r, 2 * r].
     	""", 
     	default = "none")
 	parser.add_argument("-x", "--output-CV-performance", 
@@ -89,14 +93,14 @@ def optimize_predictor(predictor = None, data_matrix = None, target = None, n_it
 	return optclf.best_estimator_
 
 
-def optimize_vectorizer(args, predictor = None):
+def optimize_predictor_and_vectorizer(args, predictor = None):
 	max_predictor = None
 	max_score = 0
 	max_vectorizer = None
 	#iterate over r
 	for r in range(args.min_r,args.radius + 1):
 		#iterate over selected d
-		for d in set([0,r / 2,r,2 * r]):
+		for d in set([0, r / 2, r, 2 * r]):
 			if d >= args.min_d and d <= args.distance:
 				vectorizer = graph.Vectorizer(r = r, d = d, min_r = args.min_r, min_d = args.min_d, nbits = args.nbits)
 				#load data and extract features
@@ -129,8 +133,8 @@ def optimize(args, predictor = None):
 		predictor.fit(X,y)
 	elif args.optimization == "predictor":
 		predictor = optimize_predictor(predictor = predictor, data_matrix = X, target = y, n_jobs = args.n_jobs)	
-	elif args.optimization == "full":
-		predictor,vectorizer = optimize_vectorizer(args, predictor = predictor)	
+	elif args.optimization == "predictor_and_vectorizer":
+		predictor,vectorizer = optimize_predictor_and_vectorizer(args, predictor = predictor)	
 		#extract data amtrix for evaluation 
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 		
