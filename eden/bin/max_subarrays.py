@@ -14,11 +14,11 @@ from eden import iterated_maximum_subarray
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
-Extract linear motifs by annotating graphs using a predictive model.
+Extract maximal subarrays by annotating graphs using a predictive model.
 
-Note: the program assumes the existence of an output directory that contains 
-a file called 'model' and a file called 'vectorizer'. You can create these files by 
-first running the fit.py program on the same dataset.  
+Note: the program assumes the existence of an output directory specified via --output-dir
+that contains a file called 'model' and a file called 'vectorizer'. You can create these files by 
+first running the fit.py program.  
 """
 
 def setup_parameters(parser):
@@ -26,15 +26,15 @@ def setup_parameters(parser):
 		dest = "input_file",
     	help = "File name with graphs.", 
     	required = True)
-	parser.add_argument( "-k", "--min-motif-size",
-		dest = "min_motif_size",
+	parser.add_argument( "-k", "--min-subarray-size",
+		dest = "min_subarray_size",
 		type = int,
-		help = "Minimal length of the motif to extract.",
-        default = 5)
-	parser.add_argument( "-m", "--max-motif-size",
-		dest = "max_motif_size",
+		help = "Minimal length of the subarray to extract.",
+        default = 7)
+	parser.add_argument( "-m", "--max-subarray-size",
+		dest = "max_subarray_size",
 		type = int,
-		help = "Maximal length of the motif to extract. Use -1 for no limit.",
+		help = "Maximal length of the subarray to extract. Use -1 for no limit.",
         default = -1)
 	parser.add_argument("-f", "--format",  
 		choices = ["gspan", "node_link_data", "obabel", "sequence"],
@@ -64,7 +64,7 @@ def setup_parameters(parser):
 
 def main(args):
 	"""
-	Extract linear motifs by annotating graphs using a predictive model.
+	Extract maximal subarrays by annotating graphs using a predictive model.
 	"""
 	#load vectorizer
 	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
@@ -83,25 +83,25 @@ def main(args):
 	#annotate
 	ann_g_list = [g for g in  ann.transform(g_it)]
 	
-	#extract_motifs for each graph
-	motif_list = []
+	#extract_subarrays for each graph
+	subarray_list = []
 	for g in ann_g_list:
-		motifs = iterated_maximum_subarray.extract_motifs(graph = g, min_motif_size = args.min_motif_size, max_motif_size = args.max_motif_size)
-		if motifs:
-			motif_list += [motifs]
+		subarrays = iterated_maximum_subarray.compute_max_subarrays(graph = g, min_subarray_size = args.min_subarray_size, max_subarray_size = args.max_subarray_size)
+		if subarrays:
+			subarray_list += [subarrays]
 	
 	#save results
-	full_out_file_name = os.path.join(args.output_dir_path, "motifs.data")
+	full_out_file_name = os.path.join(args.output_dir_path, "subarrays.data")
 	with open(full_out_file_name, "w") as f:
-		for motif in motif_list:
-			if "".join(motif[0]):
-				line = "motif:%s begin:%d end:%d seq:%s\n" % ("".join(motif[0]),motif[1],motif[2],"".join(motif[3]))
+		for subarray in subarray_list:
+			if "".join(subarray[0]):
+				line = "subarray:%s begin:%d end:%d seq:%s\n" % ("".join(subarray[0]),subarray[1],subarray[2],"".join(subarray[3]))
 				f.write(line)
-	full_out_file_name = os.path.join(args.output_dir_path, "motifs")
+	full_out_file_name = os.path.join(args.output_dir_path, "subarrays")
 	with open(full_out_file_name, "w") as f:
-		for motif in motif_list:
-			if "".join(motif[0]):
-				line = "%s\n" % "".join(motif[0])
+		for subarray in subarray_list:
+			if "".join(subarray[0]):
+				line = "%s\n" % "".join(subarray[0])
 				f.write(line)
 
 
