@@ -5,21 +5,30 @@ import os
 import argparse
 import random
 
-def random_RNA(size):
-    RNAseq = ['A']*(size/4) + ['U']*(size/4) + ['C']*(size/4) + ['G']*(size/4)
-    random.shuffle(RNAseq) 
-    return ''.join(RNAseq)
+def random_sequence(size = None, list_of_chars = None):
+	num_chars = len(list_of_chars)
+	seq = []
+	#compose a list of repreated occurrences of characters in list_of_chars
+	for c in list_of_chars:
+	    seq += [c]*(size/num_chars)
+	#shuffle the list
+	random.shuffle(seq)
+	return ''.join(seq)
 
 
-def positive_dataset(seed_seq='', seq_size = '', dataset_size = ''):
+def positive_dataset(seed_seq_list = None, seq_size = None, dataset_size = None, list_of_chars = None):
     dataset = []
-    seed_size = len(seed_seq)
+    num_seeds = len(seed_seq_list)
+    seed_size = len(seed_seq_list[0])
+    effective_emi_size = (seq_size - seed_size * num_seeds) / (2 * num_seeds) + 1
     for i in range(dataset_size):
-        effective_emi_size = (seq_size - seed_size)/2
-        left_seq = random_RNA(effective_emi_size)
-        right_seq = random_RNA(effective_emi_size)
-        seq = left_seq + seed_seq + right_seq
-        dataset += [seq]
+    	seq = ''
+    	for seed_seq in seed_seq_list:
+    		left_seq = random_sequence(size = effective_emi_size, list_of_chars = list_of_chars)
+    		right_seq = random_sequence(size = effective_emi_size, list_of_chars = list_of_chars)
+    		single_seq = left_seq + seed_seq + right_seq
+    		seq += single_seq
+    	dataset += [seq]
     return dataset
 
 
@@ -38,7 +47,12 @@ if __name__  == "__main__":
 		dest = "min_motif_size",
 		type = int,
 		help = "Minimal length of the motif.",
-        default = 5)
+        default = 7)
+	parser.add_argument( "-n", "--num-motifs",
+		dest = "num_motifs",
+		type = int,
+		help = "Number of motifs per sequence.",
+        default = 1)
 	parser.add_argument( "-s", "--sequence-size",
 		dest = "sequence_size",
 		type = int,
@@ -52,9 +66,12 @@ if __name__  == "__main__":
 	args = parser.parse_args()
 
 	seed_size=args.min_motif_size
-	seed_seq = random_RNA(seed_size)
-	print 'Motif: %s'% seed_seq
-	dataset_pos = positive_dataset(seed_seq = seed_seq, seq_size = args.sequence_size, dataset_size = args.dataset_size)
+	seed_seq_list = []
+	for i in range(args.num_motifs):
+		seed_seq = random_sequence(size = seed_size, list_of_chars = "AUCG")
+		seed_seq_list += [seed_seq]
+		print 'Motif %d: %s'% (i,seed_seq)
+	dataset_pos = positive_dataset(seed_seq_list = seed_seq_list, seq_size = args.sequence_size, dataset_size = args.dataset_size, list_of_chars = "AUCG")
 	dataset_neg = negative_dataset(dataset_pos)
 	target = ["1"]*len(dataset_pos) + ["-1"]*len(dataset_neg)
 	dataset = dataset_pos + dataset_neg

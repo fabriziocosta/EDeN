@@ -4,4 +4,4 @@ time ./eden/bin/fit.py -i out/annotated_node_link_data -y examples/bursi.target 
 
 
 #to extract motifs
-./eden/misc/create_motif_artificial_dataset.py -k 8 -s 100 -d 300; time ./eden/bin/fit.py -i dataset.seq -y dataset.target -f sequence -r 2 -d 0 -x; time ./eden/bin/sequence_motif.py -i dataset_positive.seq -f sequence -k 8 ; cat out/motifs | awk '{print ">ID" NR; print $0}' > motif.fa
+./eden/misc/create_motif_artificial_dataset.py -k 9 -n 2 -s 150 -d 100; time ./eden/bin/fit.py -i dataset.seq -y dataset.target -f sequence -r 3 -d 4 -x -p none; time ./eden/bin/max_subarrays.py -i dataset_positive.seq -f sequence -k 9 -m 18 ; cat out/subarrays | awk '{print ">ID" NR; print $0}' | tee motif.fa
