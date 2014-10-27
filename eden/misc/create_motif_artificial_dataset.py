@@ -38,7 +38,7 @@ def negative_dataset(pos_dat):
         seq_list = [c for c in seq]
         random.shuffle(seq_list)
         dataset += [''.join(seq_list)]
-    return dataset   
+    return dataset
 
 
 if __name__  == "__main__":
