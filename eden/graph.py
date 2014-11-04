@@ -93,8 +93,11 @@ class Vectorizer(object):
         #for all types in every node of every graph
         G=self._edge_to_vertex_transform(G_orig)
         for n, d in G.nodes_iter(data = True):
-            kclass = d['class']
-            label_data_dict[kclass] += [d['label']]
+            #if the label is a dense vector then extract the label for further processing
+            if isinstance(d['label'],list):
+                kclass = d['class']
+                label_data_dict[kclass] += [d['label']]
+            #TODO: deal with sparse vectors
         return label_data_dict
 
 
@@ -246,16 +249,18 @@ class Vectorizer(object):
 
 
     def _label_preprocessing(self, G):
-        if self.discretization_size == 0:
-            G.graph['label_size'] = 1
-            for n,d in G.nodes_iter(data = True):
-                G.node[n]['hlabel'] = [hash(str(d['label']))]
-        else:
-            G.graph['label_size'] = self.discretization_dimension
-            for n,d in G.nodes_iter(data = True):
+        G.graph['label_size'] = self.discretization_dimension
+        for n,d in G.nodes_iter(data = True):
+            if isinstance(d['label'],list):
                 kclass = d['class']
                 data = np.array(d['label'])
-                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data)[0]+1 for m in range(self.discretization_dimension)]
+                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data)[0] + 1 for m in range(self.discretization_dimension)]
+            if isinstance(d['label'],basestring):
+                #copy a hashed version of the string for a number of times equal to self.discretization_dimension
+                #in this way qualitative (i.e. string) labels can be compared to the discretized labels
+                hlabel = int(hash(str(d['label'])) & self.bitmask) + 1
+                G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
+            #TODO: sparse vectors of type dict
 
 
     def _weight_preprocessing(self, G):
@@ -301,14 +306,14 @@ class Vectorizer(object):
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted',False):
             self._compute_neighborhood_graph_weight_cache(G)
-        ################################################################################
+        #################################################################
         # from eden.util import display
         # display.draw_graph(G, size=6, 
         #            node_size=2500, 
         #            node_border=2, 
         #            prog = 'neato', 
         #            secondary_vertex_label='hlabel')
-        ################################################################################
+        #################################################################
         return G
 
 
