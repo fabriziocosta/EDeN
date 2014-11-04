@@ -53,6 +53,7 @@ def main(args):
 	#clustering
 	clustering_algo = DBSCAN(eps = args.eps)
 	y = clustering_algo.fit_predict(X_dense)
+	logging.info('Predictions: num: %d ' % (y.shape[0]))
 
 	#log statistics on data
 	logging.info('Clusters: %d ' % len(set(y)))
