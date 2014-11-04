@@ -46,6 +46,7 @@ def main(args):
 	#clustering
 	clustering_algo = MiniBatchKMeans(n_clusters = args.n_clusters, n_init = args.n_init)
 	y = clustering_algo.fit_predict(X) 
+	logging.info('Predictions: num: %d ' % (y.shape[0]))
 
 	#save model
 	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")

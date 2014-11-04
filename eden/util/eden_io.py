@@ -61,8 +61,10 @@ def store_matrix(matrix = '', output_dir_path = '', out_file_name = '', output_f
 	elif output_format == "text":
 		with open(full_out_file_name, "w") as f:
 			if len(matrix.shape) == 1:
-				data_str = map(str, matrix)
-				f.write('\n'.join(data_str))
+				for x in matrix:
+					f.write("%s\n"%(x))
+				#data_str = map(str, matrix)
+				#f.write('\n'.join(data_str))
 			else:
 				raise Exception("Currently 'text' format supports only mono dimensional array and not matrices")
 
