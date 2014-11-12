@@ -1,3 +1,26 @@
+def find_smallest_positive(alist):
+    #find first positive value
+    minpos = -1
+    for x in alist:
+        if x > 0:
+            minpos = x
+            break
+    if minpos > 0:
+        #find smallest positive value 
+        for x in alist:
+            if x > 0 and x < minpos:
+                minpos = x
+    return minpos
+
+
+def rebase_to_smallest_positive(alist):
+    base = find_smallest_positive(alist)
+    if base == -1:
+        return None
+    else:
+        return [x - base for x in alist]
+
+
 def compute_maximum_subarray(score_vector = None):
     begin_temp = begin = end = 0
     start_val = score_vector[0]
@@ -17,6 +40,7 @@ def compute_maximum_subarray(score_vector = None):
 
 def compute_iterated_maximum_subarray(seq = None, score = None, min_subarray_size = None, max_subarray_size = None):
     subarray_list = []
+    original_score = score
     while 1 :
     	#find (begin,end) of subarray in each element
     	begin,end = compute_maximum_subarray(score_vector = score)
@@ -24,16 +48,26 @@ def compute_iterated_maximum_subarray(seq = None, score = None, min_subarray_siz
     		break
         else :
 	    	#extract maximum subarray
-	    	#subarray = seq[begin:end + 1]
-            #NOTE: in order to account for border effects we select +1 element on the left and on the right
+            #NOTE: in order to account for border effects we select +1 element on the left 
+            #and on the right
             first = max(0,begin - 1)
             last = min(len(seq),end + 1 + 1)
             subarray = seq[first : last]
-            if max_subarray_size == -1 or len(subarray) <= max_subarray_size :
+            subarray_size = len(subarray)
+            if max_subarray_size == -1 or subarray_size <= max_subarray_size :
                 #store data
-                subarray_list += [subarray, begin, end, seq]
-            #remove current subarray by zeoring importance values
-            score[begin:end + 1] = [0.0] * len(subarray)
+                acc = 0
+                for x in original_score[begin : end + 1]:
+                    acc += x
+                subarray_list += [{'subarray':subarray, 'begin':first, 'end':last, 'size':subarray_size, 'seq' : seq, 'score':acc}]
+            if subarray_size > max_subarray_size :
+                #if the subarray is too large then rebase the score list, i.e. offset by the smallest positive value
+                score = rebase_to_smallest_positive(score)
+                if score is None:
+                    break
+            else :
+                #remove current subarray by zeoring importance values
+                score[first : last] = [0.0] * subarray_size
 	    	#iterate
 	return subarray_list
 
