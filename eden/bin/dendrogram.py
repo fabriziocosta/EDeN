@@ -98,11 +98,12 @@ def main(args):
 		orientation = 'right')
 
 	#save plot
-	out_file_name = 'dendrogram.pdf'
+	out_file_name = 'dendrogram'
 	if not os.path.exists(args.output_dir_path) :
 		os.mkdir(args.output_dir_path)
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
-	fig.savefig(full_out_file_name)
+	fig.savefig(full_out_file_name + ".pdf")
+	fig.savefig(full_out_file_name + ".png")
 	logging.info('Saved file: %s' % out_file_name)
 
 

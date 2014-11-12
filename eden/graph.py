@@ -545,7 +545,8 @@ class Annotator(Vectorizer):
     def __init__(self,
         estimator = SGDClassifier(),
         vectorizer = Vectorizer(),
-        reweight = 1.0):
+        reweight = 1.0,
+        annotate_vertex_with_vector = False):
         """
         Parameters
         ----------
@@ -560,9 +561,14 @@ class Annotator(Vectorizer):
             If reweight = 1 then discard previous weight information and use only abs(margin)
             If reweight = 0.5 then update with the aritmetic mean of the previous weight information 
             and the abs(margin)
+
+        annotate_vertex_with_vector : bool
+            If True add to each vertex the attribute 'vector' which contains the 
+            sparse vector encoding of all features that have that vertex as root 
         """
         self._estimator = estimator
         self.reweight = reweight
+        self.annotate_vertex_with_vector = annotate_vertex_with_vector
         self.r = vectorizer.r 
         self.d = vectorizer.d
         self.min_r = vectorizer.min_r 
@@ -602,6 +608,11 @@ class Annotator(Vectorizer):
         vertex_id = 0
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): 
+                #annotate vector information
+                if self.annotate_vertex_with_vector:
+                    row = X.getrow(vertex_id)
+                    vec_dict = { str(index):value for index,value in zip(row.indices,row.data)}
+                    G.node[v]["vector"] = vec_dict
                 #annotate the 'importance' attribute with the margin
                 G.node[v]["importance"] = margins[vertex_id] 
                 #update the 'weight' information as a linear combination of the previuous weight and the absolute margin 

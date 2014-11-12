@@ -75,7 +75,7 @@ def main(args):
 	logging.info('Model: %s' % clf)
 
 	#initialize annotator
-	ann = graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
+	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight)
 	
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
@@ -88,20 +88,23 @@ def main(args):
 	for g in ann_g_list:
 		subarrays = iterated_maximum_subarray.compute_max_subarrays(graph = g, min_subarray_size = args.min_subarray_size, max_subarray_size = args.max_subarray_size)
 		if subarrays:
-			subarray_list += [subarrays]
-	
+			subarray_list += subarrays
+
 	#save results
 	full_out_file_name = os.path.join(args.output_dir_path, "subarrays.data")
 	with open(full_out_file_name, "w") as f:
-		for subarray in subarray_list:
-			if "".join(subarray[0]):
-				line = "subarray:%s begin:%d end:%d seq:%s\n" % ("".join(subarray[0]),subarray[1],subarray[2],"".join(subarray[3]))
+		for subarray_item in subarray_list:
+			subarray_str = "".join(subarray_item['subarray'])
+			if subarray_str:
+				seq_str = "".join(subarray_item['seq'])
+				line = "subarray:%s score:%0.4f begin:%d end:%d size:%d seq:%s\n" % (subarray_str,subarray_item['score'],subarray_item['begin'],subarray_item['end'],subarray_item['size'],seq_str)
 				f.write(line)
 	full_out_file_name = os.path.join(args.output_dir_path, "subarrays")
 	with open(full_out_file_name, "w") as f:
-		for subarray in subarray_list:
-			if "".join(subarray[0]):
-				line = "%s\n" % "".join(subarray[0])
+		for subarray_item in subarray_list:
+			subarray_str = "".join(subarray_item['subarray'])
+			if subarray_str:
+				line = "%s\n" % subarray_str
 				f.write(line)
 
 
