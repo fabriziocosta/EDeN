@@ -137,10 +137,14 @@ def optimize(args, predictor = None):
 		predictor,vectorizer = optimize_predictor_and_vectorizer(args, predictor = predictor)	
 		#extract data amtrix for evaluation 
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
-		
-	score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
-	logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
 
+	if args.output_CV_performance:
+		score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
+		logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+	else:
+		score = None
+		std = None
+		
 	#save model for vectorizer
 	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
 	
