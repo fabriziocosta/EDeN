@@ -153,6 +153,19 @@ def extract_seq(seq):
 	return out_seq
 
 
+def extract_importance_string(graph, threshold):
+	out_str = ''
+	for u,d in graph.nodes(data = True):
+		imp = d['importance']
+		if imp > 2 * threshold:
+			out_str += 'o'
+		elif imp > threshold:
+			out_str += '-'
+		else:
+			out_str += ' '
+	return out_str
+
+
 def main(args):
 	"""
 	Compute optimal alignment using Needleman-Wunsh algorithm on annotated graphs.
@@ -180,9 +193,9 @@ def main(args):
 	alignment_list = []
 	n = len(ann_g_list)
 	for i in range(n):
-		importanceA=[ ':' if d['importance'] > args.importance_threshold else ' ' for u,d in ann_g_list[i].nodes(data = True)]
+		importanceA = extract_importance_string(ann_g_list[i], args.importance_threshold)
 		for j in range(i+1,n):
-			importanceB=[ ':' if d['importance'] > args.importance_threshold else ' ' for u,d in ann_g_list[j].nodes(data = True)]
+			importanceB = extract_importance_string(ann_g_list[j], args.importance_threshold)
 			(alnA,alnB) = align(instA = ann_g_list[i], instB = ann_g_list[j], gap_penalty = args.gap_penalty, nbits = nbits) 
 			impA_str = insert_gaps(importanceA, alnA)
 			impB_str = insert_gaps(importanceB, alnB)
@@ -195,8 +208,8 @@ def main(args):
 		for aln in alignment_list:
 			(score,i,alnA,importanceA,j,alnB,importanceB) = aln
 			header_str = "ID:%s vs ID:%s score: %.4f\n"%(i,j,score)
-			seqA_str = "ID:%s (%d) %s\n" % (i,len_seq(alnA),extract_seq(alnA))
-			seqB_str = "ID:%s (%d) %s\n" % (j,len_seq(alnB),extract_seq(alnB))
+			seqA_str = "ID:%s [len:%d] %s\n" % (i,len_seq(alnA),extract_seq(alnA))
+			seqB_str = "ID:%s [len:%d] %s\n" % (j,len_seq(alnB),extract_seq(alnB))
 			alnA_str = "%s\n" % alnA
 			alnB_str = "%s\n" % alnB
 			importanceA_str = "%s\n" % ''.join(importanceA)
