@@ -158,7 +158,9 @@ def extract_importance_string(graph, threshold):
 	for u,d in graph.nodes(data = True):
 		imp = d['importance']
 		if imp > 2 * threshold:
-			out_str += 'o'
+			out_str += '*'
+		elif imp > 1.5 * threshold:
+			out_str += '+'
 		elif imp > threshold:
 			out_str += '-'
 		else:
