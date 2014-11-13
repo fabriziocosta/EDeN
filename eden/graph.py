@@ -550,17 +550,17 @@ class Annotator(Vectorizer):
         """
         Parameters
         ----------
-        estimator : scikit-learn style predictor 
+        estimator : scikit-learn predictor trained on data sampled from the same distribution 
 
         vectorizer : EDeN graph vectorizer 
 
         reweight : float
-            Update the 'weight' information as a linear combination of the previuous weight and 
-            the absolute value of the margin predicted by the estimator. 
+            Update the 'weight' information of each vertex as a linear combination of the current weight and 
+            the absolute value of the score computed by the estimator. 
             If reweight = 0 then do not update.
-            If reweight = 1 then discard previous weight information and use only abs(margin)
-            If reweight = 0.5 then update with the aritmetic mean of the previous weight information 
-            and the abs(margin)
+            If reweight = 1 then discard the current weight information and use only abs(score)
+            If reweight = 0.5 then update with the aritmetic mean of the current weight information 
+            and the abs(score)
 
         annotate_vertex_with_vector : bool
             If True add to each vertex the attribute 'vector' which contains the 
@@ -590,7 +590,7 @@ class Annotator(Vectorizer):
         Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
         graphs where each vertex has an additional attribute with key 'importance'.
         The importance value of a vertex corresponds to the part of the score that is imputable 
-        to the vertex and its neighborhood of radius r+d. 
+        to the neighborhood of radius r+d of the vertex. 
         This is a generator.
         """
         for G in G_list:
@@ -608,7 +608,7 @@ class Annotator(Vectorizer):
         vertex_id = 0
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): 
-                #annotate vector information
+                #annotate 'vector' information
                 if self.annotate_vertex_with_vector:
                     row = X.getrow(vertex_id)
                     vec_dict = { str(index):value for index,value in zip(row.indices,row.data)}

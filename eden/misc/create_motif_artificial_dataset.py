@@ -16,14 +16,17 @@ def random_sequence(size = None, list_of_chars = None):
     return ''.join(seq)
 
 
-def positive_dataset(seed_seq_list = None, seq_size = None, dataset_size = None, list_of_chars = None):
+def positive_dataset(seed_seq_list = None, sequence_size_random_delta = None, seq_size = None, dataset_size = None, list_of_chars = None):
     dataset = []
     num_seeds = len(seed_seq_list)
     seed_size = len(seed_seq_list[0])
-    effective_emi_size = (seq_size - seed_size * num_seeds) / (2 * num_seeds) + 1
+
     for i in range(dataset_size):
         seq = ''
         for seed_seq in seed_seq_list:
+            #get a ranom number between 0 and sequence_size_random_delta and add it to seq_size
+            effective_seq_size = seq_size + random.randint(0,sequence_size_random_delta)
+            effective_emi_size = (effective_seq_size - seed_size * num_seeds) / (2 * num_seeds) + 1
             left_seq = random_sequence(size = effective_emi_size, list_of_chars = list_of_chars)
             right_seq = random_sequence(size = effective_emi_size, list_of_chars = list_of_chars)
             single_seq = left_seq + seed_seq + right_seq
@@ -58,6 +61,11 @@ if __name__  == "__main__":
         type = int,
         help = "Length of the sequences.",
         default = 30)
+    parser.add_argument( "-r", "--sequence-size-random-delta",
+        dest = "sequence_size_random_delta",
+        type = int,
+        help = "Random size difference from the sequence-size.",
+        default = 1)
     parser.add_argument( "-d", "--dataset-size",
         dest = "dataset_size",
         type = int,
@@ -71,7 +79,7 @@ if __name__  == "__main__":
         seed_seq = random_sequence(size = seed_size, list_of_chars = "AUCG")
         seed_seq_list += [seed_seq]
         print 'Motif %d: %s'% (i,seed_seq)
-    dataset_pos = positive_dataset(seed_seq_list = seed_seq_list, seq_size = args.sequence_size, dataset_size = args.dataset_size, list_of_chars = "AUCG")
+    dataset_pos = positive_dataset(seed_seq_list = seed_seq_list, sequence_size_random_delta = args.sequence_size_random_delta, seq_size = args.sequence_size, dataset_size = args.dataset_size, list_of_chars = "AUCG")
     dataset_neg = negative_dataset(dataset_pos)
     target = ["1"]*len(dataset_pos) + ["-1"]*len(dataset_neg)
     dataset = dataset_pos + dataset_neg
