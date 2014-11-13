@@ -19,22 +19,29 @@ def needleman_wunsh(A,B,S,d):
     return F
 
 
+def is_approx(first, second, tolerance = 0.0001):
+    if ( first + tolerance ) > second and ( first - tolerance ) < second:
+        return True
+    else :
+        return False
+
+
 def trace_back(A,B,S,d,F):
     AlignmentA = ""
     AlignmentB = ""
     i = len(A)
     j = len(B)
     while i > 0 or j > 0:
-        if i > 0 and j > 0 and F[i,j] == F[i-1,j-1] + S[i-1, j-1] :
+        if i > 0 and j > 0 and is_approx(F[i,j] , F[i-1,j-1] + S[i-1, j-1]) :
             AlignmentA = A[i-1] + AlignmentA
             AlignmentB = B[j-1] + AlignmentB
             i = i - 1
             j = j - 1
-        elif i > 0 and F[i,j] == F[i-1,j] + d:
+        elif i > 0 and is_approx(F[i,j] , F[i-1,j] + d):
             AlignmentA = A[i-1] + AlignmentA
             AlignmentB = "-" + AlignmentB
             i = i - 1
-        elif j > 0 and F[i,j] == F[i,j-1] + d:
+        elif j > 0 and is_approx(F[i,j] , F[i,j-1] + d):
             AlignmentA = "-" + AlignmentA
             AlignmentB = B[j-1] + AlignmentB
             j = j - 1
