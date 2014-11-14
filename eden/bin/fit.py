@@ -46,8 +46,8 @@ def setup_parameters(parser):
     	distance between min-d and d are evaluated, specifically d = [0, r/2, r, 2 * r].
     	""", 
     	default = "predictor_and_vectorizer")
-	parser.add_argument("-x", "--output-CV-performance", 
-		dest = "output_CV_performance",
+	parser.add_argument("-x", "--output-predictive-performance", 
+		dest = "output_predictive_performance",
 		help = "Performe cross validated predictive performace estimation.",
 		action = "store_true")
 	return parser
@@ -139,7 +139,7 @@ def optimize(args, predictor = None):
 		#extract data amtrix for evaluation 
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 
-	if args.output_CV_performance:
+	if args.output_predictive_performance:
 		for scoring in ['accuracy','average_precision','f1','precision','recall','roc_auc']:
 			score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y, scoring = scoring)
 			msg = "Metric: %s    %.4f (std: %.4f)" % (scoring, score, std)
