@@ -48,7 +48,7 @@ def setup_parameters(parser):
     	default = "predictor_and_vectorizer")
 	parser.add_argument("-x", "--output-predictive-performance", 
 		dest = "output_predictive_performance",
-		help = "Performe cross validated predictive performace estimation.",
+		help = "Print predictive performace estimation on a 10 cross validation.",
 		action = "store_true")
 	return parser
 
