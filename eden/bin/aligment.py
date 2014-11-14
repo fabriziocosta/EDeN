@@ -3,6 +3,7 @@
 import sys
 import os
 import logging
+import math
 
 from sklearn.linear_model import SGDClassifier
 import numpy as np
@@ -112,7 +113,7 @@ def insert_gaps_in_importance_vector(alnA, graphA):
 def soft_match_alignment_score(alnA, alnB, graphA, graphB):
 	impA = np.array(insert_gaps_in_importance_vector(alnA, graphA))
 	impB = np.array(insert_gaps_in_importance_vector(alnB, graphB))
-	return impA.dot(impB)
+	return impA.dot(impB)/math.sqrt(impA.dot(impA)*impB.dot(impB))
 
 
 def align(instA = None, instB = None, gap_penalty = None, nbits = None):
