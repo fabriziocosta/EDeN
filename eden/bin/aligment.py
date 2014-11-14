@@ -4,7 +4,10 @@ import sys
 import os
 import logging
 import math
+import pylab as pl
 
+from scipy.cluster.hierarchy import linkage, dendrogram
+from sklearn import metrics
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -62,6 +65,28 @@ def setup_parameters(parser):
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
+	parser.add_argument("--plot-size",
+		dest = "plot_size",
+		type = int, 
+		default = 120,
+		help = "Size of the plot area.")
+	parser.add_argument("-l", "--linkage",  choices = [ "median","centroid","weighted","single","ward","complete","average"],
+    	help = """Which linkage criterion to use. 
+    	The linkage criterion determines which distance to use between sets of observation. 
+    	The algorithm will merge the pairs of cluster that minimize this criterion.
+        - ward minimizes the variance of the clusters being merged.
+        - average uses the average of the distances of each observation of the two sets.
+        - complete or maximum linkage uses the maximum distances between all observations of the two sets.
+        - single also known as the Nearest Point Algorithm.
+        - weighted also called WPGMA.
+        - centroid when two clusters s and t are combined into a new cluster u, the new centroid 
+        is computed over all the original objects in clusters s and t. The distance then becomes 
+        the Euclidean distance between the centroid of u and the centroid of a remaining cluster 
+        v in the forest. This is also known as the UPGMC algorithm.
+        - median when two clusters s and t are combined into a new cluster u, the average of 
+        centroids s and t give the new centroid u. This is also known as the WPGMC algorithm.
+    	""", 
+    	default = "average")
 	return parser
 
 
@@ -223,6 +248,25 @@ def output(args, alignment_list):
 			f.write("\n\n")
 
 
+def output_dendrogram(args, alignment_score_matrix):
+	#compute distance matrix
+ 	D = 1 - alignment_score_matrix
+	Z = linkage(D, method = args.linkage)
+	
+	#compute dendrogram
+	fig = pl.figure(figsize = (args.plot_size//10,args.plot_size))
+	dendrogram(Z, orientation = 'right')
+
+	#save plot
+	out_file_name = 'dendrogram'
+	if not os.path.exists(args.output_dir_path) :
+		os.mkdir(args.output_dir_path)
+	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
+	fig.savefig(full_out_file_name + ".pdf")
+	fig.savefig(full_out_file_name + ".svg")
+	logging.info('Saved file: %s' % out_file_name)
+
+
 def main(args):
 	"""
 	Compute optimal alignment using Needleman-Wunsh algorithm on annotated graphs.
@@ -267,6 +311,9 @@ def main(args):
 	F = alignment_score_matrix(alignment_list, size = len(ann_g_list))
 	#save matrix
 	eden_io.store_matrix(matrix = F, output_dir_path = args.output_dir_path, out_file_name = "alignment_score_matrix", output_format = "MatrixMarket")
+
+	#dendrogram
+	output_dendrogram(args, F)
 
 
 if __name__  == "__main__":
