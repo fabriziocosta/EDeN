@@ -7,6 +7,7 @@ import logging
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
 from sklearn import cross_validation
+import sklearn.metrics 
 from scipy.stats import randint
 from scipy.stats import uniform
 from scipy.sparse import vstack
@@ -139,8 +140,11 @@ def optimize(args, predictor = None):
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 
 	if args.output_CV_performance:
-		score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y)
-		logging.info("Predictive score: %.4f (std: %.4f)" % (score, std))
+		for scoring in ['accuracy','average_precision','f1','precision','recall','roc_auc']:
+			score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y, scoring = scoring)
+			msg = "Metric: %s    %.4f (std: %.4f)" % (scoring, score, std)
+			logging.info(msg)
+			print(msg)
 	else:
 		score = None
 		std = None
@@ -159,10 +163,6 @@ def main(args):
 	#train and optimize a SGD predicitve model
 	predictor,score,std = optimize(args, predictor = predictor)
 
-	#optionally output predictive performance
-	if args.output_CV_performance:
-		print("CV estimate of AUC ROC predictive performance: %.4f (std: %.4f)" % (score, std))
-	
 	#save model
 	eden_io.dump(predictor, output_dir_path = args.output_dir_path, out_file_name = "model")
 
