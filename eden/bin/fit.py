@@ -142,7 +142,7 @@ def optimize(args, predictor = None):
 	if args.output_predictive_performance:
 		for scoring in ['accuracy','average_precision','f1','precision','recall','roc_auc']:
 			score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y, scoring = scoring)
-			msg = "Metric: %s    %.4f (std: %.4f)" % (scoring, score, std)
+			msg = "Metric: {0:>17s}: {1:5.4f} (std: {2:5.4f})".format(scoring, score, std)
 			logging.info(msg)
 			print(msg)
 	else:
