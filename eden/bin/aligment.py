@@ -65,13 +65,17 @@ def setup_parameters(parser):
 	parser.add_argument("-v", "--verbosity", 
 		action = "count",
 		help = "Increase output verbosity")
+	parser.add_argument("-x", "--output-dendrogram", 
+		dest = "output_dendrogram",
+		help = "Output a pdf and svg dendrogram using the alignment score.",
+		action = "store_true")	
 	parser.add_argument("--plot-size",
 		dest = "plot_size",
 		type = int, 
 		default = 120,
-		help = "Size of the plot area.")
+		help = "Size of the plot area of the dendrogam picture.")
 	parser.add_argument("-l", "--linkage",  choices = [ "median","centroid","weighted","single","ward","complete","average"],
-    	help = """Which linkage criterion to use. 
+    	help = """Which linkage criterion to use for the dendrogram. 
     	The linkage criterion determines which distance to use between sets of observation. 
     	The algorithm will merge the pairs of cluster that minimize this criterion.
         - ward minimizes the variance of the clusters being merged.
@@ -312,8 +316,9 @@ def main(args):
 	#save matrix
 	eden_io.store_matrix(matrix = F, output_dir_path = args.output_dir_path, out_file_name = "alignment_score_matrix", output_format = "MatrixMarket")
 
-	#dendrogram
-	output_dendrogram(args, F)
+	if args.output_dendrogram:
+		#dendrogram
+		output_dendrogram(args, F)
 
 
 if __name__  == "__main__":
