@@ -32,12 +32,12 @@ def setup_parameters(parser):
 		dest = "gap_penalty",
 		type = float,
 		help = "Cost of inserting a gap in the alignment.",
-        default = -5)
+        default = -1)
 	parser.add_argument( "-r", "--importance-threshold",
 		dest = "importance_threshold",
 		type = float,
 		help = "Importance threshold to mark significant parts of the alignment.",
-        default = 2)
+        default = 1)
 	parser.add_argument("-f", "--format",  
 		choices = ["gspan", "node_link_data", "obabel", "sequence"],
     	help = "File format.", 
@@ -79,7 +79,7 @@ def to_matrix(feature_dict, feature_size):
     return X
 
 
-def Similarity(svecA, svecB, nbits):
+def similarity_matrix(svecA, svecB, nbits):
 	#convert dictionary into sparse vector
 	XA = to_matrix(svecA, 2 ** nbits + 1)
 	XB = to_matrix(svecB, 2 ** nbits + 1)
@@ -88,12 +88,31 @@ def Similarity(svecA, svecB, nbits):
 	return S
 
 
-def alignment_score(alnA, alnB):
+def exact_match_alignment_score(alnA, alnB):
 	score = 0.0
 	for a,b in zip(alnA,alnB):
 		if a == b:
 			score += 1
 	return score / len(alnA) 
+
+
+def insert_gaps_in_importance_vector(alnA, graphA):
+	impA = [d['importance'] for u,d in graphA.nodes(data = True)]
+	gapped_impA = []
+	index = 0
+	for c in alnA:
+		if c == '-':
+			gapped_impA += [0]
+		else:
+			gapped_impA += [impA[index]]
+			index += 1
+	return gapped_impA
+
+
+def soft_match_alignment_score(alnA, alnB, graphA, graphB):
+	impA = np.array(insert_gaps_in_importance_vector(alnA, graphA))
+	impB = np.array(insert_gaps_in_importance_vector(alnB, graphB))
+	return impA.dot(impB)
 
 
 def align(instA = None, instB = None, gap_penalty = None, nbits = None):
@@ -107,7 +126,7 @@ def align(instA = None, instB = None, gap_penalty = None, nbits = None):
 	svecA = [d['vector'] for u,d in instA.nodes(data = True)]
 	svecB = [d['vector'] for u,d in instB.nodes(data = True)]
 	#compute similarity matrix
-	S = Similarity(svecA, svecB, nbits)
+	S = similarity_matrix(svecA, svecB, nbits)
 	#compute alignment matrix
 	F = NeedlemanWunsh.needleman_wunsh(strA,strB,S,gap_penalty)
 	#compute traceback
@@ -168,6 +187,41 @@ def extract_importance_string(graph, threshold):
 	return out_str
 
 
+def alignment_score_matrix(alignment_list, size = None):
+	F = np.zeros((size,size))
+	for aln in alignment_list:
+		(exact_match_score,soft_match_score,i,alnA,importanceA,j,alnB,importanceB) = aln
+		F[i,j] = soft_match_score
+	#make symmetric
+	F = F + F.T
+	return F
+
+
+def output(args, alignment_list):
+	full_out_file_name = os.path.join(args.output_dir_path, "alignments")
+	with open(full_out_file_name, "w") as f:
+		for aln in alignment_list:
+			(exact_match_score,soft_match_score,i,alnA,importanceA,j,alnB,importanceB) = aln
+			header_str = "ID:%s vs ID:%s exact_match_score: %.4f soft_match_score: %.4f \n"%(i,j,exact_match_score,soft_match_score)
+			seqA_str = "ID:%s len:%d %s\n" % (i,len_seq(alnA),extract_seq(alnA))
+			seqB_str = "ID:%s len:%d %s\n" % (j,len_seq(alnB),extract_seq(alnB))
+			alnA_str = "%s\n" % alnA
+			alnB_str = "%s\n" % alnB
+			importanceA_str = "%s\n" % ''.join(importanceA)
+			importanceB_str = "%s\n" % ''.join(importanceB)
+			exact_match_str = "%s\n" % mark_exact_match(alnA,alnB)
+			f.write(header_str)
+			f.write(seqA_str)
+			f.write(seqB_str)
+			f.write("\n")
+			f.write(importanceA_str)
+			f.write(alnA_str)
+			f.write(exact_match_str)
+			f.write(alnB_str)
+			f.write(importanceB_str)
+			f.write("\n\n")
+
+
 def main(args):
 	"""
 	Compute optimal alignment using Needleman-Wunsh algorithm on annotated graphs.
@@ -201,32 +255,17 @@ def main(args):
 			(alnA,alnB) = align(instA = ann_g_list[i], instB = ann_g_list[j], gap_penalty = args.gap_penalty, nbits = nbits) 
 			impA_str = insert_gaps(importanceA, alnA)
 			impB_str = insert_gaps(importanceB, alnB)
-			score = alignment_score(alnA,alnB)
-			alignment_list += [(score,i,alnA,impA_str,j,alnB,impB_str)]
+			exact_match_score = exact_match_alignment_score(alnA,alnB)
+			soft_match_score = soft_match_alignment_score(alnA, alnB, ann_g_list[i], ann_g_list[j])
+			alignment_list += [(exact_match_score,soft_match_score,i,alnA,impA_str,j,alnB,impB_str)]
 
 	#save results
-	full_out_file_name = os.path.join(args.output_dir_path, "alignments")
-	with open(full_out_file_name, "w") as f:
-		for aln in alignment_list:
-			(score,i,alnA,importanceA,j,alnB,importanceB) = aln
-			header_str = "ID:%s vs ID:%s score: %.4f\n"%(i,j,score)
-			seqA_str = "ID:%s [len:%d] %s\n" % (i,len_seq(alnA),extract_seq(alnA))
-			seqB_str = "ID:%s [len:%d] %s\n" % (j,len_seq(alnB),extract_seq(alnB))
-			alnA_str = "%s\n" % alnA
-			alnB_str = "%s\n" % alnB
-			importanceA_str = "%s\n" % ''.join(importanceA)
-			importanceB_str = "%s\n" % ''.join(importanceB)
-			exact_match_str = "%s\n" % mark_exact_match(alnA,alnB)
-			f.write(header_str)
-			f.write(seqA_str)
-			f.write(seqB_str)
-			f.write(importanceA_str)
-			f.write(alnA_str)
-			f.write(exact_match_str)
-			f.write(alnB_str)
-			f.write(importanceB_str)
-			f.write("\n")
-			
+	output(args, alignment_list)	
+
+	#make alignemnt score matrix
+	F = alignment_score_matrix(alignment_list, size = len(ann_g_list))
+	#save matrix
+	eden_io.store_matrix(matrix = F, output_dir_path = args.output_dir_path, out_file_name = "alignment_score_matrix", output_format = "MatrixMarket")
 
 
 if __name__  == "__main__":
