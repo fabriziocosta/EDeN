@@ -121,6 +121,15 @@ def optimize_predictor_and_vectorizer(args, predictor = None):
 	return max_predictor,vectorizer
 
 
+def report_base_statistics(vec):
+	from collections import Counter
+	c =Counter(vec)
+	msg = ''
+	for k in c:
+   		msg += "class: %s count:%d (%0.2f)\t"% (k, c[k], c[k]/float(len(vec)))
+   	return msg
+
+
 def optimize(args, predictor = None):	
 	if args.optimization == "none" or args.optimization == "predictor":
 		vectorizer = graph.Vectorizer(r = args.radius, d = args.distance, min_r = args.min_r, min_d = args.min_d, nbits = args.nbits)
@@ -140,6 +149,10 @@ def optimize(args, predictor = None):
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 
 	if args.output_predictive_performance:
+		msg = 'Target statistics: '
+		msg += report_base_statistics(y)
+		logging.info(msg)
+		print(msg)
 		for scoring in ['accuracy','average_precision','f1','precision','recall','roc_auc']:
 			score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y, scoring = scoring)
 			msg = "Metric: {0:>17s}: {1:5.4f} (std: {2:5.4f})".format(scoring, score, std)
