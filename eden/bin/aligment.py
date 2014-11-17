@@ -5,6 +5,7 @@ import os
 import logging
 import math
 import pylab as pl
+import json
 
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn import metrics
@@ -203,49 +204,81 @@ def extract_seq(seq):
 
 
 def extract_importance_string(graph, threshold):
+	th_max = 2
+	th_med = 1.5
+	th_min = 1
 	out_str = ''
 	for u,d in graph.nodes(data = True):
 		imp = d['importance']
-		if imp > 2 * threshold:
+		if imp >  th_max * threshold:
 			out_str += '*'
-		elif imp > 1.5 * threshold:
+		elif imp > th_med * threshold:
 			out_str += '+'
-		elif imp > threshold:
+		elif imp > th_min * threshold:
 			out_str += '-'
 		else:
 			out_str += ' '
 	return out_str
 
 
+def extract_alignment_importance_string(alnA, alnB, graphA, graphB, threshold):
+	out_str = ''
+	th_max = 2
+	th_med = 1.5
+	th_min = 1
+	impA = np.array(insert_gaps_in_importance_vector(alnA, graphA))
+	impB = np.array(insert_gaps_in_importance_vector(alnB, graphB))
+	for iA,iB in zip(impA,impB):
+		imp = iA * iB
+		if imp > th_max * threshold * th_max * threshold :
+			out_str += '*'
+		elif imp > th_med * threshold * th_med * threshold:
+			out_str += '+'
+		elif imp > th_min * threshold * th_min * threshold:
+			out_str += '-'
+		else:
+			out_str += ' '
+	return out_str	
+
+
 def alignment_score_matrix(alignment_list, size = None):
 	F = np.zeros((size,size))
 	for aln in alignment_list:
-		(exact_match_score,soft_match_score,i,alnA,importanceA,j,alnB,importanceB) = aln
-		F[i,j] = soft_match_score
+		F[aln['indexA'],aln['indexB']] = aln['soft_match_score']
 	#make symmetric
 	F = F + F.T
 	return F
 
 
-def output(args, alignment_list):
-	full_out_file_name = os.path.join(args.output_dir_path, "alignments")
+def output_json(args, alignment_list):
+	full_out_file_name = os.path.join(args.output_dir_path, "alignments.json")
 	with open(full_out_file_name, "w") as f:
 		for aln in alignment_list:
-			(exact_match_score,soft_match_score,i,alnA,importanceA,j,alnB,importanceB) = aln
-			header_str = "ID:%s vs ID:%s exact_match_score: %.4f soft_match_score: %.4f \n"%(i,j,exact_match_score,soft_match_score)
-			seqA_str = "ID:%s len:%d %s\n" % (i,len_seq(alnA),extract_seq(alnA))
-			seqB_str = "ID:%s len:%d %s\n" % (j,len_seq(alnB),extract_seq(alnB))
-			alnA_str = "%s\n" % alnA
-			alnB_str = "%s\n" % alnB
-			importanceA_str = "%s\n" % ''.join(importanceA)
-			importanceB_str = "%s\n" % ''.join(importanceB)
-			exact_match_str = "%s\n" % mark_exact_match(alnA,alnB)
+			serial_data = json.dumps(aln)
+			f.write(serial_data)
+			f.write("\n")
+
+def output_txt(args, alignment_list):
+	full_out_file_name = os.path.join(args.output_dir_path, "alignments.txt")
+	with open(full_out_file_name, "w") as f:
+		for aln in alignment_list:
+			header_str = "ID:%s vs ID:%s exact_match_score: %.4f soft_match_score: %.4f \n"%(aln['indexA'],aln['indexB'],aln['exact_match_score'],aln['soft_match_score'])
+			seqA_str = "ID:%s len:%d %s\n" % (aln['indexA'],len_seq(aln['alignmentA']),extract_seq(aln['alignmentA']))
+			seqB_str = "ID:%s len:%d %s\n" % (aln['indexB'],len_seq(aln['alignmentB']),extract_seq(aln['alignmentB']))
+			alnA_str = "%s\n" % aln['alignmentA']
+			alnB_str = "%s\n" % aln['alignmentB']
+			importanceA_str = "%s\n" % ''.join(aln['importanceA'])
+			importanceB_str = "%s\n" % ''.join(aln['importanceB'])
+			exact_match_str = "%s\n" % mark_exact_match(aln['alignmentA'],aln['alignmentB'])
+			aln_imp_str = "%s\n" % ''.join(aln['alignment_importance'])
 			f.write(header_str)
 			f.write(seqA_str)
 			f.write(seqB_str)
 			f.write("\n")
 			f.write(importanceA_str)
 			f.write(alnA_str)
+			f.write(exact_match_str)
+			f.write(aln_imp_str)
 			f.write(exact_match_str)
 			f.write(alnB_str)
 			f.write(importanceB_str)
@@ -306,10 +339,21 @@ def main(args):
 			impB_str = insert_gaps(importanceB, alnB)
 			exact_match_score = exact_match_alignment_score(alnA,alnB)
 			soft_match_score = soft_match_alignment_score(alnA, alnB, ann_g_list[i], ann_g_list[j])
-			alignment_list += [(exact_match_score,soft_match_score,i,alnA,impA_str,j,alnB,impB_str)]
+			align_imp_string = extract_alignment_importance_string(alnA, alnB, ann_g_list[i], ann_g_list[j], args.importance_threshold)
+			aln = {'exact_match_score':exact_match_score,
+			'soft_match_score':soft_match_score,
+			'indexA':i,
+			'alignmentA':alnA,
+			'importanceA':impA_str,
+			'indexB':j,
+			'alignmentB':alnB,
+			'importanceB':impB_str,
+			'alignment_importance':align_imp_string}
+			alignment_list += [aln]
 
 	#save results
-	output(args, alignment_list)	
+	output_txt(args, alignment_list)	
+	output_json(args, alignment_list)	
 
 	#make alignemnt score matrix
 	F = alignment_score_matrix(alignment_list, size = len(ann_g_list))
