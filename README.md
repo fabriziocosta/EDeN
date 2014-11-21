@@ -23,6 +23,10 @@ Examples
 
 A few examples can be found as IPython Notebook inside of the examples folder. For example see here:
 
+*explicit graph modelling*
+
+http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/Explicit%20Graph%20Modelling.ipynb
+
 *annotation*
 
 http://nbviewer.ipython.org/github/fabriziocosta/pyEDeN/blob/master/examples/annotation.ipynb
