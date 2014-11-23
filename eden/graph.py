@@ -88,6 +88,23 @@ class Vectorizer(object):
         self.discretization_model_dict = dict()
 
 
+    def __repr__(self):
+        representation = """graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, 
+            nbits = %d, normalization = %s, inner_normalization = %s, pure_neighborhood_features = %s, 
+            discretization_size = %d, discretization_dimension = %d) 
+            """ % (self.r / 2,
+            self.d / 2, 
+            self.min_r / 2, 
+            self.min_d / 2, 
+            self.nbits, 
+            self.normalization, 
+            self. inner_normalization, 
+            self.pure_neighborhood_features, 
+            self.discretization_size,
+            self.discretization_dimension)
+        return representation
+
+
     def _extract_label_data(self, G_orig):
         label_data_dict = defaultdict( lambda : list( list() ) )
         #for all types in every node of every graph
