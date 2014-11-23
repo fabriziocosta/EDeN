@@ -26,6 +26,16 @@ class Vectorizer():
         self.feature_size = self.bitmask + 2
 
 
+    def __repr__(self):
+        representation = """Vectorizer(r = %d, d = %d, nbits = %d, normalization = %s, inner_normalization = %s) 
+            """ % (self.r - 1,
+            self.d - 1, 
+            self.nbits, 
+            self.normalization, 
+            self. inner_normalization)
+        return representation
+
+
     def transform(self, seq_list, n_jobs = 1):
         """
         Parameters

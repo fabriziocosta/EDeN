@@ -2,7 +2,9 @@
 
 import sys
 import os
+import time
 import logging
+import logging.handlers
 
 from sklearn.neighbors import kneighbors_graph
 
@@ -28,23 +30,57 @@ def setup_parameters(parser):
 	return parser
 
 
-def main(args):
+def nearest_neighbors(args):
 	"""
 	Nearest neighbor computation.
 	"""
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
+	logger.info('Vectorizer: %s' % vec)
+
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
-	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0]))
+	logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0]))
+
 	A = kneighbors_graph(X, args.num_neighbours, mode = args.mode)
 	
 	#output
-	eden_io.store_matrix(matrix = A, output_dir_path = args.output_dir_path, out_file_name = "matrix", output_format = args.output_format)
+	out_file_name = "matrix"	
+	eden_io.store_matrix(matrix = A, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = args.output_format)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
 
 if __name__  == "__main__":
+	start_time = time.clock()
 	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+
+	logger = logging.getLogger("nearest_neighbors")
+	log_level = logging.WARNING
+	if args.verbosity == 1:
+		log_level = logging.INFO
+	elif args.verbosity >= 2:
+		log_level = logging.DEBUG
+	logger.setLevel(logging.DEBUG)
+	# create console handler
+	ch = logging.StreamHandler()
+	ch.setLevel(log_level)
+	# create a file handler
+	fh = logging.handlers.RotatingFileHandler(filename = "log" , maxBytes=100000, backupCount=10)
+	fh.setLevel(logging.DEBUG)
+	# create formatter
+	cformatter = logging.Formatter('%(message)s')
+	# add formatter to ch
+	ch.setFormatter(cformatter)
+	# create formatter
+	fformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	# and to fh
+	fh.setFormatter(fformatter)
+	# add handlers to logger
+	logger.addHandler(ch)
+	logger.addHandler(fh)
+
+	logger.info('-------------------------------------------------------')
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args)
+	nearest_neighbors(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)

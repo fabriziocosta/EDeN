@@ -2,7 +2,9 @@
 
 import sys
 import os
+import time
 import logging
+import logging.handlers
 
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
@@ -114,10 +116,10 @@ def optimize_predictor_and_vectorizer(args, predictor = None):
 					max_score = score
 					max_predictor = predictor
 					max_vectorizer = vectorizer
-					logging.info("Increased performance for r: %d   d: %d   score: %.4f (std: %.4f)" % (r, d, score, std))
+					logger.info("Increased performance for r: %d   d: %d   score: %.4f (std: %.4f)" % (r, d, score, std))
 					#log statistics on data
-					logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
-					logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+					logger.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
+					logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 	return max_predictor,vectorizer
 
 
@@ -136,8 +138,8 @@ def optimize(args, predictor = None):
 		#load data and extract features
 		X,y = extract_data_matrix(args, vectorizer = vectorizer)
 		#log statistics on data
-		logging.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
-		logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+		logger.info('Target size: %d Target classes: %d' % (y.shape[0],len(set(y))))
+		logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 
 	if args.optimization == "none":
 		predictor.fit(X,y)
@@ -151,23 +153,27 @@ def optimize(args, predictor = None):
 	if args.output_predictive_performance:
 		msg = 'Target statistics: '
 		msg += report_base_statistics(y)
-		logging.info(msg)
+		logger.debug(msg)
 		print(msg)
 		for scoring in ['accuracy','average_precision','f1','precision','recall','roc_auc']:
 			score, std = performace_estimation(predictor = predictor, data_matrix = X, target = y, scoring = scoring)
 			msg = "Metric: {0:>17s}: {1:5.4f} (std: {2:5.4f})".format(scoring, score, std)
-			logging.info(msg)
+			logger.debug(msg)
 			print(msg)
 	else:
 		score = None
 		std = None
 		
+	logger.info('Vectorizer: %s' % vectorizer)
+
 	#save model for vectorizer
-	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	
+	out_file_name = "vectorizer"
+	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
 	return predictor,score,std	
 
-def main(args):
+
+def fit(args):
 	"""
 	Fit predictive model.
 	"""
@@ -177,13 +183,44 @@ def main(args):
 	predictor,score,std = optimize(args, predictor = predictor)
 
 	#save model
-	eden_io.dump(predictor, output_dir_path = args.output_dir_path, out_file_name = "model")
+	out_file_name = "model"
+	eden_io.dump(predictor, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
 
 
 if __name__  == "__main__":
+	start_time = time.clock()
 	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+
+	logger = logging.getLogger("fit")
+	log_level = logging.WARNING
+	if args.verbosity == 1:
+		log_level = logging.INFO
+	elif args.verbosity >= 2:
+		log_level = logging.DEBUG
+	logger.setLevel(logging.DEBUG)
+	# create console handler
+	ch = logging.StreamHandler()
+	ch.setLevel(log_level)
+	# create a file handler
+	fh = logging.handlers.RotatingFileHandler(filename = "log" , maxBytes=100000, backupCount=10)
+	fh.setLevel(logging.DEBUG)
+	# create formatter
+	cformatter = logging.Formatter('%(message)s')
+	# add formatter to ch
+	ch.setFormatter(cformatter)
+	# create formatter
+	fformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+	# and to fh
+	fh.setFormatter(fformatter)
+	# add handlers to logger
+	logger.addHandler(ch)
+	logger.addHandler(fh)
+
+	logger.info('-------------------------------------------------------')
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args)
+	fit(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)
