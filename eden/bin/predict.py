@@ -3,15 +3,13 @@
 import sys
 import os
 import time
-import logging
-import logging.handlers
 
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import setup, eden_io, util
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -19,17 +17,8 @@ Predict using model.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	return parser
-
-
-def report_base_statistics(vec):
-	from collections import Counter
-	c =Counter(vec)
-	msg = ''
-	for k in c:
-   		msg += "class: %s count:%d (%0.2f)\t"% (k, c[k], c[k]/float(len(vec)))
-   	return msg
 
 
 def predict(args):
@@ -54,7 +43,7 @@ def predict(args):
 
 	#log prediction statistics
 	msg = 'Predictions statistics: '
-	msg += report_base_statistics(predictions)
+	msg += util.report_base_statistics(predictions)
 	logger.info(msg)
 
 	#save results
@@ -72,34 +61,10 @@ def predict(args):
 
 if __name__  == "__main__":
 	start_time = time.clock()
-	args = setup.setup(DESCRIPTION, setup_parameters)
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "predict", filename = "log", verbosity = args.verbosity)
 
-	logger = logging.getLogger("predict")
-	log_level = logging.WARNING
-	if args.verbosity == 1:
-		log_level = logging.INFO
-	elif args.verbosity >= 2:
-		log_level = logging.DEBUG
-	logger.setLevel(logging.DEBUG)
-	# create console handler
-	ch = logging.StreamHandler()
-	ch.setLevel(log_level)
-	# create a file handler
-	fh = logging.handlers.RotatingFileHandler(filename = "log" , maxBytes=100000, backupCount=10)
-	fh.setLevel(logging.DEBUG)
-	# create formatter
-	cformatter = logging.Formatter('%(message)s')
-	# add formatter to ch
-	ch.setFormatter(cformatter)
-	# create formatter
-	fformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	# and to fh
-	fh.setFormatter(fformatter)
-	# add handlers to logger
-	logger.addHandler(ch)
-	logger.addHandler(fh)
-
-	logger.info('-------------------------------------------------------')
+	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
 	logger.info('Parameters: %s' % args)
 	predict(args)

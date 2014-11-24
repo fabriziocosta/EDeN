@@ -3,14 +3,12 @@
 import sys
 import os
 import time
-import logging
-import logging.handlers
 
 from sklearn.neighbors import kneighbors_graph
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -18,7 +16,7 @@ Nearest neighbor computation.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	parser.add_argument( "-k","--num-nearest-neighbors",
 		dest = "num_neighbours",
 		type = int, 
@@ -49,36 +47,13 @@ def nearest_neighbors(args):
 	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
 
 
+
 if __name__  == "__main__":
 	start_time = time.clock()
-	args = setup.setup(DESCRIPTION, setup_parameters)
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "nearest_neighbors", filename = "log", verbosity = args.verbosity)
 
-	logger = logging.getLogger("nearest_neighbors")
-	log_level = logging.WARNING
-	if args.verbosity == 1:
-		log_level = logging.INFO
-	elif args.verbosity >= 2:
-		log_level = logging.DEBUG
-	logger.setLevel(logging.DEBUG)
-	# create console handler
-	ch = logging.StreamHandler()
-	ch.setLevel(log_level)
-	# create a file handler
-	fh = logging.handlers.RotatingFileHandler(filename = "log" , maxBytes=100000, backupCount=10)
-	fh.setLevel(logging.DEBUG)
-	# create formatter
-	cformatter = logging.Formatter('%(message)s')
-	# add formatter to ch
-	ch.setFormatter(cformatter)
-	# create formatter
-	fformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	# and to fh
-	fh.setFormatter(fformatter)
-	# add handlers to logger
-	logger.addHandler(ch)
-	logger.addHandler(fh)
-
-	logger.info('-------------------------------------------------------')
+	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
 	logger.info('Parameters: %s' % args)
 	nearest_neighbors(args)

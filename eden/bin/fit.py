@@ -3,8 +3,6 @@
 import sys
 import os
 import time
-import logging
-import logging.handlers
 
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
@@ -15,9 +13,11 @@ from scipy.stats import uniform
 from scipy.sparse import vstack
 import numpy as np
 
+from eden.util import setup
+
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -25,7 +25,7 @@ Fit predictive model.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	group = parser.add_mutually_exclusive_group(required=True)
 	group.add_argument( "-y","--target-file-name",
 		dest = "target",
@@ -191,34 +191,10 @@ def fit(args):
 
 if __name__  == "__main__":
 	start_time = time.clock()
-	args = setup.setup(DESCRIPTION, setup_parameters)
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "fit", filename = "log", verbosity = args.verbosity)
 
-	logger = logging.getLogger("fit")
-	log_level = logging.WARNING
-	if args.verbosity == 1:
-		log_level = logging.INFO
-	elif args.verbosity >= 2:
-		log_level = logging.DEBUG
-	logger.setLevel(logging.DEBUG)
-	# create console handler
-	ch = logging.StreamHandler()
-	ch.setLevel(log_level)
-	# create a file handler
-	fh = logging.handlers.RotatingFileHandler(filename = "log" , maxBytes=100000, backupCount=10)
-	fh.setLevel(logging.DEBUG)
-	# create formatter
-	cformatter = logging.Formatter('%(message)s')
-	# add formatter to ch
-	ch.setFormatter(cformatter)
-	# create formatter
-	fformatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-	# and to fh
-	fh.setFormatter(fformatter)
-	# add handlers to logger
-	logger.addHandler(ch)
-	logger.addHandler(fh)
-
-	logger.info('-------------------------------------------------------')
+	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
 	logger.info('Parameters: %s' % args)
 	fit(args)
