@@ -44,3 +44,12 @@ def fast_hash_vec_char( vec, bitmask ):
         running_hash  ^= calc_running_hash( running_hash, list_item, i )
         hash_vec += [int(running_hash & bitmask) + 1]
     return hash_vec
+
+
+def report_base_statistics(vec):
+    from collections import Counter
+    c =Counter(vec)
+    msg = ''
+    for k in c:
+        msg += "class: %s count:%d (%0.2f)\t"% (k, c[k], c[k]/float(len(vec)))
+    return msg

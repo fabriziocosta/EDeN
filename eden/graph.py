@@ -91,8 +91,8 @@ class Vectorizer(object):
     def __repr__(self):
         representation = """graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, 
             nbits = %d, normalization = %s, inner_normalization = %s, pure_neighborhood_features = %s, 
-            discretization_size = %d, discretization_dimension = %d) 
-            """ % (self.r / 2,
+            discretization_size = %d, discretization_dimension = %d)""" % (
+            self.r / 2,
             self.d / 2, 
             self.min_r / 2, 
             self.min_d / 2, 
