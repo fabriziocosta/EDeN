@@ -2,10 +2,10 @@
 
 import sys
 import os
-import logging
 import math
 import pylab as pl
 import json
+import time
 
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn import metrics
@@ -15,7 +15,7 @@ from scipy.sparse import csr_matrix
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import util, setup, eden_io
 
 from eden import NeedlemanWunsh
 
@@ -257,6 +257,7 @@ def output_json(args, alignment_list):
 			serial_data = json.dumps(aln)
 			f.write(serial_data)
 			f.write("\n")
+	logger.info("Written file: %s",full_out_file_name)	
 
 def output_txt(args, alignment_list):
 	full_out_file_name = os.path.join(args.output_dir_path, "alignments.txt")
@@ -283,9 +284,10 @@ def output_txt(args, alignment_list):
 			f.write(alnB_str)
 			f.write(importanceB_str)
 			f.write("\n\n")
+	logger.info("Written file: %s",full_out_file_name)
 
 
-def output_dendrogram(args, alignment_score_matrix):
+def output_dendrogram(args, alignment_score_matrix, out_file_name):
 	#compute distance matrix
  	D = 1 - alignment_score_matrix
 	Z = linkage(D, method = args.linkage)
@@ -295,28 +297,26 @@ def output_dendrogram(args, alignment_score_matrix):
 	dendrogram(Z, orientation = 'right')
 
 	#save plot
-	out_file_name = 'dendrogram'
 	if not os.path.exists(args.output_dir_path) :
 		os.mkdir(args.output_dir_path)
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	fig.savefig(full_out_file_name + ".pdf")
 	fig.savefig(full_out_file_name + ".svg")
-	logging.info('Saved file: %s' % out_file_name)
+	logger.info("Written file: %s",full_out_file_name)
 
 
-def main(args):
+def alignment(args):
 	"""
 	Compute optimal alignment using Needleman-Wunsh algorithm on annotated graphs.
 	"""
 	#load vectorizer
 	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	logging.info('Vectorizer: %s' % vec)
+	logger.info('Vectorizer: %s' % vec)
 	nbits = vec.nbits
-	logging.info('nbits: %s' % nbits)
 
 	#load predictive model
 	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
-	logging.info('Model: %s' % clf)
+	logger.info('Model: %s' % clf)
 
 	#initialize annotator
 	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight, annotate_vertex_with_vector = True)
@@ -326,6 +326,8 @@ def main(args):
 	
 	#annotate
 	ann_g_list = [g for g in  ann.transform(g_it)]
+	logger.debug("Annotated %d instances" % len(ann_g_list))
+
 	
 	#compute alignment for each graph pair
 	alignment_list = []
@@ -357,18 +359,26 @@ def main(args):
 
 	#make alignemnt score matrix
 	F = alignment_score_matrix(alignment_list, size = len(ann_g_list))
+
 	#save matrix
-	eden_io.store_matrix(matrix = F, output_dir_path = args.output_dir_path, out_file_name = "alignment_score_matrix", output_format = "MatrixMarket")
+	out_file_name = "alignment_score_matrix"
+	eden_io.store_matrix(matrix = F, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = "MatrixMarket")
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
 
 	if args.output_dendrogram:
 		#dendrogram
-		output_dendrogram(args, F)
+		out_file_name = 'dendrogram'	
+		output_dendrogram(args, F, out_file_name = out_file_name)
 
 
 if __name__  == "__main__":
-	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+	start_time = time.clock()
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "alignment", filename = "log", verbosity = args.verbosity)
+
+	logger.info('-'*80)
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args)
+	alignment(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)
