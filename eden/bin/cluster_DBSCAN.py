@@ -2,7 +2,7 @@
 
 import sys
 import os
-import logging
+import time
 
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import TruncatedSVD
@@ -10,7 +10,7 @@ import numpy as np
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -18,7 +18,7 @@ Clustering with Ward hierarchical clustering: constructs a tree and cuts it.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	parser.add_argument("-e","--eps",
 		type = float, 
 		default = 0.5,
@@ -31,44 +31,52 @@ def setup_parameters(parser):
 	return parser
 
 
-def main(args):
+def cluster_DBSCAN(args):
 	"""
 	Clustering with Ward hierarchical clustering: constructs a tree and cuts it.
 	"""
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
-	X = vec.transform(g_it, n_jobs = args.n_jobs)
-	
-	#log statistics on data
-	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+	logger.info('Vectorizer: %s' % vec)
 
+	X = vec.transform(g_it, n_jobs = args.n_jobs)
+	logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+	
 	#project to lower dimensional space to use clustering algorithms
 	transformer = TruncatedSVD(n_components=args.n_components)
 	X_dense=transformer.fit_transform(X)
 
 	#log statistics on data
-	logging.info('Dimensionality reduction Instances: %d Features: %d with an avg of %d features per instance' % (X_dense.shape[0], X_dense.shape[1], X.getnnz() / X.shape[0]))
+	logger.info('Dimensionality reduction Instances: %d Features: %d with an avg of %d features per instance' % (X_dense.shape[0], X_dense.shape[1], X.getnnz() / X.shape[0]))
 
 	#clustering
 	clustering_algo = DBSCAN(eps = args.eps)
 	y = clustering_algo.fit_predict(X_dense)
-	logging.info('Predictions: num: %d ' % (y.shape[0]))
+	msg = 'Predictions statistics: '
+	msg += util.report_base_statistics(y)
+	logger.info(msg)
 
-	#log statistics on data
-	logging.info('Clusters: %d ' % len(set(y)))
+	#save model for vectorizer
+	out_file_name = "vectorizer"
+	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
 
-	#save model
-	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	
 	#save result
-	eden_io.store_matrix(matrix = y, output_dir_path = args.output_dir_path, out_file_name = "labels", output_format = "text")
+	out_file_name = "labels"
+	eden_io.store_matrix(matrix = y, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = "text")
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+	
 
 
 if __name__  == "__main__":
-	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+	start_time = time.clock()
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "predict", filename = "log", verbosity = args.verbosity)
+
+	logger.info('-'*80)
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args)
+	cluster_DBSCAN(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)

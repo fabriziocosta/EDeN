@@ -170,6 +170,7 @@ def optimize(args, predictor = None):
 	out_file_name = "vectorizer"
 	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
 	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
 	return predictor,score,std	
 
 
