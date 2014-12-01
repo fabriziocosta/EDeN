@@ -13,12 +13,16 @@ class Vectorizer():
     def __init__(self, 
         r = 3,
         d = 3,
+        min_r = 0,
+        min_d = 0,
         nbits = 20,
         normalization = True,
         inner_normalization = True):
 
         self.r = r + 1
         self.d = d + 1
+        self.min_r = min_r  
+        self.min_d = min_d
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -66,7 +70,6 @@ class Vectorizer():
             util.apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
         pool.close()
         pool.join()
-
         return self._convert_to_sparse_vector(feature_dict)
 
 
@@ -100,12 +103,12 @@ class Vectorizer():
         #construct features as pairs of kmers up to distance d for all radii up to r
         feature_list = defaultdict(lambda : defaultdict(float))
         for pos in range( seq_len ):
-            for radius in range( self.r ):
+            for radius in range( self.min_r, self.r ):
                 if radius < len( neighborhood_hash_cache[pos] ):
                     feature = [ neighborhood_hash_cache[pos][radius], radius ]
-                    for distance in range( self.d ):
+                    for distance in range(self.min_d, self.d ):
                         if pos + distance + radius < seq_len:
-                            feature += [ distance, neighborhood_hash_cache[ pos + distance ][ radius ] ]
+                            dfeature = feature + [ distance, neighborhood_hash_cache[ pos + distance ][ radius ] ]
                             feature_code = util.fast_hash( feature, self.bitmask )
                             key = util.fast_hash( [radius, distance], self.bitmask )
                             feature_list[key][feature_code] += 1
@@ -131,11 +134,11 @@ class Vectorizer():
                 total_norm += feature_vector_value*feature_vector_value
         #global normalization
         if self.normalization:
-            normalizationd_feature_vector = {}
+            normalization_feature_vector = {}
             sqrt_total_norm = math.sqrt(float(total_norm))
             for feature, value in feature_vector.iteritems():
-                normalizationd_feature_vector[feature] = value/sqrt_total_norm
-            return normalizationd_feature_vector
+                normalization_feature_vector[feature] = value/sqrt_total_norm
+            return normalization_feature_vector
         else :
             return feature_vector
 

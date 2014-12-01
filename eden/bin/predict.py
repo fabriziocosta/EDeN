@@ -50,6 +50,7 @@ def predict(args):
 	#temporary hack
 	if args.output_format == "MatrixMarket":
 		args.output_format = "text"
+		
 	out_file_name = "predictions"
 	eden_io.store_matrix(matrix = predictions, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = args.output_format)
 	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
