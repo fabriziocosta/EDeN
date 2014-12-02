@@ -72,11 +72,11 @@ def cluster_DBSCAN(args):
 if __name__  == "__main__":
 	start_time = time.clock()
 	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
-	logger = setup.logger(logger_name = "predict", filename = "log", verbosity = args.verbosity)
+	logger = setup.logger(logger_name = "cluster_DBSCAN", filename = "log", verbosity = args.verbosity)
 
 	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
-	logger.info('Parameters: %s' % args)
+	logger.info('Parameters: %s' % args.__dict__)
 	cluster_DBSCAN(args)
 	end_time = time.clock()
 	logger.info('Elapsed time: %.1f sec',end_time - start_time)
