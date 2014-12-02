@@ -55,7 +55,7 @@ if __name__  == "__main__":
 
 	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
-	logger.info('Parameters: %s' % args)
+	logger.info('Parameters: %s' % args.__dict__)
 	nearest_neighbors(args)
 	end_time = time.clock()
 	logger.info('Elapsed time: %.1f sec',end_time - start_time)

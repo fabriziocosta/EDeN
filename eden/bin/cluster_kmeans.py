@@ -2,14 +2,14 @@
 
 import sys
 import os
-import logging
+import time
 
 from sklearn.cluster import MiniBatchKMeans
 import numpy as np
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
@@ -17,7 +17,7 @@ Clustering with mini-batch K-Means.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	parser.add_argument("-y","--num-clusters",
 		dest = "n_clusters",
 		type = int, 
@@ -31,7 +31,7 @@ def setup_parameters(parser):
 	return parser
 
 
-def main(args):
+def cluster_kmeans(args):
 	"""
 	Clustering with mini-batch K-Means.
 	"""
@@ -41,22 +41,34 @@ def main(args):
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	
 	#log statistics on data
-	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+	logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 
 	#clustering
 	clustering_algo = MiniBatchKMeans(n_clusters = args.n_clusters, n_init = args.n_init)
 	y = clustering_algo.fit_predict(X) 
-	logging.info('Predictions: num: %d ' % (y.shape[0]))
+	msg = 'Predictions statistics: '
+	msg += util.report_base_statistics(y)
+	logger.info(msg)
 
-	#save model
-	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	eden_io.store_matrix(matrix = y, output_dir_path = args.output_dir_path, out_file_name = "labels", output_format = "text")
+	#save model for vectorizer
+	out_file_name = "vectorizer"
+	eden_io.dump(vec, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
+	out_file_name = "labels"
+	eden_io.store_matrix(matrix = y, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = "text")
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
 
 
 if __name__  == "__main__":
-	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+	start_time = time.clock()
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "cluster_kmeans", filename = "log", verbosity = args.verbosity)
+
+	logger.info('-'*80)
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args.__dict__)
+	cluster_kmeans(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)
