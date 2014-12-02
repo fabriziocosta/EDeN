@@ -2,14 +2,14 @@
 
 import sys
 import os
-import logging
+import time
 
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
 from eden.converters import dispatcher
-from eden.util import argument_parser, setup, eden_io
+from eden.util import util, setup, eden_io
 from eden import iterated_maximum_subarray
 
 DESCRIPTION = """
@@ -62,21 +62,23 @@ def setup_parameters(parser):
 	return parser
 
 
-def main(args):
+def max_subarrays(args):
 	"""
 	Extract maximal subarrays by annotating graphs using a predictive model.
 	"""
 	#load vectorizer
 	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	logging.info('Vectorizer: %s' % vec)
+	logger.info('Vectorizer: %s' % vec)
+
 
 	#load predictive model
 	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
-	logging.info('Model: %s' % clf)
+	logger.info('Model: %s' % clf)
 
 	#initialize annotator
 	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight)
-	
+	logger.info('Annotator: %s' % ann)
+
 	#load data
 	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
 	
@@ -91,7 +93,8 @@ def main(args):
 			subarray_list += subarrays
 
 	#save results
-	full_out_file_name = os.path.join(args.output_dir_path, "subarrays.data")
+	out_file_name = "subarrays.data"
+	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	with open(full_out_file_name, "w") as f:
 		for subarray_item in subarray_list:
 			subarray_str = "".join(subarray_item['subarray'])
@@ -99,19 +102,28 @@ def main(args):
 				seq_str = "".join(subarray_item['seq'])
 				line = "subarray:%s score:%0.4f begin:%d end:%d size:%d seq:%s\n" % (subarray_str,subarray_item['score'],subarray_item['begin'],subarray_item['end'],subarray_item['size'],seq_str)
 				f.write(line)
-	full_out_file_name = os.path.join(args.output_dir_path, "subarrays")
+	logger.info("Written file: %s",full_out_file_name)
+
+	out_file_name = "subarrays"
+	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	with open(full_out_file_name, "w") as f:
 		for subarray_item in subarray_list:
 			subarray_str = "".join(subarray_item['subarray'])
 			if subarray_str:
 				line = "%s\n" % subarray_str
 				f.write(line)
+	logger.info("Written file: %s",full_out_file_name)
+
 
 
 if __name__  == "__main__":
-	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+	start_time = time.clock()
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "max_subarrays", filename = "log", verbosity = args.verbosity)
+
+	logger.info('-'*80)
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args.__dict__)
+	max_subarrays(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)
