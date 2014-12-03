@@ -4,19 +4,19 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-def obabel_to_eden(name, input_type='file'):
+def obabel_to_eden(input, input_type='file'):
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
     Parameters
     ----------
-    name : string
+    input : string
         A pointer to the data source.
 
     input_type : ['url','file','string_file']
-        If type is 'url' then 'name' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'name' is interpreted as a file name.
-        If type is 'string_file' then 'name' is interpreted as a file name for a file 
+        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
+        If type is 'file' then 'input' is interpreted as a file name.
+        If type is 'string_file' then 'input' is interpreted as a file name for a file 
         that contains strings rather than integers. The set of strings are mapped to 
         unique increasing integers and the corresponding vector of integers is returned.
     """
@@ -26,21 +26,21 @@ def obabel_to_eden(name, input_type='file'):
 
 
     if input_type is 'file':
-         f = name
+         f = input
     elif input_type is 'url':
         import requests
-        rf=requests.get(name).text.split('\n')
-        tf = NamedTemporaryFile(delete=False)
+        rf=requests.get(input).text.split('\n')
+        tf = inputdTemporaryFile(delete=False)
         for line in rf:
             tf.write(line)
         tf.close()
-        f = tf.name
+        f = tf.input
     elif input_type == "list":
-        tf = NamedTemporaryFile(delete=False)
-        for line in name:
+        tf = inputdTemporaryFile(delete=False)
+        for line in input:
             tf.write(line)
         tf.close()
-        f = tf.name
+        f = tf.input
     return _obabel_to_eden(f) 
 
 

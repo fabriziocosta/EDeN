@@ -26,7 +26,7 @@ def instance_to_eden(input = None, input_type = 'file', tool = None, options = d
 		g_it = sequence.sequence_to_eden(input
 		, input_type = input_type)
 	elif tool == "obabel":
-		from eden.graphicalizer import obabel
+		from eden.graphicalizer.molecule import obabel
 		g_it = obabel.obabel_to_eden(input = input, input_type = input_type)
 	else:
 		raise Exception('Unknown tool: %s' % tool)
