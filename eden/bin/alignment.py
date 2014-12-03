@@ -14,7 +14,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
 
 from eden import NeedlemanWunsh
@@ -322,7 +322,7 @@ def alignment(args):
 	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight, annotate_vertex_with_vector = True)
 	
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	
 	#annotate
 	ann_g_list = [g for g in  ann.transform(g_it)]
