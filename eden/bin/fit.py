@@ -16,7 +16,7 @@ import numpy as np
 from eden.util import setup
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import eden_io
 
 DESCRIPTION = """
@@ -57,12 +57,12 @@ def setup_parameters(parser):
 
 def extract_data_matrix(args, vectorizer = None):
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	X = vectorizer.transform(g_it, n_jobs = args.n_jobs)
 	
 	#if data is provided as individual files for positive and negative isntances then join the data matrices and create a corresonding target vector
 	if args.neg_file_name != "":
-		g_neg_it = dispatcher.any_format_to_eden(input_file = args.neg_file_name, format = args.format)	
+		g_neg_it = node_link_data.node_link_data_to_eden(input = args.neg_file_name, input_type = "file")
 		X_neg = vectorizer.transform(g_neg_it, n_jobs = args.n_jobs)
 		#create target array	
 		yp = [1] * X.shape[0]

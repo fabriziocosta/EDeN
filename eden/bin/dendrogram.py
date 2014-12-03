@@ -2,7 +2,7 @@
 
 import sys
 import os
-import logging
+import time
 
 from scipy.cluster.hierarchy import linkage, dendrogram
 from sklearn import metrics
@@ -10,7 +10,7 @@ import numpy as np
 import pylab as pl
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import argument_parser, setup, eden_io
 
 DESCRIPTION = """
@@ -25,7 +25,7 @@ the number of original observations in the newly formed cluster.
 """
 
 def setup_parameters(parser):
-	parser = argument_parser.setup_common_parameters(parser)
+	parser = setup.common_arguments(parser)
 	parser.add_argument("-a","--annotation-file",
 		dest = "annotation_file",
 		required = True,
@@ -66,17 +66,17 @@ def setup_parameters(parser):
 	return parser
 
 
-def main(args):
+def dendrogram(args):
 	"""
 	Generate dendrogram plot.
 	"""
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	
 	#log statistics on data
-	logging.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+	logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 	
 	with open(args.annotation_file,'r') as f:
 		annotations = ['%d:%s' % (num,y.strip()) for num,y in enumerate(f)]
@@ -88,7 +88,7 @@ def main(args):
 	#output
 	out_file_name = "linkage_matrix"
 	eden_io.store_matrix(matrix = Z, output_dir_path = args.output_dir_path, out_file_name = out_file_name, output_format = args.output_format)
-	logging.info('Saved file: %s' % out_file_name)
+	logger.info('Saved file: %s' % out_file_name)
 
 	#compute dendrogram
 	fig = pl.figure(figsize = (args.plot_size//10,args.plot_size))
@@ -104,13 +104,17 @@ def main(args):
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	fig.savefig(full_out_file_name + ".pdf")
 	fig.savefig(full_out_file_name + ".png")
-	logging.info('Saved file: %s' % out_file_name)
+	logger.info('Saved file: %s' % out_file_name)
 
 
 if __name__  == "__main__":
-	args = setup.setup(DESCRIPTION, setup_parameters)
-	logging.info('Program: %s' % sys.argv[0])
-	logging.info('Started')
-	logging.info('Parameters: %s' % args)
-	main(args)
-	logging.info('Finished')
+	start_time = time.clock()
+	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
+	logger = setup.logger(logger_name = "dendrogram", filename = "log", verbosity = args.verbosity)
+
+	logger.info('-'*80)
+	logger.info('Program: %s' % sys.argv[0])
+	logger.info('Parameters: %s' % args.__dict__)
+	dendrogram(args)
+	end_time = time.clock()
+	logger.info('Elapsed time: %.1f sec',end_time - start_time)

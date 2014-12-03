@@ -8,7 +8,7 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
 from eden import iterated_maximum_subarray
 
@@ -80,14 +80,11 @@ def max_subarrays(args):
 	logger.info('Annotator: %s' % ann)
 
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	
-	#annotate
-	ann_g_list = [g for g in  ann.transform(g_it)]
-	
-	#extract_subarrays for each graph
+	#extract_subarrays for each annotated graph
 	subarray_list = []
-	for g in ann_g_list:
+	for g in ann.transform(g_it):
 		subarrays = iterated_maximum_subarray.compute_max_subarrays(graph = g, min_subarray_size = args.min_subarray_size, max_subarray_size = args.max_subarray_size)
 		if subarrays:
 			subarray_list += subarrays
