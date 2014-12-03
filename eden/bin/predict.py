@@ -8,7 +8,7 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import setup, eden_io, util
 
 DESCRIPTION = """
@@ -33,7 +33,7 @@ def predict(args):
 	logger.info('Model: %s' % clf)
 
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	logger.info('Instances: %d Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
 

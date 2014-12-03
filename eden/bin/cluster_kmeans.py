@@ -8,7 +8,7 @@ from sklearn.cluster import MiniBatchKMeans
 import numpy as np
 
 from eden import graph
-from eden.converters import dispatcher
+from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
@@ -36,7 +36,7 @@ def cluster_kmeans(args):
 	Clustering with mini-batch K-Means.
 	"""
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)	
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	vec = graph.Vectorizer(r = args.radius,d = args.distance, nbits = args.nbits)
 	X = vec.transform(g_it, n_jobs = args.n_jobs)
 	

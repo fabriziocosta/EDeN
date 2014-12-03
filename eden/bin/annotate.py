@@ -8,7 +8,7 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.converters import dispatcher, node_link_data
+from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
@@ -66,7 +66,7 @@ def annotate(args):
 	ann = graph.Annotator(estimator=clf, vectorizer = vec, reweight = args.reweight)
 	
 	#load data
-	g_it = dispatcher.any_format_to_eden(input_file = args.input_file, format = args.format)
+	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
 	
 	#annotate
 	ann_g_list = [g for g in  ann.transform(g_it)]
@@ -76,7 +76,7 @@ def annotate(args):
 	serialized_list = [ line for line in node_link_data.eden_to_node_link_data(ann_g_list)]
 	
 	#save results
-	full_out_file_name = os.path.join(args.output_dir_path, "annotated_node_link_data")
+	full_out_file_name = os.path.join(args.output_dir_path, "annotated.nld")
 	with open(full_out_file_name, "w") as f:
 		f.write("\n".join(serialized_list))
 	logger.info("Written file: %s",full_out_file_name)
