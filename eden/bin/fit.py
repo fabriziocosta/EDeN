@@ -194,10 +194,15 @@ if __name__  == "__main__":
 	start_time = time.clock()
 	args = setup.arguments_parser(DESCRIPTION, setup_parameters)
 	logger = setup.logger(logger_name = "fit", filename = "log", verbosity = args.verbosity)
-
 	logger.info('-'*80)
 	logger.info('Program: %s' % sys.argv[0])
 	logger.info('Parameters: %s' % args.__dict__)
-	fit(args)
-	end_time = time.clock()
-	logger.info('Elapsed time: %.1f sec',end_time - start_time)
+	try:
+		fit(args)
+	except Exception:
+		import datetime
+		curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
+		logger.exception("Program run failed on %s" % curr_time)
+	finally:
+		end_time = time.clock()
+		logger.info('Elapsed time: %.1f sec',end_time - start_time)	
