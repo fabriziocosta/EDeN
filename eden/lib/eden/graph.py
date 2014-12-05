@@ -271,7 +271,7 @@ class Vectorizer(object):
             if isinstance(d['label'],list):
                 kclass = d['class']
                 data = np.array(d['label'])
-                G.node[n]['hlabel'] = [self.discretization_model_dict[kclass][m].predict(data)[0] + 1 for m in range(self.discretization_dimension)]
+                G.node[n]['hlabel'] = [util.fast_hash([hash(kclass),self.discretization_model_dict[kclass][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
             if isinstance(d['label'],basestring):
                 #copy a hashed version of the string for a number of times equal to self.discretization_dimension
                 #in this way qualitative (i.e. string) labels can be compared to the discretized labels

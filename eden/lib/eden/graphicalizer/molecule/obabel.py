@@ -4,7 +4,7 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-def obabel_to_eden(input, input_type='file'):
+def obabel_to_eden(input = None, input_type = None, options = dict()):
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
@@ -25,18 +25,18 @@ def obabel_to_eden(input, input_type='file'):
     assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
 
 
-    if input_type is 'file':
+    if input_type == 'file':
          f = input
-    elif input_type is 'url':
+    elif input_type == 'url':
         import requests
         rf=requests.get(input).text.split('\n')
-        tf = inputdTemporaryFile(delete=False)
+        tf = inputdTemporaryFile(delete = False)
         for line in rf:
             tf.write(line)
         tf.close()
         f = tf.input
     elif input_type == "list":
-        tf = inputdTemporaryFile(delete=False)
+        tf = inputdTemporaryFile(delete = False)
         for line in input:
             tf.write(line)
         tf.close()
@@ -44,25 +44,24 @@ def obabel_to_eden(input, input_type='file'):
     return _obabel_to_eden(f) 
 
 
-def _obabel_to_eden(infile, file_type='sdf'):
-    
-    def obabel2networkx(mol):
-        g = nx.Graph()
-        #atoms
-        for atom in mol:
-            vlabel = atom.type
-            hvlabel=[hash(str(atom.atomicnum))]
-            g.add_node(atom.idx, label=vlabel, hlabel=hvlabel, viewpoint = True)
-        #bonds
-            edges = []
-        bondorders = []
-        for bond in ob.OBMolBondIter(mol.OBMol):
-            elabel=bond.GetBO()
-            helabel=[hash(str(elabel))]
-            g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel, viewpoint = True)
-        return g
+def obabel2networkx(mol):
+    g = nx.Graph()
+    #atoms
+    for atom in mol:
+        vlabel = atom.type
+        hvlabel=[hash(str(atom.atomicnum))]
+        g.add_node(atom.idx, label=vlabel, hlabel=hvlabel, viewpoint = True)
+    #bonds
+        edges = []
+    bondorders = []
+    for bond in ob.OBMolBondIter(mol.OBMol):
+        elabel=bond.GetBO()
+        helabel=[hash(str(elabel))]
+        g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel, viewpoint = True)
+    return g
 
-    
+
+def _obabel_to_eden(infile, file_type='sdf'):    
     for mol in pb.readfile(file_type, infile):
         #remove hydrogens
         mol.removeh()

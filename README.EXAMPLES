@@ -26,3 +26,8 @@ eden/bin/convert.py -i dataset_positive.seq -f sequence -o motif_pos -v
 eden/bin/fit.py -i motif_posneg/data.nld -y dataset.target -r 2 -d 2 -p none -x -o motif_out -v
 eden/bin/alignment.py -i motif_pos/data.nld -g -0.1 -r 1.2  -o motif_out 
 less motif_out/alignments.txt 
+
+
+#remote data
+for i in $(seq 10 20); do dat=RF002$i; eden/bin/convert.py -t url -i "http://rfam.xfam.org/family/$dat/alignment?acc=$dat&format=fastau&download=0" -f FASTA -o ${dat}_out;  done
+eden/bin/fit.py -i RF00210_out/data.nld -n RF00216_out/data.nld -r 2 -d 2 -p none -x
