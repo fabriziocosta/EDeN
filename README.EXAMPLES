@@ -1,0 +1,28 @@
+#fit predict
+eden/bin/convert.py -i examples/bursi.gspan -f gspan -o bursi -v
+eden/bin/fit.py -i bursi/data.nld -y examples/bursi.target -r 2 -d 2 -p none -x -o bursi_out -v 
+eden/bin/predict.py -i bursi/data.nld -o bursi_out -v 
+
+#annotate
+eden/bin/convert.py -i examples/bursi.gspan -f gspan -o bursi -v
+eden/bin/fit.py -i bursi/data.nld -y examples/bursi.target -r 2 -d 2 -p none -x -o bursi_out -v 
+eden/bin/annotate.py -i bursi/data.nld -o bursi_out/ -v
+eden/bin/fit.py -i bursi_out/annotated.nld -y examples/bursi.target -r 2 -d 2 -p none -x -o bursi_annotated_out -v
+
+#motif
+num=1000
+dat=DATA/AGO.right_allUs.seq
+cat $dat | unsort 2>/dev/null | head -$num > AGO2
+eden/bin/convert.py -i dataset.seq -f sequence -o AGO2_dat -v
+eden/bin/fit.py -i AGO2_dat/data.nld -r 7 -d 7 -p none -x -v -y dataset.target -o AGO2_out
+eden/bin/convert.py -i AGO2 -f sequence -o AGO2_pos_dat -v
+eden/bin/max_subarrays.py -i AGO2_pos_dat/data.nld -v -o AGO2_out/
+cat AGO2_out/subarrays  | sort | uniq -c | sort -nr | head -20 | awk '$1>1{print $2}'  | awk '{print ">ID" NR; print $0}' | tee motif.fa
+
+#align
+eden/bin/misc/create_motif_artificial_dataset.py -n 2  -k 9 -d 10 -s 80 -r 90
+eden/bin/convert.py -i dataset.seq -f sequence -o motif_posneg -v
+eden/bin/convert.py -i dataset_positive.seq -f sequence -o motif_pos -v
+eden/bin/fit.py -i motif_posneg/data.nld -y dataset.target -r 2 -d 2 -p none -x -o motif_out -v
+eden/bin/alignment.py -i motif_pos/data.nld -g -0.1 -r 1.2  -o motif_out 
+less motif_out/alignments.txt 
