@@ -65,11 +65,11 @@ def draw_graph(graph,
 
 
 def draw_adjacency_graph (A,
-    node_color=[], 
-    size=10,
-    layout='graphviz', 
+    node_color = None, 
+    size = 10,
+    layout = 'graphviz', 
     prog = 'neato',
-    node_size=80):
+    node_size = 80):
 
     graph = nx.from_scipy_sparse_matrix(A)
 
@@ -82,7 +82,7 @@ def draw_adjacency_graph (A,
     else:
         pos = nx.spring_layout(graph)
 
-    if not node_color:
+    if  len(node_color) == 0:
         node_color='gray'
     nx.draw_networkx_nodes(graph, pos,
                            node_color = node_color, 
