@@ -1,6 +1,6 @@
 import networkx as nx
 
-def sequence_to_eden(input = None, input_type = None, options = dict()):
+def FASTA_to_eden(input = None, input_type = None, options = dict()):
     """
     Takes a list of strings and yields networkx graphs.
 
@@ -26,10 +26,10 @@ def sequence_to_eden(input = None, input_type = None, options = dict()):
         f = requests.get(input).text.split('\n')
     elif input_type == "list":
         f = input
-    return _sequence_to_eden(f)        
+    return _FASTA_to_eden(f)        
    
 
-def sequence_to_networkx(line):
+def string_to_networkx(line):
     G = nx.Graph()
     for id,character in enumerate(line):
         G.add_node(id, label = character, viewpoint = True)
@@ -39,8 +39,16 @@ def sequence_to_networkx(line):
     return G
 
 
-def _sequence_to_eden(data_str_list):
-    string_list = []
+def _FASTA_to_eden(data_str_list):
+    line_buffer = ''
     for line in data_str_list:
-        if line.strip():
-            yield sequence_to_networkx(line.strip())
+        _line = line.strip().upper()
+        if _line:
+            if _line[0] == '>':
+                if len(line_buffer) > 0:
+                    yield string_to_networkx(line_buffer)
+                line_buffer = ''
+            else:
+                line_buffer += _line
+    if len(line_buffer) > 0:
+        yield string_to_networkx(line_buffer)
