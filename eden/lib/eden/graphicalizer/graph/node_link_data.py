@@ -2,7 +2,7 @@ import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-def node_link_data_to_eden(input, input_type='list'):
+def node_link_data_to_eden(input = None, input_type = None, options = dict()):
     """
     Takes a string list in the serialised node_link_data JSON format and yields networkx graphs.
 
@@ -22,9 +22,9 @@ def node_link_data_to_eden(input, input_type='list'):
     input_types = ['url','file','list']
     assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
 
-    if input_type is 'file':
+    if input_type == 'file':
         f=open(input,'r')
-    elif input_type is 'url':
+    elif input_type == 'url':
         import requests
         f=requests.get(input).text.split('\n')
     elif input_type == "list":
