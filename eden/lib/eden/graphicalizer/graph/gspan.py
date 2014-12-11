@@ -60,7 +60,7 @@ def gspan_to_networkx(string_list):
                 srcid = int(line_list[1])
                 destid = int(line_list[2])
                 elabel = line_list[3]
-                G.add_edge(srcid, destid, label = elabel, viewpoint = True)
+                G.add_edge(srcid, destid, label = elabel)
                 attribute_str=' '.join(line_list[4:])
                 if attribute_str.strip():
                     attribute_dict=json.loads(attribute_str)
