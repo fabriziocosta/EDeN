@@ -10,7 +10,7 @@ import numpy as np
 from eden import graph
 from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
-from eden import iterated_maximum_subarray
+from eden.util import iterated_maximum_subarray
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
