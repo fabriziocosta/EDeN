@@ -105,35 +105,85 @@ class Vectorizer(object):
         return representation
 
 
-    def _extract_label_data(self, G_orig):
+    def _extract_dense_vectors_from_labels(self, G_orig):
+        #from each vertex extract the node_class and the label as a list and return a  
+        #dict with node_class as key and the vector associated to each vertex 
         label_data_dict = defaultdict( lambda : list( list() ) )
-        #for all types in every node of every graph
         G=self._edge_to_vertex_transform(G_orig)
+        #for all types in every node of every graph
         for n, d in G.nodes_iter(data = True):
-            #if the label is a dense vector then extract the label for further processing
             if isinstance(d['label'],list):
-                kclass = d['class']
-                label_data_dict[kclass] += [d['label']]
-            #TODO: deal with sparse vectors
+                node_class, data = self._extract_class_and_label(d)
+                label_data_dict[node_class] += [data]
         return label_data_dict
 
 
-    def _convert_to_dict_of_dense_matrix(self, label_data_dict):
+    def _assemble_dense_data_matrix_dict(self, label_data_dict):
+        #given a dict with node_class as keys and lists of vectors, 
+        #return a dict of numpy dense matrices
         label_matrix_dict = dict()
-        for kclass in label_data_dict:
-            label_matrix_dict[kclass] = np.array(label_data_dict[kclass])
+        for node_class in label_data_dict:
+            label_matrix_dict[node_class] = np.array(label_data_dict[node_class])
         return label_matrix_dict
 
 
-    def _extract_label_data_from_graph_list(self, G_list):
+    def _assemble_dense_data_matrices(self, G_list):
+        #take a list of graphs and extract the dictionaries of node_classes with 
+        #all the dense vectors associated to each vertex
+        #then convert, for each node_class, the list of lists into a dense numpy matrix
         label_data_dict = defaultdict( lambda : list( list() ) )
-        #for all types in every node of every graph
+        #for every node of every graph
         for instance_id, G in enumerate(G_list):
-            label_data = self._extract_label_data(G)
-            for kclass in label_data:
-                label_data_dict[kclass] += label_data[kclass]
+            label_data = self._extract_dense_vectors_from_labels(G)
+            #for all node_classes, add the list of dense vectors to the dict
+            for node_class in label_data:
+                label_data_dict[node_class] += label_data[node_class]
         #convert into dict of numpy matrices
-        return self._convert_to_dict_of_dense_matrix(label_data_dict)
+        return self._assemble_dense_data_matrix_dict(label_data_dict)
+
+
+    def _extract_sparse_vectors_from_labels(self, G_orig):
+        #from each vertex extract the node_class and the label as a list and return a  
+        #dict with node_class as key and the dict associated to each vertex 
+        label_data_dict = defaultdict( lambda : list( dict() ) )
+        G=self._edge_to_vertex_transform(G_orig)
+        #for all types in every node of every graph
+        for n, d in G.nodes_iter(data = True):
+            if isinstance(d['label'],dict):
+                node_class, data = self._extract_class_and_label(d)
+                label_data_dict[node_class] += [data]
+        return label_data_dict
+
+
+    def _assemble_sparse_data_matrix_dict(self, label_data_dict):
+        #given a dict with node_class as keys and lists of dicts, 
+        #return a dict of compressed sparse row matrices
+        label_matrix_dict = dict()
+        for node_class in label_data_dict:
+            list_of_dicts = label_data_dict[node_class]
+            feature_vector = {}
+            for instance_id, vertex_dict in enumerate(list_of_dicts):
+                for feature in vertex_dict:
+                    feature_vector_key = (instance_id,int(feature))
+                    feature_vector_value = vertex_dict[feature]
+                    feature_vector[feature_vector_key] = feature_vector_value
+            label_matrix_dict[node_class] = self._convert_to_sparse_matrix(feature_vector)
+        return label_matrix_dict
+
+
+    def _assemble_sparse_data_matrices(self, G_list):
+        #take a list of graphs and extract the dictionaries of node_classes with 
+        #all the sparse vectors associated to each vertex
+        #then convert, for each node_class, the list of lists into a compressed sparse row matrix
+        label_data_dict = defaultdict( lambda : list( dict() ) )
+        #for every node of every graph
+        for instance_id, G in enumerate(G_list):
+            label_data = self._extract_sparse_vectors_from_labels(G)
+            #for all node_classes, update the list of dicts 
+            for node_class in label_data:
+                label_data_dict[node_class] += label_data[node_class]
+        #convert into dict of numpy matrices
+        return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
 
     def fit(self, G_list, n_jobs = 1):
@@ -150,10 +200,11 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        label_data_dict = self._extract_label_data_from_graph_list(G_list)
-        for kclass in label_data_dict:
+        label_data_matrix_dict = self._assemble_dense_data_matrices(G_list)
+        label_data_matrix_dict.update(self._assemble_sparse_data_matrices(G_list))
+        for node_class in label_data_matrix_dict:
             #TODO: parameters for KMeans
-            self.discretization_model_dict[kclass] = []
+            self.discretization_model_dict[node_class] = []
             for m in range(self.discretization_dimension):
                 discretization_model = KMeans(init = 'random', 
                     n_clusters = self.discretization_size, 
@@ -161,8 +212,8 @@ class Vectorizer(object):
                     n_jobs = n_jobs, 
                     n_init = 1,
                     random_state = m + 1)
-                discretization_model.fit(label_data_dict[kclass])
-                self.discretization_model_dict[kclass] += [discretization_model]
+                discretization_model.fit(label_data_matrix_dict[node_class])
+                self.discretization_model_dict[node_class] += [discretization_model]
 
 
     def fit_transform(self, G_list, n_jobs = 1):
@@ -202,6 +253,7 @@ class Vectorizer(object):
 
 
     def _convert_to_sparse_matrix(self, feature_dict):
+        """Takes a dictionary with pairs as key and counts as values and returns a compressed sparse row matrix"""
         if len(feature_dict) == 0:
             raise Exception('ERROR: something went wrong, empty feature_dict. Perhaps wrong data format, i.e. do nodes have the "viewpoint" attribute?')
         data = feature_dict.values()
@@ -265,24 +317,55 @@ class Vectorizer(object):
         return G
 
 
+    def _convert_dict_to_sparse_vector(self, the_dict):
+        if len(the_dict) == 0:
+            raise Exception('ERROR: something went wrong, empty the_dict. Perhaps wrong data format, i.e. do nodes have the "viewpoint" attribute?')
+        data = the_dict.values()
+        row, col = [], []
+        for j in the_dict.iterkeys():
+            row.append( 0 )
+            col.append( int(j) )
+        vec = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
+        return vec
+
+    def _extract_class_and_label(self,d): 
+        #if the vertex does not have a 'class' attribute then provide a default one and set it to 'vector'
+        node_class = None
+        data = None
+        if isinstance(d['label'],list):
+            node_class = 'vector'
+            #transform python list into numpy array
+            data = np.array(d['label'])
+        if isinstance(d['label'],dict):
+            node_class = 'sparse_vector'
+            #return the dict rerpesentation
+            data = d['label']
+        if d.get('class', False): 
+            node_class = d['class']
+        return node_class, data
+
     def _label_preprocessing(self, G):
         G.graph['label_size'] = self.discretization_dimension
         for n,d in G.nodes_iter(data = True):
-            if isinstance(d['label'],list):
-                kclass = d['class']
-                data = np.array(d['label'])
-                G.node[n]['hlabel'] = [util.fast_hash([hash(kclass),self.discretization_model_dict[kclass][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
+            if isinstance(d['label'],list) or isinstance(d['label'],dict): #for dense or sparse vectors
+                node_class, data = self._extract_class_and_label(d)
+                if isinstance(d['label'],dict):
+                    data = self._convert_dict_to_sparse_vector(data)
+                #create a list of integer codes of size: discretization_dimension
+                #each integer code is determined as follows:
+                #for each class, use the correspondent discretization_model_dict[node_class] to extract the id of the 
+                #nearest cluster centroid, return the centroid id as the integer code
+                G.node[n]['hlabel'] = [util.fast_hash([hash(node_class),self.discretization_model_dict[node_class][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
             if isinstance(d['label'],basestring):
                 #copy a hashed version of the string for a number of times equal to self.discretization_dimension
                 #in this way qualitative (i.e. string) labels can be compared to the discretized labels
                 hlabel = int(hash(str(d['label'])) & self.bitmask) + 1
                 G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
-            #TODO: sparse vectors of type dict
-
+        
 
     def _weight_preprocessing(self, G):
-        #we expect all vertices to have the attribute 'weight' in a weighted graph
-        #sniff the attributes of the first node to determine if graph is weighted
+        #it is expected that all vertices either have or do not have the attribute 'weight'
+        #we sniff the attributes of the first node to determine if graph is weighted
         if 'weight' in G.nodes(data=True)[0][1]: 
             G.graph['weighted'] = True
             #check that edges are weighted, if not assign unitary weight
@@ -441,11 +524,11 @@ class Vectorizer(object):
                 total_norm += feature_vector_value*feature_vector_value
         #global normalization
         if self.normalization:
-            normalizationd_feature_vector = {}
+            normalized_feature_vector = {}
             sqrt_total_norm = math.sqrt( float(total_norm) )
             for feature, value in feature_vector.iteritems():
-                normalizationd_feature_vector[feature] = value/sqrt_total_norm
-            return normalizationd_feature_vector
+                normalized_feature_vector[feature] = value/sqrt_total_norm
+            return normalized_feature_vector
         else :
             return feature_vector
 
@@ -563,11 +646,12 @@ class Annotator(Vectorizer):
         estimator = SGDClassifier(),
         vectorizer = Vectorizer(),
         reweight = 1.0,
-        annotate_vertex_with_vector = False):
+        relabel_vertex_with_vector = False):
         """
         Parameters
         ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution 
+        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+            If None the vertex weigths are by default 1.
 
         vectorizer : EDeN graph vectorizer 
 
@@ -579,13 +663,16 @@ class Annotator(Vectorizer):
             If reweight = 0.5 then update with the aritmetic mean of the current weight information 
             and the abs(score)
 
-        annotate_vertex_with_vector : bool
-            If True add to each vertex the attribute 'vector' which contains the 
-            sparse vector encoding of all features that have that vertex as root 
+        relabel_vertex_with_vector : bool
+            If True replace the label attribute of each vertex with the 
+            sparse vector encoding of all features that have that vertex as root. Create a new attribute 
+            'original_label' to store the previous label. If the 'original_label' attribute is already present
+            then it is left untouched: this allows an iterative application of the relabeling procedure while 
+            preserving the original information.  
         """
         self._estimator = estimator
         self.reweight = reweight
-        self.annotate_vertex_with_vector = annotate_vertex_with_vector
+        self.relabel_vertex_with_vector = relabel_vertex_with_vector
         self.r = vectorizer.r 
         self.d = vectorizer.d
         self.min_r = vectorizer.min_r 
@@ -611,25 +698,50 @@ class Annotator(Vectorizer):
         This is a generator.
         """
         for G in G_list:
-            yield self._annotate_vertex_importance(G)
+            yield self._annotate(G)
 
 
-    def _annotate_vertex_importance(self, G_orig):
+    def _annotate(self, G_orig):
         #pre-processing phase: compute caches
         G = self._graph_preprocessing(G_orig)
         #extract per vertex feature representation
         X = self._compute_vertex_based_features(G)
-        #compute distance from hyperplane as proxy of vertex importance
-        margins = self._estimator.decision_function(X)
+        #add or update weight and importance information
+        G = self._annotate_importance(G, X)
+        #add or update label information
+        if self.relabel_vertex_with_vector:
+            G = self._annotate_vector(G, X)
+        return self._revert_edge_to_vertex_transform(G)
+
+
+    def _annotate_vector(self, G, X):
         #annotate graph structure with vertex importance
         vertex_id = 0
         for v,d in G.nodes_iter(data=True):
             if d.get('node', False): 
                 #annotate 'vector' information
-                if self.annotate_vertex_with_vector:
-                    row = X.getrow(vertex_id)
-                    vec_dict = { str(index):value for index,value in zip(row.indices,row.data)}
-                    G.node[v]["vector"] = vec_dict
+                row = X.getrow(vertex_id)
+                vec_dict = { str(index):value for index,value in zip(row.indices,row.data)}
+                if G.node[v].get('original_label', False) == False: #if an original label does not exist then save it, else do nothing and preserve the information in original label
+                    G.node[v]["original_label"] = G.node[v]["label"]
+                G.node[v]["label"] = vec_dict
+                if G.node[v].get("class", False) == False: #if a node does not have a 'class' attribute then assign one called 'vactor' by default 
+                    G.node[v]["class"] = 'vector'
+                vertex_id += 1
+        return G
+
+
+    def _annotate_importance(self, G, X):
+        #compute distance from hyperplane as proxy of vertex importance
+        if self._estimator is None:
+            #if we do not provide an estimator then consider default margin of 1 for all vertices
+            margins = np.array([1]*X.shape[0])
+        else:
+            margins = self._estimator.decision_function(X)
+        #annotate graph structure with vertex importance
+        vertex_id = 0
+        for v,d in G.nodes_iter(data=True):
+            if d.get('node', False): 
                 #annotate the 'importance' attribute with the margin
                 G.node[v]["importance"] = margins[vertex_id] 
                 #update the 'weight' information as a linear combination of the previuous weight and the absolute margin 
@@ -641,7 +753,7 @@ class Annotator(Vectorizer):
             if d.get('edge', False): #keep the weight of edges
                 if G.node[v].has_key("weight") == False: #..unless they were unweighted, in this case add unit weight
                     G.node[v]["weight"] = 1
-        return self._revert_edge_to_vertex_transform(G)
+        return G
 
 
     def _compute_vertex_based_features(self, G):

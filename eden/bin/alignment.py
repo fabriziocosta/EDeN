@@ -16,8 +16,7 @@ from scipy.sparse import csr_matrix
 from eden import graph
 from eden.graphicalizer.graph import node_link_data
 from eden.util import util, setup, eden_io
-
-from eden import NeedlemanWunsh
+from eden.util import NeedlemanWunsh
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood Utility program.
