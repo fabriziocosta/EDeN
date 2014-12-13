@@ -31,16 +31,14 @@ def sequence_to_eden(input = None, input_type = None, options = dict()):
 
 def sequence_to_networkx(line):
     G = nx.Graph()
-    for id,character in enumerate(line):
-        G.add_node(id, label = character, viewpoint = True)
+    for id,token in enumerate(line):
+        G.add_node(id, label = token, viewpoint = True)
         if id > 0:
-            G.add_edge(id-1, id, label = '-', viewpoint = True)
+            G.add_edge(id-1, id, label = '-')
     assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
     return G
 
 
-def _sequence_to_eden(data_str_list):
-    string_list = []
-    for line in data_str_list:
-        if line.strip():
-            yield sequence_to_networkx(line.strip())
+def _sequence_to_eden(data_list):
+    for sequence in data_list:
+        yield sequence_to_networkx(sequence)
