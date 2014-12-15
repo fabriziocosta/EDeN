@@ -24,6 +24,9 @@ def instance_to_eden(input = None, input_type = None, tool = None, options = dic
 	elif tool == "sequence":
 		from eden.graphicalizer.graph import sequence
 		g_it = sequence.sequence_to_eden(input = input, input_type = input_type, options = options)
+	elif tool == "word_sequence":
+		from eden.graphicalizer.graph import word_sequence
+		g_it = word_sequence.word_sequence_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "obabel":
 		from eden.graphicalizer.molecule import obabel
 		g_it = obabel.obabel_to_eden(input = input, input_type = input_type, options = options)
@@ -44,7 +47,7 @@ def setup_parameters(parser):
 		dest = "input_type",
 		help = "If type is 'url' then 'input' is interpreted as a URL pointing to a file. If type is 'file' then 'input' is interpreted as a file name.",
 		default = "file")
-    parser.add_argument("-f", "--graphicalizer-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "FASTA"],
+    parser.add_argument("-f", "--graphicalizer-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "word_sequence", "FASTA"],
 		dest = "graphicalizer_tool",
 		help = "Tool name for the graphicalization phase, i.e. the transformation of instances from the original data format into graphs.", 
 		default = "gspan")

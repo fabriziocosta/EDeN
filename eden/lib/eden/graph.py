@@ -359,7 +359,7 @@ class Vectorizer(object):
             if isinstance(d['label'],basestring):
                 #copy a hashed version of the string for a number of times equal to self.discretization_dimension
                 #in this way qualitative (i.e. string) labels can be compared to the discretized labels
-                hlabel = int(hash(str(d['label'])) & self.bitmask) + 1
+                hlabel = int(hash(d['label']) & self.bitmask) + 1
                 G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
         
 
