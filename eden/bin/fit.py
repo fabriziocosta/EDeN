@@ -36,6 +36,10 @@ def setup_parameters(parser):
 		If set then  --input-file is assumed containing positive instance.
 		This option is mutually exclusive with the --target-file-name option.""",
 		default = "")
+	group.add_argument( "-1","--one-class",
+		dest = "one_class",
+		help = "Considers input as sample of positive instances only.",
+		action = "store_true")
 	parser.add_argument("-p", "--optimization",  choices = ["none", "predictor", "predictor_and_vectorizer"],
     	help = """Type of hyper parameter optimization for the classifier. 
     	[none]:	uses default values for the SGD classifier;
@@ -64,6 +68,17 @@ def extract_data_matrix(args, vectorizer = None):
 	if args.neg_file_name != "":
 		g_neg_it = node_link_data.node_link_data_to_eden(input = args.neg_file_name, input_type = "file")
 		X_neg = vectorizer.transform(g_neg_it, n_jobs = args.n_jobs)
+		#create target array	
+		yp = [1] * X.shape[0]
+		yn = [-1] * X_neg.shape[0]
+		y = np.array(yp + yn)
+		#update data matrix
+		X = vstack( [X,X_neg] , format = "csr")
+	elif args.one_class:
+		#ASSUMPTIONS: positive data is normalized, hence the one-class problem is equivalent 
+		#to assuming negative instances as opposite of positive ones and
+		#solve the resulting standard binary classification problem under the max-margin constraint
+		X_neg = X * -1
 		#create target array	
 		yp = [1] * X.shape[0]
 		yn = [-1] * X_neg.shape[0]

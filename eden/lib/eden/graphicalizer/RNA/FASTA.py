@@ -58,7 +58,7 @@ def _FASTA_to_eden(data_str_list, options = None):
                 header_str = _line[1:] 
                 if len(line_buffer) > 0:
                     G = string_to_networkx(line_buffer, options = options)
-                    if options['header']:
+                    if options.get('header', False): 
                         G.graph['ID'] = prev_header_str
                     yield G
                 line_buffer = ''
@@ -67,6 +67,6 @@ def _FASTA_to_eden(data_str_list, options = None):
                 line_buffer += _line
     if len(line_buffer) > 0:
         G = string_to_networkx(line_buffer, options = options)
-        if options['header']:
+        if options.get('header', False): 
             G.graph['ID'] = prev_header_str
         yield G
