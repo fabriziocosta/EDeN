@@ -1,7 +1,14 @@
 #fit predict
 eden/bin/convert.py -i examples/bursi.gspan -f gspan -o bursi -v
-eden/bin/fit.py -i bursi/data.nld -y examples/bursi.target -r 2 -d 2 -p none -x -o bursi_out -v 
-eden/bin/predict.py -i bursi/data.nld -o bursi_out -v 
+eden/bin/fit.py -i bursi/data.nld -y examples/bursi.target -r 2 -d 2 -p none -x -o bursi.model -v 
+eden/bin/predict.py -i bursi/data.nld -m bursi.model -o bursi.pred -v 
+
+#fit predict one-class
+eden/bin/convert.py -i examples/bursi.pos.gspan -o bursi.pos.dat
+eden/bin/fit.py -i bursi.pos.dat/data.nld -1 -f 0.1 -r 3 -d 3 -v -o bursi.pos.model
+eden/bin/convert.py -i examples/bursi.neg.gspan -o bursi.neg.dat
+eden/bin/predict.py -i bursi.pos.dat/data.nld -m bursi.pos.model -o bursi.pos.predictions -v
+eden/bin/predict.py -i bursi.neg.dat/data.nld -m bursi.pos.model -o bursi.neg.predictions -v
 
 #annotate
 eden/bin/convert.py -i examples/bursi.gspan -f gspan -o bursi -v
@@ -11,7 +18,7 @@ eden/bin/fit.py -i bursi_out/annotated.nld -y examples/bursi.target -r 2 -d 2 -p
 
 #motif
 num=1000
-dat=DATA/AGO.right_allUs.seq
+dat=DATA/AGO/AGO.right_allUs.seq
 cat $dat | unsort 2>/dev/null | head -$num > AGO2
 eden/bin/convert.py -i dataset.seq -f sequence -o AGO2_dat -v
 eden/bin/fit.py -i AGO2_dat/data.nld -r 7 -d 7 -p none -x -v -y dataset.target -o AGO2_out
