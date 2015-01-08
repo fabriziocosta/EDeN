@@ -12,7 +12,7 @@ def _add_stacks(G,start,optlist):
 	Create supporting 'p' nodes in stacking base-pairs
 	'''
 	#interesting edges:
-	ie = [ a for a in G.edges() if a[0]-a[1] ! = -1 and a[0] > start ]
+	ie = [ a for a in G.edges() if a[0]-a[1] != -1 and a[0] > start ]
 	nextnode = len(G)
 	csum = 0
 	for (a,b) in ie:
