@@ -18,6 +18,10 @@ Predict using model.
 
 def setup_parameters(parser):
 	parser = setup.common_arguments(parser)
+	parser.add_argument("-m", "--model-dir", 
+	dest = "model_dir_path", 
+	help = "Path to directory containing the predictive model.",
+	default = "out")
 	return parser
 
 
@@ -26,10 +30,10 @@ def predict(args):
 	Predict using model.
 	"""
 	#load models
-	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
+	vec = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "vectorizer")
 	logger.info('Vectorizer: %s' % vec)
 
-	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
+	clf = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "model")
 	logger.info('Model: %s' % clf)
 
 	#load data
