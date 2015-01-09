@@ -3,12 +3,13 @@
 import sys
 import os
 import time
+import tarfile
 
 from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import setup, eden_io, util
 
 DESCRIPTION = """
@@ -20,8 +21,12 @@ def setup_parameters(parser):
 	parser = setup.common_arguments(parser)
 	parser.add_argument("-m", "--model-dir", 
 	dest = "model_dir_path", 
-	help = "Path to directory containing the predictive model.",
+	help = "Path to directory containing the predictive model. In case of a compressed archive, use the name without the .tar.gz suffix.",
 	default = "out")
+	parser.add_argument("-z", "--tar-gzip", 
+	dest = "tar_gzip",
+	help = "Use archived and compressed directory that serializes the vectorizer and the fitted predictive model.",
+	action = "store_true")
 	return parser
 
 
@@ -29,6 +34,12 @@ def predict(args):
 	"""
 	Predict using model.
 	"""
+	if args.tar_gzip:
+		out_file_name = args.model_dir_path + '.tar.gz'
+		logger.info('Unpacking: %s' % out_file_name)
+		archive = tarfile.open(out_file_name, "r|gz")
+		archive.extractall()
+
 	#load models
 	vec = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "vectorizer")
 	logger.info('Vectorizer: %s' % vec)
