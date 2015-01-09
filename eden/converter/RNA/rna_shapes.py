@@ -30,7 +30,7 @@ def create_seq_graph(optlist,seq,name, sid=0):
 		data.sequence=seq
 	else:
 		data.sequence=seq.lower()
-	data.sequencename=name
+	data.sequence_name=name
 	data.start_id=sid
 	data.structure="."*len(seq)
 	data.attributes['info']=" you wanted something without structure so we deliver"
@@ -81,7 +81,7 @@ def do_parameter_transformation(optlist):
 	optlist['rnashape_parameter_string']=' '+" ".join(optlist['rnashape_parameter_list'])+" "
 
 
-def call_rna_shapes_cast(optlist):
+def rna_shapes_cast_wrapper(optlist):
 	do_parameter_transformation(optlist)
 	cmd='RNAshapes -mode cast %s %s' % (optlist['rnashape_parameter_string'] ,optlist['fasta'] )
 	if optlist['wins'][0] !=  -1:
@@ -115,7 +115,7 @@ def call_rna_shapes_cast(optlist):
 			shape=text[i+2].split()[1]
 			sequenc=sequence()
 			sequenc.attributes['info']='s # %s' % gsname			
-			sequenc.sequencename=text[i][1:]
+			sequenc.sequence_name=text[i][1:]
 			sequenc.sequence=text[i+1].split()[1]
 			sequenc.start_id=1
 			sequenc.structure=text[i+2].split()[1]
@@ -169,14 +169,14 @@ def rna_shapes_wrapper(optionlist=None,seq=None,seqname=None):
 						res.sequence_groups.append(window)
 						pos+=shift
 			else:
-				#first line of output is just a hint on the sequencename -> ignore.
+				#first line of output is just a hint on the sequence_name -> ignore.
 				cmd=optlist['path_to_program']+" --windowSize "+str(windowSize)+" --windowIncrement "+str(shift)+getAbstrLevel(optlist,windowSize)+optlist['rnashape_parameter_string']+" "+seq
 				
 				text+=sp.check_output(cmd,shell=True).split('\n')[1:]
 				optlist['log'].debug(cmd)
 	nex='seq'
 	sequenceline=()
-	maxshapecounter=0 # counter for the -M option... 
+	max_shape_counter=0 # counter for the -M option... 
 	currentwindow={}
 	for line in text:
 		line=line.strip()
@@ -187,7 +187,7 @@ def rna_shapes_wrapper(optionlist=None,seq=None,seqname=None):
 			
 			sequenceline=line.split()
 			nex='data'
-			maxshapecounter=0
+			max_shape_counter=0
 			#if  optlist['set_graph_win']:
 			#	res.append(createSeqGraph(optlist,sequenceline[1],sequenceline[0]),seqname)
 			
@@ -198,12 +198,12 @@ def rna_shapes_wrapper(optionlist=None,seq=None,seqname=None):
 			currentwindow=window
 
 		elif nex=='data':
-			if maxshapecounter == optlist['M']:
+			if max_shape_counter == optlist['M']:
 				continue
 			line=line.split() # [energy, shape, abstractshape]
 			if optlist['match_shape']!=None and line[-1]!=optlist['match_shape']:
 				continue
-			maxshapecounter+=1
+			max_shape_counter+=1
 
 			sequenceobject=sequence()
 			sequenceobject.start_id=sequenceline[0]	
@@ -215,7 +215,7 @@ def rna_shapes_wrapper(optionlist=None,seq=None,seqname=None):
 			if optlist['cue']:
 				cut_unpaired_ends(sequenceobject)
 			make_annotation( optlist,line,sequenceline,sequenceobject)
-			sequenceobject.sequencename=seqname
+			sequenceobject.sequence_name=seqname
 
 			currentwindow.sequences.append(sequenceobject)
 

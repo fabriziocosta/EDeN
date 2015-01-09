@@ -133,12 +133,12 @@ def has_structure(struct):
 
 
 def addgraph(optlist,data,G):
-    #optlist['log'].debug("add to graph %s : %s" % (data.sequencename , data.structure) )
+    #optlist['log'].debug("add to graph %s : %s" % (data.sequence_name , data.structure) )
     # create a central node for the sequence... and copy some attributes
     info_node = len(G)
     G.add_node(info_node)
     G.node[info_node].update(data.__dict__)
-    G.node[info_node]['infonode'] = True
+    G.node[info_node]['info_node'] = True
     
     # so we add all the nodes for the nucleoties
     for e in xrange(len(data.structure)):
@@ -177,8 +177,8 @@ def addgraph(optlist,data,G):
     
     # if we have an annotationfile(specified in args ) we use it! 
     if optlist['annotate'] != None: # then: we set it to be a nice dictionary :) 
-        if data.sequencename in optlist['annotate']: # is there annotation?
-            l = optlist['annotate'][data.sequencename] 
+        if data.sequence_name in optlist['annotate']: # is there annotation?
+            l = optlist['annotate'][data.sequence_name] 
             for (start, end , text) in l: # annotations are stretching over a range of nucleotides    
                 for i in range( max( int(data.start_id), int(start)), min( int(end)+1, int(data.start_id)+len(data.sequence)) ): # and for each nucleotide
                     # i is now the real index in the sequence
@@ -225,7 +225,7 @@ def addgraph(optlist,data,G):
                 for e in l:
                     G.add_edge(e+info_node+1,nextnode,color = optlist['color_loop_satelite'],nesting = True)
 
-    # if we are not in debug mode...  we connect the infonode with every node in the newly created subgraph.. 
+    # if we are not in debug mode...  we connect the info_node with every node in the newly created subgraph.. 
     #this looks messy  when we draw the graph so we dont do it when in debug mode..
     if optlist["debug"] == False:
         for i in xrange(info_node+1,len(G)):
@@ -261,7 +261,7 @@ def create_super_graph(input = None, options = None):
     G = nx.Graph()
     G.add_node(0)
     G.node[0].update(input.attributes)
-    G.node[0]['infonode'] = True
+    G.node[0]['info_node'] = True
     G.node[0]['supernode'] = True
     for e in input.sequence_groups:
         new_node = len(G)
@@ -269,7 +269,7 @@ def create_super_graph(input = None, options = None):
         # copy annotations to node. 
         G.node[new_node].update(e.attributes)
 
-        G.node[new_node]['infonode'] = True
+        G.node[new_node]['info_node'] = True
         for s in e.sequences:
             referencenode = addgraph(options,s,G)
             G.add_edge(new_node, referencenode, nesting = True)

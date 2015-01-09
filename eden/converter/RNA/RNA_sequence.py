@@ -45,12 +45,12 @@ def RNA_sequence_to_eden(input = None, input_type = None, options = dict()):
     return _RNA_sequence_to_eden(f, options = local_options)        
    
 
-def _RNA_string_to_networkx(sequence = None, sequencename = None,  options = None):
+def _RNA_string_to_networkx(sequence = None, sequence_name = None,  options = None):
     folding_mode = options['mode']
     if  folding_mode == 'RNAfold':
-        r = rna_fold_wrapper(sequence, sequencename, options)
+        r = rna_fold_wrapper(sequence, sequence_name, options)
     elif folding_mode == 'RNAshapes':
-        r = rna_shapes_wrapper(sequence, sequencename, options) # second is the squence
+        r = rna_shapes_wrapper(sequence, sequence_name, options) # second is the squence
     else:
         raise Exception('Unknown structure predictor: %s' % folding_mode)
     G = create_super_graph(r,options)
@@ -66,7 +66,7 @@ def _RNA_sequence_to_eden(data_str_list, options = None):
                 #extract string from header
                 next_header_str = _line[1:] 
                 if len(line_buffer) > 0:
-                    G = _RNA_string_to_networkx(sequence = line_buffer, sequencename = header_str, options = options)
+                    G = _RNA_string_to_networkx(sequence = line_buffer, sequence_name = header_str, options = options)
                     if options.get('header', False): 
                         G.graph['ID'] = header_str
                     yield G
@@ -75,7 +75,7 @@ def _RNA_sequence_to_eden(data_str_list, options = None):
             else:
                 line_buffer += _line
     if len(line_buffer) > 0:
-        G = _RNA_string_to_networkx(sequence = line_buffer, sequencename = header_str, options = options)
+        G = _RNA_string_to_networkx(sequence = line_buffer, sequence_name = header_str, options = options)
         if options.get('header', False): 
             G.graph['ID'] = header_str
         yield G
