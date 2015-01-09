@@ -50,14 +50,14 @@ def obabel2networkx(mol):
     for atom in mol:
         vlabel = atom.type
         hvlabel=[hash(str(atom.atomicnum))]
-        g.add_node(atom.idx, label=vlabel, hlabel=hvlabel, viewpoint = True)
+        g.add_node(atom.idx, label=vlabel, hlabel=hvlabel)
     #bonds
         edges = []
     bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
         elabel=bond.GetBO()
         helabel=[hash(str(elabel))]
-        g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel, viewpoint = True)
+        g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel)
     return g
 
 

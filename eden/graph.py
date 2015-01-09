@@ -18,7 +18,7 @@ from eden.util import util
 
 class Vectorizer(object):
     """
-    Transforms labeled, weighted, nested graphs in sparse vectors.
+    Transforms vector labeled, weighted, nested graphs in sparse vectors.
     """
 
     def __init__(self,
@@ -255,7 +255,7 @@ class Vectorizer(object):
     def _convert_to_sparse_matrix(self, feature_dict):
         """Takes a dictionary with pairs as key and counts as values and returns a compressed sparse row matrix"""
         if len(feature_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty feature_dict. Perhaps wrong data format, i.e. do nodes have the "viewpoint" attribute?')
+            raise Exception('ERROR: something went wrong, empty feature_dict.')
         data = feature_dict.values()
         row, col = [], []
         for i, j in feature_dict.iterkeys():
@@ -319,7 +319,7 @@ class Vectorizer(object):
 
     def _convert_dict_to_sparse_vector(self, the_dict):
         if len(the_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty the_dict. Perhaps wrong data format, i.e. do nodes have the "viewpoint" attribute?')
+            raise Exception('ERROR: something went wrong, empty the_dict.')
         data = the_dict.values()
         row, col = [], []
         for j in the_dict.iterkeys():
@@ -423,8 +423,7 @@ class Vectorizer(object):
         feature_list = defaultdict(lambda : defaultdict(float))
         for v,d in G.nodes_iter(data = True):
             if d.get('node', False): #only for vertices of type 'node', i.e. not for the 'edge' type
-                if d.get('viewpoint', False): #only for vertices with attribute 'viewpoint'
-                    self._transform_vertex(G, v, feature_list)
+                self._transform_vertex(G, v, feature_list)
             if d.get('nesting', False): #only for vertices of type 'nesting'
                 self._transform_nesting_vertex(G, v, feature_list)
         return self._normalization(feature_list, instance_id)
