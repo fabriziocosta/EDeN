@@ -3,9 +3,9 @@ import pylab as plt
 
 def draw_graph(graph, 
     vertex_label='label', 
-    secondary_vertex_label='', 
+    secondary_vertex_label=None, 
     edge_label='label', 
-    secondary_edge_label='', 
+    secondary_edge_label=None, 
     vertex_color='', 
     size=10, 
     layout='graphviz', 
@@ -65,12 +65,12 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos, 
         edgelist = edges_normal, 
         width = 2, 
-        edge_color = 'b', 
+        edge_color = 'k', 
         alpha=0.5)
     nx.draw_networkx_edges(graph, pos, 
         edgelist = edges_nesting, 
         width = 1, 
-        edge_color = 'b', 
+        edge_color = 'k', 
         style = 'dashed', 
         alpha=0.5)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
