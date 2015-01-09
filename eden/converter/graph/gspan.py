@@ -43,10 +43,10 @@ def gspan_to_networkx(string_list):
                 vlabel = line_list[2]
                 #lowercase v indicates active viewpoint
                 if fc == 'v':
-                    viewpoint = True
+                    weight = 1
                 else: #uppercase v indicates no-viewpoint
-                    viewpoint = False
-                G.add_node(vid, label = vlabel, viewpoint = viewpoint)
+                    weight = 0.1
+                G.add_node(vid, label = vlabel, weight = weight)
                 #abstract vertices
                 if vlabel[0] == '^':
                     G.node[vid]['nesting'] = True

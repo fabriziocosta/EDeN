@@ -5,7 +5,7 @@ import os
 import time
 
 from eden.util import setup
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 
 
 DESCRIPTION = """
@@ -14,24 +14,24 @@ Format converter.
 """
 
 def instance_to_eden(input = None, input_type = None, tool = None, options = dict()):
-	#TODO: scan folders and subfolders in graphicalizer and find tool that has the same name
+	#TODO: scan folders and subfolders in converter and find tool that has the same name
 	if tool == "gspan":
-		from eden.graphicalizer.graph import gspan
+		from eden.converter.graph import gspan
 		g_it = gspan.gspan_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "node_link_data":
-		from eden.graphicalizer.graph import node_link_data
+		from eden.converter.graph import node_link_data
 		g_it = node_link_data.node_link_data_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "sequence":
-		from eden.graphicalizer.graph import sequence
+		from eden.converter.graph import sequence
 		g_it = sequence.sequence_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "word_sequence":
-		from eden.graphicalizer.graph import word_sequence
+		from eden.converter.graph import word_sequence
 		g_it = word_sequence.word_sequence_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "obabel":
-		from eden.graphicalizer.molecule import obabel
+		from eden.converter.molecule import obabel
 		g_it = obabel.obabel_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "FASTA":
-		from eden.graphicalizer.RNA import FASTA
+		from eden.converter.RNA import FASTA
 		g_it = FASTA.FASTA_to_eden(input = input, input_type = input_type, options = options)
 	else:
 		raise Exception('Unknown tool: %s' % tool)
@@ -47,8 +47,8 @@ def setup_parameters(parser):
 		dest = "input_type",
 		help = "If type is 'url' then 'input' is interpreted as a URL pointing to a file. If type is 'file' then 'input' is interpreted as a file name.",
 		default = "file")
-    parser.add_argument("-f", "--graphicalizer-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "word_sequence", "FASTA"],
-		dest = "graphicalizer_tool",
+    parser.add_argument("-f", "--converter-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "word_sequence", "FASTA"],
+		dest = "converter_tool",
 		help = "Tool name for the graphicalization phase, i.e. the transformation of instances from the original data format into graphs.", 
 		default = "gspan")
     parser.add_argument("-o", "--output-dir", 
@@ -63,7 +63,7 @@ def setup_parameters(parser):
 
 def convert(args):
 	#load data
-	g_it = instance_to_eden(input = args.input_file, input_type = args.input_type, tool = args.graphicalizer_tool)
+	g_it = instance_to_eden(input = args.input_file, input_type = args.input_type, tool = args.converter_tool)
 	#write data
 	out_file_name = 'data.nld'
 	if not os.path.exists(args.output_dir_path) :

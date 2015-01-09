@@ -16,7 +16,7 @@ import numpy as np
 from eden.util import setup
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import eden_io
 
 DESCRIPTION = """
