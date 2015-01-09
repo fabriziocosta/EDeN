@@ -27,8 +27,8 @@ class sequence:
 	def __init__(self):
 		self.attributes={}
 		self.start_id = -2
-		self.sequencename=''
-		self.seqence=''
+		self.sequence_name=''
+		self.sequence=''
 		self.structure=''
 		'''
 		structure uses < { ( [ and . 

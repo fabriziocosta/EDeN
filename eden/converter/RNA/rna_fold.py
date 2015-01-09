@@ -21,7 +21,7 @@ def create_seq_graph(local_options,seq,name):
 		data.sequence = seq
 	else:
 		data.sequence = seq.lower()#["s"+e for e in seq]
-	data.sequencename = name
+	data.sequence_name = name
 	data.structure = "."*len(seq)
 	data.attributes['info'] =  'no structure created'
 	return data 
@@ -48,7 +48,7 @@ def rna_fold_wrapper(seq  =  None, seqname  =  None, options  =  None):
 				text = sp.check_output(cmd,shell = True)
 				text = text.split('\n')[1:]
 				sequen = sequence()
-				sequen.sequencename = seqname
+				sequen.sequence_name = seqname
 				sequen.sequence = seq
 				sequen.structure = text[0].split()[0]
 				window = sequence_group()
@@ -79,7 +79,7 @@ def rna_fold_wrapper(seq  =  None, seqname  =  None, options  =  None):
 					text = sp.check_output(cmd,shell = True)
 					text = text.split('\n')[1:]
 					sequen = sequence()
-					sequen.sequencename = seqname
+					sequen.sequence_name = seqname
 					sequen.sequence = seq
 					sequen.structure = text[0].split()[0]
 					window = sequence_group()
