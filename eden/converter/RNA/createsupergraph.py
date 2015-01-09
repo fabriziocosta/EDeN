@@ -42,13 +42,13 @@ def _add_abstr(G,start,end,optlist):
     we also connect this element with the children found in the recursive call.. '''
     
     # interesting edges
-    ie = [ e for e in G.edges() if e[0]-e[1] ! = -1 and e[0]>start and e[1] <= end] 
+    ie = [ e for e in G.edges() if e[0]-e[1] != -1 and e[0]>start and e[1] <= end] 
     # we know that start binds to end so we do ths:
     i = start+1
     j = end-1
     k = 0 # k is the index in ie
     for (b,e) in ie:
-        if (b,e) ! = (i,j):
+        if (b,e) != (i,j):
             break
         else:
             i += 1
@@ -121,7 +121,7 @@ def addbridges(structure,open ,close,G,info,optlist):
         if e == open:
             conop.append(info+i+1)
         if e == close:
-            G.add_edge(conop.pop(),info+i+1, view_point = True,color = optlist['color_bridge'] )
+            G.add_edge(conop.pop(),info+i+1, view_point = True, color = optlist['color_bridge'] )
         i += 1
 
 
@@ -176,7 +176,7 @@ def addgraph(optlist,data,G):
     _add_stacks(G,info_node,optlist)
     
     # if we have an annotationfile(specified in args ) we use it! 
-    if optlist['annotate']! = None: # then: we set it to be a nice dictionary :) 
+    if optlist['annotate'] != None: # then: we set it to be a nice dictionary :) 
         if data.sequencename in optlist['annotate']: # is there annotation?
             l = optlist['annotate'][data.sequencename] 
             for (start, end , text) in l: # annotations are stretching over a range of nucleotides    

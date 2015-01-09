@@ -27,11 +27,11 @@ def create_seq_graph(local_options,seq,name):
 	return data 
 
 
-def call_rna_fold(seq  =  None, seqname  =  None, options  =  None):
+def rna_fold_wrapper(seq  =  None, seqname  =  None, options  =  None):
 	'''
 	see the post_rna_struct class for infos on what we create here.
 	'''
-	local_options = options.copy() # we dont want to mess up the original
+	local_options = dict(options) # we dont want to mess up the original
 	res = post_rna_struct()
 	if 	local_options.get('set_graph_t', False):
 		tmp = sequence_group()

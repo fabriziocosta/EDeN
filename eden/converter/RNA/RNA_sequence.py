@@ -1,7 +1,7 @@
 import networkx as nx
-from rna_shapes import call_rna_shapes
+from rna_shapes import rna_shapes_wrapper
 from createsupergraph import create_super_graph
-from rna_fold import call_rna_fold
+from rna_fold import rna_fold_wrapper
 
 
 def RNA_sequence_to_eden(input = None, input_type = None, options = dict()):
@@ -13,15 +13,27 @@ def RNA_sequence_to_eden(input = None, input_type = None, options = dict()):
     input : string
         A pointer to the data source.
 
-    input_type : ['url','file','string_file']
+    input_type : ['url','file','list']
         If type is 'url' then 'input' is interpreted as a URL pointing to a file.
         If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'string_file' then 'input' is interpreted as a file name for a file 
-        that contains strings rather than integers. The set of strings are mapped to 
-        unique increasing integers and the corresponding vector of integers is returned.
+        If type is 'list' then 'input' is interpreted as a list of strings.
     """
     input_types = ['url','file','list']
     assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
+
+    #default options
+    options_defaults = {'mode':'RNAfold', 
+    'wins':[-1], 
+    'absolute_shift':[100], 
+    'path_to_program':'/usr/local/bin/RNAfold', 
+    'color_bridge':'b',
+    'color_backbone':'r',
+    'abstr':False,
+    'stack':True,
+    'annotate':None,
+    'debug':False}
+    local_options = options_defaults
+    local_options.update(options) 
 
     if input_type == 'file':
         f = open(input,'r')
@@ -30,15 +42,15 @@ def RNA_sequence_to_eden(input = None, input_type = None, options = dict()):
         f = requests.get(input).text.split('\n')
     elif input_type == "list":
         f = input
-    return _RNA_sequence_to_eden(f, options = options)        
+    return _RNA_sequence_to_eden(f, options = local_options)        
    
 
 def _RNA_string_to_networkx(sequence = None, sequencename = None,  options = None):
     folding_mode = options['mode']
     if  folding_mode == 'RNAfold':
-        r = call_rna_fold(sequence, sequencename, options)
+        r = rna_fold_wrapper(sequence, sequencename, options)
     elif folding_mode == 'RNAshapes':
-        r = call_rna_shapes(sequence, sequencename, options) # second is the squence
+        r = rna_shapes_wrapper(sequence, sequencename, options) # second is the squence
     else:
         raise Exception('Unknown structure predictor: %s' % folding_mode)
     G = create_super_graph(r,options)
