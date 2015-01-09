@@ -18,14 +18,17 @@ def draw_graph(graph,
     plt.axis('off')
     
     if secondary_vertex_label:
-        vertex_labels=dict([(u,'%s\n%s'%(d[vertex_label],d[secondary_vertex_label])) for u,d in graph.nodes(data=True)])
+        vertex_labels=dict([(u,'%s\n%s'%(d.get(vertex_label,'N/A'),d.get(secondary_vertex_label,'N/A') ) ) for u,d in graph.nodes(data=True)])
     else:
-        vertex_labels=dict([(u,d[vertex_label]) for u,d in graph.nodes(data=True)])
+        vertex_labels=dict([(u,d.get(vertex_label,'N/A')) for u,d in graph.nodes(data=True) ])
     
+    edges_normal=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == False]
+    edges_nesting=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == True]
+
     if secondary_edge_label:
-        edge_labels=dict([((u,v,),'%s\n%s'%(d[edge_label],d[secondary_edge_label])) for u,v,d in graph.edges(data=True)])
+        edge_labels=dict([((u,v,),'%s\n%s'%(d.get(edge_label,'N/A'),d.get(secondary_edge_label,'N/A')) ) for u,v,d in graph.edges(data=True)])
     else:
-        edge_labels=dict([((u,v,),d[edge_label]) for u,v,d in graph.edges(data=True)])
+        edge_labels=dict([((u,v,),d.get(edge_label,'N/A') ) for u,v,d in graph.edges(data=True)])
 
     if vertex_color == '':
         node_color = 'white'
@@ -58,8 +61,18 @@ def draw_graph(graph,
         node_size=node_size, 
         linewidths=linewidths,
         cmap = plt.get_cmap('YlOrRd'))
-    nx.draw_networkx_labels(graph,pos, vertex_labels, font_size=9,font_color='black')
-    nx.draw_networkx_edges(graph, pos, alpha=0.5)
+    nx.draw_networkx_labels(graph,pos, vertex_labels, font_size = 9,font_color = 'black')
+    nx.draw_networkx_edges(graph, pos, 
+        edgelist = edges_normal, 
+        width = 2, 
+        edge_color = 'b', 
+        alpha=0.5)
+    nx.draw_networkx_edges(graph, pos, 
+        edgelist = edges_nesting, 
+        width = 1, 
+        edge_color = 'b', 
+        style = 'dashed', 
+        alpha=0.5)
     nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
     plt.show()
 

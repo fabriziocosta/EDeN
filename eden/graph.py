@@ -312,8 +312,8 @@ class Vectorizer(object):
             d['edge'] = True
             G.add_node(new_node_id, d)
             #and the corresponding edges
-            G.add_edge(new_node_id,u, label = 1)
-            G.add_edge(new_node_id,v, label = 1)
+            G.add_edge(new_node_id,u, label = None)
+            G.add_edge(new_node_id,v, label = None)
         return G
 
 
@@ -328,21 +328,27 @@ class Vectorizer(object):
         vec = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
         return vec
 
+
     def _extract_class_and_label(self,d): 
-        #if the vertex does not have a 'class' attribute then provide a default one and set it to 'vector'
+        #if the vertex does not have a 'class' attribute then provide a default one
         node_class = None
         data = None
-        if isinstance(d['label'],list):
-            node_class = 'vector'
-            #transform python list into numpy array
-            data = np.array(d['label'])
-        if isinstance(d['label'],dict):
-            node_class = 'sparse_vector'
-            #return the dict rerpesentation
-            data = d['label']
         if d.get('class', False): 
             node_class = d['class']
+        else:
+            if isinstance(d['label'],list):
+                node_class = 'vector'
+                #transform python list into numpy array
+                data = np.array(d['label'])
+            elif isinstance(d['label'],dict):
+                node_class = 'sparse_vector'
+                #return the dict rerpesentation
+                data = d['label']
+            else:
+                node_class = 'default'
+                data = d['label']
         return node_class, data
+
 
     def _label_preprocessing(self, G):
         G.graph['label_size'] = self.discretization_dimension

@@ -125,7 +125,7 @@ def call_rna_shapes_cast(optlist):
 	return ret
 
 
-def call_rna_shapes(optionlist=None,seq=None,seqname=None):
+def rna_shapes_wrapper(optionlist=None,seq=None,seqname=None):
 	'''
 	we create a post_rna_struct by calling rna_shapes and filling
 	the structure.. 
