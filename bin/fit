@@ -3,6 +3,7 @@
 import sys
 import os
 import time
+import tarfile
 
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
@@ -60,6 +61,10 @@ def setup_parameters(parser):
 	parser.add_argument("-x", "--output-predictive-performance", 
 		dest = "output_predictive_performance",
 		help = "Print predictive performace estimation on a 10 cross validation.",
+		action = "store_true")
+	parser.add_argument("-z", "--tar-gzip", 
+		dest = "tar_gzip",
+		help = "Archive and compress the directory that serializes the vectorizer and the fitted predictive model.",
 		action = "store_true")
 	return parser
 
@@ -202,30 +207,37 @@ def optimize(args, predictor = None):
 				msg = "Metric: {0:>17s}: {1:5.4f} (std: {2:5.4f})".format(scoring, score, std)
 				logger.debug(msg)
 				print(msg)
-		
-	logger.info('Vectorizer: %s' % vectorizer)
-
-	#save model for vectorizer
-	out_file_name = "vectorizer"
-	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
-	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
-
-	return predictor,score,std	
+	return vectorizer,predictor,score,std	
 
 
 def fit(args):
 	"""
 	Fit predictive model.
 	"""
+	#predictor init
 	predictor = SGDClassifier(n_jobs = args.n_jobs, class_weight = 'auto', shuffle = True)
 			
 	#train and optimize a SGD predicitve model
-	predictor,score,std = optimize(args, predictor = predictor)
+	vectorizer,predictor,score,std = optimize(args, predictor = predictor)
+
+	#save model for vectorizer
+	logger.info('Vectorizer: %s' % vectorizer)
+	out_file_name = "vectorizer"
+	eden_io.dump(vectorizer, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
+	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
 
 	#save model
 	out_file_name = "model"
 	eden_io.dump(predictor, output_dir_path = args.output_dir_path, out_file_name = out_file_name)
 	logger.info("Written file: %s/%s",args.output_dir_path, out_file_name)
+
+	if args.tar_gzip:
+		#tar result directory
+		out_file_name = args.output_dir_path + '.tar.gz'
+		archive = tarfile.open(out_file_name, "w|gz")
+		archive.add(args.output_dir_path)
+		archive.close()
+		logger.info("Archived model in: %s",out_file_name)
 
 
 
