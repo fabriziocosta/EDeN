@@ -5,7 +5,7 @@ import os
 import time
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import util, setup, eden_io
 
 
