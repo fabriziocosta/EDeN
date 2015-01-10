@@ -173,8 +173,8 @@ def optimize(args, predictor = None):
 		#determine threshold that defines the required number of outliers
 		predictions = predictor.predict(X)
 		margins = predictor.decision_function(X)
-		fraction_of_outliers_id = int(len(y)/2 - len(y)/2  * args.fraction_of_outliers)
-		logger.info('Fraction of outliers: %d' % (fraction_of_outliers_id))
+		fraction_of_outliers_id = int(float(len(y))/2 - float(len(y)) * args.fraction_of_outliers / 2)
+		logger.info('Number of outliers: %d (%0.2f)' % (int(float(len(y)) * args.fraction_of_outliers / 2), args.fraction_of_outliers))
 		threshold_value = sorted(margins)[fraction_of_outliers_id]
 		logger.info('Treshold: %d' % (threshold_value))
 		#assign the threshold value 
