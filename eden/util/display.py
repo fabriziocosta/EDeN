@@ -11,7 +11,8 @@ def draw_graph(graph,
     layout='graphviz', 
     prog = 'neato',
     node_size=600,
-    node_border=True):
+    node_border=True,
+    colormap='YlOrRd'):
     
     plt.figure(figsize=(size,size))
     plt.grid(False)
@@ -60,7 +61,7 @@ def draw_graph(graph,
         alpha=0.6,
         node_size=node_size, 
         linewidths=linewidths,
-        cmap = plt.get_cmap('YlOrRd'))
+        cmap = plt.get_cmap(colormap))
     nx.draw_networkx_labels(graph,pos, vertex_labels, font_size = 9,font_color = 'black')
     nx.draw_networkx_edges(graph, pos, 
         edgelist = edges_normal, 
@@ -82,7 +83,8 @@ def draw_adjacency_graph (A,
     size = 10,
     layout = 'graphviz', 
     prog = 'neato',
-    node_size = 80):
+    node_size = 80,
+    colormap='autumn'):
 
     graph = nx.from_scipy_sparse_matrix(A)
 
@@ -101,7 +103,7 @@ def draw_adjacency_graph (A,
                            node_color = node_color, 
                            alpha = 0.6, 
                            node_size = node_size, 
-                           cmap = plt.get_cmap('autumn'))
+                           cmap = plt.get_cmap(colormap))
     nx.draw_networkx_edges(graph, pos, alpha = 0.5)
     plt.show()
 
