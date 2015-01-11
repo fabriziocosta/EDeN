@@ -1,7 +1,7 @@
 import networkx as nx
 import subprocess as sp
 
-def RNA_MFE_to_eden(input = None, input_type = None, options = dict()):
+def RNA_SHAPE_to_eden(input = None, input_type = None, options = dict()):
     """
     Takes a list of strings and yields networkx graphs.
 
@@ -25,45 +25,48 @@ def RNA_MFE_to_eden(input = None, input_type = None, options = dict()):
         f = requests.get(input).text.split('\n')
     elif input_type == "list":
         f = input
-    return _RNA_MFE_to_eden(f, options = options)        
+    return _RNA_SHAPE_to_eden(f, options = options)        
    
 
-
-def RNAfold_wrapper(sequence, options = None):
-    defaults = {'path_to_program': 'RNAfold',
-    'opt':'--noPS'}
+def RNAshapes_wrapper(sequence, options = None):
+    defaults = {'path_to_program': 'RNAshapes',
+    'level':5,
+    'MFE_perc':10}
     defaults.update(options)
-    cmd = 'echo "%s" | %s %s' % (sequence,defaults['path_to_program'],defaults['opt'])
+    cmd = 'echo "%s" | %s -t %d -c %d' % (sequence,defaults['path_to_program'],defaults['level'],defaults['MFE_perc'])
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
-    seq_struct = text[1].split()[0]
-    return seq_info, seq_struct
+    seq_struct_list = [line.split()[1] for line in text[1:]]
+    return seq_info, seq_struct_list
 
 
 def string_to_networkx(sequence, options = None):
-    seq_info, seq_struct = RNAfold_wrapper(sequence, options)
-    G = nx.Graph()
-    lifo = list()
-    i=0;
-    for c,b in zip(seq_info, seq_struct):
-        G.add_node(i)
-        G.node[i]['label'] = c
-        G.node[i]['position'] = i            
-        if i > 0:
-            G.add_edge(i,i-1)
-            G.edge[i][i-1]['label'] = '-'
-        if b == '(':
-            lifo += [i]
-        if b == ')':
-            j = lifo.pop()
-            G.add_edge(i,j)
-            G.edge[i][j]['label'] = '='
-        i+=1
-    return G
+    seq_info, seq_struct_list = RNAshapes_wrapper(sequence, options)
+    G_global = nx.Graph()
+    for seq_struct in seq_struct_list:
+        G = nx.Graph()
+        lifo = list()
+        i=0;
+        for c,b in zip(seq_info, seq_struct):
+            G.add_node(i)
+            G.node[i]['label'] = c
+            G.node[i]['position'] = i            
+            if i > 0:
+                G.add_edge(i,i-1)
+                G.edge[i][i-1]['label'] = '-'
+            if b == '(':
+                lifo += [i]
+            if b == ')':
+                j = lifo.pop()
+                G.add_edge(i,j)
+                G.edge[i][j]['label'] = '='
+            i+=1
+        G_global = nx.disjoint_union(G_global, G)
+    return G_global
 
 
-def _RNA_MFE_to_eden(data_str_list, options = None):
+def _RNA_SHAPE_to_eden(data_str_list, options = None):
     line_buffer = ''
     for line in data_str_list:
         _line = line.strip().upper()
