@@ -36,6 +36,9 @@ def instance_to_eden(input = None, input_type = None, tool = None, options = dic
 	elif tool == "RNA_MFE":
 		from eden.converter.RNA import RNA_MFE
 		g_it = RNA_MFE.RNA_MFE_to_eden(input = input, input_type = input_type, options = options)
+	elif tool == "RNA_SHAPE":
+		from eden.converter.RNA import RNA_SHAPE
+		g_it = RNA_SHAPE.RNA_SHAPE_to_eden(input = input, input_type = input_type, options = options)
 	else:
 		raise Exception('Unknown tool: %s' % tool)
 	return g_it
@@ -50,7 +53,7 @@ def setup_parameters(parser):
 		dest = "input_type",
 		help = "If type is 'url' then 'input' is interpreted as a URL pointing to a file. If type is 'file' then 'input' is interpreted as a file name.",
 		default = "file")
-    parser.add_argument("-f", "--converter-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "word_sequence", "FASTA", "RNA_MFE"],
+    parser.add_argument("-f", "--converter-tool",  choices = ["gspan", "node_link_data", "obabel", "sequence", "word_sequence", "FASTA", "RNA_MFE", "RNA_SHAPE"],
 		dest = "converter_tool",
 		help = "Tool name for the graphicalization phase, i.e. the transformation of instances from the original data format into graphs.", 
 		default = "gspan")
