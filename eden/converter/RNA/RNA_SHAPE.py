@@ -31,7 +31,7 @@ def RNA_SHAPE_to_eden(input = None, input_type = None, options = dict()):
 def RNAshapes_wrapper(sequence, options = None):
     defaults = {'path_to_program': 'RNAshapes',
     'level':5,
-    'MFE_perc':10}
+    'MFE_perc':5}
     defaults.update(options)
     cmd = 'echo "%s" | %s -t %d -c %d' % (sequence,defaults['path_to_program'],defaults['level'],defaults['MFE_perc'])
     out = sp.check_output(cmd, shell = True)
