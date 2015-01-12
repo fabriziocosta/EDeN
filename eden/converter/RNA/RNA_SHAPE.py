@@ -30,15 +30,16 @@ def RNA_SHAPE_to_eden(input = None, input_type = None, options = dict()):
 
 def RNAshapes_wrapper(sequence, options = None):
     defaults = {'path_to_program': 'RNAshapes',
-    'level':5,
-    'MFE_perc':5}
+    'shape_type':5,
+    'energy_range_%':5,
+    'max_num_shapes':3}
     defaults.update(options)
-    cmd = 'echo "%s" | %s -t %d -c %d' % (sequence,defaults['path_to_program'],defaults['level'],defaults['MFE_perc'])
+    cmd = 'echo "%s" | %s -t %d -c %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'])
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
     seq_struct_list = [line.split()[1] for line in text[1:]]
-    return seq_info, seq_struct_list
+    return seq_info, seq_struct_list[:defaults['max_num_shapes']]
 
 
 def string_to_networkx(sequence, options = None):
