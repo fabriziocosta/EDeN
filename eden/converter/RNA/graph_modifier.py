@@ -1,5 +1,23 @@
 import networkx as nx
 
+def colorize(graph_list = None):
+	for g in graph_list:
+		#iterate over nodes
+		for n, d in g.nodes_iter(data = True):
+			if d['label'] == 'A':
+				color = 1
+			elif d['label'] == 'U':
+				color = 0.75
+			elif d['label'] == 'C':
+				color = 0.5
+			elif d['label'] == 'G':
+				color = 0.25
+			else:
+				color = 0	
+			g.node[n]["level"] = color 
+		yield g
+
+
 def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = 1, low_weight_window_start = 0, low_weight_window_end = 1):
 	"""
 	Piece wise linear weight function between two levels with specified start end positions.
