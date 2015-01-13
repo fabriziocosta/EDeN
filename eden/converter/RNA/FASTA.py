@@ -29,19 +29,10 @@ def FASTA_to_eden(input = None, input_type = None, options = dict()):
 
 def string_to_networkx(line, options = None):
     G = nx.Graph()
-    if options.viewpoints == False:
-        for id,character in enumerate(line):
-            G.add_node(id, label = character)
-            if id > 0:
-                G.add_edge(id-1, id, label = '-')
-    else:
-        for id,character in enumerate(line):
-            if character in 'AUGC':
-                G.add_node(id, label = character, weight = 1)
-            else:
-                G.add_node(id, label = character, weight = 0.1)
-            if id > 0:
-                G.add_edge(id-1, id, label = '-')
+    for id,character in enumerate(line):
+        G.add_node(id, label = character)
+        if id > 0:
+            G.add_edge(id-1, id, label = '-')
     assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
     return G
 
