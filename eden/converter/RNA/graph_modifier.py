@@ -1,6 +1,6 @@
 import networkx as nx
 
-def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = -1, low_weight_window_start = 0, low_weight_window_end = -1,):
+def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = 1, low_weight_window_start = 0, low_weight_window_end = 1):
 	"""
 	Piece wise linear weight function between two levels with specified start end positions.
 	
@@ -8,7 +8,6 @@ def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.
 	low __/   \__
 
 	"""
-	
 	#assert high_ weight > low_weight
 	if high_weight < low_weight :
 		raise Exception('high_weight (%f) must be higher than low_weight (%f)' % (high_weight, low_weight))
@@ -26,7 +25,7 @@ def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.
 	for g in graph_list:
 		#iterate over nodes
 		for n, d in g.nodes_iter(data = True):
-            if d.get('position',False) == False:
+			if 'position' not in d :
 				#assert nodes must have position attribute
 				raise Exception('Nodes must have "position" attribute') 
 			#given the 'position' attribute of node assign weight according to piece wise linear weight function between two levels
