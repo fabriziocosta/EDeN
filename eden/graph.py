@@ -167,7 +167,7 @@ class Vectorizer(object):
                     feature_vector_key = (instance_id,int(feature))
                     feature_vector_value = vertex_dict[feature]
                     feature_vector[feature_vector_key] = feature_vector_value
-            label_matrix_dict[node_class] = self._convert_to_sparse_matrix(feature_vector)
+            label_matrix_dict[node_class] = self._convert_dict_to_sparse_matrix(feature_vector)
         return label_matrix_dict
 
 
@@ -252,7 +252,7 @@ class Vectorizer(object):
             return self._transform_parallel(G_list, n_jobs)
 
 
-    def _convert_to_sparse_matrix(self, feature_dict):
+    def _convert_dict_to_sparse_matrix(self, feature_dict):
         """Takes a dictionary with pairs as key and counts as values and returns a compressed sparse row matrix"""
         if len(feature_dict) == 0:
             raise Exception('ERROR: something went wrong, empty feature_dict.')
@@ -278,14 +278,14 @@ class Vectorizer(object):
             util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
-        return self._convert_to_sparse_matrix( feature_dict )
+        return self._convert_dict_to_sparse_matrix( feature_dict )
 
 
     def _transform_serial(self, G_list):
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
             feature_dict.update(self._transform( instance_id, G ))
-        return self._convert_to_sparse_matrix( feature_dict )
+        return self._convert_dict_to_sparse_matrix( feature_dict )
 
 
     def transform_iter(self, G_list):
@@ -295,7 +295,7 @@ class Vectorizer(object):
         This is a generator.
         """
         for instance_id , G in enumerate( G_list ):
-            yield self._convert_to_sparse_matrix( self._transform(instance_id, G) )
+            yield self._convert_dict_to_sparse_matrix( self._transform(instance_id, G) )
 
 
     def _edge_to_vertex_transform(self, G_orig):
@@ -653,6 +653,14 @@ class Annotator(Vectorizer):
         reweight = 1.0,
         relabel_vertex_with_vector = False):
         """
+        Purpose:
+        ----------
+        It takes graphs in input and returns graphs with modified attributes.
+        It assign an importance attribute to each vertex in accordance to the predictor.
+        It rewights vertices with a linear combination of the initial weight and the absolute importance.
+        It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
+
+
         Parameters
         ----------
         estimator : scikit-learn predictor trained on data sampled from the same distribution. 
@@ -770,5 +778,53 @@ class Annotator(Vectorizer):
                 self._transform_vertex(G, v, feature_list)
                 feature_dict.update(self._normalization(feature_list,vertex_id))
                 vertex_id += 1
-        X = self._convert_to_sparse_matrix(feature_dict)
+        X = self._convert_dict_to_sparse_matrix(feature_dict)
         return X
+
+
+class OnlinePredictor(Vectorizer):
+    def __init__(self,
+        estimator = SGDClassifier(),
+        vectorizer = Vectorizer()):
+        """
+        Purpose:
+        ----------
+        It outputs the estimator prediction of the vectorized graph.  
+
+        Parameters
+        ----------
+        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+            If None the vertex weigths are by default 1.
+
+        vectorizer : EDeN graph vectorizer 
+        """
+        self._estimator = estimator
+        self.r = vectorizer.r 
+        self.d = vectorizer.d
+        self.min_r = vectorizer.min_r 
+        self.min_d = vectorizer.min_d
+        self.nbits = vectorizer.nbits
+        self.normalization = vectorizer.normalization
+        self.inner_normalization = vectorizer.inner_normalization
+        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
+        self.bitmask = vectorizer.bitmask
+        self.feature_size = vectorizer.feature_size
+        self.discretization_size = vectorizer.discretization_size
+        self.discretization_dimension = vectorizer.discretization_dimension
+        self.discretization_model_dict = vectorizer.discretization_model_dict
+
+
+    def predict(self,G_list):
+        """
+        
+        This is a generator.
+        """
+        for G in G_list:
+            yield self._predict(G)
+
+
+    def _predict(self, G_orig):
+        #extract feature vector
+        x = self._convert_dict_to_sparse_matrix(self._transform(0 , G_orig))
+        margins = self._estimator.decision_function(x)
+        return margins[0]
