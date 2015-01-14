@@ -13,16 +13,17 @@ def draw_graph(graph,
     prog = 'neato',
     node_size=600,
     node_border=True,
-    colormap='YlOrRd'):
+    colormap='YlOrRd',
+    invert_colormap=False):
     
     plt.figure(figsize=(size,size))
     plt.grid(False)
     plt.axis('off')
     
     if secondary_vertex_label:
-        vertex_labels=dict([(u,'%s\n%s'%(d.get(vertex_label,'N/A'),d.get(secondary_vertex_label,'N/A') ) ) for u,d in graph.nodes(data=True)])
+        vertex_labels=dict([(u,'%s\n%s'%(d.get(vertex_label,'N/A').encode('ascii', 'ignore'),d.get(secondary_vertex_label,'N/A') ) ) for u,d in graph.nodes(data=True)])
     else:
-        vertex_labels=dict([(u,d.get(vertex_label,'N/A')) for u,d in graph.nodes(data=True) ])
+        vertex_labels=dict([(u,d.get(vertex_label,'N/A').encode('ascii', 'ignore')) for u,d in graph.nodes(data=True) ])
     
     edges_normal=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == False]
     edges_nesting=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == True]
@@ -35,7 +36,10 @@ def draw_graph(graph,
     if vertex_color == '':
         node_color = 'white'
     else:
-        node_color=[graph.node[u][vertex_color] for u in graph.nodes()]
+        if invert_colormap:
+            node_color=[ - graph.node[u][vertex_color] for u in graph.nodes()]
+        else:
+            node_color=[graph.node[u][vertex_color] for u in graph.nodes()]
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog = prog)
