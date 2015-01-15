@@ -32,18 +32,18 @@ def add_stacking_base_pairs(graph_list = None):
 										new_id = g.number_of_nodes()
 										g.add_node(new_id)
 										g.node[new_id]['label'] = 'o'
-										g.node[new_id]['type'] = 'stacking_base_pair'
+										g.node[new_id]['type'] = 'stack'
 										#connect vertex
 										g.add_edge(new_id,n)
 										g.edge[new_id][n]['label'] = ':'
-										g.edge[new_id][n]['type'] = 'stacking_base_pair'
+										g.edge[new_id][n]['type'] = 'stack'
 										g.add_edge(new_id,greater_position_neighbor_connected_by_backbone)
 										g.edge[new_id][greater_position_neighbor_connected_by_backbone]['label'] = ':'
-										g.edge[new_id][greater_position_neighbor_connected_by_backbone]['type'] = 'stacking_base_pair'
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone]['type'] = 'stack'
 										g.add_edge(new_id,greater_position_neighbor_connected_by_basepair)
 										g.edge[new_id][greater_position_neighbor_connected_by_basepair]['label'] = ':'
-										g.edge[new_id][greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
+										g.edge[new_id][greater_position_neighbor_connected_by_basepair]['type'] = 'stack'
 										g.add_edge(new_id,greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair)
 										g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['label'] = ':'
-										g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['type'] = 'stack'
 		yield g
