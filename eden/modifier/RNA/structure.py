@@ -26,22 +26,24 @@ def add_stacking_base_pairs(graph_list = None):
 								greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair_list = [v for v in greater_position_neighbor_connected_by_backbone_neighbors if g.edge[greater_position_neighbor_connected_by_backbone][v]['type'] == 'basepair']
 								if len(greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair_list) > 0 :
 									greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair = greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair_list[0] #take one
-									#add vertex
-									new_id = g.number_of_nodes()
-									g.add_node(new_id)
-									g.node[new_id]['label'] = 'o'
-									g.node[new_id]['type'] = 'stacking_base_pair'
-									#connect vertex
-									g.add_edge(new_id,n)
-									g.edge[new_id][n]['label'] = ':'
-									g.edge[new_id][n]['type'] = 'stacking_base_pair'
-									g.add_edge(new_id,greater_position_neighbor_connected_by_backbone)
-									g.edge[new_id][greater_position_neighbor_connected_by_backbone]['label'] = ':'
-									g.edge[new_id][greater_position_neighbor_connected_by_backbone]['type'] = 'stacking_base_pair'
-									g.add_edge(new_id,greater_position_neighbor_connected_by_basepair)
-									g.edge[new_id][greater_position_neighbor_connected_by_basepair]['label'] = ':'
-									g.edge[new_id][greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
-									g.add_edge(new_id,greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair)
-									g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['label'] = 'se'
-									g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
+									#check that greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair and greater_position_neighbor_connected_by_basepair are neighbors
+									if greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair in g.neighbors(greater_position_neighbor_connected_by_basepair) :
+										#add vertex
+										new_id = g.number_of_nodes()
+										g.add_node(new_id)
+										g.node[new_id]['label'] = 'o'
+										g.node[new_id]['type'] = 'stacking_base_pair'
+										#connect vertex
+										g.add_edge(new_id,n)
+										g.edge[new_id][n]['label'] = ':'
+										g.edge[new_id][n]['type'] = 'stacking_base_pair'
+										g.add_edge(new_id,greater_position_neighbor_connected_by_backbone)
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone]['label'] = ':'
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone]['type'] = 'stacking_base_pair'
+										g.add_edge(new_id,greater_position_neighbor_connected_by_basepair)
+										g.edge[new_id][greater_position_neighbor_connected_by_basepair]['label'] = ':'
+										g.edge[new_id][greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
+										g.add_edge(new_id,greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair)
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['label'] = ':'
+										g.edge[new_id][greater_position_neighbor_connected_by_backbone_greater_position_neighbor_connected_by_basepair]['type'] = 'stacking_base_pair'
 		yield g
