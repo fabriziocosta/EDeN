@@ -11,22 +11,23 @@ def edge_contraction(g, vertex_attribute = None):
 				neighbors = g.neighbors(n)
 				if len(neighbors) > 0: 
 					#identify neighbors that have a greater 'position' attribute and that have the same vertex_attribute
-					greater_position_neighbors = [v for v in neighbors if g.node[v].get('position',False) and g.node[v].get(vertex_attribute,False) and g.node[v][vertex_attribute] == d[vertex_attribute] and g.node[v]['position'] > pos]
-					if len(greater_position_neighbors) > 0:
+					greater_position_neighbors = [v for v in neighbors if g.node[v].get('position',False) and g.node[v].get(vertex_attribute,False) and g.node[v][vertex_attribute] == d[vertex_attribute] and g.node[v]['position'] > d['position'] ]
+					if len(greater_position_neighbors) > 0 :
 						#contract all neighbors
-						for v in greater_position_neighbors:
-							#replicate all edges with n as endpoint instead of v
-							pass
+						#replicate all edges with n as endpoint instead of v
+						cntr_edge_set = g.edges(greater_position_neighbors, data = True)
+						g.add_edges_from(map(lambda x: (n,x[1],x[2]), cntr_edge_set)) 
 						#remove nodes
 						g.remove_nodes_from(greater_position_neighbors)
-
+						#remode edges
+						g.remove_edges_from(cntr_edge_set)
 						#store neighbor ids in a list attribute	
 						if d.get('contracted',False) == False:
 							g.node[n]['contracted'] = greater_position_neighbors
 						else:
 							g.node[n]['contracted'] += greater_position_neighbors
 						change_has_occured = True
-
+						break
 		if change_has_occured == False:
 			break
 	return g
