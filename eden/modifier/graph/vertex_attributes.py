@@ -18,7 +18,7 @@ def colorize(graph_list = None):
 		yield g
 
 
-def two_levels_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = 1, low_weight_window_start = 0, low_weight_window_end = 1):
+def trapezoidal_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = 1, low_weight_window_start = 0, low_weight_window_end = 1):
 	"""
 	Piece wise linear weight function between two levels with specified start end positions.
 	
