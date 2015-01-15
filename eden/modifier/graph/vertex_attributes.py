@@ -1,20 +1,13 @@
 import networkx as nx
+import numpy as np 
 
-def colorize(graph_list = None):
+def colorize(graph_list = None, labels = ['A','U','C','G']):
+	values = np.linspace (0.0,1.0, num = len(labels))
+	color_dict = dict(zip(labels,values))
 	for g in graph_list:
 		#iterate over nodes
 		for n, d in g.nodes_iter(data = True):
-			if d['label'] == 'A':
-				color = 1
-			elif d['label'] == 'U':
-				color = 0.75
-			elif d['label'] == 'C':
-				color = 0.5
-			elif d['label'] == 'G':
-				color = 0.25
-			else:
-				color = 0	
-			g.node[n]["level"] = color 
+			g.node[n]["level"] = color_dict.get(d['label'],0)
 		yield g
 
 
