@@ -32,13 +32,14 @@ def RNAshapes_wrapper(sequence, options = None):
     defaults = {'path_to_program': 'RNAshapes',
     'shape_type':5,
     'energy_range_%':5,
-    'max_num_shapes':3}
+    'max_num':3}
     defaults.update(options)
-    cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'], defaults['max_num_shapes'])
+    cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'], defaults['max_num'])
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
-    seq_struct_list = [line.split()[1] for line in text[1:-1]]
+    #NOTE: text row 0 is the nucleotide seqeunce, last row is a comment '(configured to print only the first 'max_num' results)'
+    seq_struct_list = [line.split()[1] for line in text[1:-1]] 
     return seq_info, seq_struct_list
 
 
