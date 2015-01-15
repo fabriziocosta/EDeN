@@ -63,7 +63,7 @@ def string_to_networkx(sequence, options = None):
                 j = lifo.pop()
                 G.add_edge(i,j)
                 G.edge[i][j]['label'] = '='
-                G.edge[i][i-1]['type'] = 'basepair'
+                G.edge[i][j]['type'] = 'basepair'
             i+=1
         G_global = nx.disjoint_union(G_global, G)
     return G_global
