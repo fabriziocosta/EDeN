@@ -1,4 +1,11 @@
 import networkx as nx
+from eden.modifier.RNA import vertex_attributes
+
+#def add_abstract_structure(graph_list = None):
+#	for g in vertex_attributes.add_paired_unpaired_vertex_type(graph_list):
+		#iterate over nodes
+#		for n, d in g.nodes_iter(data = True):
+
 
 def add_stacking_base_pairs(graph_list = None):
 	for g in graph_list:

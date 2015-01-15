@@ -34,12 +34,12 @@ def RNAshapes_wrapper(sequence, options = None):
     'energy_range_%':5,
     'max_num_shapes':3}
     defaults.update(options)
-    cmd = 'echo "%s" | %s -t %d -c %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'])
+    cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'], defaults['max_num_shapes'])
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
-    seq_struct_list = [line.split()[1] for line in text[1:]]
-    return seq_info, seq_struct_list[:defaults['max_num_shapes']]
+    seq_struct_list = [line.split()[1] for line in text[1:-1]]
+    return seq_info, seq_struct_list
 
 
 def string_to_networkx(sequence, options = None):
