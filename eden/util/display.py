@@ -37,9 +37,9 @@ def draw_graph(graph,
         node_color = 'white'
     else:
         if invert_colormap:
-            node_color=[ - graph.node[u][vertex_color] for u in graph.nodes()]
+            node_color=[ - d.get(vertex_color,0) for u,d in graph.nodes(data=True) ]
         else:
-            node_color=[graph.node[u][vertex_color] for u in graph.nodes()]
+            node_color=[ d.get(vertex_color,0) for u,d in graph.nodes(data=True) ]
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog = prog)
