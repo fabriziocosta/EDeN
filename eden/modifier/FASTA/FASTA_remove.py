@@ -1,8 +1,8 @@
-import networkx as nx
+import random
 
-def FASTA_to_eden(input = None, input_type = None, options = dict()):
+def FASTA_remove_to_FASTA(input = None, input_type = None, **options):
     """
-    Takes a list of strings and yields networkx graphs.
+    Takes a FASTA file yields a FASTA file with guards at the beginning and end of sequences.
 
     Parameters
     ----------
@@ -24,20 +24,11 @@ def FASTA_to_eden(input = None, input_type = None, options = dict()):
         f = requests.get(input).text.split('\n')
     elif input_type == "list":
         f = input
-    return _FASTA_to_eden(f, options = options)        
-   
-
-def string_to_networkx(line, options = None):
-    G = nx.Graph()
-    for id,character in enumerate(line):
-        G.add_node(id, label = character, position = id)
-        if id > 0:
-            G.add_edge(id-1, id, label = '-')
-    assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
-    return G
+    return _FASTA_remove_to_FASTA(f, **options)        
 
 
-def _FASTA_to_eden(data_str_list, options = None):
+def _FASTA_remove_to_FASTA(data_str_list, **options):
+    remove_char =  options.get('remove_char','-')
     line_buffer = ''
     for line in data_str_list:
         _line = line.strip()
@@ -46,14 +37,14 @@ def _FASTA_to_eden(data_str_list, options = None):
                 #extract string from header
                 header_str = _line[1:] 
                 if len(line_buffer) > 0:
-                    G = string_to_networkx(line_buffer, options = options)
-                    G.graph['ID'] = prev_header_str
-                    yield G
+                    if not remove_char in line_buffer:
+                        yield '>' + prev_header_str
+                        yield line_buffer
                 line_buffer = ''
                 prev_header_str = header_str
             else:
                 line_buffer += _line
     if len(line_buffer) > 0:
-        G = string_to_networkx(line_buffer, options = options)
-        G.graph['ID'] = prev_header_str
-        yield G
+        if not remove_char in line_buffer:
+            yield '>' + prev_header_str
+            yield line_buffer
