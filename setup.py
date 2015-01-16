@@ -96,6 +96,8 @@ setup(
                 'eden.converter.graph',
                 'eden.converter.molecule',
                 'eden.converter.RNA',
+                'eden.modifier.FASTA',
+                'eden.modifier.RNA',
                 ],
     scripts=['bin/alignment', 'bin/annotate', 'bin/cluster_kmeans',
              'bin/cluster_DBSCAN', 'bin/convert', 'bin/dendrogram',
