@@ -1,7 +1,7 @@
 import random
 from eden.modifier.FASTA import FASTA
 
-def FASTA_shuffle_to_FASTA(input = None, input_type = None, options = dict()):
+def FASTA_shuffle_to_FASTA(input = None, input_type = None,  **options):
     lines = FASTA.FASTA_to_FASTA(input = input, input_type = input_type)
     for line in lines:
         header = line
