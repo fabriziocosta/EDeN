@@ -1,5 +1,3 @@
-import random
-
 def FASTA_to_FASTA(input = None, input_type = None, **options):
     """
     Takes a FASTA file yields a normalised FASTA file.
