@@ -9,5 +9,5 @@ def FASTA_shuffle_to_FASTA(input = None, input_type = None,  **options):
         seq_mod = [c for c in seq]
         random.shuffle(seq_mod)
         seq_shuffled = ''.join(seq_mod)        
-        yield '>' + header
+        yield header
         yield seq_shuffled
