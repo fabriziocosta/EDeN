@@ -19,7 +19,7 @@ def RNAshapes_wrapper(sequence, **options):
 
 
 def string_to_networkx(sequence, **options):
-    seq_info, seq_struct_list = RNAshapes_wrapper(sequence, options)
+    seq_info, seq_struct_list = RNAshapes_wrapper(sequence, **options)
     G_global = nx.Graph()
     for seq_struct in seq_struct_list:
         G = nx.Graph()
@@ -50,6 +50,6 @@ def RNA_SHAPE_to_eden(input = None, input_type = None, **options):
     for line in lines:
         header = line
         seq = lines.next()
-        G = string_to_networkx(seq, options)
+        G = string_to_networkx(seq, **options)
         G.graph['ID'] = header
         yield G
