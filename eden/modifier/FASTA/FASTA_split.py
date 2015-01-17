@@ -11,5 +11,5 @@ def FASTA_split_to_FASTA(input = None, input_type = None,  **options):
         seq_len = len(seq)
         for start in range(0, seq_len, step):
             subseq = seq[start : start + window]
-            yield '>%s START: %d WINDOW: %d' % (header, start, window)
+            yield '%s START: %d WINDOW: %d' % (header, start, window)
             yield subseq

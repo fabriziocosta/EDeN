@@ -7,5 +7,5 @@ def FASTA_remove_to_FASTA(input = None, input_type = None, **options):
         header = line
         seq = lines.next()
         if not remove_char in seq:
-            yield '>' + header
+            yield header
             yield seq
