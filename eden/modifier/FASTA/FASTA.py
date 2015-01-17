@@ -33,9 +33,9 @@ def _FASTA_to_FASTA(data_str_list, **options):
         if _line:
             if _line[0] == '>':
                 #extract string from header
-                header_str = _line[1:] 
+                header_str = _line 
                 if len(line_buffer) > 0:
-                    yield '>' + prev_header_str
+                    yield prev_header_str
                     if header_only == False:
                         yield line_buffer
                 line_buffer = ''
@@ -43,6 +43,6 @@ def _FASTA_to_FASTA(data_str_list, **options):
             else:
                 line_buffer += _line
     if len(line_buffer) > 0:
-        yield '>' + prev_header_str
+        yield prev_header_str
         if header_only == False:
             yield line_buffer
