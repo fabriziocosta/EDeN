@@ -17,7 +17,7 @@ def RNAfold_wrapper(sequence, **options):
 
 
 def string_to_networkx(sequence, **options):
-    seq_info, seq_struct = RNAfold_wrapper(sequence, options)
+    seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
     G = nx.Graph()
     lifo = list()
     i=0;
@@ -45,6 +45,6 @@ def RNA_MFE_to_eden(input = None, input_type = None, **options):
     for line in lines:
         header = line
         seq = lines.next()
-        G = string_to_networkx(seq, options)
+        G = string_to_networkx(seq, **options)
         G.graph['ID'] = header
         yield G
