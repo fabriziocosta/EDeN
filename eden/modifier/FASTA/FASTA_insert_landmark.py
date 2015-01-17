@@ -9,5 +9,5 @@ def FASTA_insert_landmark_to_FASTA(input = None, input_type = None, **options):
         seq = lines.next()
         pos = int( len(seq) * landmark_relative_position )
         seq_mod = seq[:pos] + landmark_char + seq[pos:]
-        yield '>' + header
+        yield header
         yield seq_mod
