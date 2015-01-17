@@ -2,12 +2,14 @@ import networkx as nx
 import subprocess as sp
 from eden.modifier.FASTA import FASTA
 
+
 def RNAshapes_wrapper(sequence, **options):
+    #defaults
     path_to_program =  options.get('path_to_program','RNAshapes')
     shape_type =  options.get('shape_type',5)
     energy_range =  options.get('energy_range',10)
     max_num =  options.get('max_num',3)
-
+    #command line
     cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,path_to_program,shape_type,energy_range,max_num)
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')

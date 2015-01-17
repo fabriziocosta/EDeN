@@ -4,8 +4,10 @@ from eden.modifier.FASTA import FASTA
 
 
 def RNAfold_wrapper(sequence, **options):
+    #defaults
     path_to_program =  options.get('path_to_program','RNAfold')
     flags =  options.get('flags','--noPS')
+    #command line
     cmd = 'echo "%s" | %s %s' % (sequence,path_to_program,flags)
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
