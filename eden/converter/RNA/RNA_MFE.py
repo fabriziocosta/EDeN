@@ -1,39 +1,12 @@
 import networkx as nx
 import subprocess as sp
-
-def RNA_MFE_to_eden(input = None, input_type = None, options = dict()):
-    """
-    Takes a list of strings and yields networkx graphs.
-
-    Parameters
-    ----------
-    input : string
-        A pointer to the data source.
-
-    input_type : ['url','file','list']
-        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'list' then 'input' is interpreted as a list of strings.
-    """
-    input_types = ['url','file','list']
-    assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
-
-    if input_type == 'file':
-        f = open(input,'r')
-    elif input_type == 'url':
-        import requests
-        f = requests.get(input).text.split('\n')
-    elif input_type == "list":
-        f = input
-    return _RNA_MFE_to_eden(f, options = options)        
-   
+from eden.modifier.FASTA import FASTA
 
 
-def RNAfold_wrapper(sequence, options = None):
-    defaults = {'path_to_program': 'RNAfold',
-    'opt':'--noPS'}
-    defaults.update(options)
-    cmd = 'echo "%s" | %s %s' % (sequence,defaults['path_to_program'],defaults['opt'])
+def RNAfold_wrapper(sequence, **options):
+    path_to_program =  options.get('path_to_program','RNAfold')
+    flags =  options.get('flags','--noPS')
+    cmd = 'echo "%s" | %s %s' % (sequence,path_to_program,flags)
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
@@ -41,7 +14,7 @@ def RNAfold_wrapper(sequence, options = None):
     return seq_info, seq_struct
 
 
-def string_to_networkx(sequence, options = None):
+def string_to_networkx(sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, options)
     G = nx.Graph()
     lifo = list()
@@ -65,23 +38,11 @@ def string_to_networkx(sequence, options = None):
     return G
 
 
-def _RNA_MFE_to_eden(data_str_list, options = None):
-    line_buffer = ''
-    for line in data_str_list:
-        _line = line.strip().upper()
-        if _line:
-            if _line[0] == '>':
-                #extract string from header
-                header_str = _line[1:] 
-                if len(line_buffer) > 0:
-                    G = string_to_networkx(line_buffer, options = options)
-                    G.graph['ID'] = prev_header_str
-                    yield G
-                line_buffer = ''
-                prev_header_str = header_str
-            else:
-                line_buffer += _line
-    if len(line_buffer) > 0:
-        G = string_to_networkx(line_buffer, options = options)
-        G.graph['ID'] = prev_header_str
+def RNA_MFE_to_eden(input = None, input_type = None, **options):
+    lines = FASTA.FASTA_to_FASTA(input = input, input_type = input_type)
+    for line in lines:
+        header = line
+        seq = lines.next()
+        G = string_to_networkx(seq, options)
+        G.graph['ID'] = header
         yield G

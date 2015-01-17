@@ -1,49 +1,22 @@
 import networkx as nx
 import subprocess as sp
+from eden.modifier.FASTA import FASTA
 
-def RNA_SHAPE_to_eden(input = None, input_type = None, options = dict()):
-    """
-    Takes a list of strings and yields networkx graphs.
+def RNAshapes_wrapper(sequence, **options):
+    path_to_program =  options.get('path_to_program','RNAshapes')
+    shape_type =  options.get('shape_type',5)
+    energy_range =  options.get('energy_range',10)
+    max_num =  options.get('max_num',3)
 
-    Parameters
-    ----------
-    input : string
-        A pointer to the data source.
-
-    input_type : ['url','file','list']
-        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'list' then 'input' is interpreted as a list of strings.
-    """
-    input_types = ['url','file','list']
-    assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
-
-    if input_type == 'file':
-        f = open(input,'r')
-    elif input_type == 'url':
-        import requests
-        f = requests.get(input).text.split('\n')
-    elif input_type == "list":
-        f = input
-    return _RNA_SHAPE_to_eden(f, options = options)        
-   
-
-def RNAshapes_wrapper(sequence, options = None):
-    defaults = {'path_to_program': 'RNAshapes',
-    'shape_type':5,
-    'energy_range_%':5,
-    'max_num':3}
-    defaults.update(options)
-    cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,defaults['path_to_program'],defaults['shape_type'],defaults['energy_range_%'], defaults['max_num'])
+    cmd = 'echo "%s" | %s -t %d -c %d -# %d' % (sequence,path_to_program,shape_type,energy_range,max_num)
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
-    #NOTE: text row 0 is the nucleotide seqeunce, last row is a comment '(configured to print only the first 'max_num' results)'
     seq_struct_list = [line.split()[1] for line in text[1:-1]] 
     return seq_info, seq_struct_list
 
 
-def string_to_networkx(sequence, options = None):
+def string_to_networkx(sequence, **options):
     seq_info, seq_struct_list = RNAshapes_wrapper(sequence, options)
     G_global = nx.Graph()
     for seq_struct in seq_struct_list:
@@ -70,23 +43,11 @@ def string_to_networkx(sequence, options = None):
     return G_global
 
 
-def _RNA_SHAPE_to_eden(data_str_list, options = None):
-    line_buffer = ''
-    for line in data_str_list:
-        _line = line.strip().upper()
-        if _line:
-            if _line[0] == '>':
-                #extract string from header
-                header_str = _line[1:] 
-                if len(line_buffer) > 0:
-                    G = string_to_networkx(line_buffer, options = options)
-                    G.graph['ID'] = prev_header_str
-                    yield G
-                line_buffer = ''
-                prev_header_str = header_str
-            else:
-                line_buffer += _line
-    if len(line_buffer) > 0:
-        G = string_to_networkx(line_buffer, options = options)
-        G.graph['ID'] = prev_header_str
+def RNA_SHAPE_to_eden(input = None, input_type = None, **options):
+    lines = FASTA.FASTA_to_FASTA(input = input, input_type = input_type)
+    for line in lines:
+        header = line
+        seq = lines.next()
+        G = string_to_networkx(seq, options)
+        G.graph['ID'] = header
         yield G
