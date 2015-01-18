@@ -27,22 +27,29 @@ def FASTA_to_FASTA(input = None, input_type = None, **options):
 
 def _FASTA_to_FASTA(data_str_list, **options):
     header_only = options.get('header_only',False)
-    line_buffer = ''
+    one_line = options.get('one_line',False)
+    seq = ''
     for line in data_str_list:
         _line = line.strip()
         if _line:
             if _line[0] == '>':
                 #extract string from header
-                header_str = _line 
-                if len(line_buffer) > 0:
-                    yield prev_header_str
-                    if header_only == False:
-                        yield line_buffer
-                line_buffer = ''
-                prev_header_str = header_str
+                header = _line 
+                if len(seq) > 0:
+                    if one_line:
+                        yield prev_header + '\t' + seq
+                    else : 
+                        yield prev_header
+                        if header_only == False:
+                            yield seq
+                seq = ''
+                prev_header = header
             else:
-                line_buffer += _line
-    if len(line_buffer) > 0:
-        yield prev_header_str
-        if header_only == False:
-            yield line_buffer
+                seq += _line
+    if len(seq) > 0:
+        if one_line:
+            yield prev_header + '\t' + seq
+        else : 
+            yield prev_header
+            if header_only == False:
+                yield seq
