@@ -33,7 +33,7 @@ def edge_contraction(g, vertex_attribute = None):
 	return g
 
 
-def add_abstract_structure(graph_list = None):
+def abstract_structure(graph_list = None):
 	for g in vertex_attributes.add_paired_unpaired_vertex_type(graph_list):
 		g_copy = g.copy()
 		g_minor = edge_contraction(g_copy, vertex_attribute = 'type')
