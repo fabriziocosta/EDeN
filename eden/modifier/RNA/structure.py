@@ -1,13 +1,16 @@
 import networkx as nx
 from eden.modifier.RNA import vertex_attributes
-
+from collections import *
 
 
 def edge_contraction(g, vertex_attribute = None):
 	while True:
 		change_has_occured = False
 		for n, d in g.nodes_iter(data = True):
-			if d.get(vertex_attribute,False) and d.get('position',False):
+			if d.get(vertex_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):
+				if d.get('contracted',False) == False:
+					g.node[n]['contracted'] = set()
+				g.node[n]['contracted'].add(n)
 				neighbors = g.neighbors(n)
 				if len(neighbors) > 0: 
 					#identify neighbors that have a greater 'position' attribute and that have the same vertex_attribute
@@ -22,10 +25,7 @@ def edge_contraction(g, vertex_attribute = None):
 						#remode edges
 						g.remove_edges_from(cntr_edge_set)
 						#store neighbor ids in a list attribute	
-						if d.get('contracted',False) == False:
-							g.node[n]['contracted'] = greater_position_neighbors
-						else:
-							g.node[n]['contracted'] += greater_position_neighbors
+						g.node[n]['contracted'].update(set(greater_position_neighbors))
 						change_has_occured = True
 						break
 		if change_has_occured == False:
@@ -33,11 +33,49 @@ def edge_contraction(g, vertex_attribute = None):
 	return g
 
 
-def abstract_structure(graph_list = None):
-	for g in vertex_attributes.add_paired_unpaired_vertex_type(graph_list):
+def get_cumulative_weight(graph, vertex_list):
+	weight = sum([graph.node[v].get('weight',1) for v in vertex_list])
+	return weight
+
+
+def get_dict_histogram_label(graph, vertex_list, bitmask):
+	labels = [(abs(hash(graph.node[v].get('label','N/A'))) & bitmask) + 1 for v in vertex_list]
+	dict_label = dict(Counter(labels).most_common())
+	sparse_vec = {str(key):value for key,value in dict_label.iteritems()}
+	return sparse_vec
+
+
+def get_mode_label(graph, vertex_list):
+	labels = [graph.node[v].get('label','N/A') for v in vertex_list]
+	label = Counter(labels).most_common()[0][0]
+	return label
+
+
+def abstract_structure(graph_list = None,  **options):
+	level =  options.get('level',1)
+	histogram_label =  options.get('histogram_label',False)
+	mode_label =  options.get('mode_label',True)
+	cumulative_weight =  options.get('cumulative_weight',True)
+	nbits =  options.get('nbits',10)
+	bitmask = pow(2, nbits) - 1
+
+	#annotate with the adjacent edge labels the  
+	for g in vertex_attributes.add_vertex_type(graph_list, level = level, output_attribute = 'type'):
 		g_copy = g.copy()
 		g_minor = edge_contraction(g_copy, vertex_attribute = 'type')
-		#connect g_minor to original g 
+		if mode_label or histogram_label or cumulative_weight:
+			for n, d in g_minor.nodes_iter(data = True):
+				contracted = d.get('contracted',None)
+				if contracted is None:
+					raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
+				if mode_label :
+					g_minor.node[n]['label'] = get_mode_label(g,contracted)
+				elif histogram_label :
+					#update label with all contracted labels information using a histogram, i.e. a sparse vector 
+					g_minor.node[n]['label'] = get_dict_histogram_label(g,contracted, bitmask)
+				if cumulative_weight :
+					#update weight with the sum of all weights (or the count of vertices if the weight information is missing)
+					g_minor.node[n]['weight'] = get_cumulative_weight(g,contracted)
 		yield g_minor
 
 
@@ -45,7 +83,7 @@ def add_stacking_base_pairs(graph_list = None):
 	for g in graph_list:
 		#iterate over nodes
 		for n, d in g.nodes_iter(data = True):
-			if d.get('position',False):
+			if d.get('position',False) == 0 or d.get('position',False) != False :
 				pos = d['position']
 				#identify stacking neigbors
 				#identify all neighbors

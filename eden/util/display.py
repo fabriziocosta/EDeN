@@ -21,9 +21,9 @@ def draw_graph(graph,
     plt.axis('off')
     
     if secondary_vertex_label:
-        vertex_labels=dict([(u,'%s\n%s'%(d.get(vertex_label,'N/A').encode('ascii', 'ignore'),d.get(secondary_vertex_label,'N/A') ) ) for u,d in graph.nodes(data=True)])
+        vertex_labels=dict([(u,'%s\n%s'%(d.get(vertex_label,'N/A'),d.get(secondary_vertex_label,'N/A') ) ) for u,d in graph.nodes(data=True)])
     else:
-        vertex_labels=dict([(u,d.get(vertex_label,'N/A').encode('ascii', 'ignore')) for u,d in graph.nodes(data=True) ])
+        vertex_labels=dict([(u,d.get(vertex_label,'N/A')) for u,d in graph.nodes(data=True) ])
     
     edges_normal=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == False]
     edges_nesting=[(u,v) for (u,v,d) in graph.edges(data=True) if d.get('nesting', False) == True]
