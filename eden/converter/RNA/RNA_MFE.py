@@ -47,5 +47,5 @@ def RNA_MFE_to_eden(input = None, input_type = None, **options):
         seq = lines.next()
         G = string_to_networkx(seq, **options)
         G.graph['ID'] = header
-        if G.number_of_nodes() > 0 :
+        if G.number_of_nodes() > 1 :
             yield G
