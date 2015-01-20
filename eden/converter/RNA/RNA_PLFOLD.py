@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import networkx as nx
 import subprocess as sp
 from eden.modifier.FASTA import FASTA
@@ -5,7 +7,7 @@ import os
 
 def RNAplfold_wrapper(sequence, **options):
     # default settings.
-    path_to_program = options.get('path_to_program', '/usr/local/vrna/2.1.8/bin/RNAplfold') # Error reported if full RNAplfold path not given
+    path_to_program = options.get('path_to_program', 'RNAplfold') # Error reported if full RNAplfold path not given
     window_size = options.get('window_size', 150)
     max_bp_span = options.get('max_bp_span', 100)
     avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
