@@ -2,7 +2,7 @@ import networkx as nx
 from eden.modifier.FASTA import FASTA
 
 
-def string_to_networkx(line, **options):
+def seq_to_networkx(line, **options):
     G = nx.Graph()
     for id,character in enumerate(line):
         G.add_node(id, label = character, position = id)
@@ -17,6 +17,6 @@ def FASTA_to_eden(input = None, input_type = None, **options):
     for line in lines:
         header = line
         seq = lines.next()
-        G = string_to_networkx(seq, options)
+        G = seq_to_networkx(seq, **options)
         G.graph['ID'] = header
         yield G
