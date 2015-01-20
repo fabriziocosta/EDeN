@@ -9,7 +9,8 @@ from scipy import stats
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import KMeans
 from collections import deque
-from operator import itemgetter, attrgetter
+from operator import attrgetter
+from operator import itemgetter
 import itertools
 import networkx as nx
 import multiprocessing
