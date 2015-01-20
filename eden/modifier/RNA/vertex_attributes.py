@@ -12,7 +12,7 @@ def add_paired_unpaired_vertex_type(graph_list = None, output_attribute = 'type'
 		yield g
 
 
-def add_vertex_type(graph_list = None, output_attribute = 'type', level = 1):
+def add_vertex_type(graph_list = None, output_attribute = 'type', separator = '', level = 1):
 	"""
 		level: int
 			level = 1 considers all incident edges
@@ -34,6 +34,6 @@ def add_vertex_type(graph_list = None, output_attribute = 'type', level = 1):
 			else :
 				raise Exception('Unknown level: %s' % level)
 			#consider the sorted serialization of all labels as a type
-			vertex_type = '|'.join(sorted(edge_labels))
+			vertex_type = separator.join(sorted(edge_labels))
 			g.node[n][output_attribute] = vertex_type
 		yield g

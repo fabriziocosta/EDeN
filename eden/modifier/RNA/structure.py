@@ -8,6 +8,7 @@ def edge_contraction(g, vertex_attribute = None):
 		change_has_occured = False
 		for n, d in g.nodes_iter(data = True):
 			if d.get(vertex_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):
+				g.node[n]['label'] = g.node[n][vertex_attribute] 
 				if d.get('contracted',False) == False:
 					g.node[n]['contracted'] = set()
 				g.node[n]['contracted'].add(n)
@@ -54,7 +55,7 @@ def get_mode_label(graph, vertex_list):
 def abstract_structure(graph_list = None,  **options):
 	level =  options.get('level',1)
 	histogram_label =  options.get('histogram_label',False)
-	mode_label =  options.get('mode_label',True)
+	mode_label =  options.get('mode_label',False)
 	cumulative_weight =  options.get('cumulative_weight',True)
 	nbits =  options.get('nbits',10)
 	bitmask = pow(2, nbits) - 1
