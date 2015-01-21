@@ -299,25 +299,6 @@ class Vectorizer(object):
             yield self._convert_dict_to_sparse_matrix( self._transform(instance_id, G) )
 
 
-    def _edge_to_vertex_transform(self, G_orig):
-        """Converts edges to nodes so to process the graph ignoring the information on the 
-        resulting edges."""
-        G = nx.Graph()
-        #build a graph that has as vertices the original vertex set
-        for n,d in G_orig.nodes_iter(data=True):
-            d['node']=True
-            G.add_node(n,d)
-        #and in addition a vertex for each edge
-        for u, v, d in G_orig.edges_iter( data=True ):
-            new_node_id = '%s|%s' % (u,v)
-            d['edge'] = True
-            G.add_node(new_node_id, d)
-            #and the corresponding edges
-            G.add_edge(new_node_id,u, label = None)
-            G.add_edge(new_node_id,v, label = None)
-        return G
-
-
     def _convert_dict_to_sparse_vector(self, the_dict):
         if len(the_dict) == 0:
             raise Exception('ERROR: something went wrong, empty the_dict.')
@@ -382,8 +363,28 @@ class Vectorizer(object):
                         G.node[n]['weight'] = 1
 
 
+    def _edge_to_vertex_transform(self, G_orig):
+        """Converts edges to nodes so to process the graph ignoring the information on the 
+        resulting edges."""
+        G = nx.Graph()
+        #build a graph that has as vertices the original vertex set
+        for n,d in G_orig.nodes_iter(data=True):
+            d['node']=True
+            G.add_node(n,d)
+        #and in addition a vertex for each edge
+        new_node_id = max(G_orig.nodes()) + 1
+        for u, v, d in G_orig.edges_iter( data=True ):
+            d['edge'] = True
+            G.add_node(new_node_id, d)
+            #and the corresponding edges
+            G.add_edge(new_node_id,u, label = None)
+            G.add_edge(new_node_id,v, label = None)
+            new_node_id += 1
+        return G
+
+
     def _revert_edge_to_vertex_transform(self, G_orig):
-        """Converts nodes of type 'edge' to edges. Useful for display reasons."""
+        """Converts nodes of type 'edge' to edges. Useful for display."""
         #start from a copy of the original graph
         G = nx.Graph(G_orig)
         #re-wire the endpoints of edge-vertices
