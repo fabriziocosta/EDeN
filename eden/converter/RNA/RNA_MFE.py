@@ -1,14 +1,13 @@
 import networkx as nx
 import subprocess as sp
-from eden.modifier.FASTA import FASTA
+from eden.modifier import FastaModifier
 
 
 def RNAfold_wrapper(sequence, **options):
     #defaults
-    path_to_program =  options.get('path_to_program','RNAfold')
     flags =  options.get('flags','--noPS')
     #command line
-    cmd = 'echo "%s" | %s %s' % (sequence,path_to_program,flags)
+    cmd = 'echo "%s" | RNAfold %s' % (sequence,flags)
     out = sp.check_output(cmd, shell = True)
     text = out.strip().split('\n')
     seq_info = text[0]
@@ -41,7 +40,7 @@ def string_to_networkx(sequence, **options):
 
 
 def RNA_MFE_to_eden(input = None, input_type = None, **options):
-    lines = FASTA.FASTA_to_FASTA(input = input, input_type = input_type)
+    lines = FastaModifier.Modifier(input = input, input_type = input_type).apply()
     for line in lines:
         header = line
         seq = lines.next()
