@@ -144,11 +144,11 @@ class Vectorizer(object):
 
 
     def _extract_sparse_vectors_from_labels(self, G_orig):
-        #from each vertex extract the node_class and the label as a list and return a  
-        #dict with node_class as key and the dict associated to each vertex 
+        #from each vertex extract the node_class and the label 
+        #if the label is of type dict 
+        #then 
         label_data_dict = defaultdict( lambda : list( dict() ) )
         G=self._edge_to_vertex_transform(G_orig)
-        #for all types in every node of every graph
         for n, d in G.nodes_iter(data = True):
             if isinstance(d['label'],dict):
                 node_class, data = self._extract_class_and_label(d)
@@ -312,23 +312,28 @@ class Vectorizer(object):
 
 
     def _extract_class_and_label(self,d): 
+        #determine the class attribute
         #if the vertex does not have a 'class' attribute then provide a default one
-        node_class = None
-        data = None
         if d.get('class', False): 
             node_class = d['class']
         else:
             if isinstance(d['label'],list):
-                node_class = 'vector'
-                #transform python list into numpy array
-                data = np.array(d['label'])
+                node_class = 'vector' 
             elif isinstance(d['label'],dict):
                 node_class = 'sparse_vector'
-                #return the dict rerpesentation
-                data = d['label']
             else:
                 node_class = 'default'
-                data = d['label']
+        
+        #determine the label type
+        if isinstance(d['label'],list):
+            #transform python list into numpy array
+            data = np.array(d['label'])
+        elif isinstance(d['label'],dict):
+            #return the dict rerpesentation
+            data = d['label']
+        else:
+            data = d['label']
+    
         return node_class, data
 
 
