@@ -2,12 +2,11 @@
 
 import networkx as nx
 import subprocess as sp
-from eden.modifier.FASTA import FASTA
+from eden.modifier import FastaModifier
 import os
 
 def RNAplfold_wrapper(sequence, **options):
     # default settings.
-    path_to_program = options.get('path_to_program', 'RNAplfold') # Error reported if full RNAplfold path not given
     window_size = options.get('window_size', 150)
     max_bp_span = options.get('max_bp_span', 100)
     avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
@@ -16,7 +15,7 @@ def RNAplfold_wrapper(sequence, **options):
     if no_lonely_bps:
        no_lonely_bps_str = "--noLP"
     # Call RNAplfold on command line.
-    cmd = 'echo "%s" | %s -W %d -L %d -c %.2f %s' % (sequence,path_to_program,window_size,max_bp_span,avg_bp_prob_cutoff, no_lonely_bps_str)
+    cmd = 'echo "%s" | RNAplfold -W %d -L %d -c %.2f %s' % (sequence,window_size,max_bp_span,avg_bp_prob_cutoff, no_lonely_bps_str)
     sp.check_output(cmd, shell = True)
     # Extract base pair information.
     start_flag = False
@@ -72,7 +71,7 @@ def string_to_networkx(sequence, **options):
 
 
 def RNA_PLFOLD_to_eden(input = None, input_type = None, **options):
-    lines = FASTA.FASTA_to_FASTA(input = input, input_type = input_type)
+    lines = FastaModifier.Modifier(input = input, input_type = input_type).apply()
     for line in lines:
         header = line
         seq = lines.next()
