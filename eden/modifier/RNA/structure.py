@@ -20,11 +20,14 @@ def edge_contraction(g, vertex_attribute = None):
 						#contract all neighbors
 						#replicate all edges with n as endpoint instead of v
 						cntr_edge_set = g.edges(greater_position_neighbors, data = True)
-						g.add_edges_from(map(lambda x: (n,x[1],x[2]), cntr_edge_set)) 
+						new_edges = map(lambda x: (n,x[1],x[2]), cntr_edge_set)
 						#remove nodes
 						g.remove_nodes_from(greater_position_neighbors)
 						#remode edges
 						g.remove_edges_from(cntr_edge_set)
+						#add edges if endpoint nodes still exist and they are not self loops
+						new_valid_edges = [e for e in new_edges if e[1] in g.nodes() and e[1] != n ]
+						g.add_edges_from(new_valid_edges) 
 						#store neighbor ids in a list attribute	
 						g.node[n]['contracted'].update(set(greater_position_neighbors))
 						change_has_occured = True
@@ -52,7 +55,7 @@ def get_mode_label(graph, vertex_list):
 	return label
 
 
-def abstract_structure(graph_list = None,  **options):
+def contraction_structure(graph_list = None,  **options):
 	level =  options.get('level',1)
 	histogram_label =  options.get('histogram_label',False)
 	mode_label =  options.get('mode_label',False)

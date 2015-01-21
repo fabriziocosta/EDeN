@@ -1,5 +1,15 @@
 import networkx as nx
 import pylab as plt
+import json
+from networkx.readwrite import json_graph
+
+
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
 
 def draw_graph(graph, 
     vertex_label='label', 
@@ -112,9 +122,8 @@ def draw_adjacency_graph (A,
     nx.draw_networkx_edges(graph, pos, alpha = 0.5)
     plt.show()
 
+
 def serialize_graph(graph):
-    import json
-    from networkx.readwrite import json_graph
     json_data = json_graph.node_link_data(graph)
-    serial_data = json.dumps(json_data, separators=(',',':'), indent=4)
+    serial_data = json.dumps(json_data, separators=(',',':'), indent=4, cls=SetEncoder)
     return serial_data

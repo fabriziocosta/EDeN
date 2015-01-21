@@ -407,7 +407,7 @@ class Vectorizer(object):
 
     def _graph_preprocessing(self, G_orig):
         assert(G_orig.number_of_nodes() > 0),'ERROR: Empty graph'
-        G=self._edge_to_vertex_transform(G_orig)
+        G = self._edge_to_vertex_transform(G_orig)
         self._weight_preprocessing(G)
         self._label_preprocessing(G)
         self._compute_distant_neighbours(G, max(self.r,self.d))
