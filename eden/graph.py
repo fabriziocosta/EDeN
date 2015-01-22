@@ -1,16 +1,14 @@
 """
 Collection of classes and functions for the transformation of annotated graphs into sparse vectors.
 """
-from collections import defaultdict
-import numpy as np
 import math
-from scipy.sparse import csr_matrix
+import numpy as np
 from scipy import stats
+from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import KMeans
-from collections import deque
-from operator import attrgetter
-from operator import itemgetter
+from collections import defaultdict, deque
+from operator import attrgetter, itemgetter
 import itertools
 import networkx as nx
 import multiprocessing
@@ -106,6 +104,72 @@ class Vectorizer(object):
         return representation
 
 
+    def fit(self, G_list, n_jobs = 1):
+        """
+        Constructs an approximate explicit mapping of a kernel function on the data 
+        stored in the nodes of the graphs.
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
+            Use -1 to indicate the total number of CPUs available.
+        """
+        label_data_matrix_dict = self._assemble_dense_data_matrices(G_list)
+        label_data_matrix_dict.update(self._assemble_sparse_data_matrices(G_list))
+        for node_class in label_data_matrix_dict:
+            #TODO: parameters for KMeans
+            self.discretization_model_dict[node_class] = []
+            for m in range(self.discretization_dimension):
+                discretization_model = KMeans(init = 'random', 
+                    n_clusters = self.discretization_size, 
+                    max_iter = 100,
+                    n_jobs = n_jobs, 
+                    n_init = 1,
+                    random_state = m + 1)
+                discretization_model.fit(label_data_matrix_dict[node_class])
+                self.discretization_model_dict[node_class] += [discretization_model]
+
+
+    def fit_transform(self, G_list, n_jobs = 1):
+        """
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1).
+            Use -1 to indicate the total number of CPUs available.
+        """
+        self.fit(G_list, n_jobs = n_jobs)
+        return self.transform(G_list, n_jobs = n_jobs)
+
+
+    def transform(self, G_list, n_jobs = 1):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        (Compressed Sparse Row matrix).
+
+        Parameters
+        ----------
+        G_list : list of networkx graphs. 
+            The data.
+
+        n_jobs : integer, optional
+            Number of jobs to run in parallel (default 1). 
+            Use -1 to indicate the total number of CPUs available.
+        """
+        if n_jobs is 1:
+            return self._transform_serial(G_list)
+        else:
+            return self._transform_parallel(G_list, n_jobs)
+
+
     def _extract_dense_vectors_from_labels(self, G_orig):
         #from each vertex extract the node_class and the label as a list and return a  
         #dict with node_class as key and the vector associated to each vertex 
@@ -186,71 +250,6 @@ class Vectorizer(object):
         #convert into dict of numpy matrices
         return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
-
-    def fit(self, G_list, n_jobs = 1):
-        """
-        Constructs an approximate explicit mapping of a kernel function on the data 
-        stored in the nodes of the graphs.
-
-        Parameters
-        ----------
-        G_list : list of networkx graphs. 
-            The data.
-
-        n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1).
-            Use -1 to indicate the total number of CPUs available.
-        """
-        label_data_matrix_dict = self._assemble_dense_data_matrices(G_list)
-        label_data_matrix_dict.update(self._assemble_sparse_data_matrices(G_list))
-        for node_class in label_data_matrix_dict:
-            #TODO: parameters for KMeans
-            self.discretization_model_dict[node_class] = []
-            for m in range(self.discretization_dimension):
-                discretization_model = KMeans(init = 'random', 
-                    n_clusters = self.discretization_size, 
-                    max_iter = 100,
-                    n_jobs = n_jobs, 
-                    n_init = 1,
-                    random_state = m + 1)
-                discretization_model.fit(label_data_matrix_dict[node_class])
-                self.discretization_model_dict[node_class] += [discretization_model]
-
-
-    def fit_transform(self, G_list, n_jobs = 1):
-        """
-
-        Parameters
-        ----------
-        G_list : list of networkx graphs. 
-            The data.
-
-        n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1).
-            Use -1 to indicate the total number of CPUs available.
-        """
-        self.fit(G_list, n_jobs = n_jobs)
-        return self.transform(G_list, n_jobs = n_jobs)
-
-
-    def transform(self, G_list, n_jobs = 1):
-        """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
-        (Compressed Sparse Row matrix).
-
-        Parameters
-        ----------
-        G_list : list of networkx graphs. 
-            The data.
-
-        n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1). 
-            Use -1 to indicate the total number of CPUs available.
-        """
-        if n_jobs is 1:
-            return self._transform_serial(G_list)
-        else:
-            return self._transform_parallel(G_list, n_jobs)
 
 
     def _convert_dict_to_sparse_matrix(self, feature_dict):
@@ -835,3 +834,137 @@ class OnlinePredictor(Vectorizer):
         x = self._convert_dict_to_sparse_matrix(self._transform(0 , G_orig))
         margins = self._estimator.decision_function(x)
         return margins[0]
+
+
+
+
+class ListVectorizer(object):
+    """
+    Transforms vector labeled, weighted, nested graphs in sparse vectors. 
+
+    A list of iterators over graphs are taken in input. A list of weights are taken in input. 
+    The returned vector is the linear combination of sparse vectors obtained on each 
+    corresponding graph.     
+    """
+
+    def __init__(self,
+        r = 3,
+        d = 3,
+        min_r = 0,
+        min_d = 0,
+        nbits = 20,
+        normalization = True,
+        inner_normalization = True,
+        pure_neighborhood_features = False,
+        discretization_size = 0,
+        discretization_dimension = 1):
+        """
+        Parameters
+        ----------
+        r : int 
+            The maximal radius size.
+
+        d : int 
+            The maximal distance size.
+
+        min_r : int 
+            The minimal radius size.
+
+        min_d : int 
+            The minimal distance size.
+
+        nbits : int 
+            The number of bits that defines the feature space size: |feature space|=2^nbits.
+
+        normalization : bool 
+            If set the resulting feature vector will have unit euclidean norm.
+
+        inner_normalization : bool 
+            If set the feature vector for a specific combination of the radius and 
+            distance size will have unit euclidean norm.
+            When used together with the 'normalization' flag it will be applied first and 
+            then the resulting feature vector will be normalized.
+
+        pure_neighborhood_features : bool 
+            If set additional features are going to be generated. 
+            These features are generated in a similar fashion as the base features, 
+            with the caveat that the first neighborhood is omitted.
+            The purpose of these features is to allow vertices that have similar contexts to be 
+            matched, even when they are completely different. 
+
+        discretization_size : int
+            Number of discretization levels for real vector labels.
+            If 0 then treat all labels as strings. 
+
+        discretization_dimension : int
+            Size of the discretized label vector.
+        """
+        self.vectorizer = Vectorizer(r=r, 
+            d=d, 
+            min_r=min_r, 
+            min_d=min_d, 
+            nbits=nbits, 
+            normalization=normalization,
+            inner_normalization=inner_normalization,
+            pure_neighborhood_features=pure_neighborhood_features,
+            discretization_size=discretization_size,
+            discretization_dimension=discretization_dimension)
+        self.vectorizers = list()
+
+
+    def fit(self, G_iterators_list):
+        """
+        Constructs an approximate explicit mapping of a kernel function on the data 
+        stored in the nodes of the graphs.
+
+        Parameters
+        ----------
+        G_iterators_list : list of iterators over networkx graphs. 
+            The data.
+        """
+        for i, graphs in enumerate(G_iterators_list):
+            self.vectorizers += copy.copy(self.vectorizer)
+            self.vectorizers[i].fit(graphs)
+
+
+    def fit_transform(self, G_iterators_list, weights = list()):
+        """
+
+        Parameters
+        ----------
+        G_iterators_list : list of iterators over networkx graphs. 
+            The data.
+
+        weights : list of positive real values.
+            Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.     
+        """
+        self.fit(G_iterators_list)
+        return self.transform(G_iterators_list, weights)
+
+
+    def transform(self, G_iterators_list, weights = list()):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        (Compressed Sparse Row matrix).
+
+        Parameters
+        ----------
+        G_iterators_list : list of iterators over networkx graphs. 
+            The data.
+
+        weights : list of positive real values.
+            Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.     
+        """
+        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
+        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
+        for i, graphs in enumerate(G_iterators_list):
+            if len(self.vectorizers) == 0:
+                X_curr = self.vectorizer.transform(graphs)
+            else :
+                X_curr = self.vectorizers[i].transform(graphs)
+            if i == 0:
+                X = X_curr * weights[i]
+            else:
+                X = X + X_curr * weights[i]
+        return X
+
