@@ -1,6 +1,5 @@
-"""
-Collection of classes and functions for the transformation of annotated graphs into sparse vectors.
-"""
+#!/usr/bin/env python
+
 import math
 import numpy as np
 from scipy import stats
@@ -912,7 +911,7 @@ class ListVectorizer(object):
         self.vectorizers = list()
 
 
-    def fit(self, G_iterators_list):
+    def fit(self, G_iterators_list, n_jobs = 1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -923,12 +922,12 @@ class ListVectorizer(object):
             The data.
         """
         for i, graphs in enumerate(G_iterators_list):
-            self.vectorizers += copy.copy(self.vectorizer)
-            self.vectorizers[i].fit(graphs)
+            self.vectorizers.append(copy.copy(self.vectorizer))
+            self.vectorizers[i].fit(graphs, n_jobs = n_jobs)
 
 
-    def fit_transform(self, G_iterators_list, weights = list()):
-        """
+    def fit_transform(self, G_iterators_list, weights = list(), n_jobs = 1):
+        """ 
 
         Parameters
         ----------
@@ -938,11 +937,11 @@ class ListVectorizer(object):
         weights : list of positive real values.
             Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.     
         """
-        self.fit(G_iterators_list)
-        return self.transform(G_iterators_list, weights)
+        self.fit(G_iterators_list, n_jobs = n_jobs)
+        return self.transform(G_iterators_list, weights, n_jobs = n_jobs)
 
 
-    def transform(self, G_iterators_list, weights = list()):
+    def transform(self, G_iterators_list, weights = list(), n_jobs = 1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -955,13 +954,16 @@ class ListVectorizer(object):
         weights : list of positive real values.
             Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.     
         """
+        #if no weights are provided then assume unitary weight
+        if len(weights) == 0:
+            weights = [1] * len(G_iterators_list)
         assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
         assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         for i, graphs in enumerate(G_iterators_list):
             if len(self.vectorizers) == 0:
-                X_curr = self.vectorizer.transform(graphs)
-            else :
-                X_curr = self.vectorizers[i].transform(graphs)
+                X_curr = self.vectorizer.transform(graphs, n_jobs = n_jobs)
+            else:
+                X_curr = self.vectorizers[i].transform(graphs, n_jobs = n_jobs)
             if i == 0:
                 X = X_curr * weights[i]
             else:

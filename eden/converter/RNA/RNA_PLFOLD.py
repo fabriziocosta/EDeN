@@ -4,6 +4,8 @@ import networkx as nx
 import subprocess as sp
 from eden.modifier import FastaModifier
 import os
+from eden.converter.FASTA import FASTA 
+
 
 def RNAplfold_wrapper(sequence, **options):
     # default settings.
@@ -76,6 +78,8 @@ def RNA_PLFOLD_to_eden(input = None, input_type = None, **options):
         header = line
         seq = lines.next()
         G = string_to_networkx(seq, **options)
+        #in case something goes wrong fall back to simple sequence
+        if G.number_of_nodes() < 2 :
+            G = FASTA.seq_to_networkx(seq, **options)
         G.graph['ID'] = header
-        if G.number_of_nodes() > 0 :
-            yield G
+        yield G
