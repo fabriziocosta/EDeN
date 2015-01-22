@@ -3,25 +3,18 @@ import pylab as plt
 import json
 from networkx.readwrite import json_graph
 
-
-class SetEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, set):
-            return list(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
 def draw_graph(graph, 
     vertex_label='label', 
     secondary_vertex_label=None, 
     edge_label='label', 
     secondary_edge_label=None, 
     vertex_color='', 
-    vertex_alpha='',
+    vertex_alpha=0.6,
     size=10, 
+    node_size=600,
+    font_size=9,
     layout='graphviz', 
     prog = 'neato',
-    node_size=600,
     node_border=True,
     colormap='YlOrRd',
     invert_colormap=False):
@@ -72,24 +65,24 @@ def draw_graph(graph,
         linewidths = 1
 
     nx.draw_networkx_nodes(graph,pos,
-        node_color=node_color,
-        alpha=0.6,
-        node_size=node_size, 
-        linewidths=linewidths,
+        node_color = node_color,
+        alpha = vertex_alpha,
+        node_size = node_size, 
+        linewidths = linewidths,
         cmap = plt.get_cmap(colormap))
-    nx.draw_networkx_labels(graph,pos, vertex_labels, font_size = 9,font_color = 'black')
+    nx.draw_networkx_labels(graph,pos, vertex_labels, font_size = font_size,font_color = 'black')
     nx.draw_networkx_edges(graph, pos, 
         edgelist = edges_normal, 
         width = 2, 
         edge_color = 'k', 
-        alpha=0.5)
+        alpha = 0.5)
     nx.draw_networkx_edges(graph, pos, 
         edgelist = edges_nesting, 
         width = 1, 
         edge_color = 'k', 
         style = 'dashed', 
-        alpha=0.5)
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels)
+        alpha = 0.5)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels = edge_labels, font_size = font_size,)
     plt.show()
 
 
@@ -99,11 +92,11 @@ def draw_adjacency_graph (A,
     layout = 'graphviz', 
     prog = 'neato',
     node_size = 80,
-    colormap='autumn'):
+    colormap = 'autumn'):
 
     graph = nx.from_scipy_sparse_matrix(A)
 
-    plt.figure(figsize=(size,size))
+    plt.figure(figsize = (size,size))
     plt.grid(False)
     plt.axis('off')
 
@@ -113,7 +106,7 @@ def draw_adjacency_graph (A,
         pos = nx.spring_layout(graph)
 
     if  len(node_color) == 0:
-        node_color='gray'
+        node_color = 'gray'
     nx.draw_networkx_nodes(graph, pos,
                            node_color = node_color, 
                            alpha = 0.6, 
@@ -123,7 +116,14 @@ def draw_adjacency_graph (A,
     plt.show()
 
 
+class SetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 def serialize_graph(graph):
     json_data = json_graph.node_link_data(graph)
-    serial_data = json.dumps(json_data, separators=(',',':'), indent=4, cls=SetEncoder)
+    serial_data = json.dumps(json_data, separators = (',',':'), indent = 4, cls = SetEncoder)
     return serial_data
