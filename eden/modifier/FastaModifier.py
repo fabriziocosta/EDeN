@@ -22,6 +22,8 @@ class Modifier(object):
             input_type = 'list'
         self.input_type = input_type
 
+        #here call apply
+        #pass modify as an argument function 
 
     def apply(self, **options):
         lines = self._to_FASTA()
