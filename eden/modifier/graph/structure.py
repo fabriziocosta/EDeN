@@ -64,14 +64,16 @@ def contraction(graph_list = None,  **options):
 	bitmask = pow(2, nbits) - 1
 
 	#annotate with the adjacent edge labels the  
-	for g in vertex_attributes.add_vertex_type(graph_list, level = level, output_attribute = 'type'):
+	for g in vertex_attributes.add_vertex_type(graph_list, level = level, output_attribute = 'type', separator = '.'):
 		g_copy = g.copy()
 		g_contracted = edge_contraction(g_copy, vertex_attribute = 'type')
-		if mode_label or histogram_label or cumulative_weight:
-			for n, d in g_contracted.nodes_iter(data = True):
-				contracted = d.get('contracted',None)
-				if contracted is None:
-					raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
+		for n, d in g_contracted.nodes_iter(data = True):
+			contracted = d.get('contracted',None)
+			if contracted is None:
+				raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
+			#store the dictionary of all contracted nodes dictionaries 
+			g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
+			if mode_label or histogram_label or cumulative_weight:
 				if mode_label :
 					g_contracted.node[n]['label'] = get_mode_label(g,contracted)
 				elif histogram_label :
