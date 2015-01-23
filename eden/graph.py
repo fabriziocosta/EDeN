@@ -250,6 +250,17 @@ class Vectorizer(object):
         return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
 
+    def _convert_dict_to_sparse_vector(self, the_dict):
+        if len(the_dict) == 0:
+            raise Exception('ERROR: something went wrong, empty the_dict.')
+        data = the_dict.values()
+        row, col = [], []
+        for j in the_dict.iterkeys():
+            row.append( 0 )
+            col.append( int(j) )
+        vec = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
+        return vec
+
 
     def _convert_dict_to_sparse_matrix(self, feature_dict):
         """Takes a dictionary with pairs as key and counts as values and returns a compressed sparse row matrix"""
@@ -260,8 +271,9 @@ class Vectorizer(object):
         for i, j in feature_dict.iterkeys():
             row.append( i )
             col.append( j )
-        X = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
-        return X
+        #hint to python to remove at least the dict version of the feature 
+        del feature_dict
+        return csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
 
 
     def _transform_parallel(self,G_list, n_jobs):
@@ -295,18 +307,6 @@ class Vectorizer(object):
         """
         for instance_id , G in enumerate( G_list ):
             yield self._convert_dict_to_sparse_matrix( self._transform(instance_id, G) )
-
-
-    def _convert_dict_to_sparse_vector(self, the_dict):
-        if len(the_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty the_dict.')
-        data = the_dict.values()
-        row, col = [], []
-        for j in the_dict.iterkeys():
-            row.append( 0 )
-            col.append( int(j) )
-        vec = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
-        return vec
 
 
     def _extract_class_and_label(self,d): 
@@ -482,8 +482,6 @@ class Vectorizer(object):
         if self.pure_neighborhood_features:
             self._transform_vertex_pair_pure_neighborhood(G, v, u, distance, feature_list)
 
-#TODO: add features of type radius_1 + radius_2 = r_max
-#TODO: add features of type radius_1 - radius_1 on each fronteer vertex
 
     def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         #for all radii
