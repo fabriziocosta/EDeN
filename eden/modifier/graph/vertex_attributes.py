@@ -1,6 +1,17 @@
 import networkx as nx
 import numpy as np 
 
+
+def map(graph_list = None, input_attribute = 'label', output_attribute = 'label', label_map = dict(), default = ' '):
+	for g in graph_list:
+		#iterate over nodes
+		for n, d in g.nodes_iter(data = True):
+			key = d.get(input_attribute,default)
+			mapped_attribute = label_map.get(key,default)
+			g.node[n][output_attribute] = mapped_attribute
+		yield g
+
+
 def colorize(graph_list = None, output_attribute = 'level', labels = ['A','U','C','G']):
 	values = np.linspace (0.0,1.0, num = len(labels))
 	color_dict = dict(zip(labels,values))

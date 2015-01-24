@@ -92,11 +92,13 @@ class insert_landmark(Modifier):
 
 class shuffle(Modifier):
     def modify(self, header = None, seq = None, **options):
-        seq_mod = [c for c in seq]
-        random.shuffle(seq_mod)
-        seq_out = ''.join(seq_mod)        
-        yield header
-        yield seq_out
+        times =  options.get('times',1)
+        for i in range(times):
+            seq_mod = [c for c in seq]
+            random.shuffle(seq_mod)
+            seq_out = ''.join(seq_mod)        
+            yield header
+            yield seq_out
 
 
 class remove(Modifier):
