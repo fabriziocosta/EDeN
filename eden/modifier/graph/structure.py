@@ -3,19 +3,19 @@ from eden.modifier.RNA import vertex_attributes
 from collections import *
 
 
-def edge_contraction(g, vertex_attribute = None):
+def edge_contraction(g, node_attribute = None):
 	while True:
 		change_has_occured = False
 		for n, d in g.nodes_iter(data = True):
-			if d.get(vertex_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):
-				g.node[n]['label'] = g.node[n][vertex_attribute] 
+			if d.get(node_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):
+				g.node[n]['label'] = g.node[n][node_attribute] 
 				if d.get('contracted',False) == False:
 					g.node[n]['contracted'] = set()
 				g.node[n]['contracted'].add(n)
 				neighbors = g.neighbors(n)
 				if len(neighbors) > 0: 
-					#identify neighbors that have a greater 'position' attribute and that have the same vertex_attribute
-					greater_position_neighbors = [v for v in neighbors if g.node[v].get('position',False) and g.node[v].get(vertex_attribute,False) and g.node[v][vertex_attribute] == d[vertex_attribute] and g.node[v]['position'] > d['position'] ]
+					#identify neighbors that have a greater 'position' attribute and that have the same node_attribute
+					greater_position_neighbors = [v for v in neighbors if g.node[v].get('position',False) and g.node[v].get(node_attribute,False) and g.node[v][node_attribute] == d[node_attribute] and g.node[v]['position'] > d['position'] ]
 					if len(greater_position_neighbors) > 0 :
 						#contract all neighbors
 						#replicate all edges with n as endpoint instead of v
@@ -37,25 +37,27 @@ def edge_contraction(g, vertex_attribute = None):
 	return g
 
 
-def get_cumulative_weight(graph, vertex_list):
-	weight = sum([graph.node[v].get('weight',1) for v in vertex_list])
+def get_cumulative_weight(graph, id_nodes):
+	weight = sum([graph.node[v].get('weight',1) for v in id_nodes])
 	return weight
 
 
-def get_dict_histogram_label(graph, vertex_list, bitmask):
-	labels = [(abs(hash(graph.node[v].get('label','N/A'))) & bitmask) + 1 for v in vertex_list]
+def get_dict_histogram_label(graph, id_nodes, bitmask):
+	labels = [(abs(hash(graph.node[v].get('label','N/A'))) & bitmask) + 1 for v in id_nodes]
 	dict_label = dict(Counter(labels).most_common())
 	sparse_vec = {str(key):value for key,value in dict_label.iteritems()}
 	return sparse_vec
 
 
-def get_mode_label(graph, vertex_list):
-	labels = [graph.node[v].get('label','N/A') for v in vertex_list]
+def get_mode_label(graph, id_nodes):
+	labels = [graph.node[v].get('label','N/A') for v in id_nodes]
 	label = Counter(labels).most_common()[0][0]
 	return label
 
 
 def contraction(graph_list = None,  **options):
+	#TODO: get a list of functions in input: each specifies
+	#the output_attribute and how to compute a single label given in input the set of contracted_dicts
 	level =  options.get('level',1)
 	histogram_label =  options.get('histogram_label',False)
 	mode_label =  options.get('mode_label',False)
@@ -66,7 +68,7 @@ def contraction(graph_list = None,  **options):
 	#annotate with the adjacent edge labels the  
 	for g in vertex_attributes.add_vertex_type(graph_list, level = level, output_attribute = 'type', separator = '.'):
 		g_copy = g.copy()
-		g_contracted = edge_contraction(g_copy, vertex_attribute = 'type')
+		g_contracted = edge_contraction(g_copy, node_attribute = 'type')
 		for n, d in g_contracted.nodes_iter(data = True):
 			contracted = d.get('contracted',None)
 			if contracted is None:
