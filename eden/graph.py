@@ -3,7 +3,7 @@
 import math
 import numpy as np
 from scipy import stats
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, vstack
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import KMeans
 from collections import defaultdict, deque
@@ -12,7 +12,6 @@ import itertools
 import networkx as nx
 import multiprocessing
 from eden.util import util
-
 
 class Vectorizer(object):
     """
@@ -149,7 +148,7 @@ class Vectorizer(object):
         return self.transform(G_list, n_jobs = n_jobs)
 
 
-    def transform(self, G_list, n_jobs = 1):
+    def transform(self, G_list, n_jobs = 1, block_size = -1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -162,8 +161,28 @@ class Vectorizer(object):
         n_jobs : integer, optional
             Number of jobs to run in parallel (default 1). 
             Use -1 to indicate the total number of CPUs available.
+
+        block_size : integer, optional
+            Number of instances per block (default -1 meaning no blocks). 
+            After block_size instances a sparse matrix is 
+            materialized and stacked to previous ones. 
         """
-        if n_jobs is 1:
+
+        if block_size == -1:
+            return self._transform_block(G_list, n_jobs = n_jobs)
+        else:
+            G_block_list = util.grouper(G_list, block_size)
+            for i, graphs in enumerate(G_block_list):
+                X_curr = self._transform_block(graphs, n_jobs = n_jobs)
+                if i == 0:
+                    X = X_curr
+                else:
+                    X = vstack( [X,X_curr] , format = "csr")
+            return X
+
+
+    def _transform_block(self, G_list, n_jobs = 1):
+        if n_jobs == 1:
             return self._transform_serial(G_list)
         else:
             return self._transform_parallel(G_list, n_jobs)
@@ -286,7 +305,8 @@ class Vectorizer(object):
             n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
         for instance_id , G in enumerate(G_list):
-            util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
+            if G is not None:
+                util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
         return self._convert_dict_to_sparse_matrix( feature_dict )
@@ -295,7 +315,8 @@ class Vectorizer(object):
     def _transform_serial(self, G_list):
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
-            feature_dict.update(self._transform( instance_id, G ))
+            if G is not None:
+                feature_dict.update(self._transform( instance_id, G ))
         return self._convert_dict_to_sparse_matrix( feature_dict )
 
 
