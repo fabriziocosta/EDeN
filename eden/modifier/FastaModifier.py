@@ -109,6 +109,19 @@ class remove(Modifier):
             yield seq
             
 
+class keep(Modifier):
+    def modify(self, header = None, seq = None, **options):
+        keep_char_list =  options.get('keep_char_list',['A','C','G','T','U'])
+        skip = False
+        for c in seq:
+            if not c in keep_char_list:
+                skip = True
+                break
+        if not skip:
+            yield header
+            yield seq
+
+
 class split(Modifier):
     def modify(self, header = None, seq = None, **options):
         step =  options.get('step',10)
