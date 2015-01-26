@@ -31,7 +31,7 @@ def instance_to_eden(input = None, input_type = None, tool = None, options = dic
 		from eden.converter.molecule import obabel
 		g_it = obabel.obabel_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "FASTA":
-		from eden.converter.RNA import FASTA
+		from eden.converter.FASTA import FASTA
 		g_it = FASTA.FASTA_to_eden(input = input, input_type = input_type, options = options)
 	elif tool == "RNA_MFE":
 		from eden.converter.RNA import RNA_MFE
