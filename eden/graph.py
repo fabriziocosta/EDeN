@@ -290,8 +290,6 @@ class Vectorizer(object):
         for i, j in feature_dict.iterkeys():
             row.append( i )
             col.append( j )
-        #hint to python to remove at least the dict version of the feature 
-        del feature_dict
         return csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
 
 
