@@ -2,7 +2,7 @@ import networkx as nx
 import numpy as np 
 
 
-def map(graph_list = None, input_attribute = 'label', output_attribute = 'label', label_map = dict(), default = ' '):
+def translate(graph_list = None, input_attribute = 'label', output_attribute = 'label', label_map = dict(), default = ' '):
 	for g in graph_list:
 		#iterate over nodes
 		for n, d in g.nodes_iter(data = True):
