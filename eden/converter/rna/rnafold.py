@@ -2,8 +2,7 @@
 
 import networkx as nx
 import subprocess as sp
-from eden.modifier import FastaModifier
-from eden.converter.FASTA import FASTA 
+from eden import modifier,converter
 
 
 def RNAfold_wrapper(sequence, **options):
@@ -42,14 +41,14 @@ def string_to_networkx(sequence, **options):
     return G
 
 
-def RNA_MFE_to_eden(input = None, input_type = None, **options):
-    lines = FastaModifier.Modifier(input = input, input_type = input_type).apply()
+def rnafold_to_eden(input = None, input_type = None, **options):
+    lines = modifier.fasta.to_fasta(input = input, input_type = input_type)
     for line in lines:
         header = line
         seq = lines.next()
         G = string_to_networkx(seq, **options)
         #in case something goes wrong fall back to simple sequence
         if G.number_of_nodes() < 2 :
-            G = FASTA.seq_to_networkx(seq, **options)
+            G = converter.fasta.seq_to_networkx(seq, **options)
         G.graph['ID'] = header
         yield G
