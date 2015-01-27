@@ -73,7 +73,7 @@ class Modifier(object):
 class one_line(Modifier):
     def modify(self, header = None, seq = None, **options):
         header_only = options.get('header_only',False)
-        one_line = options.get('one_line',False)
+        one_line = options.get('one_line',True)
         if one_line:
             yield  header + '\t' + seq
         if header_only:
