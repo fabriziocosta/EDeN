@@ -129,5 +129,5 @@ class split(Modifier):
         seq_len = len(seq)
         for start in range(0, seq_len, step):
             seq_out = seq[start : start + window]
-            yield '%s START: %0.5d WINDOW: %0.5d' % (header, start, window)
+            yield '%s START: %0.9d WINDOW: %0.3d' % (header, start, window)
             yield seq_out
