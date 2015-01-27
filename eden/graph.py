@@ -804,6 +804,52 @@ class Annotator(Vectorizer):
         return X
 
 
+class OnlineSimilarity(Vectorizer):
+    def __init__(self,
+        graph = None,
+        vectorizer = Vectorizer()):
+        """
+        Purpose:
+        ----------
+        It outputs the similarity score between 'graph' and a stream of graphs.  
+
+        Parameters
+        ----------
+        graph : an EDeN compatible graph 
+
+        vectorizer : EDeN graph vectorizer 
+        """
+        self.r = vectorizer.r 
+        self.d = vectorizer.d
+        self.min_r = vectorizer.min_r 
+        self.min_d = vectorizer.min_d
+        self.nbits = vectorizer.nbits
+        self.normalization = vectorizer.normalization
+        self.inner_normalization = vectorizer.inner_normalization
+        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
+        self.bitmask = vectorizer.bitmask
+        self.feature_size = vectorizer.feature_size
+        self.discretization_size = vectorizer.discretization_size
+        self.discretization_dimension = vectorizer.discretization_dimension
+        self.discretization_model_dict = vectorizer.discretization_model_dict
+        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0 , graph))
+
+    def predict(self,G_list):
+        """
+        
+        This is a generator.
+        """
+        for G in G_list:
+            yield self._predict(G)
+
+
+    def _predict(self, G_orig):
+        #extract feature vector
+        x = self._convert_dict_to_sparse_matrix(self._transform(0 , G_orig))
+        return self._reference_vec.dot(x)
+
+
+
 class OnlinePredictor(Vectorizer):
     def __init__(self,
         estimator = SGDClassifier(),
