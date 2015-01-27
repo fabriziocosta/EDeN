@@ -846,7 +846,8 @@ class OnlineSimilarity(Vectorizer):
     def _predict(self, G_orig):
         #extract feature vector
         x = self._convert_dict_to_sparse_matrix(self._transform(0 , G_orig))
-        return self._reference_vec.dot(x)
+        res = self._reference_vec.dot(x.T).todense()
+        return res[0,0]
 
 
 
