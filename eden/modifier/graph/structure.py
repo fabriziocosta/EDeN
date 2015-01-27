@@ -1,14 +1,16 @@
 import networkx as nx
-from eden.modifier.RNA import vertex_attributes
 from collections import *
 
 
-def edge_contraction(g, node_attribute = None):
+def edge_contraction(graph = None, node_attribute = None):
+	g = graph.copy()
+	for n, d in g.nodes_iter(data = True):
+		g.node[n]['contracted'] = set()
 	while True:
 		change_has_occured = False
 		for n, d in g.nodes_iter(data = True):
-			if d.get(node_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):
-				g.node[n]['label'] = g.node[n][node_attribute] 
+			g.node[n]['label'] = g.node[n][node_attribute] 
+			if d.get(node_attribute,False) != False and (d.get('position',False) == 0 or d.get('position',False) != False):	
 				if d.get('contracted',False) == False:
 					g.node[n]['contracted'] = set()
 				g.node[n]['contracted'].add(n)
@@ -36,52 +38,69 @@ def edge_contraction(g, node_attribute = None):
 			break
 	return g
 
+def contraction_hash_func(str_input, bitmask): 
+	return abs(hash(str_input) & bitmask) + 1 
 
-def get_cumulative_weight(graph, id_nodes):
-	weight = sum([graph.node[v].get('weight',1) for v in id_nodes])
-	return weight
-
-
-def get_dict_histogram_label(graph, id_nodes, bitmask):
-	labels = [(abs(hash(graph.node[v].get('label','N/A'))) & bitmask) + 1 for v in id_nodes]
+def contraction_histogram(input_attribute = None, graph = None, id_nodes = None, bitmask = None):
+	labels = [contraction_hash_func(graph.node[v].get(input_attribute,'N/A'), bitmask) for v in id_nodes]
 	dict_label = dict(Counter(labels).most_common())
 	sparse_vec = {str(key):value for key,value in dict_label.iteritems()}
 	return sparse_vec
 
+def contraction_sum(input_attribute = None, graph = None, id_nodes = None):
+	vals = [float(graph.node[v].get(input_attribute,1)) for v in id_nodes]
+	return sum(vals)
 
-def get_mode_label(graph, id_nodes):
-	labels = [graph.node[v].get('label','N/A') for v in id_nodes]
-	label = Counter(labels).most_common()[0][0]
-	return label
+def contraction_average(input_attribute = None, graph = None, id_nodes = None):
+	vals = [float(graph.node[v].get(input_attribute,0)) for v in id_nodes]
+	return sum(vals)/float(len(vals))
+
+def contraction_categorical(input_attribute = None, graph = None, id_nodes = None, separator = '.'):
+	vals = sorted([str(graph.node[v].get(input_attribute,'N/A')) for v in id_nodes])
+	return separator.join(vals)
+
+def contraction_set_categorical(input_attribute = None, graph = None, id_nodes = None, separator = '.'):
+	vals = sorted(set([str(graph.node[v].get(input_attribute,'N/A')) for v in id_nodes]))
+	return separator.join(vals)
 
 
-def contraction(graph_list = None,  **options):
-	#TODO: get a list of functions in input: each specifies
-	#the output_attribute and how to compute a single label given in input the set of contracted_dicts
-	level =  options.get('level',1)
-	histogram_label =  options.get('histogram_label',False)
-	mode_label =  options.get('mode_label',False)
-	cumulative_weight =  options.get('cumulative_weight',True)
+def contraction(graphs = None,  contraction_attribute = 'label', modifiers = [{'input':'type','output':'label','action':'set_categorical'},{'input':'weight','output':'weight','action':'sum'}], **options):
+	''' 
+		modifiers: list of dictionaries, each containing the keys: input, output and action.
+		"input" identifies the node attribute that is extracted from all contracted nodes.
+		"output" identifies the node attribute that is written in the resulting graph.
+		"action" is one of the following reduction operations: histogram, sum, average, categorical, set_categorical.
+		"histogram" returns a sparse vector with numerical hased keys, "sum" and "average" cast the values into floats before
+		computing the sum and average respectively, "categorical" returns the concatenation string of the
+		lexicographically sorted list of input attributes, "set_categorical" returns the concatenation string of the
+		lexicographically sorted set of input attributes.  
+	'''
 	nbits =  options.get('nbits',10)
 	bitmask = pow(2, nbits) - 1
 
-	#annotate with the adjacent edge labels the  
-	for g in vertex_attributes.add_vertex_type(graph_list, level = level, output_attribute = 'type', separator = '.'):
-		g_copy = g.copy()
-		g_contracted = edge_contraction(g_copy, node_attribute = 'type')
+	for g in graphs:
+		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
 		for n, d in g_contracted.nodes_iter(data = True):
 			contracted = d.get('contracted',None)
 			if contracted is None:
 				raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
 			#store the dictionary of all contracted nodes dictionaries 
-			g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
-			if mode_label or histogram_label or cumulative_weight:
-				if mode_label :
-					g_contracted.node[n]['label'] = get_mode_label(g,contracted)
-				elif histogram_label :
-					#update label with all contracted labels information using a histogram, i.e. a sparse vector 
-					g_contracted.node[n]['label'] = get_dict_histogram_label(g,contracted, bitmask)
-				if cumulative_weight :
-					#update weight with the sum of all weights (or the count of vertices if the weight information is missing)
-					g_contracted.node[n]['weight'] = get_cumulative_weight(g,contracted)
+			#g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
+			#process the action 
+			for modifier in modifiers:
+				input  = modifier['input']
+				output = modifier['output']
+				action = modifier['action']
+				if action == 'histogram':
+					g_contracted.node[n][output] = contraction_histogram(input_attribute = input, graph = g, id_nodes = contracted, bitmask = bitmask)
+				elif action == 'sum':
+					g_contracted.node[n][output] = contraction_sum(input_attribute = input, graph = g, id_nodes = contracted)
+				elif action == 'average':
+					g_contracted.node[n][output] = contraction_average(input_attribute = input, graph = g, id_nodes = contracted)
+				elif action == 'categorical':
+					g_contracted.node[n][output] = contraction_categorical(input_attribute = input, graph = g, id_nodes = contracted)
+				elif action == 'set_categorical':
+					g_contracted.node[n][output] = contraction_set_categorical(input_attribute = input, graph = g, id_nodes = contracted)
+				else:
+					raise Exception('Unknown action type: %s' % action)
 		yield g_contracted
