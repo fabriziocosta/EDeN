@@ -313,8 +313,10 @@ class Vectorizer(object):
     def _transform_serial(self, G_list):
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
-            if G is not None:
+            if G is not None and G.number_of_nodes() > 0:
                 feature_dict.update(self._transform( instance_id, G ))
+            else:
+                raise Exception('ERROR: something went wrong, empty graph at position %d.' % instance_id)
         return self._convert_dict_to_sparse_matrix( feature_dict )
 
 
