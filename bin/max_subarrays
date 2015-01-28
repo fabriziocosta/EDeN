@@ -8,7 +8,7 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import util, setup, eden_io
 from eden.util import iterated_maximum_subarray
 
@@ -31,15 +31,19 @@ def setup_parameters(parser):
 		type = int,
 		help = "Minimal length of the subarray to extract.",
         default = 7)
-	parser.add_argument( "-m", "--max-subarray-size",
+	parser.add_argument( "-M", "--max-subarray-size",
 		dest = "max_subarray_size",
 		type = int,
 		help = "Maximal length of the subarray to extract. Use -1 for no limit.",
         default = -1)
-	parser.add_argument("-f", "--format",  
-		choices = ["gspan", "node_link_data", "obabel", "sequence"],
-    	help = "File format.", 
-    	default = "sequence")
+	parser.add_argument("-m", "--model-dir", 
+		dest = "model_dir_path", 
+		help = "Path to directory containing the predictive model. In case of a compressed archive, use the name without the .tar.gz suffix.",
+		default = "out")
+	parser.add_argument("-z", "--tar-gzip", 
+		dest = "tar_gzip",
+		help = "Use archived and compressed directory that serializes the vectorizer and the fitted predictive model.",
+		action = "store_true")
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
@@ -66,13 +70,17 @@ def max_subarrays(args):
 	"""
 	Extract maximal subarrays by annotating graphs using a predictive model.
 	"""
-	#load vectorizer
-	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
+	if args.tar_gzip:
+		out_file_name = args.model_dir_path + '.tar.gz'
+		logger.info('Unpacking: %s' % out_file_name)
+		archive = tarfile.open(out_file_name, "r|gz")
+		archive.extractall()
+
+	#load models
+	vec = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "vectorizer")
 	logger.info('Vectorizer: %s' % vec)
 
-
-	#load predictive model
-	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
+	clf = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "model")
 	logger.info('Model: %s' % clf)
 
 	#initialize annotator
@@ -90,6 +98,9 @@ def max_subarrays(args):
 			subarray_list += subarrays
 
 	#save results
+	if not os.path.exists(args.output_dir_path) :
+		os.mkdir(args.output_dir_path)
+
 	out_file_name = "subarrays.data"
 	full_out_file_name = os.path.join(args.output_dir_path, out_file_name)
 	with open(full_out_file_name, "w") as f:

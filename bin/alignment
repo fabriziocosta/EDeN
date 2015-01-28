@@ -14,7 +14,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import util, setup, eden_io
 from eden.util import NeedlemanWunsh
 
@@ -42,10 +42,14 @@ def setup_parameters(parser):
 		type = float,
 		help = "Importance threshold to mark significant parts of the alignment.",
         default = 1)
-	parser.add_argument("-f", "--format",  
-		choices = ["gspan", "node_link_data", "obabel", "sequence"],
-    	help = "File format.", 
-    	default = "sequence")
+	parser.add_argument("-m", "--model-dir", 
+		dest = "model_dir_path", 
+		help = "Path to directory containing the predictive model. In case of a compressed archive, use the name without the .tar.gz suffix.",
+		default = "out")
+	parser.add_argument("-z", "--tar-gzip", 
+		dest = "tar_gzip",
+		help = "Use archived and compressed directory that serializes the vectorizer and the fitted predictive model.",
+		action = "store_true")
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
@@ -148,13 +152,13 @@ def soft_match_alignment_score(alnA, alnB, graphA, graphB):
 def align(instA = None, instB = None, gap_penalty = None, nbits = None):
 	#NOTE: the sequential order of nodes in the graph are used as the sequential constrain   
 	#extract sequence of labels
-	seqA = [d['label'] for u,d in instA.nodes(data = True)]
+	seqA = [d['original_label'] for u,d in instA.nodes(data = True)]
 	strA = ''.join(seqA)
-	seqB = [d['label'] for u,d in instB.nodes(data = True)]
+	seqB = [d['original_label'] for u,d in instB.nodes(data = True)]
 	strB = ''.join(seqB)
 	#extact vector representation
-	svecA = [d['vector'] for u,d in instA.nodes(data = True)]
-	svecB = [d['vector'] for u,d in instB.nodes(data = True)]
+	svecA = [d['label'] for u,d in instA.nodes(data = True)]
+	svecB = [d['label'] for u,d in instB.nodes(data = True)]
 	#compute similarity matrix
 	S = similarity_matrix(svecA, svecB, nbits)
 	#compute alignment matrix
@@ -308,17 +312,21 @@ def alignment(args):
 	"""
 	Compute optimal alignment using Needleman-Wunsh algorithm on annotated graphs.
 	"""
-	#load vectorizer
-	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
-	logger.info('Vectorizer: %s' % vec)
-	nbits = vec.nbits
+	if args.tar_gzip:
+		out_file_name = args.model_dir_path + '.tar.gz'
+		logger.info('Unpacking: %s' % out_file_name)
+		archive = tarfile.open(out_file_name, "r|gz")
+		archive.extractall()
 
-	#load predictive model
-	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
+	#load models
+	vec = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "vectorizer")
+	logger.info('Vectorizer: %s' % vec)
+
+	clf = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "model")
 	logger.info('Model: %s' % clf)
 
 	#initialize annotator
-	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight, annotate_vertex_with_vector = True)
+	ann = graph.Annotator(estimator = clf, vectorizer = vec, reweight = args.reweight, relabel_vertex_with_vector = True)
 	
 	#load data
 	g_it = node_link_data.node_link_data_to_eden(input = args.input_file, input_type = "file")
@@ -335,7 +343,7 @@ def alignment(args):
 		importanceA = extract_importance_string(ann_g_list[i], args.importance_threshold)
 		for j in range(i+1,n):
 			importanceB = extract_importance_string(ann_g_list[j], args.importance_threshold)
-			(alnA,alnB) = align(instA = ann_g_list[i], instB = ann_g_list[j], gap_penalty = args.gap_penalty, nbits = nbits) 
+			(alnA,alnB) = align(instA = ann_g_list[i], instB = ann_g_list[j], gap_penalty = args.gap_penalty, nbits = vec.nbits) 
 			impA_str = insert_gaps(importanceA, alnA)
 			impB_str = insert_gaps(importanceB, alnB)
 			exact_match_score = exact_match_alignment_score(alnA,alnB)
@@ -353,6 +361,9 @@ def alignment(args):
 			alignment_list += [aln]
 
 	#save results
+	if not os.path.exists(args.output_dir_path) :
+		os.mkdir(args.output_dir_path)
+
 	output_txt(args, alignment_list)	
 	output_json(args, alignment_list)	
 

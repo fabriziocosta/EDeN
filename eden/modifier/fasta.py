@@ -7,16 +7,6 @@ def null_modifier(header = None, seq = None, **options):
 
 
 def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **options):
-    lines = _to_fasta(input = input, input_type = input_type)
-    for line in lines:
-        header_in = line
-        seq_in = lines.next()
-        seqs = modifier(header = header_in, seq = seq_in, **options)
-        for seq in seqs:
-            yield seq
-
-
-def _to_fasta(input = None, input_type = None):
     """
     Takes a FASTA file yields a normalised FASTA file.
 
@@ -30,6 +20,16 @@ def _to_fasta(input = None, input_type = None):
         If type is 'file' then 'input' is interpreted as a file name.
         If type is 'list' then 'input' is interpreted as a list of strings. This is the default.
     """
+    lines = _to_fasta(input = input, input_type = input_type)
+    for line in lines:
+        header_in = line
+        seq_in = lines.next()
+        seqs = modifier(header = header_in, seq = seq_in, **options)
+        for seq in seqs:
+            yield seq
+
+
+def _to_fasta(input = None, input_type = None):
     if input_type == 'file':
         f = open(input)
     elif input_type == 'url':
