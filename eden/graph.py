@@ -515,7 +515,16 @@ class Vectorizer(object):
             for label_index in range(G.graph['label_size']):
                 if radius<len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius<len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     #feature as a pair of neighbourhoods at a radius,distance 
-                    t = [G.node[v]['neighborhood_graph_hash'][label_index][radius],G.node[u]['neighborhood_graph_hash'][label_index][radius],radius,distance]
+                    #canonicazation of pair of neighborhoods
+                    v_hash = G.node[v]['neighborhood_graph_hash'][label_index][radius]
+                    u_hash = G.node[u]['neighborhood_graph_hash'][label_index][radius]
+                    if v_hash < u_hash:
+                        first_hash = v_hash
+                        second_hash = u_hash
+                    else:
+                        first_hash = u_hash
+                        second_hash = v_hash
+                    t = [first_hash,second_hash,radius,distance]
                     feature = util.fast_hash( t, self.bitmask )
                     key = util.fast_hash( [radius,distance], self.bitmask )
                     if G.graph.get('weighted',False) == False : #if self.weighted == False :
@@ -813,7 +822,7 @@ class Annotator(Vectorizer):
 
 class OnlineSimilarity(Vectorizer):
     def __init__(self,
-        graph = None,
+        ref_graph = None,
         vectorizer = Vectorizer()):
         """
         Purpose:
@@ -839,7 +848,7 @@ class OnlineSimilarity(Vectorizer):
         self.discretization_size = vectorizer.discretization_size
         self.discretization_dimension = vectorizer.discretization_dimension
         self.discretization_model_dict = vectorizer.discretization_model_dict
-        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0 , graph))
+        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0 , ref_graph))
 
     def predict(self,G_list):
         """
@@ -847,6 +856,8 @@ class OnlineSimilarity(Vectorizer):
         This is a generator.
         """
         for G in G_list:
+            if G.number_of_nodes() == 0:
+                raise Exception('ERROR: something went wrong, empty graph.')
             yield self._predict(G)
 
 
@@ -896,6 +907,8 @@ class OnlinePredictor(Vectorizer):
         This is a generator.
         """
         for G in G_list:
+            if G.number_of_nodes() == 0:
+                raise Exception('ERROR: something went wrong, empty graph.')
             yield self._predict(G)
 
 
