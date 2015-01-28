@@ -8,7 +8,7 @@ from sklearn.linear_model import SGDClassifier
 import numpy as np
 
 from eden import graph
-from eden.graphicalizer.graph import node_link_data
+from eden.converter.graph import node_link_data
 from eden.util import util, setup, eden_io
 
 DESCRIPTION = """
@@ -37,9 +37,14 @@ def setup_parameters(parser):
             and the abs(margin)
             """,
         default = 1)
-	parser.add_argument("-f", "--format",  choices = ["gspan", "node_link_data", "obabel"],
-    	help = "File format.", 
-    	default = "gspan")
+	parser.add_argument("-m", "--model-dir", 
+		dest = "model_dir_path", 
+		help = "Path to directory containing the predictive model. In case of a compressed archive, use the name without the .tar.gz suffix.",
+		default = "out")
+	parser.add_argument("-z", "--tar-gzip", 
+		dest = "tar_gzip",
+		help = "Use archived and compressed directory that serializes the vectorizer and the fitted predictive model.",
+		action = "store_true")
 	parser.add_argument("-o", "--output-dir", 
 		dest = "output_dir_path", 
 		help = "Path to output directory.",
@@ -54,12 +59,17 @@ def annotate(args):
 	"""
 	Annotate graphs using a predictive model.
 	"""
-	#load vectorizer
-	vec = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "vectorizer")
+	if args.tar_gzip:
+		out_file_name = args.model_dir_path + '.tar.gz'
+		logger.info('Unpacking: %s' % out_file_name)
+		archive = tarfile.open(out_file_name, "r|gz")
+		archive.extractall()
+
+	#load models
+	vec = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "vectorizer")
 	logger.info('Vectorizer: %s' % vec)
 
-	#load predictive model
-	clf = eden_io.load(output_dir_path = args.output_dir_path, out_file_name = "model")
+	clf = eden_io.load(output_dir_path = args.model_dir_path, out_file_name = "model")
 	logger.info('Model: %s' % clf)
 
 	#initialize annotator
@@ -76,6 +86,8 @@ def annotate(args):
 	serialized_list = [ line for line in node_link_data.eden_to_node_link_data(ann_g_list)]
 	
 	#save results
+	if not os.path.exists(args.output_dir_path) :
+		os.mkdir(args.output_dir_path)
 	full_out_file_name = os.path.join(args.output_dir_path, "annotated.nld")
 	with open(full_out_file_name, "w") as f:
 		f.write("\n".join(serialized_list))
