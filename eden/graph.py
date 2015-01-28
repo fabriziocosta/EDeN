@@ -276,8 +276,8 @@ class Vectorizer(object):
         row, col = [], []
         for j in the_dict.iterkeys():
             row.append( 0 )
-            col.append( int(j) )
-        vec = csr_matrix( (data,(row,col)), shape = (max(row)+1, self.feature_size))
+            col.append( int(hash(j) & self.bitmask) + 1)
+        vec = csr_matrix( (data,(row,col)), shape = (1, self.feature_size))
         return vec
 
 
@@ -311,12 +311,17 @@ class Vectorizer(object):
 
 
     def _transform_serial(self, G_list):
+        instance_id = 0
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
             if G is not None and G.number_of_nodes() > 0:
                 feature_dict.update(self._transform( instance_id, G ))
             else:
-                raise Exception('ERROR: something went wrong, empty graph at position %d.' % instance_id)
+                #fail silently
+                pass
+                #raise Exception('ERROR: something went wrong, empty graph at position %d.' % instance_id)
+        if instance_id == 0:
+            raise Exception('ERROR: something went wrong, no graphs are present in current iterator.')
         return self._convert_dict_to_sparse_matrix( feature_dict )
 
 
