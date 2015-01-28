@@ -72,24 +72,21 @@ modifiers = [label_modifier, weight_modifier]
 
 
 def contraction(graphs = None,  contraction_attribute = 'label', modifiers = modifiers, **options):
-	''' 
-		modifiers: list of dictionaries, each containing the keys: input, output and action.
-		"input" identifies the node attribute that is extracted from all contracted nodes.
-		"output" identifies the node attribute that is written in the resulting graph.
-		"action" is one of the following reduction operations: 
-		1. histogram, 
-		2. sum, 
-		3. average, 
-		4. categorical, 
-		5. set_categorical.
-		"histogram" returns a sparse vector with numerical hased keys, "sum" and "average" cast the values into floats before
-		computing the sum and average respectively, "categorical" returns the concatenation string of the
-		lexicographically sorted list of input attributes, "set_categorical" returns the concatenation string of the
-		lexicographically sorted set of input attributes.  
 	'''
-	nbits =  options.get('nbits',10)
-	bitmask = pow(2, nbits) - 1
-
+	modifiers: list of dictionaries, each containing the keys: input, output and action.
+	"input" identifies the node attribute that is extracted from all contracted nodes.
+	"output" identifies the node attribute that is written in the resulting graph.
+	"action" is one of the following reduction operations: 
+	1. histogram, 
+	2. sum, 
+	3. average, 
+	4. categorical, 
+	5. set_categorical.
+	"histogram" returns a sparse vector with numerical hased keys, "sum" and "average" cast the values into floats before
+	computing the sum and average respectively, "categorical" returns the concatenation string of the
+	lexicographically sorted list of input attributes, "set_categorical" returns the concatenation string of the
+	lexicographically sorted set of input attributes.  
+	'''
 	for g in graphs:
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
 		for n, d in g_contracted.nodes_iter(data = True):
@@ -98,7 +95,6 @@ def contraction(graphs = None,  contraction_attribute = 'label', modifiers = mod
 				raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
 			#store the dictionary of all contracted nodes dictionaries 
 			#g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
-			#process the action 
 			for modifier in modifiers:
 				modifier_func = contraction_modifer_map[modifier.action]
 				g_contracted.node[n][modifier.output] = modifier_func(input_attribute = modifier.input, graph = g, id_nodes = contracted)
