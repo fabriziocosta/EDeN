@@ -1,6 +1,5 @@
 import networkx as nx
-from collections import *
-
+from collections import Counter, namedtuple
 
 def edge_contraction(graph = None, node_attribute = None):
 	g = graph.copy()
@@ -38,11 +37,8 @@ def edge_contraction(graph = None, node_attribute = None):
 			break
 	return g
 
-def contraction_hash_func(str_input, bitmask): 
-	return abs(hash(str_input) & bitmask) + 1 
-
-def contraction_histogram(input_attribute = None, graph = None, id_nodes = None, bitmask = None):
-	labels = [contraction_hash_func(graph.node[v].get(input_attribute,'N/A'), bitmask) for v in id_nodes]
+def contraction_histogram(input_attribute = None, graph = None, id_nodes = None):
+	labels = [graph.node[v].get(input_attribute,'N/A') for v in id_nodes]
 	dict_label = dict(Counter(labels).most_common())
 	sparse_vec = {str(key):value for key,value in dict_label.iteritems()}
 	return sparse_vec
@@ -64,12 +60,28 @@ def contraction_set_categorical(input_attribute = None, graph = None, id_nodes =
 	return separator.join(vals)
 
 
-def contraction(graphs = None,  contraction_attribute = 'label', modifiers = [{'input':'type','output':'label','action':'set_categorical'},{'input':'weight','output':'weight','action':'sum'}], **options):
+contraction_modifer_map = {'histogram':contraction_histogram, 
+	'sum':contraction_sum, 
+	'average':contraction_average, 
+	'categorical':contraction_categorical,
+	'set_categorical': contraction_set_categorical}
+contraction_modifier = namedtuple('modifier', 'input output action')
+label_modifier = contraction_modifier(input='type', output='label', action='set_categorical')
+weight_modifier = contraction_modifier(input='weight', output='weight', action='sum')
+modifiers = [label_modifier, weight_modifier]
+
+
+def contraction(graphs = None,  contraction_attribute = 'label', modifiers = modifiers, **options):
 	''' 
 		modifiers: list of dictionaries, each containing the keys: input, output and action.
 		"input" identifies the node attribute that is extracted from all contracted nodes.
 		"output" identifies the node attribute that is written in the resulting graph.
-		"action" is one of the following reduction operations: histogram, sum, average, categorical, set_categorical.
+		"action" is one of the following reduction operations: 
+		1. histogram, 
+		2. sum, 
+		3. average, 
+		4. categorical, 
+		5. set_categorical.
 		"histogram" returns a sparse vector with numerical hased keys, "sum" and "average" cast the values into floats before
 		computing the sum and average respectively, "categorical" returns the concatenation string of the
 		lexicographically sorted list of input attributes, "set_categorical" returns the concatenation string of the
@@ -88,19 +100,6 @@ def contraction(graphs = None,  contraction_attribute = 'label', modifiers = [{'
 			#g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
 			#process the action 
 			for modifier in modifiers:
-				input  = modifier['input']
-				output = modifier['output']
-				action = modifier['action']
-				if action == 'histogram':
-					g_contracted.node[n][output] = contraction_histogram(input_attribute = input, graph = g, id_nodes = contracted, bitmask = bitmask)
-				elif action == 'sum':
-					g_contracted.node[n][output] = contraction_sum(input_attribute = input, graph = g, id_nodes = contracted)
-				elif action == 'average':
-					g_contracted.node[n][output] = contraction_average(input_attribute = input, graph = g, id_nodes = contracted)
-				elif action == 'categorical':
-					g_contracted.node[n][output] = contraction_categorical(input_attribute = input, graph = g, id_nodes = contracted)
-				elif action == 'set_categorical':
-					g_contracted.node[n][output] = contraction_set_categorical(input_attribute = input, graph = g, id_nodes = contracted)
-				else:
-					raise Exception('Unknown action type: %s' % action)
+				modifier_func = contraction_modifer_map[modifier.action]
+				g_contracted.node[n][modifier.output] = modifier_func(input_attribute = modifier.input, graph = g, id_nodes = contracted)
 		yield g_contracted

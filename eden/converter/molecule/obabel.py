@@ -41,10 +41,15 @@ def obabel_to_eden(input = None, input_type = None, options = dict()):
             tf.write(line)
         tf.close()
         f = tf.input
-    return _obabel_to_eden(f) 
+
+    file_type='sdf'
+    for mol in pb.readfile(file_type, f):
+        #remove hydrogens
+        mol.removeh()
+        yield obabel_to_networkx(mol)
 
 
-def obabel2networkx(mol):
+def obabel_to_networkx(mol):
     g = nx.Graph()
     #atoms
     for atom in mol:
@@ -59,10 +64,3 @@ def obabel2networkx(mol):
         helabel=[hash(str(elabel))]
         g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel)
     return g
-
-
-def _obabel_to_eden(infile, file_type='sdf'):    
-    for mol in pb.readfile(file_type, infile):
-        #remove hydrogens
-        mol.removeh()
-        yield obabel2networkx(mol)
