@@ -17,7 +17,6 @@ class Vectorizer(object):
     """
     Transforms vector labeled, weighted, nested graphs in sparse vectors.
     """
-
     def __init__(self,
         r = 3,
         d = 3,
