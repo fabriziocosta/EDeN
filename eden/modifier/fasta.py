@@ -6,7 +6,7 @@ def null_modifier(header = None, seq = None, **options):
     yield seq
 
 
-def to_fasta(input = None, input_type = None, modifier = null_modifier, **options):
+def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **options):
     lines = _to_fasta(input = input, input_type = input_type)
     for line in lines:
         header_in = line

@@ -1,5 +1,5 @@
 import networkx as nx
-from eden.modifier import fasta
+from eden.modifier.fasta import fasta_to_fasta
 
 
 def seq_to_networkx(line, **options):
@@ -13,7 +13,7 @@ def seq_to_networkx(line, **options):
 
 
 def fasta_to_eden(input = None, input_type = None, **options):
-    lines = fasta.to_fasta(input = input, input_type = input_type)
+    lines = fasta_to_fasta(input = input, input_type = input_type)
     for line in lines:
         header = line
         seq = lines.next()
