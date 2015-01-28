@@ -26,8 +26,9 @@ def word_sequence_to_eden(input = None, input_type = None, options = dict()):
         f = requests.get(input).text.split('\n')
     elif input_type == "list":
         f = input
-    return _word_sequence_to_eden(f)        
-   
+
+    for word_sequence in f:
+        yield word_sequence_to_networkx(word_sequence)
 
 def word_sequence_to_networkx(line):
     G = nx.Graph()
@@ -37,8 +38,3 @@ def word_sequence_to_networkx(line):
             G.add_edge(id-1, id, label = '-')
     assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
     return G
-
-
-def _word_sequence_to_eden(data_list):
-    for word_sequence in data_list:
-        yield word_sequence_to_networkx(word_sequence)
