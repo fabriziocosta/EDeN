@@ -1,7 +1,22 @@
 import numpy as np
 from scipy import io
 from sklearn.externals import joblib
+import requests
 import os
+
+def read( uri ):
+    """
+    Abstract read function. EDeN can accept a URL, a file path and a python list.
+    In all cases an iteratatable object should be returned.
+    """
+    if type(uri) == list:
+        return uri
+    else:
+        try:
+            f = requests.get( uri ).text.split('\n')
+        except ValueError:
+            f = open( uri )
+        return f
 
 
 def load_target(name, input_type = 'url'):
