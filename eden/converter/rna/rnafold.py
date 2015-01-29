@@ -22,11 +22,11 @@ def string_to_networkx(sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
     G = nx.Graph()
     lifo = list()
-    i=0;
-    for c,b in zip(seq_info, seq_struct):
+
+    for i,c,b in enumerate( zip(seq_info, seq_struct) ):
         G.add_node(i)
         G.node[i]['label'] = c
-        G.node[i]['position'] = i            
+        G.node[i]['position'] = i
         if i > 0:
             G.add_edge(i,i-1)
             G.edge[i][i-1]['label'] = '-'
@@ -38,12 +38,12 @@ def string_to_networkx(sequence, **options):
             G.add_edge(i,j)
             G.edge[i][j]['label'] = '='
             G.edge[i][j]['type'] = 'basepair'
-        i+=1
+
     return G
 
 
-def rnafold_to_eden(input = None, input_type = None, **options):
-    lines =  fasta_to_fasta(input = input, input_type = input_type)
+def rnafold_to_eden(input = None, **options):
+    lines =  fasta_to_fasta(input = input)
     for line in lines:
         header = line
         seq = lines.next()
