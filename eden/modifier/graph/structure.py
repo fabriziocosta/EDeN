@@ -65,7 +65,7 @@ contraction_modifer_map = {'histogram':contraction_histogram,
 	'average':contraction_average, 
 	'categorical':contraction_categorical,
 	'set_categorical': contraction_set_categorical}
-contraction_modifier = namedtuple('modifier', 'attribute_in attribute_out reduction')
+contraction_modifier = namedtuple('contraction_modifier', 'attribute_in attribute_out reduction')
 label_modifier = contraction_modifier(attribute_in='type', attribute_out='label', reduction='set_categorical')
 weight_modifier = contraction_modifier(attribute_in='weight', attribute_out='weight', reduction='sum')
 modifiers = [label_modifier, weight_modifier]
