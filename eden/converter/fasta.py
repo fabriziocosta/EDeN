@@ -12,8 +12,8 @@ def seq_to_networkx(line, **options):
     return G
 
 
-def fasta_to_eden(input = None, input_type = None, **options):
-    lines = fasta_to_fasta(input = input, input_type = input_type)
+def fasta_to_eden(input = None, **options):
+    lines = fasta_to_fasta(input = input)
     for line in lines:
         header = line
         seq = lines.next()
