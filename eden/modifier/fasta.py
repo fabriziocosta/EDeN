@@ -6,7 +6,7 @@ def null_modifier(header = None, seq = None, **options):
     yield seq
 
 
-def fasta_to_fasta(input = None, modifier = null_modifier, **options):
+def fasta_to_fasta(input, modifier = null_modifier, **options):
     """
     Takes a FASTA file yields a normalised FASTA file.
 
@@ -15,7 +15,7 @@ def fasta_to_fasta(input = None, modifier = null_modifier, **options):
     input : string
         A pointer to the data source.
     """
-    lines = _fasta_to_fasta(input = input)
+    lines = _fasta_to_fasta(input)
     for line in lines:
         header_in = line
         seq_in = lines.next()
