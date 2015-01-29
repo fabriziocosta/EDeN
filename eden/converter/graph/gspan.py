@@ -1,7 +1,8 @@
 import json
 import networkx as nx
+from eden import util
 
-def gspan_to_eden(input = None, input_type = None, options = dict()):
+def gspan_to_eden(input = None, options = dict()):
     """
     Takes a string list in the extended gSpan format and yields networkx graphs.
 
@@ -10,27 +11,21 @@ def gspan_to_eden(input = None, input_type = None, options = dict()):
     input : string
         A pointer to the data source.
 
-    input_type : ['url','file','string_file']
-        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'string_file' then 'input' is interpreted as a file name for a file 
-        that contains strings rather than integers. The set of strings are mapped to 
-        unique increasing integers and the corresponding vector of integers is returned.
     """
 
-    input_types = ['url','file','list']
-    assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
+    string_list = []
+    for line in util.read( input ):
+        if line.strip():
+            if line[0] in ['g','t']:
+                if string_list:
+                    yield gspan_to_networkx(string_list)
+                string_list = []
+            string_list += [line]
 
-    if input_type == 'file':
-        f = open(input,'r')
-    elif input_type == 'url':
-        import requests
-        f = requests.get(input).text.split('\n')
-    elif input_type == "list":
-        f = input
-    return _gspan_to_eden(f)        
-   
-   
+    if string_list:
+        yield gspan_to_networkx(string_list)
+
+
 def gspan_to_networkx(string_list):
     G = nx.Graph()
     for line in string_list:
@@ -65,19 +60,6 @@ def gspan_to_networkx(string_list):
                 if attribute_str.strip():
                     attribute_dict=json.loads(attribute_str)
                     G.edge[srcid][destid].update(attribute_dict)
-    assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
+    assert(len(G) > 0 ),'ERROR: generated empty graph. Perhaps wrong format?'
     return G
 
-
-def _gspan_to_eden(data_str_list):
-    string_list = []
-    for line in data_str_list:
-        if line.strip():
-            if line[0] in ['g','t']:
-                if len(string_list) != 0:
-                    yield gspan_to_networkx(string_list)
-                string_list = []
-            string_list += [line]
-
-    if len(string_list) != 0:
-        yield gspan_to_networkx(string_list)
