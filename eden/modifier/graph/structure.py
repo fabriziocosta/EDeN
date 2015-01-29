@@ -82,10 +82,10 @@ def contraction(graphs = None,  contraction_attribute = 'label', modifiers = mod
 	3. average, 
 	4. categorical, 
 	5. set_categorical.
-	"histogram" returns a sparse vector with numerical hased keys, "sum" and "average" cast the values into floats before
-	computing the sum and average respectively, "categorical" returns the concatenation string of the
-	lexicographically sorted list of input attributes, "set_categorical" returns the concatenation string of the
-	lexicographically sorted set of input attributes.  
+	"histogram" returns a sparse vector with numerical hased keys, 
+	"sum" and "average" cast the values into floats before computing the sum and average respectively, 
+	"categorical" returns the concatenation string of the lexicographically sorted list of input attributes, 
+	"set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
 	'''
 	for g in graphs:
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
