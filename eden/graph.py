@@ -302,8 +302,7 @@ class Vectorizer(object):
             n_jobs = None
         pool = multiprocessing.Pool(n_jobs)
         for instance_id , G in enumerate(G_list):
-            if G is not None:
-                util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
+            util.apply_async(pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
         return self._convert_dict_to_sparse_matrix( feature_dict )
@@ -313,12 +312,7 @@ class Vectorizer(object):
         instance_id = 0
         feature_dict={}
         for instance_id , G in enumerate( G_list ):
-            if G is not None and G.number_of_nodes() > 0:
-                feature_dict.update(self._transform( instance_id, G ))
-            else:
-                #fail silently
-                pass
-                #raise Exception('ERROR: something went wrong, empty graph at position %d.' % instance_id)
+            feature_dict.update(self._transform( instance_id, G ))
         if instance_id == 0:
             raise Exception('ERROR: something went wrong, no graphs are present in current iterator.')
         return self._convert_dict_to_sparse_matrix( feature_dict )
@@ -454,6 +448,8 @@ class Vectorizer(object):
 
 
     def _transform(self, instance_id , G_orig):
+        if G_orig is None or G_orig.number_of_nodes() == 0:
+            raise Exception('ERROR: something went wrong, empty instance at position %d.' % instance_id)
         G = self._graph_preprocessing(G_orig)
         #collect all features for all vertices for each  label_index
         feature_list = defaultdict(lambda : defaultdict(float))
@@ -821,7 +817,7 @@ class Annotator(Vectorizer):
 
 class OnlineSimilarity(Vectorizer):
     def __init__(self,
-        ref_graph = None,
+        ref_instance = None,
         vectorizer = Vectorizer()):
         """
         Purpose:
@@ -847,7 +843,7 @@ class OnlineSimilarity(Vectorizer):
         self.discretization_size = vectorizer.discretization_size
         self.discretization_dimension = vectorizer.discretization_dimension
         self.discretization_model_dict = vectorizer.discretization_model_dict
-        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0 , ref_graph))
+        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0 , ref_instance))
 
     def predict(self,G_list):
         """
