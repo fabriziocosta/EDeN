@@ -1,7 +1,7 @@
 import networkx as nx
 from eden import util
 
-def word_sequence_to_eden(input = None, input_type = None, options = dict()):
+def word_sequence_to_eden(input = None, options = dict()):
     """
     Takes a list of strings, splits each string in words and yields networkx graphs.
 
