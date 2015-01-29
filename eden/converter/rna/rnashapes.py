@@ -26,7 +26,7 @@ def string_to_networkx(sequence, **options):
     for seq_struct in seq_struct_list:
         G = nx.Graph()
         lifo = list()
-        for c,b in enumerate( zip(seq_info, seq_struct) ):
+        for i, (c,b) in enumerate( zip(seq_info, seq_struct) ):
             G.add_node(i)
             G.node[i]['label'] = c
             G.node[i]['position'] = i
@@ -45,8 +45,8 @@ def string_to_networkx(sequence, **options):
     return G_global
 
 
-def rnashapes_to_eden(input = None, **options):
-    lines =  fasta_to_fasta(input = input)
+def rnashapes_to_eden(input, **options):
+    lines =  fasta_to_fasta(input)
     for line in lines:
         header = line
         seq = lines.next()
