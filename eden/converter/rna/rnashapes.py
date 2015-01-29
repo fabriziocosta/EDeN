@@ -26,7 +26,7 @@ def string_to_networkx(sequence, **options):
     for seq_struct in seq_struct_list:
         G = nx.Graph()
         lifo = list()
-        for i, (c,b) in enumerate( zip(seq_info, seq_struct) ):
+        for i,(c,b) in enumerate( zip(seq_info, seq_struct) ):
             G.add_node(i)
             G.node[i]['label'] = c
             G.node[i]['position'] = i
