@@ -65,18 +65,18 @@ contraction_modifer_map = {'histogram':contraction_histogram,
 	'average':contraction_average, 
 	'categorical':contraction_categorical,
 	'set_categorical': contraction_set_categorical}
-contraction_modifier = namedtuple('modifier', 'input output action')
-label_modifier = contraction_modifier(input='type', output='label', action='set_categorical')
-weight_modifier = contraction_modifier(input='weight', output='weight', action='sum')
+contraction_modifier = namedtuple('modifier', 'attribute_in attribute_out reduction')
+label_modifier = contraction_modifier(attribute_in='type', attribute_out='label', reduction='set_categorical')
+weight_modifier = contraction_modifier(attribute_in='weight', attribute_out='weight', reduction='sum')
 modifiers = [label_modifier, weight_modifier]
 
 
 def contraction(graphs = None,  contraction_attribute = 'label', modifiers = modifiers, **options):
 	'''
-	modifiers: list of dictionaries, each containing the keys: input, output and action.
-	"input" identifies the node attribute that is extracted from all contracted nodes.
-	"output" identifies the node attribute that is written in the resulting graph.
-	"action" is one of the following reduction operations: 
+	modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
+	"attribute_in" identifies the node attribute that is extracted from all contracted nodes.
+	"attribute_out" identifies the node attribute that is written in the resulting graph.
+	"reduction" is one of the following reduction operations: 
 	1. histogram, 
 	2. sum, 
 	3. average, 
@@ -96,6 +96,6 @@ def contraction(graphs = None,  contraction_attribute = 'label', modifiers = mod
 			#store the dictionary of all contracted nodes dictionaries 
 			#g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
 			for modifier in modifiers:
-				modifier_func = contraction_modifer_map[modifier.action]
-				g_contracted.node[n][modifier.output] = modifier_func(input_attribute = modifier.input, graph = g, id_nodes = contracted)
+				modifier_func = contraction_modifer_map[modifier.reduction]
+				g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute = modifier.attribute_in, graph = g, id_nodes = contracted)
 		yield g_contracted
