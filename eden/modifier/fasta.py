@@ -20,7 +20,7 @@ def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **
         If type is 'file' then 'input' is interpreted as a file name.
         If type is 'list' then 'input' is interpreted as a list of strings. This is the default.
     """
-    lines = _to_fasta(input = input, input_type = input_type)
+    lines = _fasta_to_fasta(input = input, input_type = input_type)
     for line in lines:
         header_in = line
         seq_in = lines.next()
@@ -29,7 +29,7 @@ def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **
             yield seq
 
 
-def _to_fasta(input = None, input_type = None):
+def _fasta_to_fasta(input = None, input_type = None):
     if input_type == 'file':
         f = open(input)
     elif input_type == 'url':
@@ -61,12 +61,16 @@ def _to_fasta(input = None, input_type = None):
 
 def one_line_modifier(header = None, seq = None, **options):
     header_only = options.get('header_only',False)
-    one_line = options.get('one_line',True)
+    sequence_only = options.get('sequence_only',False)
+    one_line = options.get('one_line',False)
     if one_line:
         yield  header + '\t' + seq
-    if header_only:
+    elif header_only:
         yield header
-        
+    elif sequence_only:
+        yield seq
+    else:
+        raise Exception('ERROR: One of the options must be active.')    
 
 def insert_landmark_modifier(header = None, seq = None, **options):
     landmark_relative_position = options.get('landmark_relative_position',0.5)
