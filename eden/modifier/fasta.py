@@ -52,7 +52,7 @@ def one_line_modifier(header = None, seq = None, **options):
         yield  header + '\t' + seq
     if header_only:
         yield header
-        
+
 
 def insert_landmark_modifier(header = None, seq = None, **options):
     landmark_relative_position = options.get('landmark_relative_position',0.5)
@@ -68,7 +68,7 @@ def shuffle_modifier(header = None, seq = None, **options):
     for i in range(times):
         seq_mod = [c for c in seq]
         random.shuffle(seq_mod)
-        seq_out = ''.join(seq_mod)      
+        seq_out = ''.join(seq_mod)
         yield header
         yield seq_out
 
