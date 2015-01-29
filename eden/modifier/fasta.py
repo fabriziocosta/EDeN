@@ -33,14 +33,14 @@ def _to_fasta( input ):
             if _line[0] == '>':
                 #extract string from header
                 header = _line 
-                if len(seq) > 0:
+                if seq:
                     yield prev_header
                     yield seq
                 seq = ''
                 prev_header = header
             else:
                 seq += _line
-    if len(seq) > 0:
+    if seq:
         yield prev_header
         yield seq
 
