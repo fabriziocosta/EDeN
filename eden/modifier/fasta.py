@@ -1,12 +1,12 @@
 import random
-
+from eden import util
 
 def null_modifier(header = None, seq = None, **options):
     yield header
     yield seq
 
 
-def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **options):
+def fasta_to_fasta(input = None, modifier = null_modifier, **options):
     """
     Takes a FASTA file yields a normalised FASTA file.
 
@@ -14,13 +14,8 @@ def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **
     ----------
     input : string
         A pointer to the data source.
-
-    input_type : ['url','file','string_file']
-        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'list' then 'input' is interpreted as a list of strings. This is the default.
     """
-    lines = _fasta_to_fasta(input = input, input_type = input_type)
+    lines = _fasta_to_fasta(input = input)
     for line in lines:
         header_in = line
         seq_in = lines.next()
@@ -29,32 +24,22 @@ def fasta_to_fasta(input = None, input_type = None, modifier = null_modifier, **
             yield seq
 
 
-def _fasta_to_fasta(input = None, input_type = None):
-    if input_type == 'file':
-        f = open(input)
-    elif input_type == 'url':
-        import requests
-        f = requests.get(input).text.split('\n')
-    elif input_type == 'list':
-        f = input
-    else:
-        raise Exception('Unknown type: %s' % input_type)
-
+def _fasta_to_fasta( input ):
     seq = ''
-    for line in f:
+    for line in util.read( input ):
         _line = line.strip()
         if _line:
             if _line[0] == '>':
                 #extract string from header
                 header = _line 
-                if len(seq) > 0:
+                if seq:
                     yield prev_header
                     yield seq
                 seq = ''
                 prev_header = header
             else:
                 seq += _line
-    if len(seq) > 0:
+    if seq:
         yield prev_header
         yield seq
 
@@ -72,6 +57,7 @@ def one_line_modifier(header = None, seq = None, **options):
     else:
         raise Exception('ERROR: One of the options must be active.')    
 
+
 def insert_landmark_modifier(header = None, seq = None, **options):
     landmark_relative_position = options.get('landmark_relative_position',0.5)
     landmark_char =  options.get('landmark_char','@')
@@ -86,7 +72,7 @@ def shuffle_modifier(header = None, seq = None, **options):
     for i in range(times):
         seq_mod = [c for c in seq]
         random.shuffle(seq_mod)
-        seq_out = ''.join(seq_mod)        
+        seq_out = ''.join(seq_mod)
         yield header
         yield seq_out
 
