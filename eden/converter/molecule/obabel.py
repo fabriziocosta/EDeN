@@ -1,10 +1,10 @@
 import openbabel as ob
-import pybel as pb
+import pybel
 import json
 import networkx as nx
 from networkx.readwrite import json_graph
 
-def obabel_to_eden(input = None, input_type = None, options = dict()):
+def obabel_to_eden(input, file_type = 'sdf', **options):
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
@@ -13,43 +13,28 @@ def obabel_to_eden(input = None, input_type = None, options = dict()):
     input : string
         A pointer to the data source.
 
-    input_type : ['url','file','string_file']
-        If type is 'url' then 'input' is interpreted as a URL pointing to a file.
-        If type is 'file' then 'input' is interpreted as a file name.
-        If type is 'string_file' then 'input' is interpreted as a file name for a file 
-        that contains strings rather than integers. The set of strings are mapped to 
-        unique increasing integers and the corresponding vector of integers is returned.
     """
 
-    input_types = ['url','file','list']
-    assert(input_type in input_types),'ERROR: input_type must be one of %s ' % input_types
+    if type( input ) == file:
+        input.close()
+        input_path = input.name
+    else:
+        temp_file = tempfile.NamedTemporaryFile( delete = False )
+        for line in temp_file:
+            temp_file.write(line)
+        temp_file.close()
+        input_path = temp_file.name
 
-
-    if input_type == 'file':
-         f = input
-    elif input_type == 'url':
-        import requests
-        rf=requests.get(input).text.split('\n')
-        tf = inputdTemporaryFile(delete = False)
-        for line in rf:
-            tf.write(line)
-        tf.close()
-        f = tf.input
-    elif input_type == "list":
-        tf = inputdTemporaryFile(delete = False)
-        for line in input:
-            tf.write(line)
-        tf.close()
-        f = tf.input
-
-    file_type='sdf'
-    for mol in pb.readfile(file_type, f):
+    for mol in pybel.readfile(file_type, input_path):
         #remove hydrogens
         mol.removeh()
         yield obabel_to_networkx(mol)
 
 
-def obabel_to_networkx(mol):
+def obabel_to_networkx( mol ):
+    """
+    Takes a pybel molecule object and converts it into a networkx graph.
+    """
     g = nx.Graph()
     #atoms
     for atom in mol:
@@ -60,7 +45,7 @@ def obabel_to_networkx(mol):
         edges = []
     bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
-        elabel=bond.GetBO()
-        helabel=[hash(str(elabel))]
-        g.add_edge(bond.GetBeginAtomIdx(),bond.GetEndAtomIdx(), label=elabel, hlabel=helabel)
+        elabel = bond.GetBO()
+        helabel = [hash(str(elabel))]
+        g.add_edge( bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label = elabel, hlabel = helabel )
     return g
