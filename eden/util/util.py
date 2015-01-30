@@ -1,5 +1,5 @@
 import dill
-from itertools import *
+from itertools import izip_longest
 
 def run_dill_encoded(what):
     """
@@ -55,8 +55,9 @@ def report_base_statistics(vec):
         msg += "class: %s count:%d (%0.2f)\t"% (k, c[k], c[k]/float(len(vec)))
     return msg
 
+
 def grouper(iterable, n, fillvalue = None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
-    return izip_longest(*args, fillvalue=fillvalue)
+    return izip_longest( *args, fillvalue = fillvalue )

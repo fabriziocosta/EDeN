@@ -41,7 +41,7 @@ class Vectorizer():
         return representation
 
 
-    def transform(self, seq_list, n_jobs = 1):
+    def transform(self, seq_list, n_jobs = -1):
         """
         Parameters
         ----------
