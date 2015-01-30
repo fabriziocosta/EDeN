@@ -101,7 +101,7 @@ class Vectorizer(object):
         return representation
 
 
-    def fit(self, G_list, n_jobs = 1):
+    def fit(self, G_list, n_jobs = -1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -131,7 +131,7 @@ class Vectorizer(object):
                 self.discretization_model_dict[node_class] += [discretization_model]
 
 
-    def fit_transform(self, G_list, n_jobs = 1):
+    def fit_transform(self, G_list, n_jobs = -1):
         """
 
         Parameters
@@ -143,11 +143,12 @@ class Vectorizer(object):
             Number of jobs to run in parallel (default 1).
             Use -1 to indicate the total number of CPUs available.
         """
-        self.fit(G_list, n_jobs = n_jobs)
-        return self.transform(G_list, n_jobs = n_jobs)
+        G_list_fit, G_list_transf = itertools.tee(G_list)
+        self.fit(G_list_fit, n_jobs = n_jobs)
+        return self.transform(G_list_transf, n_jobs = n_jobs)
 
 
-    def transform(self, G_list, n_jobs = 1, block_size = -1):
+    def transform(self, G_list, n_jobs = -1, block_size = -1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -180,7 +181,7 @@ class Vectorizer(object):
             return X
 
 
-    def _transform_block(self, G_list, n_jobs = 1):
+    def _transform_block(self, G_list, n_jobs = -1):
         if n_jobs == 1:
             return self._transform_serial(G_list)
         else:
@@ -990,7 +991,7 @@ class ListVectorizer(object):
         self.vectorizers = list()
 
 
-    def fit(self, G_iterators_list, n_jobs = 1):
+    def fit(self, G_iterators_list, n_jobs = -1):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -1005,7 +1006,7 @@ class ListVectorizer(object):
             self.vectorizers[i].fit(graphs, n_jobs = n_jobs)
 
 
-    def fit_transform(self, G_iterators_list, weights = list(), n_jobs = 1):
+    def fit_transform(self, G_iterators_list, weights = list(), n_jobs = -1):
         """ 
 
         Parameters
@@ -1020,7 +1021,7 @@ class ListVectorizer(object):
         return self.transform(G_iterators_list, weights, n_jobs = n_jobs)
 
 
-    def transform(self, G_iterators_list, weights = list(), n_jobs = 1):
+    def transform(self, G_iterators_list, weights = list(), n_jobs = -1):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         (Compressed Sparse Row matrix).
@@ -1048,4 +1049,3 @@ class ListVectorizer(object):
             else:
                 X = X + X_curr * weights[i]
         return X
-

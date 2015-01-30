@@ -57,10 +57,12 @@ def incident_node_label(graph_list = None, output_attribute = 'type', separator 
 
 
 def translate(graph_list = None, input_attribute = 'label', output_attribute = 'label', label_map = dict(), default = ' '):
+	original_attribute = input_attribute + '_original'
 	for g in graph_list:
 		#iterate over nodes
 		for n, d in g.nodes_iter(data = True):
 			key = d.get(input_attribute,default)
+			g.node[n][original_attribute] = key
 			mapped_attribute = label_map.get(key,default)
 			g.node[n][output_attribute] = mapped_attribute
 		yield g
