@@ -48,8 +48,9 @@ def one_line_modifier(header = None, seq = None, **options):
     header_only = options.get('header_only',False)
     sequence_only = options.get('sequence_only',False)
     one_line = options.get('one_line',False)
+    one_line_separator = options.get('one_line_separator','\t')
     if one_line:
-        yield  header + '\t' + seq
+        yield  header + one_line_separator + seq
     elif header_only:
         yield header
     elif sequence_only:
