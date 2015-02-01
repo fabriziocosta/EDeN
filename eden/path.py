@@ -203,7 +203,7 @@ class OnlineSimilarity(Vectorizer):
 
 
 
-class OnlinePredictor(Vectorizer):
+class OutOfCorePredictor(Vectorizer):
     def __init__(self,
         estimator = SGDClassifier(),
         vectorizer = Vectorizer()):
