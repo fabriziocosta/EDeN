@@ -70,3 +70,43 @@ def load(output_dir_path = '', out_file_name = ''):
     full_out_file_name = os.path.join(output_dir_path, out_file_name) + ".pkl"
     obj=joblib.load(full_out_file_name) 
     return obj
+
+
+from sklearn.linear_model import SGDClassifier
+from sklearn.grid_search import RandomizedSearchCV
+from sklearn import cross_validation
+from scipy.stats import randint
+from scipy.stats import uniform
+import numpy as np
+from scipy import stats
+
+def estimate_predictive_performance(X,y):
+    predictor = SGDClassifier()
+    #hyperparameter optimization
+    param_dist = {"n_iter": randint(5, 100),
+                  "power_t": uniform(0.1),
+                  "alpha": uniform(1e-08,1e-03),
+                  "eta0" : uniform(1e-03,10),
+                  "penalty": ["l1", "l2", "elasticnet"],
+                  "learning_rate": ["invscaling", "constant","optimal"]}
+    scoring = 'roc_auc'
+    n_iter_search = 20
+    random_search = RandomizedSearchCV(predictor,param_distributions=param_dist,n_iter=n_iter_search,cv=5,scoring=scoring,n_jobs=8)
+    random_search.fit(X, y)
+    optpredictor= SGDClassifier(shuffle=True, n_jobs=-1, **random_search.best_params_)
+    #fit the predictor on all available data
+    optpredictor.fit(X,y)
+    
+    
+    print 'Classifier:'
+    print optpredictor
+    print '-'*73
+
+    print 'Predictive performance:'
+    #assess the generalization capacity of the model via a 10-fold cross validation
+    for scoring in ['accuracy','precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+        scores = cross_validation.cross_val_score(optpredictor, X, y,cv=10, scoring=scoring, n_jobs=8)
+        print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores),np.std(scores)))
+    print '-'*73
+    
+    return optpredictor

@@ -27,7 +27,7 @@ def fasta_to_fasta(input, modifier = null_modifier, **options):
 def _fasta_to_fasta( input ):
     seq = ''
     for line in util.read( input ):
-        _line = line.strip()
+        _line = str(line).strip()
         if _line:
             if _line[0] == '>':
                 #extract string from header
