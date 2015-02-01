@@ -816,7 +816,7 @@ class Annotator(Vectorizer):
         return X
 
 
-class OnlineSimilarity(Vectorizer):
+class OutOfCoreSimilarity(Vectorizer):
     def __init__(self,
         ref_instance = None,
         vectorizer = Vectorizer()):
@@ -865,7 +865,7 @@ class OnlineSimilarity(Vectorizer):
 
 
 
-class OnlinePredictor(Vectorizer):
+class OutOfCorePredictor(Vectorizer):
     def __init__(self,
         estimator = SGDClassifier(),
         vectorizer = Vectorizer()):
