@@ -1017,8 +1017,9 @@ class ListVectorizer(object):
         weights : list of positive real values.
             Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.     
         """
-        self.fit(G_iterators_list, n_jobs = n_jobs)
-        return self.transform(G_iterators_list, weights, n_jobs = n_jobs)
+        G_iterators_list_fit, G_iterators_list_transf = itertools.tee( G_iterators_list )
+        self.fit( G_iterators_list_fit, n_jobs = n_jobs )
+        return self.transform( G_iterators_list_transf, n_jobs = n_jobs )
 
 
     def transform(self, G_iterators_list, weights = list(), n_jobs = -1):
