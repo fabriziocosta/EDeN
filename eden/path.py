@@ -156,7 +156,7 @@ class Vectorizer():
 
 
 
-class OnlineSimilarity(Vectorizer):
+class OutOfCoreSimilarity(Vectorizer):
     def __init__(self,
         ref_instance = None,
         vectorizer = Vectorizer()):
