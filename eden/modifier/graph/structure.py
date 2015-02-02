@@ -92,8 +92,10 @@ def contraction(graphs = None,  contraction_attribute = 'label', nesting = False
 		for i, (n, d) in enumerate( g.nodes_iter( data = True ) ):
 			if d.get('position',None) is None:
 				g.node[n]['position'] = i
+		#compute contraction
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
 		for n, d in g_contracted.nodes_iter(data = True):
+			#get list of contracted node ids
 			contracted = d.get('contracted',None)
 			if contracted is None:
 				raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
@@ -102,7 +104,7 @@ def contraction(graphs = None,  contraction_attribute = 'label', nesting = False
 				g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute = modifier.attribute_in, graph = g, id_nodes = contracted)
 		if nesting: #add nesting edges between the constraction graph and the original graph 
 			g_nested = nx.disjoint_union(g, g_contracted)
-			#rewire
+			#rewire contracted graph to the original graph
 			for n, d in g_nested.nodes_iter(data = True):
 				contracted = d.get('contracted',None)
 				if contracted:
