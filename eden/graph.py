@@ -11,6 +11,7 @@ from operator import attrgetter, itemgetter
 import itertools
 import networkx as nx
 import multiprocessing
+import copy
 from eden.util import util
 
 class Vectorizer(object):
@@ -192,6 +193,7 @@ class Vectorizer(object):
         #from each vertex extract the node_class and the label as a list and return a  
         #dict with node_class as key and the vector associated to each vertex 
         label_data_dict = defaultdict( lambda : list( list() ) )
+        #transform edges to vertices to capture labels on edges too
         G=self._edge_to_vertex_transform(G_orig)
         #for all types in every node of every graph
         for n, d in G.nodes_iter(data = True):
