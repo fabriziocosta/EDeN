@@ -71,7 +71,7 @@ weight_modifier = contraction_modifier(attribute_in='weight', attribute_out='wei
 modifiers = [label_modifier, weight_modifier]
 
 
-def contraction(graphs = None,  contraction_attribute = 'label', modifiers = modifiers, **options):
+def contraction(graphs = None,  contraction_attribute = 'label', nesting = False, modifiers = modifiers, **options):
 	'''
 	modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
 	"attribute_in" identifies the node attribute that is extracted from all contracted nodes.
@@ -88,14 +88,26 @@ def contraction(graphs = None,  contraction_attribute = 'label', modifiers = mod
 	"set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
 	'''
 	for g in graphs:
+		#check for 'position' attribute and add it if not present
+		for i, (n, d) in enumerate( g.nodes_iter( data = True ) ):
+			if d.get('position',None) is None:
+				g.node[n]['position'] = i
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
 		for n, d in g_contracted.nodes_iter(data = True):
 			contracted = d.get('contracted',None)
 			if contracted is None:
 				raise Exception('Empty contraction list for: id %d data: %s' % (n,d))
-			#store the dictionary of all contracted nodes dictionaries 
-			#g_contracted.node[n]['contracted_dicts'] = {v:g.node[v] for v in contracted}
 			for modifier in modifiers:
 				modifier_func = contraction_modifer_map[modifier.reduction]
 				g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute = modifier.attribute_in, graph = g, id_nodes = contracted)
-		yield g_contracted
+		if nesting: #add nesting edges between the constraction graph and the original graph 
+			g_nested = nx.disjoint_union(g, g_contracted)
+			#rewire
+			for n, d in g_nested.nodes_iter(data = True):
+				contracted = d.get('contracted',None)
+				if contracted:
+					for m in contracted:
+						g_nested.add_edge( n, m, label = '.', nesting = True )
+			yield g_nested
+		else:
+			yield g_contracted
