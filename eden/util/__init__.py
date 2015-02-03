@@ -13,7 +13,7 @@ from scipy import stats
 
 
 def estimate_predictive_performance(X,y, cv = 10):
-    predictor = SGDClassifier()
+    predictor = SGDClassifier(class_weight='auto', shuffle = True, n_jobs = -1)
     #hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -25,7 +25,7 @@ def estimate_predictive_performance(X,y, cv = 10):
     n_iter_search = 20
     random_search = RandomizedSearchCV( predictor, param_distributions = param_dist, n_iter = n_iter_search, cv = cv, scoring = scoring, n_jobs = -1 )
     random_search.fit( X, y )
-    optpredictor= SGDClassifier( shuffle = True, n_jobs = -1, **random_search.best_params_ )
+    optpredictor= SGDClassifier( class_weight='auto', shuffle = True, n_jobs = -1, **random_search.best_params_ )
     #fit the predictor on all available data
     optpredictor.fit( X, y ) 
     
