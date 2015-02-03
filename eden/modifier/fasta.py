@@ -70,10 +70,11 @@ def insert_landmark_modifier(header = None, seq = None, **options):
 
 def shuffle_modifier(header = None, seq = None, **options):
     times =  options.get('times',1)
+    order =  options.get('order',1)
     for i in range(times):
-        seq_mod = [c for c in seq]
-        random.shuffle(seq_mod)
-        seq_out = ''.join(seq_mod)
+        kmers = [ seq[i:i+order] for i in range(0,len(seq),order) ]
+        random.shuffle(kmers)
+        seq_out = ''.join(kmers)
         yield header
         yield seq_out
 
