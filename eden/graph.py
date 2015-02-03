@@ -733,7 +733,7 @@ class Annotator(Vectorizer):
           then it is left untouched: this allows an iterative application of the relabeling procedure while 
           preserving the original information. 
         """
-        self._estimator = estimator
+        self.estimator = estimator
         self.reweight = reweight
         self.relabel_vertex_with_vector = relabel_vertex_with_vector
         self.r = vectorizer.r
@@ -796,12 +796,12 @@ class Annotator(Vectorizer):
 
     def _annotate_importance(self, G, X):
         # compute distance from hyperplane as proxy of vertex importance
-        if self._estimator is None:
+        if self.estimator is None:
             # if we do not provide an estimator then consider default margin of
             # 1 for all vertices
             margins = np.array([1] * X.shape[0])
         else:
-            margins = self._estimator.decision_function(X)
+            margins = self.estimator.decision_function(X)
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in G.nodes_iter(data=True):
@@ -908,7 +908,7 @@ class OutOfCorePredictor(Vectorizer):
 
         vectorizer : EDeN graph vectorizer 
         """
-        self._estimator = estimator
+        self.estimator = estimator
         self.r = vectorizer.r
         self.d = vectorizer.d
         self.min_r = vectorizer.min_r
@@ -932,12 +932,12 @@ class OutOfCorePredictor(Vectorizer):
             self._test_goodness(G)
             # extract feature vector
             x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
-            margins = self._estimator.decision_function(x)
+            margins = self.estimator.decision_function(x)
             prediction = margins[0]
             yield prediction
 
 
-class ListVectorizer(object):
+class ListVectorizer(Vectorizer):
 
     """
     Transforms vector labeled, weighted, nested graphs in sparse vectors. 
@@ -1115,8 +1115,8 @@ class OutOfCoreListSimilarity(ListVectorizer):
     def _predict(self, graphs, weights=list()):
         # extract feature vector
         for i, graph in enumerate(graphs):
-            x_curr = self._convert_dict_to_sparse_matrix(
-                self._transform(0, graph))
+            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
+                self.vectorizer._transform(0, graph))
             if i == 0:
                 x = x_curr * weights[i]
             else:
@@ -1143,6 +1143,7 @@ class OutOfCoreListPredictor(ListVectorizer):
 
         vectorizer : EDeN graph vectorizer 
         """
+        self.estimator = estimator
         self.vectorizer = vectorizer.vectorizer
         self.vectorizers = vectorizer.vectorizers
 
@@ -1167,12 +1168,12 @@ class OutOfCoreListPredictor(ListVectorizer):
     def _predict(self, graphs, weights=list()):
         # extract feature vector
         for i, graph in enumerate(graphs):
-            x_curr = self._convert_dict_to_sparse_matrix(
-                self._transform(0, graph))
+            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
+                self.vectorizer._transform(0, graph))
             if i == 0:
                 x = x_curr * weights[i]
             else:
                 x = x + x_curr * weights[i]
-        margins = self._estimator.decision_function(x)
+        margins = self.estimator.decision_function(x)
         prediction = margins[0]
         return prediction
