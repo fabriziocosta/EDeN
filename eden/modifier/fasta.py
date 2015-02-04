@@ -27,7 +27,7 @@ def fasta_to_fasta(input, modifier = null_modifier, **options):
 def _fasta_to_fasta( input ):
     seq = ''
     for line in util.read( input ):
-        _line = str(line).strip()
+        _line = line.strip()
         if _line:
             if _line[0] == '>':
                 #extract string from header
@@ -102,8 +102,40 @@ def split_modifier(header = None, seq = None, **options):
     step =  options.get('step',10)
     window =  options.get('window',100)
     seq_len = len(seq)
-    for start in range(0, seq_len, step):
-        seq_out = seq[start : start + window]
-        if len(seq_out) == window:
-            yield '%s START: %0.9d WINDOW: %0.3d' % (header, start, window)
-            yield seq_out
+
+    if seq_len < window:
+        yield '%s START: %0.9d WINDOW: %0.3d' % (header, 0, window)
+        yield seq
+    else :
+        for start in range(0, seq_len, step):
+            seq_out = seq[start : start + window]
+            if len(seq_out) == window:
+                yield '%s START: %0.9d WINDOW: %0.3d' % (header, start, window)
+                yield seq_out
+
+
+def split_N_modifier(header = None, seq = None, **options):
+    min_length =  options.get('min_length',10)
+    seq_curr = ''
+    start = 0
+    for i,c in enumerate(seq):
+        if c != 'N':
+            if c == 'T':
+                l = 'U'
+            else:
+                l = c
+            seq_curr += l
+        else:
+            if len(seq_curr) >= min_length:
+                yield '%s START: %0.9d' % (header, start + 1 )
+                yield seq_curr
+            seq_curr = ''
+            start = i
+
+
+def random_sample_modifier(header = None, seq = None, **options):
+    prob =  options.get('prob',0.1)
+    chance = random.random()
+    if chance <= prob:
+        yield header
+        yield seq
