@@ -12,8 +12,8 @@ import numpy as np
 from scipy import stats
 
 
-def estimate_predictive_performance(X,y, cv = 10):
-    predictor = SGDClassifier(class_weight='auto', shuffle = True, n_jobs = -1)
+def estimate_predictive_performance(X,y, cv = 10, n_jobs = -1):
+    predictor = SGDClassifier(class_weight='auto', shuffle = True, n_jobs = n_jobs)
     #hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -23,9 +23,9 @@ def estimate_predictive_performance(X,y, cv = 10):
                   "learning_rate": ["invscaling", "constant","optimal"]}
     scoring = 'roc_auc'
     n_iter_search = 20
-    random_search = RandomizedSearchCV( predictor, param_distributions = param_dist, n_iter = n_iter_search, cv = cv, scoring = scoring, n_jobs = -1 )
+    random_search = RandomizedSearchCV( predictor, param_distributions = param_dist, n_iter = n_iter_search, cv = cv, scoring = scoring, n_jobs = n_jobs )
     random_search.fit( X, y )
-    optpredictor= SGDClassifier( class_weight='auto', shuffle = True, n_jobs = -1, **random_search.best_params_ )
+    optpredictor= SGDClassifier( class_weight='auto', shuffle = True, n_jobs = n_jobs, **random_search.best_params_ )
     #fit the predictor on all available data
     optpredictor.fit( X, y ) 
     
@@ -37,7 +37,7 @@ def estimate_predictive_performance(X,y, cv = 10):
     print 'Predictive performance:'
     #assess the generalization capacity of the model via a 10-fold cross validation
     for scoring in ['accuracy','precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score( optpredictor, X, y, cv = cv, scoring = scoring, n_jobs = -1 )
+        scores = cross_validation.cross_val_score( optpredictor, X, y, cv = cv, scoring = scoring, n_jobs = n_jobs )
         print( '%20s: %.3f +- %.3f' % ( scoring, np.mean( scores ), np.std( scores ) ) )
     print '-'*73
     
