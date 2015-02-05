@@ -10,9 +10,20 @@ from scipy.stats import randint
 from scipy.stats import uniform
 import numpy as np
 from scipy import stats
+from scipy.sparse import vstack
 
 
-def estimate_predictive_performance(X,y, cv = 10, n_jobs = -1):
+def estimate_predictive_performance(positive_data_matrix = None, negative_data_matrix = None, target = None, cv = 10, n_jobs = -1):
+    assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
+    if target is None and negative_data_matrix is not None:
+        yp =  [1] * positive_data_matrix.shape[0]
+        yn = [-1] * negative_data_matrix.shape[0]
+        y = np.array(yp + yn)
+        X = vstack( [positive_data_matrix,negative_data_matrix] , format = "csr")
+    if target is not None:
+        X = positive_data_matrix
+        y = target
+
     predictor = SGDClassifier(class_weight='auto', shuffle = True, n_jobs = n_jobs)
     #hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
