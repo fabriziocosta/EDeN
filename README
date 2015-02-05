@@ -26,6 +26,7 @@ A few examples can be found as IPython Notebook inside of the examples folder. F
 
 http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb
 
+
 *annotation*
 
 http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb
@@ -34,6 +35,9 @@ http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annot
 
 http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb
 
-*RNA characterization*
+*Tutorial*
 
-http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA.ipynb
+Introduction
+
+http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/x%201%20Sequence_example.ipynb
+
