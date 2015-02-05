@@ -1,4 +1,5 @@
 import random
+import re
 from eden import util
 
 def null_modifier(header = None, seq = None, **options):
@@ -112,6 +113,32 @@ def split_modifier(header = None, seq = None, **options):
             if len(seq_out) == window:
                 yield '%s START: %0.9d WINDOW: %0.3d' % (header, start, window)
                 yield seq_out
+
+
+def split_regex_window_modifier(header = None, seq = None, **options):
+    regex =  options.get('regex','?')
+    window =  options.get('window',100)
+    pattern = "(.{%d})(%s)(.{%d})"%(window, regex, window)
+    for m in re.finditer(pattern, seq):
+        if m:
+            yield '%s START: %0.9d END: %0.9d' % (header, m.start(), m.end())
+            yield m.group(0)
+
+
+def split_regex_modifier(header = None, seq = None, **options):
+    regex =  options.get('regex','?')
+    re.split(regex, seq)
+    for i, item in enumerate(re.split(regex, seq)):
+        yield '%s FRAGMENT: %0.9d' % (header, i)
+        yield item
+
+
+def replace_regex_modifier(header = None, seq = None, **options):
+    regex =  options.get('regex','?')
+    replacement =  options.get('replacement',' ')
+    seq_out = re.sub(regex, replacement, seq)
+    yield header
+    yield seq_out
 
 
 def split_N_modifier(header = None, seq = None, **options):

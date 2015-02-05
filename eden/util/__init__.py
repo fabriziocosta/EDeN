@@ -13,7 +13,7 @@ from scipy import stats
 from scipy.sparse import vstack
 
 
-def estimate_predictive_performance(positive_data_matrix = None, negative_data_matrix = None, target = None, cv = 10, n_jobs = -1):
+def fit_estimator(positive_data_matrix = None, negative_data_matrix = None, target = None, cv = 10, n_jobs = -1):
     assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
     if target is None and negative_data_matrix is not None:
         yp =  [1] * positive_data_matrix.shape[0]
