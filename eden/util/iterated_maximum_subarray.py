@@ -1,3 +1,6 @@
+from collections import defaultdict
+import numpy as np
+
 def find_smallest_positive(alist):
     #find first positive value
     minpos = -1
@@ -73,10 +76,27 @@ def compute_iterated_maximum_subarray(seq = None, score = None, min_subarray_siz
 
 
 def compute_max_subarrays(graph = None, min_subarray_size = None, max_subarray_size = None ):
-	#NOTE: the sequential order of nodes in the graph are used as the sequential constrain   
-	#extract sequence of labels
-	seq=[d['label'] for u,d in graph.nodes(data = True)]
-	#extact sequence of scores
-	score=[d['importance'] for u,d in graph.nodes(data = True)]
-	#extract subarrays
-	return compute_iterated_maximum_subarray(seq = seq, score = score, min_subarray_size = min_subarray_size, max_subarray_size = max_subarray_size)
+    #make dict with positions as keys and lists of ids as values
+    pos_to_ids = defaultdict(list)
+    for u in graph.nodes():
+        if 'position' not in graph.node[u]:#no position attributes in graph, use the vertex id instead
+            raise Exception('Missing "position" attribute in node:%s %s' % (u,graph.node[u]) )
+        else:
+            pos = graph.node[u]['position'] 
+        #accumulate all node ids
+        pos_to_ids[pos] += [u]
+
+	#extract sequence of labels and importances
+    seq = [None]*len(pos_to_ids)
+    score = [0]*len(pos_to_ids)
+    for pos in sorted(pos_to_ids):
+        ids = pos_to_ids[pos]
+        labels = [graph.node[u].get('label','N/A') for u in ids]
+        #check that all labels for the same position are identical
+        assert(sum([1 for label in labels if label == labels[0]]) == len(labels)),'ERROR: non identical labels referring to same position: %s  %s'%(pos, labels)
+        seq[pos] = labels[0]
+        #average all importance score for the same position
+        importances = [graph.node[u].get('importance',0) for u in ids]
+        score[pos] = np.mean(importances)
+    #extract subarrays
+    return compute_iterated_maximum_subarray(seq = seq, score = score, min_subarray_size = min_subarray_size, max_subarray_size = max_subarray_size)
