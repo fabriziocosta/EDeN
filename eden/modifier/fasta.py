@@ -105,8 +105,9 @@ def split_modifier(header = None, seq = None, **options):
     seq_len = len(seq)
 
     if seq_len < window:
-        yield '%s START: %0.9d WINDOW: %0.3d' % (header, 0, window)
-        yield seq
+        pass
+        #yield '%s START: %0.9d WINDOW: %0.3d' % (header, 0, window)
+        #yield seq
     else :
         for start in range(0, seq_len, step):
             seq_out = seq[start : start + window]
