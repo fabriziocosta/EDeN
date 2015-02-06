@@ -81,20 +81,17 @@ def shuffle_modifier(header = None, seq = None, **options):
 
 
 def remove_modifier(header = None, seq = None, **options):
-    remove_char =  options.get('remove_char','-')
-    if not remove_char in seq:
+    regex =  options.get('regex','?')
+    m = re.find(regex, seq)
+    if not m:
         yield header
         yield seq
             
 
 def keep_modifier(header = None, seq = None, **options):
-    keep_char_list =  options.get('keep_char_list',['A','C','G','T','U'])
-    skip = False
-    for c in seq:
-        if not c in keep_char_list:
-            skip = True
-            break
-    if not skip:
+    regex =  options.get('regex','?')
+    m = re.search(regex, seq)
+    if m:
         yield header
         yield seq
 
@@ -103,20 +100,15 @@ def split_modifier(header = None, seq = None, **options):
     step =  options.get('step',10)
     window =  options.get('window',100)
     seq_len = len(seq)
-
-    if seq_len < window:
-        pass
-        #yield '%s START: %0.9d WINDOW: %0.3d' % (header, 0, window)
-        #yield seq
-    else :
+    if seq_len >= window:
         for start in range(0, seq_len, step):
             seq_out = seq[start : start + window]
             if len(seq_out) == window:
-                yield '%s START: %0.9d WINDOW: %0.3d' % (header, start, window)
+                yield '%s START: %0.9d END: %0.9d' % (header, start, int(start + len(seq_out)))
                 yield seq_out
 
 
-def split_regex_window_modifier(header = None, seq = None, **options):
+def split_window_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
     window =  options.get('window',100)
     pattern = "(.{%d})(%s)(.{%d})"%(window, regex, window)
@@ -128,37 +120,18 @@ def split_regex_window_modifier(header = None, seq = None, **options):
 
 def split_regex_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
-    re.split(regex, seq)
-    for i, item in enumerate(re.split(regex, seq)):
-        yield '%s FRAGMENT: %0.9d' % (header, i)
-        yield item
+    for m in re.finditer(regex, seq):
+        if m:
+            yield '%s START: %0.9d END: %0.9d' % (header, m.start(), m.end())
+            yield m.group(0)
 
 
-def replace_regex_modifier(header = None, seq = None, **options):
+def replace_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
     replacement =  options.get('replacement',' ')
     seq_out = re.sub(regex, replacement, seq)
     yield header
     yield seq_out
-
-
-def split_N_modifier(header = None, seq = None, **options):
-    min_length =  options.get('min_length',10)
-    seq_curr = ''
-    start = 0
-    for i,c in enumerate(seq):
-        if c != 'N':
-            if c == 'T':
-                l = 'U'
-            else:
-                l = c
-            seq_curr += l
-        else:
-            if len(seq_curr) >= min_length:
-                yield '%s START: %0.9d' % (header, start + 1 )
-                yield seq_curr
-            seq_curr = ''
-            start = i
 
 
 def random_sample_modifier(header = None, seq = None, **options):
