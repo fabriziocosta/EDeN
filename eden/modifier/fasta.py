@@ -110,8 +110,14 @@ def split_modifier(header = None, seq = None, **options):
 
 def split_window_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
-    window =  options.get('window',100)
-    pattern = "(.{%d})(%s)(.{%d})"%(window, regex, window)
+    window =  options.get('window',0)
+    window_left =  options.get('window_left',0)
+    window_right =  options.get('window_right',0)
+    
+    if window != 0:
+        pattern = "(.{%d})(%s)(.{%d})"%(window, regex, window)
+    else:
+        pattern = "(.{%d})(%s)(.{%d})"%(window_left, regex, window_right)
     for m in re.finditer(pattern, seq):
         if m:
             yield '%s START: %0.9d END: %0.9d' % (header, m.start(), m.end())
