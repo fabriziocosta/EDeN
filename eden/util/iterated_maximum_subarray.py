@@ -44,15 +44,15 @@ def compute_maximum_subarray(score_vector = None):
 def compute_iterated_maximum_subarray(seq = None, score = None, min_subarray_size = None, max_subarray_size = None):
     subarray_list = []
     original_score = score
-    while 1 :
+    while True :
     	#find (begin,end) of subarray in each element
     	begin,end = compute_maximum_subarray(score_vector = score)
+        #check that the retrieved subarray is larger than min_subarray_size
     	if end - begin < min_subarray_size -1 :
     		break
         else :
 	    	#extract maximum subarray
-            #NOTE: in order to account for border effects we select +1 element on the left 
-            #and on the right
+            #NOTE: in order to account for border effects we select +1 element on the left and on the right
             first = max(0,begin - 1)
             last = min(len(seq),end + 1 + 1)
             subarray = seq[first : last]
@@ -69,9 +69,9 @@ def compute_iterated_maximum_subarray(seq = None, score = None, min_subarray_siz
                 if score is None:
                     break
             else :
-                #remove current subarray by zeoring importance values
+                #remove current subarray by zeroing importance values of subarray
                 score[first : last] = [0.0] * subarray_size
-	    	#iterate
+	    	#iterate after removal of current subarray
 	return subarray_list
 
 
