@@ -33,8 +33,8 @@ def rnashapes_wrapper(sequence, **options):
             reminder = energy % 10
             energy_string = ""
             for i in range(energy_dec):
-                energy_string += str(i)*10
-            for i in range(reminder): 
+                energy_string += str(i)
+            if reminder > 5:
                 energy_string += 'x'
             seq_struct_list += [energy_string] 
     if dotbracket:
