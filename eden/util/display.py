@@ -10,7 +10,8 @@ def draw_graph( graph,
     secondary_edge_label = None, 
     vertex_color = '', 
     vertex_alpha = 0.6,
-    size = 10, 
+    size = 10,
+    size_x_to_y_ratio = 1, 
     node_size = 600,
     font_size = 9,
     layout = 'graphviz', 
@@ -19,7 +20,11 @@ def draw_graph( graph,
     colormap = 'YlOrRd',
     invert_colormap = False ):
     
-    plt.figure( figsize = ( size,size ) )
+
+    size_x = size
+    size_y = int(float(size) / size_x_to_y_ratio)
+
+    plt.figure( figsize = ( size_x,size_y ) )
     plt.grid( False )
     plt.axis( 'off' )
     
