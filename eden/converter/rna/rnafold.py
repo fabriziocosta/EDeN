@@ -4,6 +4,7 @@ import networkx as nx
 import subprocess as sp
 from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
+from eden.converter.rna import sequence_dotbracket_to_graph
 
 
 def RNAfold_wrapper(sequence, **options):
@@ -20,25 +21,7 @@ def RNAfold_wrapper(sequence, **options):
 
 def string_to_networkx(sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
-    G = nx.Graph()
-    lifo = list()
-
-    for i,(c,b) in enumerate( zip(seq_info, seq_struct) ):
-        G.add_node(i)
-        G.node[i]['label'] = c
-        G.node[i]['position'] = i
-        if i > 0:
-            G.add_edge(i,i-1)
-            G.edge[i][i-1]['label'] = '-'
-            G.edge[i][i-1]['type'] = 'backbone'
-        if b == '(':
-            lifo += [i]
-        if b == ')':
-            j = lifo.pop()
-            G.add_edge(i,j)
-            G.edge[i][j]['label'] = '='
-            G.edge[i][j]['type'] = 'basepair'
-
+    G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
     return G
 
 

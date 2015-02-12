@@ -96,6 +96,16 @@ def keep_modifier(header = None, seq = None, **options):
         yield seq
 
 
+def update_start_end(header=None, start=None, end=None):
+    startend_regex = '^(>\w*) START: *(\w*) *END: *(\w*)'
+    startend_m = re.search(startend_regex,header)
+    if startend_m:
+        end = start + int(startend_m.group(3))
+        start = start + int(startend_m.group(2))
+        header = startend_m.group(1)
+    return '%s START: %0.9d END: %0.9d LEN: %d' % (header, start, end, end-start)
+
+
 def split_modifier(header = None, seq = None, **options):
     step =  options.get('step',10)
     window =  options.get('window',100)
@@ -104,7 +114,9 @@ def split_modifier(header = None, seq = None, **options):
         for start in range(0, seq_len, step):
             seq_out = seq[start : start + window]
             if len(seq_out) == window:
-                yield '%s START: %0.9d END: %0.9d' % (header, start, int(start + len(seq_out)))
+                end = int(start + len(seq_out))
+                header_out = update_start_end(header=header, start=start, end=end)
+                yield header_out
                 yield seq_out
 
 
@@ -122,12 +134,8 @@ def split_window_modifier(header = None, seq = None, **options):
         if m:
             start = m.start()
             end = m.end()
-            startend_regex = 'START: *(\w*) *END: *(\w*)'
-            startend_m = re.search(startend_regex,header)
-            if startend_m:
-                end = start + startend_m.group(2)
-                start = start + startend_m.group(1)
-            yield '%s START: %0.9d END: %0.9d' % (header, start, end)
+            header_out = update_start_end(header=header, start=start, end=end)
+            yield header_out
             yield m.group(0)
 
 
@@ -137,12 +145,8 @@ def split_regex_modifier(header = None, seq = None, **options):
         if m:
             start = m.start()
             end = m.end()
-            startend_regex = 'START: *(\w*) *END: *(\w*)'
-            startend_m = re.search(startend_regex,header)
-            if startend_m:
-                end = start + startend_m.group(2)
-                start = start + startend_m.group(1)
-            yield '%s START: %0.9d END: %0.9d' % (header, start, end)
+            header_out = update_start_end(header=header, start=start, end=end)
+            yield header_out
             yield m.group(0)
 
 

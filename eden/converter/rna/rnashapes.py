@@ -4,6 +4,7 @@ import networkx as nx
 import subprocess as sp
 from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
+from eden.converter.rna import sequence_dotbracket_to_graph
 
 
 def rnashapes_wrapper(sequence, **options):
@@ -14,6 +15,7 @@ def rnashapes_wrapper(sequence, **options):
     #command line
     cmd = 'echo "%s" | RNAshapes -t %d -c %d -# %d' % (sequence,shape_type,energy_range,max_num)
     out = sp.check_output(cmd, shell = True)
+    #parse output
     text = out.strip().split('\n')
     seq_info = text[0]
     seq_struct_list = [line.split()[1] for line in text[1:-1]] 
@@ -24,23 +26,7 @@ def string_to_networkx(sequence, **options):
     seq_info, seq_struct_list = rnashapes_wrapper(sequence, **options)
     G_global = nx.Graph()
     for seq_struct in seq_struct_list:
-        G = nx.Graph()
-        lifo = list()
-        for i,(c,b) in enumerate( zip(seq_info, seq_struct) ):
-            G.add_node(i)
-            G.node[i]['label'] = c
-            G.node[i]['position'] = i
-            if i > 0:
-                G.add_edge(i,i-1)
-                G.edge[i][i-1]['label'] = '-'
-                G.edge[i][i-1]['type'] = 'backbone'
-            if b == '(':
-                lifo += [i]
-            if b == ')':
-                j = lifo.pop()
-                G.add_edge(i,j)
-                G.edge[i][j]['label'] = '='
-                G.edge[i][j]['type'] = 'basepair'
+        G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
         G_global = nx.disjoint_union(G_global, G)
     return G_global
 
