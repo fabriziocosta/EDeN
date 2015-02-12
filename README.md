@@ -38,10 +38,10 @@ A few examples can be found as IPython Notebook inside of the examples folder.
 
 * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
 
-* [RNA visualization and characterization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA.ipynb)
+* [RNA visualization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_visualization.ipynb)
 
-* [RNA genome scan](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_genome_scan.ipynb)
+* [RNA characterization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA.ipynb)
 
 * [RNA composite modelling](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_list.ipynb)
 
-* [RNA genome scan with composite model and motif regex](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_genome_scan_complex.ipynb)
+* [RNA genome scan](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_genome_scan.ipynb)
