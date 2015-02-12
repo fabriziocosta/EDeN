@@ -7,6 +7,7 @@ __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
 
+
 import networkx as nx
 
 
@@ -18,7 +19,7 @@ def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
 		if i > 0:
 			G.add_edge(i,i-1, label='-', type='backbone')
 		if b == '(':
-			lifo += [i]
+			lifo.append(i)
 		if b == ')':
 			j = lifo.pop()
 			G.add_edge(i,j, label='=', type='basepair')
