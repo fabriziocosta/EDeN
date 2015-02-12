@@ -120,7 +120,14 @@ def split_window_modifier(header = None, seq = None, **options):
         pattern = "(.{%d})(%s)(.{%d})"%(window_left, regex, window_right)
     for m in re.finditer(pattern, seq):
         if m:
-            yield '%s START: %0.9d END: %0.9d' % (header, m.start(), m.end())
+            start = m.start()
+            end = m.end()
+            startend_regex = 'START: *(\w*) *END: *(\w*)'
+            startend_m = re.search(startend_regex,header)
+            if startend_m:
+                end = start + startend_m.group(2)
+                start = start + startend_m.group(1)
+            yield '%s START: %0.9d END: %0.9d' % (header, start, end)
             yield m.group(0)
 
 
@@ -128,7 +135,14 @@ def split_regex_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
     for m in re.finditer(regex, seq):
         if m:
-            yield '%s START: %0.9d END: %0.9d' % (header, m.start(), m.end())
+            start = m.start()
+            end = m.end()
+            startend_regex = 'START: *(\w*) *END: *(\w*)'
+            startend_m = re.search(startend_regex,header)
+            if startend_m:
+                end = start + startend_m.group(2)
+                start = start + startend_m.group(1)
+            yield '%s START: %0.9d END: %0.9d' % (header, start, end)
             yield m.group(0)
 
 
