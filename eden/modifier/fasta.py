@@ -16,13 +16,28 @@ def fasta_to_fasta(input, modifier = null_modifier, **options):
     input : string
         A pointer to the data source.
     """
-    for m in re.finditer(r"^(>[^\n]+)\n+([^>]+)",'\n'.join(util.read( input )), re.MULTILINE):
-        if m: 
-            header, seq = m.groups()
-            seq = re.sub('\n','',seq)
-            seqs = modifier(header = header, seq = seq, **options)
-            for seq in seqs:
-                yield seq
+    iterable = _fasta_to_fasta(input)
+    for line in iterable:
+        header = line 
+        seq = iterable.next()
+        seqs = modifier(header = header, seq = seq, **options)
+        for seq in seqs:
+            yield seq
+
+
+def _fasta_to_fasta(input):
+    seq=""
+    for line in util.read( input ):
+        if line:
+            if line[0]=='>':
+                if seq:
+                    yield seq
+                    seq=""
+                yield line
+            else:
+                seq += line
+    if seq:
+        yield seq
 
 
 def one_line_modifier(header = None, seq = None, **options):
