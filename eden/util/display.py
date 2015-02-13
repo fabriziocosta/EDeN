@@ -196,3 +196,18 @@ def embed2D(input, vectorizer, labels = None, size = 10, n_components = 5, gamma
         y = X_reduced[id, 1]
         plt.annotate(label,xy = (x,y), xytext = (0, 0), textcoords = 'offset points')
     plt.show()
+
+def dendrogram(input, vectorizer, labels = None, color_threshold=1, size = 10, n_jobs = 1):
+    import numpy as np
+
+    #transform input into sparse vectors
+    X = vectorizer.transform( input , n_jobs = n_jobs )
+
+    #embed high dimensional sparse vectors in 2D
+    from sklearn import metrics
+    from scipy.cluster.hierarchy import linkage, dendrogram
+    D = metrics.pairwise.pairwise_distances(X)
+    Z = linkage(D)
+    plt.figure(figsize=(size, size))
+    dendrogram(Z, color_threshold=color_threshold, labels=labels, orientation='right')
+    plt.show()
