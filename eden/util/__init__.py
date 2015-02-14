@@ -11,6 +11,17 @@ from scipy.stats import uniform
 import numpy as np
 from scipy import stats
 from scipy.sparse import vstack
+import itertools
+
+
+def join_pre_processes( iterable, pre_processes=None, weights=None):        
+    graphs_list = list()
+    assert(len(weights) == len(pre_processes)),'Different lengths'
+    #NOTE: we have to duplicate the sequences iterator if we want to use different modifiers in parallel
+    iterables = itertools.tee( iterable, len(pre_processes) )
+    for pre_process_item, iterable_item in zip(pre_processes, iterables):
+        graphs_list.append( pre_process_item( iterable_item ) )
+    return (graphs_list, weights)
 
 
 def fit_estimator(positive_data_matrix = None, negative_data_matrix = None, target = None, cv = 10, n_jobs = -1):
