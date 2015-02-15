@@ -102,7 +102,8 @@ def contraction(graphs = None,  contraction_attribute = 'label', nesting = False
 				g.node[n]['position'] = i
 		#compute contraction
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
-		g_contracted.graph['info'] += '\n' + serialize_modifiers(modifiers)
+		info = g_contracted.graph.get('info','')
+		g_contracted.graph['info'] = info + '\n' + serialize_modifiers(modifiers)
 		for n, d in g_contracted.nodes_iter(data = True):
 			#get list of contracted node ids
 			contracted = d.get('contracted',None)
