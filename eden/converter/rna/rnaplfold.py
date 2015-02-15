@@ -7,12 +7,12 @@ from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 
 
-def RNAplfold_wrapper(sequence, **options):
-    # default settings.
-    window_size = options.get('window_size', 150)
-    max_bp_span = options.get('max_bp_span', 100)
-    avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
-    no_lonely_bps = options.get('no_lonely_bps', True)
+def RNAplfold_wrapper(sequence,  
+        max_num_edges=None, 
+        window_size=None,
+        max_bp_span=None,
+        avg_bp_prob_cutoff=None,
+        no_lonely_bps=None):
     no_lonely_bps_str = ""
     if no_lonely_bps:
        no_lonely_bps_str = "--noLP"
@@ -40,15 +40,24 @@ def RNAplfold_wrapper(sequence, **options):
 def string_to_networkx(sequence, **options):
     # Sort edges by average base pair probability in order to stop after
     # max_num_edges edges have been added to a specific vertex.
-    plfold_bp_list = sorted(RNAplfold_wrapper(sequence, **options), reverse=True)
     max_num_edges =  options.get('max_num_edges', 1)
+    window_size = options.get('window_size', 150)
+    max_bp_span = options.get('max_bp_span', 100)
+    avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
+    no_lonely_bps = options.get('no_lonely_bps', True)
+
+    plfold_bp_list = sorted(RNAplfold_wrapper(sequence, 
+        max_num_edges=max_num_edges, 
+        window_size=window_size,
+        max_bp_span=max_bp_span,
+        avg_bp_prob_cutoff=avg_bp_prob_cutoff,
+        no_lonely_bps=no_lonely_bps), reverse=True)
     # Create graph.
     G = nx.Graph()
+    G.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (max_num_edges, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps)
     # Add nucleotide vertices.
     for i,c in enumerate(sequence):
-        G.add_node(i)
-        G.node[i]['label'] = c
-        G.node[i]['position'] = i
+        G.add_node(i, label = c, position = i)
     # Add plfold base pairs and average probabilites.
     for avg_prob_str,source_str,dest_str in plfold_bp_list:
         source = int(source_str)-1
@@ -58,13 +67,11 @@ def string_to_networkx(sequence, **options):
         if len(G.edges(source)) >= max_num_edges or len(G.edges(dest)) >= max_num_edges:
             pass
         else:
-            G.add_edge(source,dest,label='=',type='basepair',value=avg_prob)
+            G.add_edge(source, dest, label='=', type='basepair', value=avg_prob)
     # Add backbone edges.
     for i,c in enumerate(sequence):
         if i > 0:
-            G.add_edge(i,i-1)
-            G.edge[i][i-1]['label'] = '-'
-            G.edge[i][i-1]['type'] = 'backbone'
+            G.add_edge(i,i-1, label='-', type='backbone')
     return G
 
 
@@ -77,5 +84,5 @@ def rnaplfold_to_eden(input, **options):
         #in case something goes wrong fall back to simple sequence
         if G.number_of_nodes() < 2 :
             G = seq_to_networkx(seq, **options)
-        G.graph['ID'] = header
+        G.graph['id'] = header
         yield G
