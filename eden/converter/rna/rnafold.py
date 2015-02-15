@@ -22,6 +22,7 @@ def RNAfold_wrapper(sequence, **options):
 def string_to_networkx(sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
     G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+    G.graph['info'] = 'RNAfold'
     return G
 
 
@@ -34,5 +35,5 @@ def rnafold_to_eden(input = None, **options):
         #in case something goes wrong fall back to simple sequence
         if G.number_of_nodes() < 2 :
             G = seq_to_networkx(seq, **options)
-        G.graph['ID'] = header
+        G.graph['id'] = header
         yield G

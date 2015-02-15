@@ -18,7 +18,8 @@ def draw_graph( graph,
     prog  =  'neato',
     node_border = True,
     colormap = 'YlOrRd',
-    invert_colormap = False ):
+    invert_colormap = False,
+    verbose = True ):
     
 
     size_x = size
@@ -87,8 +88,11 @@ def draw_graph( graph,
         edge_color  =  'k', 
         style  =  'dashed', 
         alpha  =  0.5 )
-    nx.draw_networkx_edge_labels( graph, pos, edge_labels  =  edge_labels, font_size  =  font_size, )
-    plt.show(  )
+    nx.draw_networkx_edge_labels( graph, pos, edge_labels  =  edge_labels, font_size  =  font_size )
+    if verbose:
+        title = str(graph.graph.get('id','')) + "\n" + str(graph.graph.get('info',''))
+        plt.title(title)
+    plt.show()
 
 
 def draw_adjacency_graph ( A,
@@ -134,11 +138,23 @@ def serialize_graph( graph ):
     return serial_data
 
 
-def embed2D(input, vectorizer, labels = None, size = 10, n_components = 5, gamma = 20, nu = 0.01, n_jobs = 1, colormap = 'YlOrRd'):
+def embed2D(data, vectorizer, size = 10, n_components = 5, gamma = 20, nu = 0.01, n_jobs = 1, colormap = 'YlOrRd'):
     import numpy as np
+    if hasattr( data, '__iter__' ):
+        iterable = data
+    else: 
+        raise Exception( 'ERROR: Input must be iterable' )
+    import itertools
+    iterable_1,iterable_2 = itertools.tee(iterable)
+    #get labels
+    labels=[]
+    for graph in iterable_2:
+        label = graph.graph.get('id',None)
+        if label:
+            labels.append( label )
 
-    #transform input into sparse vectors
-    X = vectorizer.transform( input , n_jobs = n_jobs )
+    #transform iterable into sparse vectors
+    X = vectorizer.transform( iterable_1 , n_jobs = n_jobs )
 
     #embed high dimensional sparse vectors in 2D
     from sklearn import metrics
@@ -197,11 +213,26 @@ def embed2D(input, vectorizer, labels = None, size = 10, n_components = 5, gamma
         plt.annotate(label,xy = (x,y), xytext = (0, 0), textcoords = 'offset points')
     plt.show()
 
-def dendrogram(input, vectorizer, labels = None, color_threshold=1, size = 10, n_jobs = 1):
+def dendrogram(data, vectorizer, color_threshold=1, size = 10, n_jobs = 1):
     import numpy as np
-
+    if hasattr( data, '__iter__' ):
+        iterable = data
+    else: 
+        raise Exception( 'ERROR: Input must be iterable' )
+    import itertools
+    iterable_1,iterable_2 = itertools.tee(iterable)
+    #get labels
+    labels=[]
+    for graph in iterable_2:
+        label = graph.graph.get('id',None)
+        if label:
+            labels.append( label )
     #transform input into sparse vectors
-    X = vectorizer.transform( input , n_jobs = n_jobs )
+    X = vectorizer.transform( iterable_1 , n_jobs = n_jobs )
+    
+    #labels
+    if not labels:
+        labels = [str(i) for i in range(X.shape[0] )]
 
     #embed high dimensional sparse vectors in 2D
     from sklearn import metrics

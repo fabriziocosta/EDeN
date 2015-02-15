@@ -18,5 +18,5 @@ def fasta_to_eden(input, **options):
         header = line
         seq = lines.next()
         G = seq_to_networkx(seq, **options)
-        G.graph['ID'] = header
+        G.graph['id'] = header
         yield G

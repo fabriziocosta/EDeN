@@ -71,6 +71,14 @@ weight_modifier = contraction_modifier(attribute_in='weight', attribute_out='wei
 modifiers = [label_modifier, weight_modifier]
 
 
+def serialize_modifiers(modifiers):
+	lines = ""
+	for modifier in modifiers:
+		line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in, modifier.attribute_out, modifier.reduction)
+		lines += line + "\n"
+	return lines
+
+
 def contraction(graphs = None,  contraction_attribute = 'label', nesting = False, modifiers = modifiers, **options):
 	'''
 	modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
@@ -94,6 +102,7 @@ def contraction(graphs = None,  contraction_attribute = 'label', nesting = False
 				g.node[n]['position'] = i
 		#compute contraction
 		g_contracted = edge_contraction(graph = g, node_attribute = contraction_attribute)
+		g_contracted.graph['info'] += '\n' + serialize_modifiers(modifiers)
 		for n, d in g_contracted.nodes_iter(data = True):
 			#get list of contracted node ids
 			contracted = d.get('contracted',None)
