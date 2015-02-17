@@ -4,7 +4,7 @@
 
 
 
-EDeN
+[EDeN](http://fabriziocosta.github.io/EDeN)
 ====
 
 The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce an explicit feature representation for graphs. This in turn allows the adoption of machine learning algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast stochastic gradient descent methods in classification).
