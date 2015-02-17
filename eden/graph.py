@@ -763,6 +763,7 @@ class Annotator(Vectorizer):
 
     def _annotate(self, original_graph):
         # pre-processing phase: compute caches
+        graph_dict = original_graph.graph
         G = self._graph_preprocessing(original_graph)
         # extract per vertex feature representation
         X = self._compute_vertex_based_features(G)
@@ -771,6 +772,7 @@ class Annotator(Vectorizer):
         # add or update label information
         if self.relabel_vertex_with_vector:
             G = self._annotate_vector(G, X)
+        G.graph = graph_dict
         return self._revert_edge_to_vertex_transform(G)
 
     def _annotate_vector(self, G, X):
