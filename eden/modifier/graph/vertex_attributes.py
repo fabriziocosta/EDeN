@@ -78,6 +78,19 @@ def colorize(graph_list = None, output_attribute = 'level', labels = ['A','U','C
 		yield g
 
 
+def colorize_binary(graph_list = None, output_attribute = 'color_value', input_attribute='weight', level=0):
+	for g in graph_list:
+		#iterate over nodes
+		for n, d in g.nodes_iter(data = True):
+			val = d.get(input_attribute,0)
+			if val <= level:
+				color_value = 0
+			else:
+				color_value = 1
+			g.node[n][output_attribute] = color_value
+		yield g
+
+
 def trapezoidal_reweighting(graph_list = None, high_weight = 1.0, low_weight = 0.1, high_weight_window_start = 0, high_weight_window_end = 1, low_weight_window_start = 0, low_weight_window_end = 1):
 	"""
 	Piece wise linear weight function between two levels with specified start end positions.
