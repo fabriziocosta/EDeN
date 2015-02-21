@@ -182,6 +182,35 @@ class Vectorizer(object):
                     X = vstack([X, X_curr], format="csr")
             return X
 
+    def predict(self, graphs, estimator):
+        """
+        Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
+        """
+        for G in graphs:
+            self._test_goodness(G)
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
+            margins = estimator.decision_function(x)
+            prediction = margins[0]
+            yield prediction
+
+    def similarity(self, graphs, ref_instance=None):
+        """
+        Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
+        """
+        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        for G in graphs:
+            self._test_goodness(G)
+            yield self._similarity(G)
+
+    def _similarity(self, original_graph):
+        # extract feature vector
+        x = self._convert_dict_to_sparse_matrix(
+            self._transform(0, original_graph))
+        res = self._reference_vec.dot(x.T).todense()
+        prediction = res[0, 0]
+        return prediction
+
     def _test_goodness(self, G):
         if G.number_of_nodes() == 0:
             raise Exception('ERROR: something went wrong, empty graph.')
@@ -694,29 +723,18 @@ class Vectorizer(object):
             if d.get('node', False):
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
 
-
-class Annotator(Vectorizer):
-
-    def __init__(self,
-                 estimator=SGDClassifier(),
-                 vectorizer=Vectorizer(),
-                 reweight=1.0,
-                 relabel_vertex_with_vector=False):
+    def annotate(self, graphs, estimator=None, reweight=1.0, relabel_vertex_with_vector=False):
         """
-        Purpose:
-        ----------
-        It takes graphs in input and returns graphs with modified attributes.
-        It assign an importance attribute to each vertex in accordance to the predictor.
-        It rewights vertices with a linear combination of the initial weight and the absolute importance.
+        Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
+        graphs where each vertex has an additional attribute with key 'importance'.
+        The importance value of a vertex corresponds to the part of the score that is imputable 
+        to the neighborhood of radius r+d of the vertex. 
         It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
-
 
         Parameters
         ----------
         estimator : scikit-learn predictor trained on data sampled from the same distribution. 
           If None the vertex weigths are by default 1.
-
-        vectorizer : EDeN graph vectorizer 
 
         reweight : float
           Update the 'weight' information of each vertex as a linear combination of the current weight and 
@@ -736,28 +754,7 @@ class Annotator(Vectorizer):
         self.estimator = estimator
         self.reweight = reweight
         self.relabel_vertex_with_vector = relabel_vertex_with_vector
-        self.r = vectorizer.r
-        self.d = vectorizer.d
-        self.min_r = vectorizer.min_r
-        self.min_d = vectorizer.min_d
-        self.nbits = vectorizer.nbits
-        self.normalization = vectorizer.normalization
-        self.inner_normalization = vectorizer.inner_normalization
-        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
-        self.bitmask = vectorizer.bitmask
-        self.feature_size = vectorizer.feature_size
-        self.discretization_size = vectorizer.discretization_size
-        self.discretization_dimension = vectorizer.discretization_dimension
-        self.discretization_model_dict = vectorizer.discretization_model_dict
 
-    def transform(self, graphs):
-        """
-        Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
-        graphs where each vertex has an additional attribute with key 'importance'.
-        The importance value of a vertex corresponds to the part of the score that is imputable 
-        to the neighborhood of radius r+d of the vertex. 
-        This is a generator.
-        """
         for G in graphs:
             yield self._annotate(G)
 
@@ -842,109 +839,12 @@ class Annotator(Vectorizer):
         return X
 
 
-class OutOfCoreSimilarity(Vectorizer):
-
-    def __init__(self,
-                 ref_instance=None,
-                 vectorizer=Vectorizer()):
-        """
-        Purpose:
-        ----------
-        It outputs the similarity score between 'graph' and a stream of graphs. 
-
-        Parameters
-        ----------
-        graph : an EDeN compatible graph 
-
-        vectorizer : EDeN graph vectorizer 
-        """
-        self.r = vectorizer.r
-        self.d = vectorizer.d
-        self.min_r = vectorizer.min_r
-        self.min_d = vectorizer.min_d
-        self.nbits = vectorizer.nbits
-        self.normalization = vectorizer.normalization
-        self.inner_normalization = vectorizer.inner_normalization
-        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
-        self.bitmask = vectorizer.bitmask
-        self.feature_size = vectorizer.feature_size
-        self.discretization_size = vectorizer.discretization_size
-        self.discretization_dimension = vectorizer.discretization_dimension
-        self.discretization_model_dict = vectorizer.discretization_model_dict
-        self._reference_vec = self._convert_dict_to_sparse_matrix(
-            self._transform(0, ref_instance))
-
-    def predict(self, graphs):
-        """
-
-        This is a generator.
-        """
-        for G in graphs:
-            if G.number_of_nodes() == 0:
-                raise Exception('ERROR: something went wrong, empty graph.')
-            yield self._predict(G)
-
-    def _predict(self, original_graph):
-        # extract feature vector
-        x = self._convert_dict_to_sparse_matrix(
-            self._transform(0, original_graph))
-        res = self._reference_vec.dot(x.T).todense()
-        prediction = res[0, 0]
-        return prediction
-
-
-class OutOfCorePredictor(Vectorizer):
-
-    def __init__(self,
-                 estimator=SGDClassifier(),
-                 vectorizer=Vectorizer()):
-        """
-        Purpose:
-        ----------
-        It outputs the estimator prediction of the vectorized graph. 
-
-        Parameters
-        ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
-          If None the vertex weigths are by default 1.
-
-        vectorizer : EDeN graph vectorizer 
-        """
-        self.estimator = estimator
-        self.r = vectorizer.r
-        self.d = vectorizer.d
-        self.min_r = vectorizer.min_r
-        self.min_d = vectorizer.min_d
-        self.nbits = vectorizer.nbits
-        self.normalization = vectorizer.normalization
-        self.inner_normalization = vectorizer.inner_normalization
-        self.pure_neighborhood_features = vectorizer.pure_neighborhood_features
-        self.bitmask = vectorizer.bitmask
-        self.feature_size = vectorizer.feature_size
-        self.discretization_size = vectorizer.discretization_size
-        self.discretization_dimension = vectorizer.discretization_dimension
-        self.discretization_model_dict = vectorizer.discretization_model_dict
-
-    def predict(self, graphs):
-        """
-
-        This is a generator.
-        """
-        for G in graphs:
-            self._test_goodness(G)
-            # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
-            margins = self.estimator.decision_function(x)
-            prediction = margins[0]
-            yield prediction
-
-
 class ListVectorizer(Vectorizer):
 
     """
     Transforms vector labeled, weighted, nested graphs in sparse vectors. 
 
-    A list of iterators over graphs are taken in input. A list of weights are taken in input. 
+    A list of iterators over graphs and a list of weights are taken in input. 
     The returned vector is the linear combination of sparse vectors obtained on each 
     corresponding graph.   
     """
@@ -1074,32 +974,12 @@ class ListVectorizer(Vectorizer):
                 X = X + X_curr * weights[i]
         return X
 
-
-class OutOfCoreListSimilarity(ListVectorizer):
-
-    def __init__(self,
-                 ref_instance=None,
-                 vectorizer=ListVectorizer()):
-        """
-        Purpose:
-        ----------
-        It outputs the similarity score between 'graph' and a stream of graphs. 
-
-        Parameters
-        ----------
-        graph : an EDeN compatible graph 
-
-        vectorizer : EDeN graph vectorizer 
-        """
-        self.vectorizer = vectorizer.vectorizer
-        self.vectorizers = vectorizer.vectorizers
-        self._reference_vec = self._convert_dict_to_sparse_matrix(
-            self._transform(0, ref_instance))
-
-    def predict(self, G_iterators_list, weights=list()):
+    def similarity(self, G_iterators_list, ref_instance=None, weights=list()):
         """
         This is a generator.
         """
+        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)
@@ -1110,11 +990,11 @@ class OutOfCoreListSimilarity(ListVectorizer):
         try:
             while True:
                 graphs = [G_iterator.next() for G_iterator in G_iterators_list]
-                yield self._predict(graphs, weights)
+                yield self._similarity(graphs, weights)
         except StopIteration:
             return
 
-    def _predict(self, graphs, weights=list()):
+    def _similarity(self, graphs, weights=list()):
         # extract feature vector
         for i, graph in enumerate(graphs):
             x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
@@ -1127,12 +1007,7 @@ class OutOfCoreListSimilarity(ListVectorizer):
         prediction = res[0, 0]
         return prediction
 
-
-class OutOfCoreListPredictor(ListVectorizer):
-
-    def __init__(self,
-                 estimator=SGDClassifier(),
-                 vectorizer=ListVectorizer()):
+    def predict(self, G_iterators_list, estimator=SGDClassifier(), weights=list()):
         """
         Purpose:
         ----------
@@ -1142,17 +1017,8 @@ class OutOfCoreListPredictor(ListVectorizer):
         ----------
         estimator : scikit-learn predictor trained on data sampled from the same distribution. 
           If None the vertex weigths are by default 1.
-
-        vectorizer : EDeN graph vectorizer 
         """
         self.estimator = estimator
-        self.vectorizer = vectorizer.vectorizer
-        self.vectorizers = vectorizer.vectorizers
-
-    def predict(self, G_iterators_list, weights=list()):
-        """
-        This is a generator.
-        """
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)

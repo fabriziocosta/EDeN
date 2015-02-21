@@ -80,7 +80,7 @@ def shuffle_modifier(header = None, seq = None, **options):
 
 def remove_modifier(header = None, seq = None, **options):
     regex =  options.get('regex','?')
-    m = re.find(regex, seq)
+    m = re.search(regex, seq)
     if not m:
         yield header
         yield seq
