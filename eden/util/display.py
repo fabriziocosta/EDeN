@@ -16,7 +16,7 @@ def draw_graph( graph,
     font_size = 9,
     layout = 'graphviz', 
     prog  =  'neato',
-    node_border = True,
+    node_border = False,
     colormap = 'YlOrRd',
     invert_colormap = False,
     verbose = True ):
