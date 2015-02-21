@@ -22,8 +22,9 @@ class Vectorizer(object):
     """
 
     def __init__(self,
-                 r=3,
-                 d=3,
+                 complexity=3,
+                 r=None,
+                 d=None,
                  min_r=0,
                  min_d=0,
                  nbits=20,
@@ -35,6 +36,10 @@ class Vectorizer(object):
         """
         Parameters
         ----------
+
+        complexity : int
+            The complexity of the features extracted.
+
         r : int 
           The maximal radius size.
 
@@ -73,6 +78,11 @@ class Vectorizer(object):
         discretization_dimension : int
           Size of the discretized label vector.
         """
+        self.complexity = complexity
+        if r is None:
+            r = complexity
+        if d is None:
+            d = complexity
         self.r = r * 2
         self.d = d * 2
         self.min_r = min_r * 2
@@ -198,7 +208,8 @@ class Vectorizer(object):
         """
         Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
         """
-        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        self._reference_vec = self._convert_dict_to_sparse_matrix(
+            self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
             yield self._similarity(G)
@@ -850,8 +861,9 @@ class ListVectorizer(Vectorizer):
     """
 
     def __init__(self,
-                 r=3,
-                 d=3,
+                 complexity=3,
+                 r=None,
+                 d=None,
                  min_r=0,
                  min_d=0,
                  nbits=20,
@@ -863,6 +875,10 @@ class ListVectorizer(Vectorizer):
         """
         Parameters
         ----------
+
+        complexity : int
+          The complexity of the features extracted.
+
         r : int 
           The maximal radius size.
 
@@ -901,7 +917,8 @@ class ListVectorizer(Vectorizer):
         discretization_dimension : int
           Size of the discretized label vector.
         """
-        self.vectorizer = Vectorizer(r=r,
+        self.vectorizer = Vectorizer(complexity=complexity,
+                                     r=r,
                                      d=d,
                                      min_r=min_r,
                                      min_d=min_d,
@@ -978,7 +995,8 @@ class ListVectorizer(Vectorizer):
         """
         This is a generator.
         """
-        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        self._reference_vec = self._convert_dict_to_sparse_matrix(
+            self._transform(0, ref_instance))
 
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
