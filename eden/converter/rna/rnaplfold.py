@@ -55,6 +55,7 @@ def string_to_networkx(sequence, **options):
     # Create graph.
     G = nx.Graph()
     G.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (max_num_edges, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps)
+    G.graph['sequence'] = sequence
     # Add nucleotide vertices.
     for i,c in enumerate(sequence):
         G.add_node(i, label = c, position = i)
