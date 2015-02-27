@@ -23,7 +23,6 @@ def random_bipartition(int_range, relative_size=.7):
     ids = range(int_range)
     random.shuffle(ids)
     split_point = int(int_range * relative_size)
-    print split_point
     return ids[:split_point], ids[split_point:]
 
 
