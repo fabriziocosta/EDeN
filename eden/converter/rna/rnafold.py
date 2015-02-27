@@ -23,6 +23,7 @@ def string_to_networkx(sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
     G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
     G.graph['info'] = 'RNAfold'
+    G.graph['sequence'] = sequence
     return G
 
 
