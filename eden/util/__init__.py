@@ -90,7 +90,7 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
 
     print 'Classifier:'
     print optpredictor
-    print '-' * 73
+    print '-' * 80
 
     print 'Predictive performance:'
     # assess the generalization capacity of the model via a 10-fold cross
@@ -100,7 +100,7 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
             optpredictor, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
         print('%20s: %.3f +- %.3f' %
               (scoring, np.mean(scores), np.std(scores)))
-    print '-' * 73
+    print '-' * 80
 
     return optpredictor
 
