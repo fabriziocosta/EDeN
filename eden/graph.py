@@ -30,7 +30,6 @@ class Vectorizer(object):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 pure_neighborhood_features=False,
                  discretization_size=0,
                  discretization_dimension=1):
         """
@@ -38,7 +37,7 @@ class Vectorizer(object):
         ----------
 
         complexity : int
-            The complexity of the features extracted.
+            The complexity of the features extracted. This is equivalent to setting r=complexity, d=complexity.
 
         r : int 
           The maximal radius size.
@@ -64,13 +63,6 @@ class Vectorizer(object):
           When used together with the 'normalization' flag it will be applied first and 
           then the resulting feature vector will be normalized.
 
-        pure_neighborhood_features : bool 
-          If set additional features are going to be generated. 
-          These features are generated in a similar fashion as the base features, 
-          with the caveat that the first neighborhood is omitted.
-          The purpose of these features is to allow vertices that have similar contexts to be 
-          matched, even when they are completely different. 
-
         discretization_size : int
           Number of discretization levels for real vector labels.
           If 0 then treat all labels as strings. 
@@ -90,16 +82,41 @@ class Vectorizer(object):
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
-        self.pure_neighborhood_features = pure_neighborhood_features
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.discretization_size = discretization_size
         self.discretization_dimension = discretization_dimension
         self.discretization_model_dict = dict()
 
+    def set_params(self, **args):
+        if args.get('complexity', None) is not None:
+            self.complexity = args['complexity']
+            self.r = self.complexity * 2
+            self.d = self.complexity * 2
+        if args.get('r', None) is not None:
+            self.r = args['r'] * 2
+        if args.get('d', None) is not None:
+            self.d = args['d'] * 2
+        if args.get('min_r', None) is not None:
+            self.min_r = args['min_r'] * 2
+        if args.get('min_d', None) is not None:
+            self.min_d = args['min_d'] * 2
+        if args.get('nbits', None) is not None:
+            self.nbits = args['nbits']
+            self.bitmask = pow(2, self.nbits) - 1
+            self.feature_size = self.bitmask + 2
+        if args.get('normalization', None) is not None:
+            self.normalization = args['normalization']
+        if args.get('inner_normalization', None) is not None:
+            self.inner_normalization = args['inner_normalization']
+        if args.get('discretization_size', None) is not None:
+            self.discretization_size = args['discretization_size']
+        if args.get('discretization_dimension', None) is not None:
+            self.discretization_dimension = args['discretization_dimension']
+
     def __repr__(self):
         representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, 
-      nbits = %d, normalization = %s, inner_normalization = %s, pure_neighborhood_features = %s, 
+      nbits = %d, normalization = %s, inner_normalization = %s, 
       discretization_size = %d, discretization_dimension = %d )""" % (
             self.r / 2,
             self.d / 2,
@@ -108,7 +125,6 @@ class Vectorizer(object):
             self.nbits,
             self.normalization,
             self. inner_normalization,
-            self.pure_neighborhood_features,
             self.discretization_size,
             self.discretization_dimension)
         return representation
@@ -548,10 +564,7 @@ class Vectorizer(object):
 
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
         self._transform_vertex_pair_base(G, v, u, distance, feature_list)
-        if self.pure_neighborhood_features:
-            self._transform_vertex_pair_pure_neighborhood(
-                G, v, u, distance, feature_list)
-
+        
     def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
@@ -578,23 +591,6 @@ class Vectorizer(object):
                     else:
                         feature_list[key][feature] += G.node[v]['neighborhood_graph_weight'][
                             radius] + G.node[u]['neighborhood_graph_weight'][radius]
-
-    def _transform_vertex_pair_pure_neighborhood(self, G, v, u, distance, feature_list):
-        # for all radii
-        for radius in range(self.min_r, self.r + 2, 2):
-            for label_index in range(G.graph['label_size']):
-                if radius < len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius < len(G.node[u]['neighborhood_graph_hash'][label_index]):
-                    # feature as a radius, distance and a neighbourhood
-                    t = [G.node[u]['neighborhood_graph_hash'][
-                        label_index][radius], radius, distance]
-                    feature = util.fast_hash(t, self.bitmask)
-                    key = util.fast_hash([radius, distance], self.bitmask)
-                    # if self.weighted == False :
-                    if G.graph.get('weighted', False) == False:
-                        feature_list[key][feature] += 1
-                    else:
-                        feature_list[key][
-                            feature] += G.node[u]['neighborhood_graph_weight'][radius]
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance
@@ -869,7 +865,6 @@ class ListVectorizer(Vectorizer):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 pure_neighborhood_features=False,
                  discretization_size=0,
                  discretization_dimension=1):
         """
@@ -903,13 +898,6 @@ class ListVectorizer(Vectorizer):
           When used together with the 'normalization' flag it will be applied first and 
           then the resulting feature vector will be normalized.
 
-        pure_neighborhood_features : bool 
-          If set additional features are going to be generated. 
-          These features are generated in a similar fashion as the base features, 
-          with the caveat that the first neighborhood is omitted.
-          The purpose of these features is to allow vertices that have similar contexts to be 
-          matched, even when they are completely different. 
-
         discretization_size : int
           Number of discretization levels for real vector labels.
           If 0 then treat all labels as strings. 
@@ -925,7 +913,6 @@ class ListVectorizer(Vectorizer):
                                      nbits=nbits,
                                      normalization=normalization,
                                      inner_normalization=inner_normalization,
-                                     pure_neighborhood_features=pure_neighborhood_features,
                                      discretization_size=discretization_size,
                                      discretization_dimension=discretization_dimension)
         self.vectorizers = list()
