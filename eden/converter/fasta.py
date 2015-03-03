@@ -20,3 +20,10 @@ def fasta_to_eden(input, **options):
         G = seq_to_networkx(seq, **options)
         G.graph['id'] = header
         yield G
+
+def fasta_to_seq(input, **options):
+    lines = fasta_to_fasta(input)
+    for line in lines:
+        header = line
+        seq = lines.next()
+        yield header + '\t' + seq
