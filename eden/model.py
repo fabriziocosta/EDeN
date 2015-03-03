@@ -6,11 +6,12 @@ from sklearn import cross_validation
 import random
 import time
 import joblib
-from eden.graph import Vectorizer
+import pprint
 from sklearn.linear_model import SGDClassifier
 from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
 from eden.util import fit_estimator
+from eden.graph import Vectorizer
             
 
 class BinaryClassificationModel(object):
@@ -68,6 +69,14 @@ class BinaryClassificationModel(object):
 
 #TODO: catch error and ignore it
     def optimize(self, iterable_pos, iterable_neg, verbose=True, n_jobs=1, n_iter=20, pre_processor_parameters=dict(), vectorizer_parameters=dict(), estimator_parameters=dict(), cv=10, scoring='roc_auc'):
+        if verbose:
+            print('Paramters range')
+            print('Pre_processor:')
+            pprint.pprint(pre_processor_parameters)
+            print('Vectorizer:')
+            pprint.pprint(vectorizer_parameters)
+            print('Estimator:')
+            pprint.pprint(estimator_parameters)
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
@@ -111,9 +120,12 @@ class BinaryClassificationModel(object):
                         print 
                         print('Iteration: %d/%d (at %.1f sec)' % (i+1,n_iter, time.time()-start))
                         print('Best score: %f (%f +- %f)' % (best_score_, best_score_mean_, best_score_std_)) 
-                        print('Pre_processor: %s' % self.pre_processor_args)
-                        print('Vectorizer: %s' % self.vectorizer_args)
-                        print('Estimator: %s' % self.estimator_args)
+                        print('Pre_processor:')
+                        pprint.pprint(self.pre_processor_args)
+                        print('Vectorizer:')
+                        pprint.pprint(self.vectorizer_args)
+                        print('Estimator:')
+                        pprint.pprint(self.estimator_args)
         # store the best hyperparamter configuration
         self.pre_processor_args = best_pre_processor_args_
         self.vectorizer_args = best_vectorizer_args_
