@@ -3,8 +3,9 @@
 import networkx as nx
 import subprocess as sp
 from eden.modifier.fasta import fasta_to_fasta
-from eden.converter.fasta import seq_to_networkx
+from eden.converter.fasta import seq_to_networkx, fasta_to_seq
 from eden.converter.rna import sequence_dotbracket_to_graph
+from eden.util import read
 
 
 def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None):
@@ -25,33 +26,52 @@ def string_to_networkx(sequence, header, **options):
     energy_range =  options.get('energy_range',10)
     max_num =  options.get('max_num',3)
     split_components = options.get('split_components', False)
-    seq_info, seq_struct_list, struct_list = rnashapes_wrapper(sequence, shape_type=shape_type, energy_range=energy_range, max_num=max_num)
-    if split_components:
-        for seq_struct, struct in zip(seq_struct_list, struct_list):
-            G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
-            G.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
-            G.graph['id'] = header + '_' + struct
-            if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(sequence, **options)
-                G.graph['id'] = header
-            G.graph['sequence'] = sequence
-            yield G
+    try:
+        seq_info, seq_struct_list, struct_list = rnashapes_wrapper(sequence, shape_type=shape_type, energy_range=energy_range, max_num=max_num)
+    except:
+        #silently ignore mistakes
+        pass
     else:
-        G_global = nx.Graph()   
-        G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
-        for seq_struct in seq_struct_list:
-            G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
-            G_global = nx.disjoint_union(G_global, G)
-        if G_global.number_of_nodes() < 2 :
-            G_global = seq_to_networkx(sequence, **options)
-        G_global.graph['id'] = header
-        yield G_global
+        if split_components:
+            for seq_struct, struct in zip(seq_struct_list, struct_list):
+                G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+                G.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
+                G.graph['id'] = header + '_' + struct
+                if G.number_of_nodes() < 2 :
+                    G = seq_to_networkx(sequence, **options)
+                    G.graph['id'] = header
+                G.graph['sequence'] = sequence
+                yield G
+        else:
+            G_global = nx.Graph()   
+            G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
+            for seq_struct in seq_struct_list:
+                G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+                G_global = nx.disjoint_union(G_global, G)
+            if G_global.number_of_nodes() < 2 :
+                G_global = seq_to_networkx(sequence, **options)
+            G_global.graph['id'] = header
+            yield G_global
 
 
 def rnashapes_to_eden(input, **options):
-    lines =  fasta_to_fasta(input)
-    for line in lines:
-        header = line
-        seq = lines.next()
-        for graph in string_to_networkx(seq, header, **options):
-            yield graph
+    data_type =  options.get('data_type','fasta')
+    if data_type == 'fasta':
+        lines =  fasta_to_fasta(input)
+        for line in lines:
+            header = line
+            seq = lines.next()
+            for graph in string_to_networkx(seq, header, **options):
+                yield graph
+    elif data_type == 'seq':
+        lines = read(input)
+        for line in lines:
+            items = line.split('\t')
+            header = items[:-1]
+            header = ''.join(header)
+            seq = items[-1]
+            seq = ''.join(seq)
+            for graph in string_to_networkx(seq, header, **options):
+                yield graph
+    else:
+        raise Exception('Unknown data type: %s' % data_type)
