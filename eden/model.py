@@ -12,7 +12,7 @@ from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
 from eden.util import fit_estimator
 from eden.graph import Vectorizer
-            
+
 
 class BinaryClassificationModel(object):
 
@@ -67,7 +67,7 @@ class BinaryClassificationModel(object):
             parameters_sample[parameter] = value
         return parameters_sample
 
-#TODO: catch error and ignore it
+# TODO: catch error and ignore it
     def optimize(self, iterable_pos, iterable_neg, verbose=True, n_jobs=1, n_iter=20, pre_processor_parameters=dict(), vectorizer_parameters=dict(), estimator_parameters=dict(), cv=10, scoring='roc_auc'):
         if verbose:
             print('Paramters range')
@@ -96,20 +96,24 @@ class BinaryClassificationModel(object):
                 iterable_neg, iterable_neg_ = tee(iterable_neg)
                 X, y = self._data_matrices(
                     iterable_pos_, iterable_neg_, n_jobs=n_jobs)
+                if verbose:
+                    print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
             self.estimator_args = self._sample(estimator_parameters)
             self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
             try:
                 scores = cross_validation.cross_val_score(
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except ValueError:
-                if verbose: print ('Failed iteration: %d/%d (at %.1f sec)' % (i+1,n_iter, time.time()-start))
+                if verbose:
+                    print('Failed iteration: %d/%d (at %.1f sec)' %
+                          (i + 1, n_iter, time.time() - start))
             else:
                 # consider as score the mean-std for a robust estimate
                 score_mean = np.mean(scores)
-                score_std = np.std(scores) 
-                score =  score_mean - score_std 
+                score_std = np.std(scores)
+                score = score_mean - score_std
                 # update the best confirguration
-                if best_score_ <= score:
+                if best_score_ < score:
                     best_score_ = score
                     best_score_mean_ = score_mean
                     best_score_std_ = score_std
@@ -117,9 +121,11 @@ class BinaryClassificationModel(object):
                     best_vectorizer_args_ = self.vectorizer_args
                     best_estimator_args_ = self.estimator_args
                     if verbose:
-                        print 
-                        print('Iteration: %d/%d (at %.1f sec)' % (i+1,n_iter, time.time()-start))
-                        print('Best score: %f (%f +- %f)' % (best_score_, best_score_mean_, best_score_std_)) 
+                        print
+                        print('Iteration: %d/%d (at %.1f sec)' %
+                              (i + 1, n_iter, time.time() - start))
+                        print('Best score: %f (%f +- %f)' %
+                              (best_score_, best_score_mean_, best_score_std_))
                         print('Pre_processor:')
                         pprint.pprint(self.pre_processor_args)
                         print('Vectorizer:')
@@ -161,7 +167,7 @@ class BinaryClassificationModel(object):
                   (scoring, np.mean(scores), np.std(scores)))
         print '-' * 80
 
-#TODO:finish
+# TODO:finish
     def optimize_self_training(self, iterable_pos, iterable_neg, pos2neg_ratio=0.1, num_iterations=2,  threshold=0,  mode='less_than', n_jobs=-1):
         def describe(X):
             print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
@@ -204,6 +210,6 @@ class BinaryClassificationModel(object):
                 positive_data_matrix=Xpos, negative_data_matrix=Xneg, cv=10)
             if i < num_iterations - 1:
                 # use the estimator to select the next batch of negatives
-                predictions = self.vectorizer.predict(iterable_neg_copy2, estimator)
+                predictions = self.vectorizer.predict(
+                    iterable_neg_copy2, estimator)
                 ids = select_ids(predictions, threshold, mode, desired_num_neg)
-
