@@ -4,6 +4,7 @@ import numpy as np
 from scipy.sparse import vstack
 from sklearn import cross_validation
 import random
+import time
 import joblib
 from eden.graph import Vectorizer
 from sklearn.linear_model import SGDClassifier
@@ -12,7 +13,7 @@ from sklearn.metrics import precision_recall_curve, roc_curve
 from eden.util import fit_estimator
             
 
-class EDeNModel(object):
+class BinaryClassificationModel(object):
 
     def __init__(self, pre_processor=None, vectorizer=Vectorizer(complexity=1), estimator=SGDClassifier(class_weight='auto', shuffle=True)):
         self.pre_processor = pre_processor
@@ -71,7 +72,7 @@ class EDeNModel(object):
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
         best_score_ = best_score_mean_ = best_score_std_ = 0
-
+        start = time.time()
         for i in range(n_iter):
             # build data matrix only the first time or if needed e.g. because
             # there are more choices in the paramter settings for the
@@ -92,25 +93,27 @@ class EDeNModel(object):
                 scores = cross_validation.cross_val_score(
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except ValueError:
-                print ('Failed iteration %d' % i)
-            # consider as score the mean-std for a robust estimate
-            score_mean = np.mean(scores)
-            score_std = np.std(scores) 
-            score =  score_mean - score_std 
-            # update the best confirguration
-            if best_score_ <= score:
-                best_score_ = score
-                best_score_mean_ = score_mean
-                best_score_std_ = score_std
-                best_pre_processor_args_ = self.pre_processor_args
-                best_vectorizer_args_ = self.vectorizer_args
-                best_estimator_args_ = self.estimator_args
-                if verbose:
-                    print('Iteration: %d/%d' % (i+1,n_iter))
-                    print('Best score: %f (%f +- %f)' % (best_score_, best_score_mean_, best_score_std_)) 
-                    print('Pre_processor: %s' % self.pre_processor_args)
-                    print('Vectorizer: %s' % self.vectorizer_args)
-                    print('Estimator: %s' % self.estimator_args)
+                if verbose: print ('Failed iteration: %d/%d (at %.1f sec)' % (i+1,n_iter, time.time()-start))
+            else:
+                # consider as score the mean-std for a robust estimate
+                score_mean = np.mean(scores)
+                score_std = np.std(scores) 
+                score =  score_mean - score_std 
+                # update the best confirguration
+                if best_score_ <= score:
+                    best_score_ = score
+                    best_score_mean_ = score_mean
+                    best_score_std_ = score_std
+                    best_pre_processor_args_ = self.pre_processor_args
+                    best_vectorizer_args_ = self.vectorizer_args
+                    best_estimator_args_ = self.estimator_args
+                    if verbose:
+                        print 
+                        print('Iteration: %d/%d (at %.1f sec)' % (i+1,n_iter, time.time()-start))
+                        print('Best score: %f (%f +- %f)' % (best_score_, best_score_mean_, best_score_std_)) 
+                        print('Pre_processor: %s' % self.pre_processor_args)
+                        print('Vectorizer: %s' % self.vectorizer_args)
+                        print('Estimator: %s' % self.estimator_args)
         # store the best hyperparamter configuration
         self.pre_processor_args = best_pre_processor_args_
         self.vectorizer_args = best_vectorizer_args_
