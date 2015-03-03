@@ -99,33 +99,43 @@ class BinaryClassificationModel(object):
         best_estimator_args_ = dict()
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
+        mean_len_pre_processor_parameters = np.mean(
+            [len(pre_processor_parameters[p]) for p in pre_processor_parameters])
+        mean_len_vectorizer_parameters = np.mean(
+            [len(vectorizer_parameters[p]) for p in vectorizer_parameters])
         for i in range(n_iter):
-            # build data matrix only the first time or if needed e.g. because
-            # there are more choices in the paramter settings for the
-            # pre_processor or the vectorizer
-            mean_len_pre_processor_parameters = np.mean(
-                [len(pre_processor_parameters[p]) for p in pre_processor_parameters])
-            mean_len_vectorizer_parameters = np.mean(
-                [len(vectorizer_parameters[p]) for p in vectorizer_parameters])
-            if i == 0 or mean_len_pre_processor_parameters != 1 or mean_len_vectorizer_parameters != 1:
-                # sample paramters randomly
-                self.pre_processor_args = self._sample(
-                    pre_processor_parameters)
-                self.vectorizer_args = self._sample(vectorizer_parameters)
-                # copy the iterators for later re-use
-                iterable_pos, iterable_pos_ = tee(iterable_pos)
-                iterable_neg, iterable_neg_ = tee(iterable_neg)
-                X, y = self._data_matrices(
-                    iterable_pos_, iterable_neg_, n_jobs=n_jobs)
-            self.estimator_args = self._sample(estimator_parameters)
-            self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
             try:
+                self.estimator_args = self._sample(estimator_parameters)
+                self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
+                # build data matrix only the first time or if needed e.g. because
+                # there are more choices in the paramter settings for the
+                # pre_processor or the vectorizer
+                if i == 0 or mean_len_pre_processor_parameters != 1 or mean_len_vectorizer_parameters != 1:
+                    # sample paramters randomly
+                    self.pre_processor_args = self._sample(
+                        pre_processor_parameters)
+                    self.vectorizer_args = self._sample(vectorizer_parameters)
+                    # copy the iterators for later re-use
+                    iterable_pos, iterable_pos_ = tee(iterable_pos)
+                    iterable_neg, iterable_neg_ = tee(iterable_neg)
+                    X, y = self._data_matrices(
+                        iterable_pos_, iterable_neg_, n_jobs=n_jobs)
                 scores = cross_validation.cross_val_score(
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-            except ValueError:
+            except Exception as e:
                 if verbose:
                     print('Failed iteration: %d/%d (at %.1f sec)' %
                           (i + 1, n_iter, time.time() - start))
+                    print e.__doc__
+                    print e.message
+                    print('Failed with the following setting:')
+                    print('Pre_processor:')
+                    pprint.pprint(self.pre_processor_args)
+                    print('Vectorizer:')
+                    pprint.pprint(self.vectorizer_args)
+                    print('Estimator:')
+                    pprint.pprint(self.estimator_args)
+                    print '...continuing'
             else:
                 # consider as score the mean-std for a robust estimate
                 score_mean = np.mean(scores)
@@ -143,8 +153,8 @@ class BinaryClassificationModel(object):
                         print
                         print('Iteration: %d/%d (at %.1f sec)' %
                               (i + 1, n_iter, time.time() - start))
-                        print('Best score: %f (%f +- %f)' %
-                              (best_score_, best_score_mean_, best_score_std_))
+                        print('Best score (%s): %f (%f +- %f)' %
+                              (scoring, best_score_, best_score_mean_, best_score_std_))
                         print('Pre_processor:')
                         pprint.pprint(self.pre_processor_args)
                         print('Vectorizer:')
@@ -225,37 +235,47 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
         best_estimator_args_ = dict()
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
+        mean_len_pre_processor_parameters = np.mean(
+            [len(pre_processor_parameters[p]) for p in pre_processor_parameters])
+        mean_len_vectorizer_parameters = np.mean(
+            [len(vectorizer_parameters[p]) for p in vectorizer_parameters])
         for i in range(n_iter):
-            # build data matrix only the first time or if needed e.g. because
-            # there are more choices in the paramter settings for the
-            # pre_processor or the vectorizer
-            mean_len_pre_processor_parameters = np.mean(
-                [len(pre_processor_parameters[p]) for p in pre_processor_parameters])
-            mean_len_vectorizer_parameters = np.mean(
-                [len(vectorizer_parameters[p]) for p in vectorizer_parameters])
-            if i == 0 or mean_len_pre_processor_parameters != 1 or mean_len_vectorizer_parameters != 1:
-                # sample paramters randomly
-                self.pre_processor_args = self._sample(
-                    pre_processor_parameters)
-                self.vectorizer_args = self._sample(vectorizer_parameters)
-                # copy the iterators for later re-use
-                iterable_pos, iterable_pos_ = tee(iterable_pos)
-                iterable_neg, iterable_neg_ = tee(iterable_neg)
-                X, y = self._self_training_data_matrices(iterable_pos_, iterable_neg_,
-                                                         neg_to_pos_ratio=neg_to_pos_ratio,
-                                                         num_selftraining_iterations=num_selftraining_iterations,
-                                                         lower_bound_threshold=lower_bound_threshold,
-                                                         upper_bound_threshold=upper_bound_threshold,
-                                                         n_jobs=n_jobs)
-            self.estimator_args = self._sample(estimator_parameters)
-            self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
             try:
+                self.estimator_args = self._sample(estimator_parameters)
+                self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
+                # build data matrix only the first time or if needed e.g. because
+                # there are more choices in the paramter settings for the
+                # pre_processor or the vectorizer
+                if i == 0 or mean_len_pre_processor_parameters != 1 or mean_len_vectorizer_parameters != 1:
+                    # sample paramters randomly
+                    self.pre_processor_args = self._sample(
+                        pre_processor_parameters)
+                    self.vectorizer_args = self._sample(vectorizer_parameters)
+                    # copy the iterators for later re-use
+                    iterable_pos, iterable_pos_ = tee(iterable_pos)
+                    iterable_neg, iterable_neg_ = tee(iterable_neg)
+                    X, y = self._self_training_data_matrices(iterable_pos_, iterable_neg_,
+                                                             neg_to_pos_ratio=neg_to_pos_ratio,
+                                                             num_selftraining_iterations=num_selftraining_iterations,
+                                                             lower_bound_threshold=lower_bound_threshold,
+                                                             upper_bound_threshold=upper_bound_threshold,
+                                                             n_jobs=n_jobs)
                 scores = cross_validation.cross_val_score(
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-            except ValueError:
+            except Exception as e:
                 if verbose:
                     print('Failed iteration: %d/%d (at %.1f sec)' %
                           (i + 1, n_iter, time.time() - start))
+                    print e.__doc__
+                    print e.message
+                    print('Failed with the following setting:')
+                    print('Pre_processor:')
+                    pprint.pprint(self.pre_processor_args)
+                    print('Vectorizer:')
+                    pprint.pprint(self.vectorizer_args)
+                    print('Estimator:')
+                    pprint.pprint(self.estimator_args)
+                    print '...continuing'
             else:
                 # consider as score the mean-std for a robust estimate
                 score_mean = np.mean(scores)
@@ -273,8 +293,8 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
                         print
                         print('Iteration: %d/%d (at %.1f sec)' %
                               (i + 1, n_iter, time.time() - start))
-                        print('Best score: %f (%f +- %f)' %
-                              (best_score_, best_score_mean_, best_score_std_))
+                        print('Best score (%s): %f (%f +- %f)' %
+                              (scoring, best_score_, best_score_mean_, best_score_std_))
                         print('Pre_processor:')
                         pprint.pprint(self.pre_processor_args)
                         print('Vectorizer:')
@@ -310,7 +330,8 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
             yn = [-1] * Xneg.shape[0]
             y = np.array(yp + yn)
             X = vstack([Xpos, Xneg], format="csr")
-            # stop fitting a model at the last-1 iteration, just return the selected matrix
+            # stop fitting a model at the last-1 iteration, just return the
+            # selected matrix
             if i == num_selftraining_iterations - 1:
                 break
             # fit the estimator on all positives and selected negatives
@@ -322,6 +343,8 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
             for i, prediction in enumerate(predictions):
                 if prediction >= float(lower_bound_threshold) and prediction <= float(upper_bound_threshold):
                     ids.append(i)
+            if len(ids) == 0:
+                raise Exception('No instances found that satisfy constraints')
             # keep a random sample of num_neg difficult cases
             random.shuffle(ids)
             ids = ids[:desired_size]
