@@ -10,7 +10,7 @@ import pprint
 from sklearn.linear_model import SGDClassifier
 from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
-from eden.util import fit_estimator
+from eden.util import fit_estimator, selection_iterator
 from eden.util.util import report_base_statistics
 from eden.graph import Vectorizer
 
@@ -241,8 +241,12 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
                 # copy the iterators for later re-use
                 iterable_pos, iterable_pos_ = tee(iterable_pos)
                 iterable_neg, iterable_neg_ = tee(iterable_neg)
-                X, y = self._self_training_data_matrices(
-                    iterable_pos_, iterable_neg_, n_jobs=n_jobs)
+                X, y = self._self_training_data_matrices(iterable_pos_, iterable_neg_,
+                                                         neg_to_pos_ratio=neg_to_pos_ratio,
+                                                         num_selftraining_iterations=num_selftraining_iterations,
+                                                         lower_bound_threshold=lower_bound_threshold,
+                                                         upper_bound_threshold=upper_bound_threshold,
+                                                         n_jobs=n_jobs)
             self.estimator_args = self._sample(estimator_parameters)
             self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
             try:
@@ -298,8 +302,7 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
         # a model using postives and selected negatives
         for i in range(num_selftraining_iterations):
             # select only a fraction of the negatives
-            iterable_neg, iterable_neg_, iterable_neg__ = tee(
-                iterable_neg, 3)
+            iterable_neg, iterable_neg_, iterable_neg__ = tee(iterable_neg, 3)
             Xneg = self._data_matrix(
                 selection_iterator(iterable_neg_, ids), n_jobs=n_jobs)
             # assemble data matrix
@@ -307,14 +310,14 @@ class SelfTrainingBinaryClassificationModel(BinaryClassificationModel):
             yn = [-1] * Xneg.shape[0]
             y = np.array(yp + yn)
             X = vstack([Xpos, Xneg], format="csr")
-            # stop fitting a model at the last-1 iteration
+            # stop fitting a model at the last-1 iteration, just return the selected matrix
             if i == num_selftraining_iterations - 1:
                 break
             # fit the estimator on all positives and selected negatives
             self.estimator.fit(X, y)
             # use the estimator to select the next batch of negatives
-            predictions = self.vectorizer.predict(
-                iterable_neg__, estimator)
+            iterator = self.pre_processor(iterable_neg__)
+            predictions = self.vectorizer.predict(iterator, self.estimator)
             ids = list()
             for i, prediction in enumerate(predictions):
                 if prediction >= float(lower_bound_threshold) and prediction <= float(upper_bound_threshold):
