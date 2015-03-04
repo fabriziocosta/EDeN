@@ -138,7 +138,7 @@ class BinaryClassificationModel(object):
             except Exception as e:
                 if verbose:
                     print('Failed iteration: %d/%d (at %.1f sec; %s)' %
-                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     print e.__doc__
                     print e.message
                     print('Failed with the following setting:')
@@ -160,7 +160,7 @@ class BinaryClassificationModel(object):
                     if verbose:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
-                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                         print('Best score (%s): %f (%f +- %f)' %
                               (scoring, best_score_, best_score_mean_, best_score_std_))
                         print_args()
@@ -285,7 +285,7 @@ class ActiveLearningBinaryClassificationModel(BinaryClassificationModel):
             except Exception as e:
                 if verbose:
                     print('Failed iteration: %d/%d (at %.1f sec; %s)' %
-                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     print e.__doc__
                     print e.message
                     print('Failed with the following setting:')
@@ -307,7 +307,7 @@ class ActiveLearningBinaryClassificationModel(BinaryClassificationModel):
                     if verbose:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
-                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                         print('Best score (%s): %f (%f +- %f)' %
                               (scoring, best_score_, best_score_mean_, best_score_std_))
                         print_args()
