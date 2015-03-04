@@ -5,6 +5,7 @@ from scipy.sparse import vstack
 from sklearn import cross_validation
 import random
 import time
+import datetime
 import joblib
 import pprint
 from sklearn.linear_model import SGDClassifier
@@ -136,8 +137,8 @@ class BinaryClassificationModel(object):
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except Exception as e:
                 if verbose:
-                    print('Failed iteration: %d/%d (at %.1f sec)' %
-                          (i + 1, n_iter, time.time() - start))
+                    print('Failed iteration: %d/%d (at %.1f sec; %s)' %
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
                     print e.__doc__
                     print e.message
                     print('Failed with the following setting:')
@@ -158,8 +159,8 @@ class BinaryClassificationModel(object):
                     best_estimator_args_ = self.estimator_args
                     if verbose:
                         print
-                        print('Iteration: %d/%d (at %.1f sec)' %
-                              (i + 1, n_iter, time.time() - start))
+                        print('Iteration: %d/%d (at %.1f sec; %s)' %
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
                         print('Best score (%s): %f (%f +- %f)' %
                               (scoring, best_score_, best_score_mean_, best_score_std_))
                         print_args()
@@ -283,8 +284,8 @@ class ActiveLearningBinaryClassificationModel(BinaryClassificationModel):
                     self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except Exception as e:
                 if verbose:
-                    print('Failed iteration: %d/%d (at %.1f sec)' %
-                          (i + 1, n_iter, time.time() - start))
+                    print('Failed iteration: %d/%d (at %.1f sec; %s)' %
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
                     print e.__doc__
                     print e.message
                     print('Failed with the following setting:')
@@ -305,8 +306,8 @@ class ActiveLearningBinaryClassificationModel(BinaryClassificationModel):
                     best_estimator_args_ = self.estimator_args
                     if verbose:
                         print
-                        print('Iteration: %d/%d (at %.1f sec)' %
-                              (i + 1, n_iter, time.time() - start))
+                        print('Iteration: %d/%d (at %.1f sec; %s)' %
+                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start))))
                         print('Best score (%s): %f (%f +- %f)' %
                               (scoring, best_score_, best_score_mean_, best_score_std_))
                         print_args()
