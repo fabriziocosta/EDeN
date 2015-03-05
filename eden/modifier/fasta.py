@@ -33,12 +33,12 @@ def _fasta_to_fasta(input):
                 if seq:
                     yield seq
                     seq=""
-                string = str(line)
-                yield string.strip()
+                line_str = str(line)
+                yield line_str.strip()
             else:
-                string = line.split()
-                if string:
-                    seq += str(string[0]).strip()
+                line_str = line.split()
+                if line_str:
+                    seq += str(line_str[0]).strip()
     if seq:
         yield seq
 
