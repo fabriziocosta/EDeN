@@ -15,6 +15,11 @@ from scipy.sparse import vstack
 from itertools import tee
 import random
 
+def is_iterable(test):
+    if hasattr(test, '__iter__'):
+        return True
+    else:
+        return False
 
 def describe(X):
     print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0])
@@ -136,6 +141,7 @@ def estimate(iterable_pos_test, iterable_neg_test, estimator, vectorizer, n_jobs
     print 'ROC: %.3f' % roc
     apr = average_precision_score(y, margins)
     print 'APR: %.3f'% apr
+    return roc, apr
     
 
 def self_training(iterable_pos, iterable_neg, vectorizer=None, pos2neg_ratio=0.1, num_iterations=2,  threshold=0,  mode='less_than', n_jobs=-1):
