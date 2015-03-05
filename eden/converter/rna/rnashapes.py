@@ -34,7 +34,7 @@ def string_to_networkx(header, sequence, **options):
             G.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
             G.graph['id'] = header + '_' + struct
             if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(sequence, **options)
+                G = seq_to_networkx(header,sequence, **options)
                 G.graph['id'] = header
             G.graph['sequence'] = sequence
             yield G
@@ -46,7 +46,7 @@ def string_to_networkx(header, sequence, **options):
             G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
             G_global = nx.disjoint_union(G_global, G)
         if G_global.number_of_nodes() < 2 :
-            G_global = seq_to_networkx(sequence, **options)
+            G_global = seq_to_networkx(header,sequence, **options)
         yield G_global
 
 
