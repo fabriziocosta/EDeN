@@ -8,6 +8,9 @@ from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.util import read
 from eden.util import is_iterable
 
+#TODO: use sampling if seq is too long
+#use different parsing of output in this case
+#check version of program
 
 def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None):
     #command line
