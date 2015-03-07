@@ -134,6 +134,7 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(vectorizer_parameters)
             print('Estimator:')
             pprint.pprint(estimator_parameters)
+        #init
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
@@ -141,6 +142,11 @@ class ActiveLearningBinaryClassificationModel(object):
         start = time.time()
         mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
         mean_len_vectorizer_parameters = np.mean([len(vectorizer_parameters[p]) for p in vectorizer_parameters])
+        if (mean_len_pre_processor_parameters == 1 or mean_len_pre_processor_parameters == 0) and  (mean_len_vectorizer_parameters == 1 or  mean_len_vectorizer_parameters == 0):
+            data_matrix_is_stable = True
+        else:
+            data_matrix_is_stable = False
+        #main iteration 
         for i in range(n_iter):
             try:
                 self.estimator_args = self._sample(estimator_parameters)
@@ -148,7 +154,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 # build data matrix only the first time or if needed e.g. because
                 # there are more choices in the paramter settings for the
                 # pre_processor or the vectorizer
-                if i == 0 or mean_len_pre_processor_parameters != 1 or mean_len_vectorizer_parameters != 1:
+                if i == 0 or data_matrix_is_stable == False:
                     # sample paramters randomly
                     self.pre_processor_args = self._sample(pre_processor_parameters)
                     self.vectorizer_args = self._sample(vectorizer_parameters)

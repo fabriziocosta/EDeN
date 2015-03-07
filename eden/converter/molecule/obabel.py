@@ -3,6 +3,7 @@ import pybel
 import json
 import networkx as nx
 from networkx.readwrite import json_graph
+import tempfile
 
 def obabel_to_eden(input, file_type = 'sdf', **options):
     """
@@ -14,21 +15,12 @@ def obabel_to_eden(input, file_type = 'sdf', **options):
         A pointer to the data source.
 
     """
-
-    if type( input ) == file:
-        input.close()
-        input_path = input.name
-    else:
-        temp_file = tempfile.NamedTemporaryFile( delete = False )
-        for line in temp_file:
-            temp_file.write(line)
-        temp_file.close()
-        input_path = temp_file.name
-
-    for mol in pybel.readfile(file_type, input_path):
+    for mol in pybel.readfile(file_type, input):
         #remove hydrogens
         mol.removeh()
-        yield obabel_to_networkx(mol)
+        G = obabel_to_networkx(mol)
+        if len(G):
+            yield G
 
 
 def obabel_to_networkx( mol ):
@@ -38,14 +30,12 @@ def obabel_to_networkx( mol ):
     g = nx.Graph()
     #atoms
     for atom in mol:
-        vlabel = atom.type
-        hvlabel=[hash(str(atom.atomicnum))]
-        g.add_node(atom.idx, label=vlabel, hlabel=hvlabel)
+        label = str(atom.type)
+        g.add_node(atom.idx, label=label)
     #bonds
         edges = []
     bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
-        elabel = bond.GetBO()
-        helabel = [hash(str(elabel))]
-        g.add_edge( bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label = elabel, hlabel = helabel )
+        label = str(bond.GetBO())
+        g.add_edge( bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label = label )
     return g
