@@ -85,11 +85,11 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
                   "alpha": uniform(1e-08, 1e-03),
-                  "eta0": uniform(1e-03, 10),
+                  "eta0": uniform(1e-03, 1),
                   "penalty": ["l1", "l2", "elasticnet"],
                   "learning_rate": ["invscaling", "constant", "optimal"]}
     scoring = 'roc_auc'
-    n_iter_search = 20
+    n_iter_search = 40
     random_search = RandomizedSearchCV(
         predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs)
     random_search.fit(X, y)
@@ -142,47 +142,6 @@ def estimate(iterable_pos_test, iterable_neg_test, estimator, vectorizer, n_jobs
     apr = average_precision_score(y, margins)
     print 'APR: %.3f'% apr
     return roc, apr
-    
-
-def self_training(iterable_pos, iterable_neg, vectorizer=None, pos2neg_ratio=0.1, num_iterations=2,  threshold=0,  mode='less_than', n_jobs=-1):
-    def select_ids(predictions, threshold, mode, desired_num_neg):
-        ids = list()
-        for i, prediction in enumerate(predictions):
-            if mode == 'less_then':
-                comparison = prediction < float(threshold)
-            else:
-                comparison = prediction > float(threshold)
-            if comparison:
-                ids.append(i)
-        #keep a random sample of num_neg difficult cases
-        random.shuffle(ids)
-        ids = ids[:desired_num_neg]
-        return ids
-
-    Xpos = vectorizer.transform( iterable_pos, n_jobs=n_jobs )
-    print 'Positives:'
-    describe(Xpos)
-    #select a fraction for the negatives
-    num_pos = Xpos.shape[0]
-    desired_num_neg = int(float(num_pos) * pos2neg_ratio)
-    #select the initial ids for the negatives as the first num_neg
-    ids = range(desired_num_neg)
-    #iterate: select negatives and create a model using postives + selected negatives 
-    for i in range(num_iterations):
-        print 'Iteration: %d/%d'%(i+1,num_iterations)
-        #select only a fraction of the negatives
-        iterable_neg, iterable_neg_copy1, iterable_neg_copy2 = tee(iterable_neg,3)
-        Xneg = vectorizer.transform( selection_iterator(iterable_neg_copy1,ids), n_jobs=n_jobs )
-        print 'Negatives:'
-        describe(Xneg)
-        #fit the estimator on all positives and selected negatives
-        from eden.util import fit_estimator
-        estimator = fit_estimator( positive_data_matrix=Xpos, negative_data_matrix=Xneg, cv=10 )
-        if i < num_iterations -1:
-            #use the estimator to select the next batch of negatives
-            predictions = vectorizer.predict(iterable_neg_copy2, estimator)
-            ids = select_ids(predictions, threshold, mode, desired_num_neg)
-    return estimator
 
 
 def read(uri):
