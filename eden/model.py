@@ -103,6 +103,7 @@ class ActiveLearningBinaryClassificationModel(object):
         print '-' * 80
 
     def optimize(self, iterable_pos, iterable_neg,
+                 model_name='model',
                  n_active_learning_iterations=0,
                  size_positive=-1,
                  size_negative=-1,
@@ -134,7 +135,7 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(vectorizer_parameters)
             print('Estimator:')
             pprint.pprint(estimator_parameters)
-        #init
+        # init
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
@@ -142,11 +143,11 @@ class ActiveLearningBinaryClassificationModel(object):
         start = time.time()
         mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
         mean_len_vectorizer_parameters = np.mean([len(vectorizer_parameters[p]) for p in vectorizer_parameters])
-        if (mean_len_pre_processor_parameters == 1 or mean_len_pre_processor_parameters == 0) and  (mean_len_vectorizer_parameters == 1 or  mean_len_vectorizer_parameters == 0):
+        if (mean_len_pre_processor_parameters == 1 or mean_len_pre_processor_parameters == 0) and (mean_len_vectorizer_parameters == 1 or mean_len_vectorizer_parameters == 0):
             data_matrix_is_stable = True
         else:
             data_matrix_is_stable = False
-        #main iteration 
+        # main iteration
         for i in range(n_iter):
             try:
                 self.estimator_args = self._sample(estimator_parameters)
@@ -205,12 +206,16 @@ class ActiveLearningBinaryClassificationModel(object):
                         print_args()
                         print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
                         print report_base_statistics(y)
+                    self.save(model_name)
+                    if verbose:
+                        print('Saved current best model in %s' % model_name)
         # store the best hyperparamter configuration
         self.pre_processor_args = best_pre_processor_args_
         self.vectorizer_args = best_vectorizer_args_
         self.estimator_args = best_estimator_args_
-        # fit the estimator using the best hyperparameters
+        # fit the estimator using the best hyperparameters on whole data
         self.fit(iterable_pos, iterable_neg, n_jobs=n_jobs)
+        self.save(model_name)
 
     def _self_training_data_matrices(self, iterable_pos, iterable_neg,
                                      n_active_learning_iterations=2,
