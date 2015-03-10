@@ -123,26 +123,34 @@ def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10):
     return optpredictor
 
 
+def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None, cv=10, n_jobs=-1):
+    assert(
+        positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
+    if target is None and negative_data_matrix is not None:
+        yp = [1] * positive_data_matrix.shape[0]
+        yn = [-1] * negative_data_matrix.shape[0]
+        y = np.array(yp + yn)
+        X = vstack([positive_data_matrix, negative_data_matrix], format="csr")
+    if target is not None:
+        X = positive_data_matrix
+        y = target
+    print 'Test set'
+    describe(X)
+    print '-'*80
+    print 'Test Estimate'
+    predictions=estimator.predict(X)
+    margins=estimator.decision_function(X)
+    print classification_report(y, predictions)
+    apr = average_precision_score(y, margins)
+    print 'APR: %.3f'% apr
+    roc = roc_auc_score(y, margins)
+    print 'ROC: %.3f' % roc
+    return apr,roc
+
 def estimate(iterable_pos_test, iterable_neg_test, estimator, vectorizer, n_jobs=1):
     X_pos_test = vectorizer.transform( iterable_pos_test, n_jobs=n_jobs )
     X_neg_test = vectorizer.transform( iterable_neg_test, n_jobs=n_jobs )
-    yp =  [1] * X_pos_test.shape[0]
-    yn = [-1] * X_neg_test.shape[0]
-    y = np.array(yp + yn)
-    X_test = vstack( [X_pos_test,X_neg_test] , format = "csr")
-    print 'Test set'
-    describe(X_test)
-    print '-'*80
-    print 'Test Estimate'
-    predictions=estimator.predict(X_test)
-    margins=estimator.decision_function(X_test)
-    print classification_report(y, predictions)
-    roc = roc_auc_score(y, margins)
-    print 'ROC: %.3f' % roc
-    apr = average_precision_score(y, margins)
-    print 'APR: %.3f'% apr
-    return roc, apr
-
+    return estimate_estimator(positive_data_matrix=X_pos_test, negative_data_matrix=X_neg_test, estimator=estimator, n_jobs=n_jobs)
 
 def read(uri):
     """
