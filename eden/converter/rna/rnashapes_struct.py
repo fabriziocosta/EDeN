@@ -5,6 +5,7 @@ import subprocess as sp
 from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 import math
+from eden.util import is_iterable
 
 
 def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None, shape=None, energy=None, dotbracket=None):
@@ -36,7 +37,7 @@ def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None
     return seq_info, seq_struct_list
 
 
-def string_to_networkx(sequence, **options):
+def string_to_networkx(header, sequence, **options):
     #defaults
     shape_type =  options.get('shape_type',5)
     energy_range =  options.get('energy_range',10)
@@ -52,7 +53,9 @@ def string_to_networkx(sequence, **options):
         energy=energy,
         dotbracket=dotbracket)
     G_global = nx.Graph()
+    G_global.graph['id'] = header
     G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s shape=%s energy=%s dotbracket=%s' % (shape_type, energy_range, max_num, shape, energy, dotbracket)
+    G_global.graph['sequence'] = sequence
     for seq_struct in seq_struct_list:
         G = nx.Graph()
         lifo = list()
@@ -67,32 +70,14 @@ def string_to_networkx(sequence, **options):
     return G_global
 
 
-def rnashapes_struct_to_eden(input, **options):
-    data_type =  options.get('data_type','fasta')
-    if data_type == 'fasta':
-        lines =  fasta_to_fasta(input)
-        for line in lines:
-            header = line
-            seq = lines.next()
-            G = string_to_networkx(seq, **options)
-            #in case something goes wrong fall back to simple sequence
-            if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(seq, **options)
-            G.graph['id'] = header
-            yield G
-    elif data_type == 'seq':
-        lines = read(input)
-        for line in lines:
-            items = line.split('\t')
-            header = items[:-1]
-            header = ''.join(header)
-            seq = items[-1]
-            seq = ''.join(seq)
-            G = string_to_networkx(seq, **options)
-            #in case something goes wrong fall back to simple sequence
-            if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(seq, **options)
-            G.graph['id'] = header
-            yield G
-    else:
-        raise Exception('Unknown data type: %s' % data_type)   
+def rnashapes_struct_to_eden(iterable, **options):    
+    assert(is_iterable(iterable)), 'Not iterable'
+    for header, seq in iterable:
+        try:
+            G = string_to_networkx(header, seq, **options)
+        except Exception as e:
+            print e.__doc__
+            print e.message
+            print 'Error in: %s' % seq
+            G = seq_to_networkx(header, seq, **options)
+        yield G

@@ -1,29 +1,29 @@
 import networkx as nx
 from eden.modifier.fasta import fasta_to_fasta
+from eden.util import is_iterable
 
 
-def seq_to_networkx(line, **options):
+def seq_to_networkx(header, seq, **options):
     G = nx.Graph()
-    for id,character in enumerate(line):
-        G.add_node(id, label = character, position = id)
+    G.graph['id'] = header
+    for id, character in enumerate(seq):
+        G.add_node(id, label=character, position=id)
         if id > 0:
-            G.add_edge(id-1, id, label = '-')
-    assert(len(G)>0),'ERROR: generated empty graph. Perhaps wrong format?'
+            G.add_edge(id - 1, id, label='-')
+    assert(len(G) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
     return G
 
 
-def fasta_to_eden(input, **options):
-    lines = fasta_to_fasta(input)
-    for line in lines:
-        header = line
-        seq = lines.next()
-        G = seq_to_networkx(seq, **options)
-        G.graph['id'] = header
-        yield G
+def sequence_to_eden(iterable, **options):
+    assert(is_iterable(iterable)), 'Not iterable'
+    for header, seq in iterable:
+        graph = seq_to_networkx(header, seq, **options)
+        yield graph
 
-def fasta_to_seq(input, **options):
+
+def fasta_to_sequence(input, **options):
     lines = fasta_to_fasta(input)
     for line in lines:
         header = line
         seq = lines.next()
-        yield header + '\t' + seq
+        yield header,seq 
