@@ -5,7 +5,7 @@ import networkx as nx
 import subprocess as sp
 from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
-
+from eden.util import is_iterable
 
 def RNAplfold_wrapper(sequence,  
         max_num_edges=None, 
@@ -37,7 +37,7 @@ def RNAplfold_wrapper(sequence,
     return plfold_bp_list
 
 
-def string_to_networkx(sequence, **options):
+def string_to_networkx(header, sequence, **options):
     # Sort edges by average base pair probability in order to stop after
     # max_num_edges edges have been added to a specific vertex.
     max_num_edges =  options.get('max_num_edges', 1)
@@ -52,8 +52,8 @@ def string_to_networkx(sequence, **options):
         max_bp_span=max_bp_span,
         avg_bp_prob_cutoff=avg_bp_prob_cutoff,
         no_lonely_bps=no_lonely_bps), reverse=True)
-    # Create graph.
     G = nx.Graph()
+    G.graph['id'] = header
     G.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (max_num_edges, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps)
     G.graph['sequence'] = sequence
     # Add nucleotide vertices.
@@ -76,32 +76,14 @@ def string_to_networkx(sequence, **options):
     return G
 
 
-def rnaplfold_to_eden(input, **options):
-    data_type =  options.get('data_type','fasta')
-    if data_type == 'fasta':
-        lines =  fasta_to_fasta(input)
-        for line in lines:
-            header = line
-            seq = lines.next()
-            G = string_to_networkx(seq, **options)
-            #in case something goes wrong fall back to simple sequence
-            if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(seq, **options)
-            G.graph['id'] = header
-            yield G
-    elif data_type == 'seq':
-        lines = read(input)
-        for line in lines:
-            items = line.split('\t')
-            header = items[:-1]
-            header = ''.join(header)
-            seq = items[-1]
-            seq = ''.join(seq)
-            G = string_to_networkx(seq, **options)
-            #in case something goes wrong fall back to simple sequence
-            if G.number_of_nodes() < 2 :
-                G = seq_to_networkx(seq, **options)
-            G.graph['id'] = header
-            yield G
-    else:
-        raise Exception('Unknown data type: %s' % data_type)
+def rnaplfold_to_eden(iterable, **options):
+    assert(is_iterable(iterable)), 'Not iterable'
+    for header, seq in iterable:
+        try:
+            G = string_to_networkx(header, seq, **options)
+        except Exception as e:
+            print e.__doc__
+            print e.message
+            print 'Error in: %s' % seq
+            G = seq_to_networkx(header, seq, **options)
+        yield G
