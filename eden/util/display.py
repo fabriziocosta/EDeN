@@ -295,3 +295,46 @@ def KernelQuickShiftTreeEmbedding(X, order=1, metric='linear', **args):
         X_2D.append(list(X_[i]))
     X_emb = np.array(X_2D)
     return X_emb
+
+def plot_embedding(X, y, title=None, cmap='gnuplot'):
+    import matplotlib.pyplot as plt
+    plt.scatter(X[:,0], X[:,1],c=y,cmap=cmap, alpha=.7, s=30, edgecolors='gray') 
+    plt.xticks([])
+    plt.yticks([])
+    if title is not None: plt.title(title)
+        
+def plot_embeddings(X,y, size=18,cmap='gnuplot'):
+    import matplotlib.pyplot as plt
+    import time
+    plt.figure(figsize=(size,size))
+    
+    start = time.time()
+    from sklearn import decomposition
+    X_ = decomposition.TruncatedSVD(n_components=2).fit_transform(X)
+    duration=time.time()-start
+    plt.subplot(221)
+    plot_embedding(X_, y, title="SVD (%.1f sec)"%duration,cmap=cmap)
+    
+    start = time.time()
+    from sklearn import manifold
+    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100).fit_transform(X)
+    duration=time.time()-start
+    plt.subplot(222)
+    plot_embedding(X_, y, title="MDS (%.1f sec)"%duration,cmap=cmap)
+
+    
+    start = time.time()
+    from sklearn import manifold
+    X_ =  manifold.TSNE(n_components=2, init='random', random_state=0).fit_transform(X)
+    duration=time.time()-start
+    plt.subplot(223)
+    plot_embedding(X_, y, title="TSNE (%.1f sec)"%duration,cmap=cmap)
+    
+    start = time.time()
+    from eden.util.display import KernelQuickShiftTreeEmbedding
+    X_=KernelQuickShiftTreeEmbedding(X, order=1, metric='rbf', gamma=1e-3)
+    duration=time.time()-start
+    plt.subplot(224)
+    plot_embedding(X_, y, title="KQST (%.1f sec)"%duration,cmap=cmap)
+    
+    plt.show()
