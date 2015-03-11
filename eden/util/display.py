@@ -242,3 +242,56 @@ def dendrogram(data, vectorizer, color_threshold=1, size = 10, n_jobs = 1):
     plt.figure(figsize=(size, size))
     dendrogram(Z, color_threshold=color_threshold, labels=labels, orientation='right')
     plt.show()
+
+
+def KernelQuickShiftTreeEmbedding(X, order=1, metric='linear', **args):
+    #extract pairwise similarity matrix with desired kernel
+    from sklearn import metrics
+    K=metrics.pairwise.pairwise_kernels(X, metric=metric,**args)
+    
+    #compute instance density as average pairwise similarity
+    import numpy as np
+    density=np.sum(K,0)/K.shape[0]
+    
+    #compute list of nearest neighbors
+    Ka=np.argsort(-K)
+    
+    #compute density for each nearest neighbor
+    Kad=density[Ka]
+
+    import networkx as nx
+    G=nx.Graph()
+    G.add_nodes_from(range(K.shape[0]))
+    #for all instances
+    for i,row in enumerate(Kad): 
+        i_density=row[0]
+        k_nearest_denser_neighbors=[]
+        #for all neighbors from the closest to the furthest
+        for jj,d in enumerate(row):
+            j=Ka[i,jj]
+            if jj>0:
+                j_density=d
+                #if the density of the neighbor is higher than the density of the instance
+                if j_density > i_density:
+                    #store density, similarity, identity of neighbor
+                    k_nearest_denser_neighbors.append((j_density,K[i,j],j))
+                    #when we have identified n=order neighbors that have a greater density then the instance 
+                    if len(k_nearest_denser_neighbors) >= order:
+                        #find the one with the highest density
+                        j_density_max,k_max, j_max = max(k_nearest_denser_neighbors)
+                        #add a link between the instance and the higher density neighbor
+                        G.add_edge(i,j_max,weight=K[i,j])
+                        k_nearest_denser_neighbors=[]
+                        break
+        #in case we did not manage to find n=order neighbors with higher density 
+        if k_nearest_denser_neighbors:
+            j_density_max,k_max, j_max = max(k_nearest_denser_neighbors)
+            G.add_edge(i,j_max,weight=K[i,j])
+    #make a fast spring layout of the resulting tree
+    X_ = nx.graphviz_layout(G,prog='sfdp')
+    #extract the coordinates of the embedding
+    X_2D=[]
+    for i in range(K.shape[0]):
+        X_2D.append(list(X_[i]))
+    X_emb = np.array(X_2D)
+    return X_emb
