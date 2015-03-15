@@ -15,14 +15,35 @@ from scipy.sparse import vstack
 from itertools import tee
 import random
 
+
+def read(uri):
+    """
+    Abstract read function. EDeN can accept a URL, a file path and a python list.
+    In all cases an iteratatable object should be returned.
+    """
+    if hasattr(uri, '__iter__'):
+        # test if it is iterable: works for lists and generators, but not for
+        # strings
+        return uri
+    else:
+        try:
+            # try if it is a URL and if we can open it
+            f = requests.get(uri).text.split('\n')
+        except ValueError:
+            # assume it is a file object
+            f = open(uri)
+        return f
+
+
 def is_iterable(test):
     if hasattr(test, '__iter__'):
         return True
     else:
         return False
 
+
 def describe(X):
-    print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz()/X.shape[0])
+    print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
 
 
 def size(iterable):
@@ -116,9 +137,9 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
 
 
 def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10):
-    X_pos_train = vectorizer.transform( iterable_pos_train, n_jobs=n_jobs )
-    X_neg_train = vectorizer.transform( iterable_neg_train, n_jobs=n_jobs )
-    #optimize hyperparameters classifier
+    X_pos_train = vectorizer.transform(iterable_pos_train, n_jobs=n_jobs)
+    X_neg_train = vectorizer.transform(iterable_neg_train, n_jobs=n_jobs)
+    # optimize hyperparameters classifier
     optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv, n_jobs=n_jobs)
     return optpredictor
 
@@ -136,39 +157,22 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
         y = target
     print 'Test set'
     describe(X)
-    print '-'*80
+    print '-' * 80
     print 'Test Estimate'
-    predictions=estimator.predict(X)
-    margins=estimator.decision_function(X)
+    predictions = estimator.predict(X)
+    margins = estimator.decision_function(X)
     print classification_report(y, predictions)
     apr = average_precision_score(y, margins)
-    print 'APR: %.3f'% apr
+    print 'APR: %.3f' % apr
     roc = roc_auc_score(y, margins)
     print 'ROC: %.3f' % roc
-    return apr,roc
+    return apr, roc
+
 
 def estimate(iterable_pos_test, iterable_neg_test, estimator, vectorizer, n_jobs=1):
-    X_pos_test = vectorizer.transform( iterable_pos_test, n_jobs=n_jobs )
-    X_neg_test = vectorizer.transform( iterable_neg_test, n_jobs=n_jobs )
+    X_pos_test = vectorizer.transform(iterable_pos_test, n_jobs=n_jobs)
+    X_neg_test = vectorizer.transform(iterable_neg_test, n_jobs=n_jobs)
     return estimate_estimator(positive_data_matrix=X_pos_test, negative_data_matrix=X_neg_test, estimator=estimator, n_jobs=n_jobs)
-
-def read(uri):
-    """
-    Abstract read function. EDeN can accept a URL, a file path and a python list.
-    In all cases an iteratatable object should be returned.
-    """
-    if hasattr(uri, '__iter__'):
-        # test if it is iterable: works for lists and generators, but not for
-        # strings
-        return uri
-    else:
-        try:
-            # try if it is a URL and if we can open it
-            f = requests.get(uri).text.split('\n')
-        except ValueError:
-            # assume it is a file object
-            f = open(uri)
-        return f
 
 
 def load_target(name):
