@@ -11,7 +11,7 @@ def draw_graph(graph,
                secondary_vertex_label=None,
                edge_label='label',
                secondary_edge_label=None,
-               vertex_color='',
+               vertex_color=None,
                vertex_alpha=0.6,
                size=10,
                size_x_to_y_ratio=1,
@@ -32,21 +32,23 @@ def draw_graph(graph,
     plt.grid(False)
     plt.axis('off')
 
-    if secondary_vertex_label:
-        vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A'))) for u, d in graph.nodes(data=True)])
-    else:
-        vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
+    if vertex_label is not None:
+        if secondary_vertex_label:
+            vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A'))) for u, d in graph.nodes(data=True)])
+        else:
+            vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
 
     edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == False]
     edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == True]
 
-    if secondary_edge_label:
-        edge_labels = dict([((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'), d.get(secondary_edge_label, 'N/A')))
-                            for u, v, d in graph.edges(data=True)])
-    else:
-        edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
+    if edge_label is not None:
+        if secondary_edge_label:
+            edge_labels = dict([((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'), d.get(secondary_edge_label, 'N/A')))
+                                for u, v, d in graph.edges(data=True)])
+        else:
+            edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
 
-    if vertex_color == '':
+    if vertex_color is None:
         node_color = 'white'
     else:
         if invert_colormap:
@@ -80,7 +82,8 @@ def draw_graph(graph,
                            node_size=node_size,
                            linewidths=linewidths,
                            cmap=plt.get_cmap(colormap))
-    nx.draw_networkx_labels(graph, pos, vertex_labels, font_size=font_size, font_color='black')
+    if vertex_label is not None:
+        nx.draw_networkx_labels(graph, pos, vertex_labels, font_size=font_size, font_color='black')
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=2,
@@ -92,14 +95,15 @@ def draw_graph(graph,
                            edge_color='k',
                            style='dashed',
                            alpha=0.5)
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
+    if edge_label is not None:
+        nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
     if verbose:
         title = str(graph.graph.get('id', '')) + "\n" + str(graph.graph.get('info', ''))
         plt.title(title)
     if file_name is None:
         plt.show()
     else:
-        plt.savefig(file_name, bbox_inches='tight')
+        plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
         plt.close()
 
 
@@ -147,7 +151,7 @@ def serialize_graph(graph):
     return serial_data
 
 
-def embed2D(data, vectorizer, size=10, n_components=5, gamma=20, nu=0.01, n_jobs=1, colormap='YlOrRd'):
+def embed2D(data, vectorizer, size=10, n_components=5, n_jobs=1, colormap='YlOrRd'):
     import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
@@ -177,11 +181,11 @@ def embed2D(data, vectorizer, size=10, n_components=5, gamma=20, nu=0.01, n_jobs
     X_reduced = pca.fit_transform(X_explicit)
 
     plt.figure(figsize=(size, size))
-    embed_dat_matrix_2D(X_reduced, labels=labels, gamma=gamma, nu=nu, n_jobs=n_jobs, colormap=colormap)
+    embed_dat_matrix_2D(X_reduced, labels=labels, density_colormap=colormap)
     plt.show()
 
 
-def embed_dat_matrix_2D(X_reduced, y=None, labels=None, n_jobs=1, density_colormap='Blues', instance_colormap='YlOrRd'):
+def embed_dat_matrix_2D(X_reduced, y=None, labels=None, density_colormap='Blues', instance_colormap='YlOrRd'):
     from sklearn.preprocessing import scale
     X_reduced = scale(X_reduced)
     # make mesh
@@ -260,7 +264,7 @@ def dendrogram(data, vectorizer, color_threshold=1, size=10, n_jobs=1):
     plt.show()
 
 
-def KernelQuickShiftTreeEmbedding(X, knn=10, k_threshold=0.75, metric='linear', **args):
+def KernelQuickShiftTreeEmbedding(X, knn=10, k_threshold=0.9, metric='linear', **args):
     n_instances = X.shape[0]
     # extract pairwise similarity matrix with desired kernel
     from sklearn import metrics
@@ -339,7 +343,7 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
         ax = plt.subplot(111)
         for i in range(num_instances):
             img = Image.open(image_file_name + str(i) + '.png')
-            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=0.1), X[i], pad=0)
+            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1), X[i], pad=0, frameon=False)
             ax.add_artist(imagebox)
     if labels is not None:
         for id in range(X.shape[0]):
