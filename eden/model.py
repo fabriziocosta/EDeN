@@ -181,9 +181,9 @@ class ActiveLearningBinaryClassificationModel(object):
                 if verbose > 0:
                     print('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
                           (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
-                if verbose > 1:
                     print e.__doc__
                     print e.message
+                if verbose > 1:        
                     print('Failed with the following setting:')
                     print_model_parameter_configuration()
                     print '...continuing'
