@@ -45,7 +45,9 @@ def obabel_to_networkx( mol ):
 
 
 def generate_conformers(infile, outfile, n_conformers, method):
-
+    """
+    Given an input file, call obabel to construct a specified number of conformers.
+    """
     command_string = "obabel %s -O %s --conformer --nconf %s --score %s --writeconformers" % \
                      (infile, outfile, n_conformers, method)
     command_string = command_string.split()
@@ -54,30 +56,37 @@ def generate_conformers(infile, outfile, n_conformers, method):
     p = subprocess.Popen(command_string)
 
 
-def obabel_to_eden3d(input):
-    pass
 
-def obabel_to_networkx3d(mol, k=3):
+def obabel_to_eden3d(input, filetype = 'sdf'):
+    """
+    Takes an input file and yields the corresponding networkx graphs.
+    """
+    for mol in pybel.readfile(filetype, input):
+
+        # remove hydrogens - what's the reason behind this?
+        # mol.removeh()
+        G = obabel_to_networkx3d(mol)
+        if len(G):
+            yield G
+
+
+
+def obabel_to_networkx3d(mol, atom_types=None, k=3):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
 
-    The k parameter controls the number of nearest neighbors which will be calculated
-    for each atom in the molecule.
+    :param mol: A molecule object
+    :type mol: pybel.Molecule
+    :param atom_types: A list containing the atomic number of atom types to be looked for in the molecule
+    :type atom_types: list or None
+    :param k: The number of nearest neighbors to be considered
+    :type k: int
+    :param label_name: the name to be used for the neighbors attribute
+    :type label_name: string
     """
-    # TODO: add the label name as a parameter in this function
     g = nx.Graph()
 
-    # Calculate pairwise distances between all atoms:
-    coords = []
-    for atom in mol:
-        coords.append(atom.coords)
-    coords = np.asarray(coords)
-    # print "coordinates: "
-    # print coords.shape
-    distances = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(coords))
-
-    # Find the nearest neighbors for each atom
-    def find_nearest_neighbors(current_idx, k, label_name):
+    if atom_types is None:
         # Most common elements in our galaxy with atomic number:
         # 1 Hydrogen
         # 2 Helium
@@ -89,8 +98,20 @@ def obabel_to_networkx3d(mol, k=3):
         # 14 Silicon
         # 12 Magnesium
         # 16 Sulfur
+        atom_types = [1,2,8,6,10,26,7,14,12,16]
 
-        atom_types = [1, 2, 8, 6]
+    # Calculate pairwise distances between all atoms:
+    coords = []
+    for atom in mol:
+        coords.append(atom.coords)
+    coords = np.asarray(coords)
+    # print "coordinates: "
+    # print coords.shape
+    distances = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(coords))
+
+    # Find the nearest neighbors for each atom
+    def find_nearest_neighbors(current_idx, k, atom_types):
+
         # Remove the first element, it will always be the current atom:
         sorted_indices = np.argsort(distances[current_idx-1, ])[1:]
         # print "sorted indices:"
@@ -128,15 +149,12 @@ def obabel_to_networkx3d(mol, k=3):
 
         return nearest_atoms
 
-    # for atom in mol:
-    #     print find_nearest_neighbors(atom.idx, k)
-    # find_nearest_neighbors(1, k)
     #atoms
     for atom in mol:
         label = str(atom.type)
         # print "atom index: ", atom.idx
-        g.add_node(atom.idx, label=label)
-        g.node[atom.idx]['neighbors'] = find_nearest_neighbors(atom.idx, k, 'neighbors')
+        g.add_node(atom.idx, label=find_nearest_neighbors(atom.idx, k, atom_types))
+        g.node[atom.idx]['atom_type'] = str(atom.type)
 
     for bond in ob.OBMolBondIter(mol.OBMol):
         label = str(bond.GetBO())
