@@ -115,11 +115,12 @@ class ActiveLearningBinaryClassificationModel(object):
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
                  estimator_parameters=dict(),
-                 verbose=True,
+                 verbose=1,
                  n_jobs=1,
                  cv=10,
                  scoring='roc_auc'):
-        def print_args():
+
+        def print_model_parameter_configuration():
             print('Current parameters:')
             print('Pre_processor:')
             pprint.pprint(self.pre_processor_args)
@@ -127,7 +128,8 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(self.vectorizer_args)
             print('Estimator:')
             pprint.pprint(self.estimator_args)
-        if verbose:
+    
+        if verbose > 1:
             print('Parameters range:')
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
@@ -176,13 +178,14 @@ class ActiveLearningBinaryClassificationModel(object):
                                                                  n_jobs=n_jobs)
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except Exception as e:
-                if verbose:
-                    print('Failed iteration: %d/%d (at %.1f sec; %s)' %
+                if verbose > 0:
+                    print('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
                           (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     print e.__doc__
                     print e.message
+                if verbose > 1:        
                     print('Failed with the following setting:')
-                    print_args()
+                    print_model_parameter_configuration()
                     print '...continuing'
             else:
                 # consider as score the mean-std for a robust estimate
@@ -191,23 +194,23 @@ class ActiveLearningBinaryClassificationModel(object):
                 score = score_mean - score_std
                 # update the best confirguration
                 if best_score_ < score:
+                    self.save(model_name)
                     best_score_ = score
                     best_score_mean_ = score_mean
                     best_score_std_ = score_std
                     best_pre_processor_args_ = self.pre_processor_args
                     best_vectorizer_args_ = self.vectorizer_args
                     best_estimator_args_ = self.estimator_args
-                    if verbose:
+                    if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
                               (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                         print('Best score (%s): %f (%f +- %f)' %
                               (scoring, best_score_, best_score_mean_, best_score_std_))
-                        print_args()
                         print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
                         print report_base_statistics(y)
-                    self.save(model_name)
-                    if verbose:
+                    if verbose > 1:
+                        print_model_parameter_configuration()
                         print('Saved current best model in %s' % model_name)
         # store the best hyperparamter configuration
         self.pre_processor_args = best_pre_processor_args_
