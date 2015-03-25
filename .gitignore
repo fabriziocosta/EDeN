@@ -60,3 +60,5 @@ target/
 *.tmproj
 *.ipynb_checkpoints
 *.model
+
+examples/plot/*
