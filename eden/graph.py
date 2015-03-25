@@ -12,7 +12,7 @@ import itertools
 import networkx as nx
 import multiprocessing
 import copy
-from eden.util import util
+from eden import run_dill_encoded, apply_async, calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char, grouper
 
 
 class Vectorizer(object):
@@ -199,7 +199,7 @@ class Vectorizer(object):
         if block_size == -1:
             return self._transform_block(graphs, n_jobs=n_jobs)
         else:
-            G_block_list = util.grouper(graphs, block_size)
+            G_block_list = grouper(graphs, block_size)
             for i, graphs in enumerate(G_block_list):
                 X_curr = self._transform_block(graphs, n_jobs=n_jobs)
                 if i == 0:
@@ -259,7 +259,7 @@ class Vectorizer(object):
         pool = multiprocessing.Pool(n_jobs)
         for instance_id, G in enumerate(graphs):
             self._test_goodness(G)
-            util.apply_async(
+            apply_async(
                 pool, self._transform, args=(instance_id, G), callback = my_callback)
         pool.close()
         pool.join()
@@ -427,8 +427,8 @@ class Vectorizer(object):
                 # for each class, use the correspondent discretization_model_dict[node_class] to extract the id of the
                 # nearest cluster centroid, return the centroid id as the
                 # integer code
-                G.node[n]['hlabel'] = [util.fast_hash([hash(node_class), self.discretization_model_dict[
-                                                      node_class][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
+                G.node[n]['hlabel'] = [fast_hash([hash(node_class), self.discretization_model_dict[
+                    node_class][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
             if isinstance(d['label'], basestring):
                 # copy a hashed version of the string for a number of times equal to self.discretization_dimension
                 # in this way qualitative ( i.e. string ) labels can be
@@ -526,31 +526,10 @@ class Vectorizer(object):
         # extract endpoints
         nesting_endpoints = [u for u in G.neighbors(nesting_vertex)]
         if len(nesting_endpoints) == 2:
-            # new-style for nesting, in the original graph representation there
-            # are nesting edges
             u = nesting_endpoints[0]
             v = nesting_endpoints[1]
             distance = 1
             self._transform_vertex_pair(G, v, u, distance, feature_list)
-        else:
-            # old-style for nesting, in the original graph representation there are nesting vertices
-            # separate ^ from @ nodes
-            hat_nodes = [
-                u for u in nesting_endpoints if G.node[u]['label'][0] == '^']
-            at_nodes = [
-                u for u in nesting_endpoints if G.node[u]['label'][0] == '@']
-            # consider the neighbors of the neighbors
-            for h_node in hat_nodes:
-                hat_neighbors += [u for u in G.neighbors(h_node)]
-            hat_neighbors = set(hat_neighbors)
-            for a_node in at_nodes:
-                at_neighbors += [u for u in G.neighbors(a_node)]
-            at_neighbors = set(at_neighbors)
-            pair_list = [(u, v) for u in hat_neighbors for v in at_neighbors if G.node[
-                u]['label'][0] != '^' and G.node[v]['label'][0] != '^']
-            for u, v in pair_list:
-                distance = 1
-                self._transform_vertex_pair(G, v, u, distance, feature_list)
 
     def _transform_vertex(self, G, v, feature_list):
         # for all distances
@@ -564,7 +543,7 @@ class Vectorizer(object):
 
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
         self._transform_vertex_pair_base(G, v, u, distance, feature_list)
-        
+
     def _transform_vertex_pair_base(self, G, v, u, distance, feature_list):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
@@ -583,8 +562,8 @@ class Vectorizer(object):
                         first_hash = u_hash
                         second_hash = v_hash
                     t = [first_hash, second_hash, radius, distance]
-                    feature = util.fast_hash(t, self.bitmask)
-                    key = util.fast_hash([radius, distance], self.bitmask)
+                    feature = fast_hash(t, self.bitmask)
+                    key = fast_hash([radius, distance], self.bitmask)
                     # if self.weighted == False :
                     if G.graph.get('weighted', False) == False:
                         feature_list[key][feature] += 1
@@ -642,13 +621,13 @@ class Vectorizer(object):
                 # sort it
                 hash_label_list.sort()
                 # hash it
-                hashed_nodes_at_distance_d_in_neighborhood_set = util.fast_hash(
+                hashed_nodes_at_distance_d_in_neighborhood_set = fast_hash(
                     hash_label_list, self.bitmask)
                 hash_list.append(
                     hashed_nodes_at_distance_d_in_neighborhood_set)
             # hash the sequence of hashes of the node set at increasing
             # distances into a list of features
-            hash_neighborhood = util.fast_hash_vec(hash_list, self.bitmask)
+            hash_neighborhood = fast_hash_vec(hash_list, self.bitmask)
             hash_neighborhood_list.append(hash_neighborhood)
         G.node[root]['neighborhood_graph_hash'] = hash_neighborhood_list
 
@@ -687,8 +666,7 @@ class Vectorizer(object):
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
-        G.node[root][
-            'neighborhood_graph_weight'] = neighborhood_graph_weight_list
+        G.node[root]['neighborhood_graph_weight'] = neighborhood_graph_weight_list
 
     def _single_vertex_breadth_first_visit(self, G, root, max_depth):
         # the map associates to each distance value ( from 1:max_depth )
