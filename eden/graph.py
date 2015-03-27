@@ -157,8 +157,7 @@ class Vectorizer(object):
                                               n_init=1,
                                               random_state=m + 1)
                 discretization_model.fit(label_data_matrix_dict[node_class])
-                self.discretization_model_dict[
-                    node_class] += [discretization_model]
+                self.discretization_model_dict[node_class] += [discretization_model]
 
     def fit_transform(self, graphs, n_jobs=-1):
         """
