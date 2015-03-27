@@ -265,7 +265,9 @@ def dendrogram(data, vectorizer, color_threshold=1, size=10, n_jobs=1):
     plt.show()
 
 
-def KernelQuickShiftTreeEmbedding(X, knn=10, k_threshold=0.9, metric='linear', **args):
+def KernelQuickShiftTreeEmbedding(X, knn=10, knn_density=None, k_threshold=0.9, metric='linear', **args):
+    if knn_density is None:
+        knn_density = knn
     n_instances = X.shape[0]
     # extract pairwise similarity matrix with desired kernel
     from sklearn import metrics
@@ -286,7 +288,7 @@ def KernelQuickShiftTreeEmbedding(X, knn=10, k_threshold=0.9, metric='linear', *
         # for all neighbors from the closest to the furthest
         for jj, d in enumerate(row):
             # proceed until k neighbors have been explored
-            if jj > knn:
+            if jj > knn_density:
                 break
             j = Ka[i, jj]
             if jj > 0:
@@ -355,7 +357,7 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
 
 
-def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, k_threshold=0.9, metric='rbf', **args):
+def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
     import matplotlib.pyplot as plt
     import time
 
@@ -384,7 +386,7 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start=time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn / 4, k_threshold=k_threshold, metric=metric, **args)
+    X_=KernelQuickShiftTreeEmbedding(X, knn=knn / 4, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
     duration=time.time() - start
     plt.subplot(324)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
@@ -392,7 +394,7 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start=time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn, k_threshold=k_threshold, metric=metric, **args)
+    X_=KernelQuickShiftTreeEmbedding(X, knn=knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
     duration=time.time() - start
     plt.subplot(325)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
@@ -400,7 +402,7 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start=time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn * 2, k_threshold=k_threshold, metric=metric, **args)
+    X_=KernelQuickShiftTreeEmbedding(X, knn=knn * 2, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
     duration=time.time() - start
     plt.subplot(326)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
