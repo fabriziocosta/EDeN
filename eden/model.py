@@ -9,6 +9,7 @@ import datetime
 import joblib
 import pprint
 import copy
+from collections import defaultdict
 from sklearn.linear_model import SGDClassifier
 from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
@@ -156,9 +157,9 @@ class ActiveLearningBinaryClassificationModel(object):
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
-        best_pre_processor_parameters_ = list()
-        best_vectorizer_parameters_ = list()
-        best_estimator_parameters_ = list()
+        best_pre_processor_parameters_ = defaultdict(list)
+        best_vectorizer_parameters_ = defaultdict(list)
+        best_estimator_parameters_ = defaultdict(list)
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
         mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
@@ -233,9 +234,13 @@ class ActiveLearningBinaryClassificationModel(object):
                     best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
                     best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
                     best_estimator_args_ = copy.deepcopy(self.estimator_args)
-                    best_pre_processor_parameters_.append(copy.deepcopy(self.pre_processor_args))
-                    best_vectorizer_parameters_.append(copy.deepcopy(self.vectorizer_args))
-                    best_estimator_parameters_.append(copy.deepcopy(self.estimator_args))
+                    #add parameter to list of best parameters
+                    for key in self.pre_processor_args:
+                        best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
+                    for key in self.vectorizer_args:
+                        best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
+                    for key in self.estimator_args:
+                        best_estimator_parameters_[key].append(self.estimator_args[key])
                     if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
