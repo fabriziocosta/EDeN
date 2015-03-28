@@ -156,6 +156,9 @@ class ActiveLearningBinaryClassificationModel(object):
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
+        best_pre_processor_parameters_ = list()
+        best_vectorizer_parameters_ = list()
+        best_estimator_parameters_ = list()
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
         mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
@@ -167,6 +170,14 @@ class ActiveLearningBinaryClassificationModel(object):
         # main iteration
         for i in range(n_iter):
             try:
+                # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
+                if i == int(n_iter / 2):
+                    if len(best_pre_processor_parameters_) > 0:
+                        estimator_parameters = copy.deepcopy(best_pre_processor_parameters_)
+                    if len(best_vectorizer_parameters_) > 0:
+                        estimator_parameters = copy.deepcopy(best_vectorizer_parameters_)
+                    if len(best_estimator_parameters_) > 0:
+                        estimator_parameters = copy.deepcopy(best_estimator_parameters_)
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
                 # build data matrix only the first time or if needed e.g. because
@@ -210,7 +221,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 score = score_mean - score_std
                 # update the best confirguration
                 if best_score_ < score:
-                    #fit the estimator since the cross_validation estimate does not set the estimator parametrs  
+                    # fit the estimator since the cross_validation estimate does not set the estimator parametrs
                     self.estimator.fit(X, y)
                     self.save(model_name)
                     best_score_ = score
@@ -222,6 +233,9 @@ class ActiveLearningBinaryClassificationModel(object):
                     best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
                     best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
                     best_estimator_args_ = copy.deepcopy(self.estimator_args)
+                    best_pre_processor_parameters_.append(copy.deepcopy(self.pre_processor_args))
+                    best_vectorizer_parameters_.append(copy.deepcopy(self.vectorizer_args))
+                    best_estimator_parameters_.append(copy.deepcopy(self.estimator_args))
                     if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
