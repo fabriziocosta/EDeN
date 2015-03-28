@@ -89,7 +89,7 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
     return (graphs_list, weights)
 
 
-def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1):
+def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40):
     assert(
         positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
     if target is None and negative_data_matrix is not None:
@@ -110,7 +110,7 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
                   "penalty": ["l1", "l2", "elasticnet"],
                   "learning_rate": ["invscaling", "constant", "optimal"]}
     scoring = 'roc_auc'
-    n_iter_search = 40
+    n_iter_search = n_iter_search
     random_search = RandomizedSearchCV(
         predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs)
     random_search.fit(X, y)
@@ -136,11 +136,11 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
     return optpredictor
 
 
-def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10):
+def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10, n_iter_search=40):
     X_pos_train = vectorizer.transform(iterable_pos_train, n_jobs=n_jobs)
     X_neg_train = vectorizer.transform(iterable_neg_train, n_jobs=n_jobs)
     # optimize hyperparameters classifier
-    optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv, n_jobs=n_jobs)
+    optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv, n_jobs=n_jobs, n_iter_search=n_iter_search)
     return optpredictor
 
 
