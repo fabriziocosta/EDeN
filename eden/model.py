@@ -115,6 +115,7 @@ class ActiveLearningBinaryClassificationModel(object):
         return apr, roc
 
     def print_model_parameter_configuration(self):
+        print '-' * 80
         print('Current parameters:')
         print('Pre_processor:')
         pprint.pprint(self.pre_processor_args)
@@ -122,6 +123,7 @@ class ActiveLearningBinaryClassificationModel(object):
         pprint.pprint(self.vectorizer_args)
         print('Estimator:')
         pprint.pprint(self.estimator_args)
+        print '-' * 80
 
     def optimize(self, iterable_pos, iterable_neg,
                  model_name='model',
@@ -141,8 +143,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  n_jobs=1,
                  cv=10,
                  scoring='roc_auc'):
-
-        if verbose > 1:
+        def print_parameters_range():
             print('Parameters range:')
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
@@ -150,6 +151,9 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(vectorizer_parameters)
             print('Estimator:')
             pprint.pprint(estimator_parameters)
+
+        if verbose > 1:
+            print_parameters_range()
         # init
         best_pre_processor_ = None
         best_vectorizer_ = None
@@ -174,11 +178,14 @@ class ActiveLearningBinaryClassificationModel(object):
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
                 if i == int(n_iter / 2):
                     if len(best_pre_processor_parameters_) > 0:
-                        estimator_parameters = copy.deepcopy(best_pre_processor_parameters_)
+                        pre_processor_parameters = dict(best_pre_processor_parameters_)
                     if len(best_vectorizer_parameters_) > 0:
-                        estimator_parameters = copy.deepcopy(best_vectorizer_parameters_)
+                        vectorizer_parameters = dict(best_vectorizer_parameters_)
                     if len(best_estimator_parameters_) > 0:
-                        estimator_parameters = copy.deepcopy(best_estimator_parameters_)
+                        estimator_parameters = dict(best_estimator_parameters_)
+                    if verbose > 1:
+                        print_parameters_range()
+
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
                 # build data matrix only the first time or if needed e.g. because
@@ -234,7 +241,7 @@ class ActiveLearningBinaryClassificationModel(object):
                     best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
                     best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
                     best_estimator_args_ = copy.deepcopy(self.estimator_args)
-                    #add parameter to list of best parameters
+                    # add parameter to list of best parameters
                     for key in self.pre_processor_args:
                         best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
                     for key in self.vectorizer_args:
