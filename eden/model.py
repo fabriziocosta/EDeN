@@ -8,9 +8,11 @@ import time
 import datetime
 import joblib
 import pprint
+import copy
 from sklearn.linear_model import SGDClassifier
 from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
+from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from eden.util import fit_estimator, selection_iterator
 from eden.util import is_iterable
 from eden.util.util import report_base_statistics
@@ -93,20 +95,23 @@ class ActiveLearningBinaryClassificationModel(object):
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         return self.estimator.decision_function(X)
 
-    def estimate(self, iterable_pos, iterable_neg, n_jobs=1, cv=10, plots=False):
-        iterable_pos, iterable_pos_ = tee(iterable_pos)
-        iterable_pos, iterable_pos_ = tee(iterable_pos)
-        X, y = self._data_matrices(iterable_pos, iterable_neg, n_jobs=n_jobs)
+    def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
         print 'Classifier:'
         print self.estimator
         print '-' * 80
-        print 'Predictive performance:'
-        # assess the generalization capacity of the model via a 10-fold cross
-        # validation
-        for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-            scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-            print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+        X, y = self._data_matrices(iterable_pos, iterable_neg, n_jobs=n_jobs)
+        print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
         print '-' * 80
+        print 'Test Estimate'
+        margins = self.estimator.decision_function(X)
+        predictions = self.estimator.predict(X)
+        print classification_report(y, predictions)
+        apr = average_precision_score(y, margins)
+        print 'APR: %.3f' % apr
+        roc = roc_auc_score(y, margins)
+        print 'ROC: %.3f' % roc
+        print '-' * 80
+        return apr, roc
 
     def print_model_parameter_configuration(self):
         print('Current parameters:')
@@ -145,6 +150,9 @@ class ActiveLearningBinaryClassificationModel(object):
             print('Estimator:')
             pprint.pprint(estimator_parameters)
         # init
+        best_pre_processor_ = None
+        best_vectorizer_ = None
+        best_estimator_ = None
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
@@ -174,16 +182,16 @@ class ActiveLearningBinaryClassificationModel(object):
                     if n_active_learning_iterations == 0:  # if no active learning mode, just produce data matrix
                         X, y = self._data_matrices(iterable_pos_, iterable_neg_, fit_vectorizer=fit_vectorizer, n_jobs=n_jobs)
                     else:  # otherwise use the active learning strategy
-                        X, y = self._self_training_data_matrices(iterable_pos_, iterable_neg_,
-                                                                 n_active_learning_iterations=n_active_learning_iterations,
-                                                                 size_positive=size_positive,
-                                                                 size_negative=size_negative,
-                                                                 lower_bound_threshold_positive=lower_bound_threshold_positive,
-                                                                 upper_bound_threshold_positive=upper_bound_threshold_positive,
-                                                                 lower_bound_threshold_negative=lower_bound_threshold_negative,
-                                                                 upper_bound_threshold_negative=upper_bound_threshold_negative,
-                                                                 fit_vectorizer=fit_vectorizer,
-                                                                 n_jobs=n_jobs)
+                        X, y = self._active_learning_data_matrices(iterable_pos_, iterable_neg_,
+                                                                   n_active_learning_iterations=n_active_learning_iterations,
+                                                                   size_positive=size_positive,
+                                                                   size_negative=size_negative,
+                                                                   lower_bound_threshold_positive=lower_bound_threshold_positive,
+                                                                   upper_bound_threshold_positive=upper_bound_threshold_positive,
+                                                                   lower_bound_threshold_negative=lower_bound_threshold_negative,
+                                                                   upper_bound_threshold_negative=upper_bound_threshold_negative,
+                                                                   fit_vectorizer=fit_vectorizer,
+                                                                   n_jobs=n_jobs)
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except Exception as e:
                 if verbose > 0:
@@ -196,19 +204,24 @@ class ActiveLearningBinaryClassificationModel(object):
                     self.print_model_parameter_configuration()
                     print '...continuing'
             else:
-                # consider as score the mean-std for a robust estimate
+                # consider as score the mean-std for a robust estimate of predictive performance
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
                 score = score_mean - score_std
                 # update the best confirguration
                 if best_score_ < score:
+                    #fit the estimator since the cross_validation estimate does not set the estimator parametrs  
+                    self.estimator.fit(X, y)
                     self.save(model_name)
                     best_score_ = score
                     best_score_mean_ = score_mean
                     best_score_std_ = score_std
-                    best_pre_processor_args_ = self.pre_processor_args
-                    best_vectorizer_args_ = self.vectorizer_args
-                    best_estimator_args_ = self.estimator_args
+                    best_pre_processor_ = copy.deepcopy(self.pre_processor)
+                    best_vectorizer_ = copy.deepcopy(self.vectorizer)
+                    best_estimator_ = copy.deepcopy(self.estimator)
+                    best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
+                    best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
+                    best_estimator_args_ = copy.deepcopy(self.estimator_args)
                     if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
@@ -221,23 +234,26 @@ class ActiveLearningBinaryClassificationModel(object):
                         self.print_model_parameter_configuration()
                         print('Saved current best model in %s' % model_name)
         # store the best hyperparamter configuration
-        self.pre_processor_args = best_pre_processor_args_
-        self.vectorizer_args = best_vectorizer_args_
-        self.estimator_args = best_estimator_args_
-        # fit the estimator using the best hyperparameters on whole data
-        self.fit(iterable_pos, iterable_neg, n_jobs=n_jobs)
+        self.pre_processor_args = copy.deepcopy(best_pre_processor_args_)
+        self.vectorizer_args = copy.deepcopy(best_vectorizer_args_)
+        self.estimator_args = copy.deepcopy(best_estimator_args_)
+        # store the best machines
+        self.pre_processor = copy.deepcopy(best_pre_processor_)
+        self.vectorizer = copy.deepcopy(best_vectorizer_)
+        self.estimator = copy.deepcopy(best_estimator_)
+        # save to disk
         self.save(model_name)
 
-    def _self_training_data_matrices(self, iterable_pos, iterable_neg,
-                                     n_active_learning_iterations=2,
-                                     size_positive=-1,
-                                     size_negative=100,
-                                     lower_bound_threshold_positive=-1,
-                                     upper_bound_threshold_positive=1,
-                                     lower_bound_threshold_negative=-1,
-                                     upper_bound_threshold_negative=1,
-                                     fit_vectorizer=False,
-                                     n_jobs=1):
+    def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
+                                       n_active_learning_iterations=2,
+                                       size_positive=-1,
+                                       size_negative=100,
+                                       lower_bound_threshold_positive=-1,
+                                       upper_bound_threshold_positive=1,
+                                       lower_bound_threshold_negative=-1,
+                                       upper_bound_threshold_negative=1,
+                                       fit_vectorizer=False,
+                                       n_jobs=1):
         # select the initial ids simply as the first occurrences
         if size_positive != -1:
             positive_ids = range(size_positive)
