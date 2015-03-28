@@ -241,13 +241,14 @@ class ActiveLearningBinaryClassificationModel(object):
                     best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
                     best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
                     best_estimator_args_ = copy.deepcopy(self.estimator_args)
-                    # add parameter to list of best parameters
-                    for key in self.pre_processor_args:
-                        best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
-                    for key in self.vectorizer_args:
-                        best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
-                    for key in self.estimator_args:
-                        best_estimator_parameters_[key].append(self.estimator_args[key])
+                    if i > 0 : #if we improve over the very first iteration, then...
+                        # add parameter to list of best parameters
+                        for key in self.pre_processor_args:
+                            best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
+                        for key in self.vectorizer_args:
+                            best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
+                        for key in self.estimator_args:
+                            best_estimator_parameters_[key].append(self.estimator_args[key])
                     if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
