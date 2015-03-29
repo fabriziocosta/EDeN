@@ -157,8 +157,7 @@ class Vectorizer(object):
                                               n_init=1,
                                               random_state=m + 1)
                 discretization_model.fit(label_data_matrix_dict[node_class])
-                self.discretization_model_dict[
-                    node_class] += [discretization_model]
+                self.discretization_model_dict[node_class] += [discretization_model]
 
     def fit_transform(self, graphs, n_jobs=-1):
         """
@@ -415,26 +414,39 @@ class Vectorizer(object):
         return node_class, data
 
     def _label_preprocessing(self, G):
-        G.graph['label_size'] = self.discretization_dimension
-        for n, d in G.nodes_iter(data=True):
-            # for dense or sparse vectors
-            if isinstance(d['label'], list) or isinstance(d['label'], dict):
-                node_class, data = self._extract_class_and_label(d)
-                if isinstance(d['label'], dict):
-                    data = self._convert_dict_to_sparse_vector(data)
-                # create a list of integer codes of size: discretization_dimension
-                # each integer code is determined as follows:
-                # for each class, use the correspondent discretization_model_dict[node_class] to extract the id of the
-                # nearest cluster centroid, return the centroid id as the
-                # integer code
-                G.node[n]['hlabel'] = [fast_hash([hash(node_class), self.discretization_model_dict[
-                    node_class][m].predict(data)[0] + 1], self.bitmask) for m in range(self.discretization_dimension)]
-            if isinstance(d['label'], basestring):
-                # copy a hashed version of the string for a number of times equal to self.discretization_dimension
-                # in this way qualitative ( i.e. string ) labels can be
-                # compared to the discretized labels
-                hlabel = int(hash(d['label']) & self.bitmask) + 1
-                G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
+        try:
+            G.graph['label_size'] = self.discretization_dimension
+            for n, d in G.nodes_iter(data=True):
+                # for dense or sparse vectors
+                if isinstance(d['label'], list) or isinstance(d['label'], dict):
+                    node_class, data = self._extract_class_and_label(d)
+                    if isinstance(d['label'], dict):
+                        data = self._convert_dict_to_sparse_vector(data)
+                    # create a list of integer codes of size: discretization_dimension
+                    # each integer code is determined as follows:
+                    # for each class, use the correspondent discretization_model_dict[node_class] to extract the id of the
+                    # nearest cluster centroid, return the centroid id as the
+                    # integer code
+                    hlabel = []
+                    for m in range(self.discretization_dimension):
+                        if len(self.discretization_model_dict[node_class]) < m:
+                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required'%(node_class,len(self.discretization_model_dict[node_class]),m))
+                        predictions = self.discretization_model_dict[node_class][m].predict(data)
+                        if len(predictions) != 1:
+                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions'%len(predictions))
+                        discretization_code = predictions[0] + 1
+                        code = fast_hash([hash(node_class), discretization_code], self.bitmask)
+                        hlabel.append(code)
+                    G.node[n]['hlabel'] = hlabel
+                if isinstance(d['label'], basestring):
+                    # copy a hashed version of the string for a number of times equal to self.discretization_dimension
+                    # in this way qualitative ( i.e. string ) labels can be
+                    # compared to the discretized labels
+                    hlabel = int(hash(d['label']) & self.bitmask) + 1
+                    G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
+        except Exception as e:
+            print e.__doc__
+            print e.message
 
     def _weight_preprocessing(self, G):
         # it is expected that all vertices either have or do not have the attribute 'weight'

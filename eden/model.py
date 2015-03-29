@@ -8,9 +8,12 @@ import time
 import datetime
 import joblib
 import pprint
+import copy
+from collections import defaultdict
 from sklearn.linear_model import SGDClassifier
 from itertools import tee
 from sklearn.metrics import precision_recall_curve, roc_curve
+from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from eden.util import fit_estimator, selection_iterator
 from eden.util import is_iterable
 from eden.util.util import report_base_statistics
@@ -43,18 +46,24 @@ class ActiveLearningBinaryClassificationModel(object):
     def get_estimator():
         return self.estimator
 
-    def _data_matrix(self, iterable, n_jobs=1):
+    def _data_matrix(self, iterable, fit_vectorizer=False, n_jobs=1):
         assert(is_iterable(iterable)), 'Not iterable'
         iterable = self.pre_processor(iterable, **self.pre_processor_args)
         self.vectorizer.set_params(**self.vectorizer_args)
-        X = self.vectorizer.transform(iterable, n_jobs=n_jobs)
+        if fit_vectorizer:
+            X = self.vectorizer.fit_transform(iterable, n_jobs=n_jobs)
+        else:
+            X = self.vectorizer.transform(iterable, n_jobs=n_jobs)
         return X
 
-    def _data_matrices(self, iterable_pos, iterable_neg, n_jobs=1):
+    def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False, n_jobs=1):
         assert(is_iterable(iterable_pos) and is_iterable(iterable_neg)), 'Not iterable'
         self.vectorizer.set_params(**self.vectorizer_args)
         iterator_pos = self.pre_processor(iterable_pos, **self.pre_processor_args)
-        Xpos = self.vectorizer.transform(iterator_pos, n_jobs=n_jobs)
+        if fit_vectorizer:
+            Xpos = self.vectorizer.fit_transform(iterator_pos, n_jobs=n_jobs)
+        else:
+            Xpos = self.vectorizer.transform(iterator_pos, n_jobs=n_jobs)
         iterator_neg = self.pre_processor(iterable_neg, **self.pre_processor_args)
         Xneg = self.vectorizer.transform(iterator_neg, n_jobs=n_jobs)
         return self._assemble_data_matrix(Xpos, Xneg)
@@ -87,19 +96,33 @@ class ActiveLearningBinaryClassificationModel(object):
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         return self.estimator.decision_function(X)
 
-    def estimate(self, iterable_pos, iterable_neg, n_jobs=1, cv=10, plots=False):
-        iterable_pos, iterable_pos_ = tee(iterable_pos)
-        iterable_pos, iterable_pos_ = tee(iterable_pos)
-        X, y = self._data_matrices(iterable_pos, iterable_neg, n_jobs=n_jobs)
+    def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
         print 'Classifier:'
         print self.estimator
         print '-' * 80
-        print 'Predictive performance:'
-        # assess the generalization capacity of the model via a 10-fold cross
-        # validation
-        for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-            scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-            print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+        X, y = self._data_matrices(iterable_pos, iterable_neg, n_jobs=n_jobs)
+        print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
+        print '-' * 80
+        print 'Test Estimate'
+        margins = self.estimator.decision_function(X)
+        predictions = self.estimator.predict(X)
+        print classification_report(y, predictions)
+        apr = average_precision_score(y, margins)
+        print 'APR: %.3f' % apr
+        roc = roc_auc_score(y, margins)
+        print 'ROC: %.3f' % roc
+        print '-' * 80
+        return apr, roc
+
+    def print_model_parameter_configuration(self):
+        print '-' * 80
+        print('Current parameters:')
+        print('Pre_processor:')
+        pprint.pprint(self.pre_processor_args)
+        print('Vectorizer:')
+        pprint.pprint(self.vectorizer_args)
+        print('Estimator:')
+        pprint.pprint(self.estimator_args)
         print '-' * 80
 
     def optimize(self, iterable_pos, iterable_neg,
@@ -112,6 +135,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  lower_bound_threshold_negative=-1,
                  upper_bound_threshold_negative=1,
                  n_iter=20,
+                 fit_vectorizer=False,
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
                  estimator_parameters=dict(),
@@ -119,17 +143,8 @@ class ActiveLearningBinaryClassificationModel(object):
                  n_jobs=1,
                  cv=10,
                  scoring='roc_auc'):
-
-        def print_model_parameter_configuration():
-            print('Current parameters:')
-            print('Pre_processor:')
-            pprint.pprint(self.pre_processor_args)
-            print('Vectorizer:')
-            pprint.pprint(self.vectorizer_args)
-            print('Estimator:')
-            pprint.pprint(self.estimator_args)
-    
-        if verbose > 1:
+        def print_parameters_range():
+            print '-' * 80
             print('Parameters range:')
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
@@ -137,10 +152,20 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(vectorizer_parameters)
             print('Estimator:')
             pprint.pprint(estimator_parameters)
+            print '-' * 80
+
+        if verbose > 1:
+            print_parameters_range()
         # init
+        best_pre_processor_ = None
+        best_vectorizer_ = None
+        best_estimator_ = None
         best_pre_processor_args_ = dict()
         best_vectorizer_args_ = dict()
         best_estimator_args_ = dict()
+        best_pre_processor_parameters_ = defaultdict(list)
+        best_vectorizer_parameters_ = defaultdict(list)
+        best_estimator_parameters_ = defaultdict(list)
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
         mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
@@ -152,6 +177,17 @@ class ActiveLearningBinaryClassificationModel(object):
         # main iteration
         for i in range(n_iter):
             try:
+                # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
+                if i == int(n_iter / 2):
+                    if len(best_pre_processor_parameters_) > 0:
+                        pre_processor_parameters = dict(best_pre_processor_parameters_)
+                    if len(best_vectorizer_parameters_) > 0:
+                        vectorizer_parameters = dict(best_vectorizer_parameters_)
+                    if len(best_estimator_parameters_) > 0:
+                        estimator_parameters = dict(best_estimator_parameters_)
+                    if verbose > 1:
+                        print_parameters_range()
+
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(n_jobs=n_jobs, **self.estimator_args)
                 # build data matrix only the first time or if needed e.g. because
@@ -165,17 +201,18 @@ class ActiveLearningBinaryClassificationModel(object):
                     iterable_pos, iterable_pos_ = tee(iterable_pos)
                     iterable_neg, iterable_neg_ = tee(iterable_neg)
                     if n_active_learning_iterations == 0:  # if no active learning mode, just produce data matrix
-                        X, y = self._data_matrices(iterable_pos_, iterable_neg_, n_jobs=n_jobs)
+                        X, y = self._data_matrices(iterable_pos_, iterable_neg_, fit_vectorizer=fit_vectorizer, n_jobs=n_jobs)
                     else:  # otherwise use the active learning strategy
-                        X, y = self._self_training_data_matrices(iterable_pos_, iterable_neg_,
-                                                                 n_active_learning_iterations=n_active_learning_iterations,
-                                                                 size_positive=size_positive,
-                                                                 size_negative=size_negative,
-                                                                 lower_bound_threshold_positive=lower_bound_threshold_positive,
-                                                                 upper_bound_threshold_positive=upper_bound_threshold_positive,
-                                                                 lower_bound_threshold_negative=lower_bound_threshold_negative,
-                                                                 upper_bound_threshold_negative=upper_bound_threshold_negative,
-                                                                 n_jobs=n_jobs)
+                        X, y = self._active_learning_data_matrices(iterable_pos_, iterable_neg_,
+                                                                   n_active_learning_iterations=n_active_learning_iterations,
+                                                                   size_positive=size_positive,
+                                                                   size_negative=size_negative,
+                                                                   lower_bound_threshold_positive=lower_bound_threshold_positive,
+                                                                   upper_bound_threshold_positive=upper_bound_threshold_positive,
+                                                                   lower_bound_threshold_negative=lower_bound_threshold_negative,
+                                                                   upper_bound_threshold_negative=upper_bound_threshold_negative,
+                                                                   fit_vectorizer=fit_vectorizer,
+                                                                   n_jobs=n_jobs)
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
             except Exception as e:
                 if verbose > 0:
@@ -183,24 +220,37 @@ class ActiveLearningBinaryClassificationModel(object):
                           (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     print e.__doc__
                     print e.message
-                if verbose > 1:        
+                if verbose > 1:
                     print('Failed with the following setting:')
-                    print_model_parameter_configuration()
+                    self.print_model_parameter_configuration()
                     print '...continuing'
             else:
-                # consider as score the mean-std for a robust estimate
+                # consider as score the mean-std for a robust estimate of predictive performance
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
                 score = score_mean - score_std
                 # update the best confirguration
                 if best_score_ < score:
+                    # fit the estimator since the cross_validation estimate does not set the estimator parametrs
+                    self.estimator.fit(X, y)
                     self.save(model_name)
                     best_score_ = score
                     best_score_mean_ = score_mean
                     best_score_std_ = score_std
-                    best_pre_processor_args_ = self.pre_processor_args
-                    best_vectorizer_args_ = self.vectorizer_args
-                    best_estimator_args_ = self.estimator_args
+                    best_pre_processor_ = copy.deepcopy(self.pre_processor)
+                    best_vectorizer_ = copy.deepcopy(self.vectorizer)
+                    best_estimator_ = copy.deepcopy(self.estimator)
+                    best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
+                    best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
+                    best_estimator_args_ = copy.deepcopy(self.estimator_args)
+                    if i > 0 : #if we improve over the very first iteration, then...
+                        # add parameter to list of best parameters
+                        for key in self.pre_processor_args:
+                            best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
+                        for key in self.vectorizer_args:
+                            best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
+                        for key in self.estimator_args:
+                            best_estimator_parameters_[key].append(self.estimator_args[key])
                     if verbose > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
@@ -210,25 +260,29 @@ class ActiveLearningBinaryClassificationModel(object):
                         print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
                         print report_base_statistics(y)
                     if verbose > 1:
-                        print_model_parameter_configuration()
+                        self.print_model_parameter_configuration()
                         print('Saved current best model in %s' % model_name)
         # store the best hyperparamter configuration
-        self.pre_processor_args = best_pre_processor_args_
-        self.vectorizer_args = best_vectorizer_args_
-        self.estimator_args = best_estimator_args_
-        # fit the estimator using the best hyperparameters on whole data
-        self.fit(iterable_pos, iterable_neg, n_jobs=n_jobs)
+        self.pre_processor_args = copy.deepcopy(best_pre_processor_args_)
+        self.vectorizer_args = copy.deepcopy(best_vectorizer_args_)
+        self.estimator_args = copy.deepcopy(best_estimator_args_)
+        # store the best machines
+        self.pre_processor = copy.deepcopy(best_pre_processor_)
+        self.vectorizer = copy.deepcopy(best_vectorizer_)
+        self.estimator = copy.deepcopy(best_estimator_)
+        # save to disk
         self.save(model_name)
 
-    def _self_training_data_matrices(self, iterable_pos, iterable_neg,
-                                     n_active_learning_iterations=2,
-                                     size_positive=-1,
-                                     size_negative=100,
-                                     lower_bound_threshold_positive=-1,
-                                     upper_bound_threshold_positive=1,
-                                     lower_bound_threshold_negative=-1,
-                                     upper_bound_threshold_negative=1,
-                                     n_jobs=1):
+    def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
+                                       n_active_learning_iterations=2,
+                                       size_positive=-1,
+                                       size_negative=100,
+                                       lower_bound_threshold_positive=-1,
+                                       upper_bound_threshold_positive=1,
+                                       lower_bound_threshold_negative=-1,
+                                       upper_bound_threshold_negative=1,
+                                       fit_vectorizer=False,
+                                       n_jobs=1):
         # select the initial ids simply as the first occurrences
         if size_positive != -1:
             positive_ids = range(size_positive)
@@ -241,9 +295,9 @@ class ActiveLearningBinaryClassificationModel(object):
             if i == 0 or size_positive != -1:
                 iterable_pos, iterable_pos_, iterable_pos__ = tee(iterable_pos, 3)
                 if size_positive == -1:  # if we take all positives
-                    Xpos = self._data_matrix(iterable_pos_, n_jobs=n_jobs)
+                    Xpos = self._data_matrix(iterable_pos_, fit_vectorizer=fit_vectorizer, n_jobs=n_jobs)
                 else:  # otherwise use selection
-                    Xpos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids), n_jobs=n_jobs)
+                    Xpos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids), fit_vectorizer=fit_vectorizer, n_jobs=n_jobs)
             # if this is the first iteration or we need to select negatives
             if i == 0 or size_negative != -1:
                 iterable_neg, iterable_neg_, iterable_neg__ = tee(iterable_neg, 3)
