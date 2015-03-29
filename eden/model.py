@@ -144,6 +144,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  cv=10,
                  scoring='roc_auc'):
         def print_parameters_range():
+            print '-' * 80
             print('Parameters range:')
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
@@ -151,6 +152,7 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(vectorizer_parameters)
             print('Estimator:')
             pprint.pprint(estimator_parameters)
+            print '-' * 80
 
         if verbose > 1:
             print_parameters_range()
