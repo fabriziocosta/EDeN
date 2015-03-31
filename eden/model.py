@@ -113,7 +113,8 @@ class ActiveLearningBinaryClassificationModel(object):
         iterable, iterable_ = tee(iterable)
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         info_iterable = self.get_info(iterable_, key=key)
-        return izip(self.estimator.decision_function(X), info_iterable)
+        for margin, graph_info in izip(self.estimator.decision_function(X), info_iterable):
+            yield margin, graph_info
 
     def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
         print 'Classifier:'
