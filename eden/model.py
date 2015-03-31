@@ -11,7 +11,7 @@ import pprint
 import copy
 from collections import defaultdict
 from sklearn.linear_model import SGDClassifier
-from itertools import tee
+from itertools import tee, izip
 from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from eden.util import fit_estimator, selection_iterator
@@ -22,14 +22,22 @@ from eden.graph import Vectorizer
 
 class ActiveLearningBinaryClassificationModel(object):
 
-    def __init__(self, pre_processor=None, vectorizer=Vectorizer(complexity=1), estimator=SGDClassifier(class_weight='auto', shuffle=True), random_seed=1):
+    def __init__(self, pre_processor=None,
+                 vectorizer=Vectorizer(complexity=1),
+                 estimator=SGDClassifier(class_weight='auto', shuffle=True),
+                 description=None,
+                 random_seed=1):
         self.pre_processor = pre_processor
         self.vectorizer = vectorizer
         self.estimator = estimator
         self.pre_processor_args = None
         self.vectorizer_args = None
         self.estimator_args = None
+        self.description = description
         random.seed(random_seed)
+
+    def get_description(self):
+        print self.description
 
     def save(self, model_name):
         joblib.dump(self, model_name, compress=1)
@@ -95,6 +103,13 @@ class ActiveLearningBinaryClassificationModel(object):
     def decision_function(self, iterable, n_jobs=1):
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         return self.estimator.decision_function(X)
+
+    def info(self, iterable, key='info', n_jobs=1):
+        def get_info(iterable):
+            yield iterable.graph.get(key, 'N/A')
+        iterable, iterable_ = tee(iterable)
+        X = self._data_matrix(iterable, n_jobs=n_jobs)
+        return izip(self.estimator.decision_function(X), get_info(iterable_))
 
     def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
         print 'Classifier:'
@@ -243,7 +258,7 @@ class ActiveLearningBinaryClassificationModel(object):
                     best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
                     best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
                     best_estimator_args_ = copy.deepcopy(self.estimator_args)
-                    if i > 0 : #if we improve over the very first iteration, then...
+                    if i > 0:  # if we improve over the very first iteration, then...
                         # add parameter to list of best parameters
                         for key in self.pre_processor_args:
                             best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
