@@ -45,6 +45,7 @@ def string_to_networkx(header, sequence, **options):
         G_global = nx.Graph()   
         G_global.graph['id'] = header
         G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
+        G_global.graph['sequence'] = sequence
         for seq_struct in seq_struct_list:
             G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
             G_global = nx.disjoint_union(G_global, G)
