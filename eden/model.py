@@ -106,7 +106,8 @@ class ActiveLearningBinaryClassificationModel(object):
 
     def get_info(self, iterable):
         iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
-        yield iterable_graph.graph.get(key, 'N/A')
+        for graph in iterable_graph:
+            yield graph.graph.get(key, 'N/A')
 
     def info(self, iterable, key='info', n_jobs=1):
         iterable, iterable_ = tee(iterable)
