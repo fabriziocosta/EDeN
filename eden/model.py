@@ -111,7 +111,7 @@ class ActiveLearningBinaryClassificationModel(object):
     def info(self, iterable, key='info', n_jobs=1):
         iterable, iterable_ = tee(iterable)
         X = self._data_matrix(iterable, n_jobs=n_jobs)
-        info_iterable = get_info(iterable_)
+        info_iterable = self.get_info(iterable_)
         return izip(self.estimator.decision_function(X), info_iterable)
 
     def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
