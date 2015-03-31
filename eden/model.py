@@ -104,12 +104,15 @@ class ActiveLearningBinaryClassificationModel(object):
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         return self.estimator.decision_function(X)
 
+    def get_info(self, iterable):
+        iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
+        yield iterable_graph.graph.get(key, 'N/A')
+
     def info(self, iterable, key='info', n_jobs=1):
-        def get_info(iterable):
-            yield iterable.graph.get(key, 'N/A')
         iterable, iterable_ = tee(iterable)
         X = self._data_matrix(iterable, n_jobs=n_jobs)
-        return izip(self.estimator.decision_function(X), get_info(iterable_))
+        info_iterable = get_info(iterable_)
+        return izip(self.estimator.decision_function(X), info_iterable)
 
     def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
         print 'Classifier:'
