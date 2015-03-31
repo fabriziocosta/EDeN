@@ -104,7 +104,7 @@ class ActiveLearningBinaryClassificationModel(object):
         X = self._data_matrix(iterable, n_jobs=n_jobs)
         return self.estimator.decision_function(X)
 
-    def get_info(self, iterable):
+    def get_info(self, iterable, key='info'):
         iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
         for graph in iterable_graph:
             yield graph.graph.get(key, 'N/A')
@@ -112,7 +112,7 @@ class ActiveLearningBinaryClassificationModel(object):
     def info(self, iterable, key='info', n_jobs=1):
         iterable, iterable_ = tee(iterable)
         X = self._data_matrix(iterable, n_jobs=n_jobs)
-        info_iterable = self.get_info(iterable_)
+        info_iterable = self.get_info(iterable_, key=key)
         return izip(self.estimator.decision_function(X), info_iterable)
 
     def estimate(self, iterable_pos, iterable_neg, n_jobs=1):
