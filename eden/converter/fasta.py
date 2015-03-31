@@ -11,6 +11,7 @@ def seq_to_networkx(header, seq, **options):
         if id > 0:
             G.add_edge(id - 1, id, label='-')
     assert(len(G) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
+    G.graph['sequence'] = seq
     return G
 
 
