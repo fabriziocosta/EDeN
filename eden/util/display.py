@@ -35,7 +35,7 @@ def draw_graph(graph,
     if vertex_label is not None:
         if secondary_vertex_label:
             vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A')))
-                                 for u, d in graph.nodes(data=True)])
+                                  for u, d in graph.nodes(data=True)])
         else:
             vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
 
@@ -234,7 +234,8 @@ def embed_dat_matrix_2D(X_reduced, y=None, labels=None, density_colormap='Blues'
             plt.annotate(label, xy=(x, y), xytext = (0, 0), textcoords = 'offset points')
 
 
-def dendrogram(data, vectorizer, color_threshold=1, size=10, n_jobs=1):
+def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, n_jobs=1, filename=None):
+    '"median","centroid","weighted","single","ward","complete","average"'
     import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
@@ -259,10 +260,13 @@ def dendrogram(data, vectorizer, color_threshold=1, size=10, n_jobs=1):
     from sklearn import metrics
     from scipy.cluster.hierarchy import linkage, dendrogram
     D = metrics.pairwise.pairwise_distances(X)
-    Z = linkage(D)
+    Z = linkage(D, method=method)
     plt.figure(figsize=(size, size))
     dendrogram(Z, color_threshold=color_threshold, labels=labels, orientation='right')
-    plt.show()
+    if filename is not None:
+        plt.savefig(filename)
+    else:
+        plt.show()
 
 
 def KernelQuickShiftTreeEmbedding(X, knn=10, knn_density=None, k_threshold=0.9, metric='linear', **args):
@@ -283,7 +287,7 @@ def KernelQuickShiftTreeEmbedding(X, knn=10, knn_density=None, k_threshold=0.9, 
     # for all instances determine parent link
     for i, row in enumerate(Kad):
         i_density = row[0]
-        #if a densed neighbor cannot be found then assign parent to the instance itself
+        # if a densed neighbor cannot be found then assign parent to the instance itself
         parent_dict[i] = i
         # for all neighbors from the closest to the furthest
         for jj, d in enumerate(row):
@@ -342,18 +346,18 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
         plt.xticks([])
         plt.yticks([])
     if image_file_name is not None:
-        num_instances=X.shape[0]
-        large_images=np.array([[1., 1]])
-        ax=plt.subplot(111)
+        num_instances = X.shape[0]
+        large_images = np.array([[1., 1]])
+        ax = plt.subplot(111)
         for i in range(num_instances):
-            img=Image.open(image_file_name + str(i) + '.png')
-            imagebox=offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1), X[i], pad=0, frameon=False)
+            img = Image.open(image_file_name + str(i) + '.png')
+            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1), X[i], pad=0, frameon=False)
             ax.add_artist(imagebox)
     if labels is not None:
         for id in range(X.shape[0]):
-            label=str(labels[id])
-            x=X[id, 0]
-            y=X[id, 1]
+            label = str(labels[id])
+            x = X[id, 0]
+            y = X[id, 1]
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
 
 
@@ -363,47 +367,47 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     plt.figure(figsize=(size, size))
 
-    start=time.time()
+    start = time.time()
     from sklearn import decomposition
-    X_=decomposition.TruncatedSVD(n_components=2).fit_transform(X)
-    duration=time.time() - start
+    X_ = decomposition.TruncatedSVD(n_components=2).fit_transform(X)
+    duration = time.time() - start
     plt.subplot(321)
     plot_embedding(X_, y, labels=labels, title="SVD (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start=time.time()
+    start = time.time()
     from sklearn import manifold
-    X_=manifold.MDS(n_components=2, n_init=1, max_iter=100).fit_transform(X)
-    duration=time.time() - start
+    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100).fit_transform(X)
+    duration = time.time() - start
     plt.subplot(322)
     plot_embedding(X_, y, labels=labels, title="MDS (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start=time.time()
+    start = time.time()
     from sklearn import manifold
-    X_=manifold.TSNE(n_components=2, init='random', random_state=0).fit_transform(X)
-    duration=time.time() - start
+    X_ = manifold.TSNE(n_components=2, init='random', random_state=0).fit_transform(X)
+    duration = time.time() - start
     plt.subplot(323)
     plot_embedding(X_, y, labels=labels, title="t-SNE (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start=time.time()
+    start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn / 4, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
-    duration=time.time() - start
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn / 4, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
+    duration = time.time() - start
     plt.subplot(324)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
                    (knn / 4, duration), cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start=time.time()
+    start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
-    duration=time.time() - start
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
+    duration = time.time() - start
     plt.subplot(325)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
                    (knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start=time.time()
+    start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_=KernelQuickShiftTreeEmbedding(X, knn=knn * 2, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
-    duration=time.time() - start
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn * 2, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
+    duration = time.time() - start
     plt.subplot(326)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
                    (knn * 2, duration), cmap=cmap, density=density, image_file_name=image_file_name)
