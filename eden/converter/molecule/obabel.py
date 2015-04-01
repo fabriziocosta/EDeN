@@ -159,8 +159,7 @@ def generate_conformers(infile, outfile, n_conformers, method):
     import subprocess
     command_string = "obabel %s -O %s --conformer --nconf %s --score %s --writeconformers" % \
                      (infile, outfile, n_conformers, method)
-    command_string = command_string.split()
-    p = subprocess.Popen(command_string)
+    p = subprocess.Popen(command_string.split())
 
 def sdf_to_smiles(infile, outfile):
     """
@@ -169,8 +168,7 @@ def sdf_to_smiles(infile, outfile):
     import subprocess
     # Should hydrogens be included?
     command_string = "obabel %s -O %s -h" % (infile, outfile)
-    command_string = command_string.split()
-    p = subprocess.Popen(command_string)
+    p = subprocess.Popen(command_string.split())
 
 
 
