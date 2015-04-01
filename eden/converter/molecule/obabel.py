@@ -162,3 +162,6 @@ def generate_conformers(infile, outfile, n_conformers, method):
     import subprocess
     print command_string
     p = subprocess.Popen(command_string)
+
+def sdf_to_smiles(infile, outfile):
+    pass
