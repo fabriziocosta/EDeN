@@ -156,12 +156,35 @@ def generate_conformers(infile, outfile, n_conformers, method):
     """
     Given an input file, call obabel to construct a specified number of conformers.
     """
+    import subprocess
     command_string = "obabel %s -O %s --conformer --nconf %s --score %s --writeconformers" % \
                      (infile, outfile, n_conformers, method)
     command_string = command_string.split()
-    import subprocess
-    print command_string
     p = subprocess.Popen(command_string)
 
 def sdf_to_smiles(infile, outfile):
-    pass
+    """
+    Given an input file in SDF format, call obabel to convert to SMILES format.
+    """
+    import subprocess
+    # Should hydrogens be included?
+    command_string = "obabel %s -O %s -h" % (infile, outfile)
+    command_string = command_string.split()
+    p = subprocess.Popen(command_string)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
