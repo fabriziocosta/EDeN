@@ -101,7 +101,7 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
         X = positive_data_matrix
         y = target
 
-    predictor = SGDClassifier(class_weight='auto', shuffle=True, n_jobs=n_jobs)
+    predictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -114,8 +114,7 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
     random_search = RandomizedSearchCV(
         predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs, random_state=random_state)
     random_search.fit(X, y)
-    optpredictor = SGDClassifier(
-        class_weight='auto', shuffle=True, n_jobs=n_jobs, **random_search.best_params_)
+    optpredictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs, **random_search.best_params_)
     # fit the predictor on all available data
     optpredictor.fit(X, y)
 
