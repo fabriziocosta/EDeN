@@ -155,6 +155,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  lower_bound_threshold_negative=-1,
                  upper_bound_threshold_negative=1,
                  n_iter=20,
+                 max_total_time=3600,
                  fit_vectorizer=False,
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
@@ -162,7 +163,8 @@ class ActiveLearningBinaryClassificationModel(object):
                  verbose=1,
                  n_jobs=1,
                  cv=10,
-                 scoring='roc_auc'):
+                 scoring='roc_auc',
+                 score_func=lambda u, s: u - s):
         def print_parameters_range():
             print '-' * 80
             print('Parameters range:')
@@ -196,6 +198,10 @@ class ActiveLearningBinaryClassificationModel(object):
             data_matrix_is_stable = False
         # main iteration
         for i in range(n_iter):
+            if time.time() - start > max_total_time:
+                if verbose > 1:
+                    print 'Reached max time: %s'%(str(datetime.timedelta(seconds=(time.time() - start))))
+                break
             try:
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
                 if i == int(n_iter / 2):
@@ -248,7 +254,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 # consider as score the mean-std for a robust estimate of predictive performance
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
-                score = score_mean - score_std
+                score = score_func(score_mean, score_std)
                 # update the best confirguration
                 if best_score_ < score:
                     # fit the estimator since the cross_validation estimate does not set the estimator parametrs
