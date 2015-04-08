@@ -52,7 +52,7 @@ def obabel_to_eden3d(input, similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14
     """
     
     if similarity_fn is None:
-        similarity_fn = lambda x: 1./1e-10 + x
+        similarity_fn = lambda x,a: 1./(a + x)
     
     if split_components: # yield every graph separately
         for mol in pybel.readfile(filetype, input):
@@ -161,13 +161,13 @@ def generate_conformers(infile, outfile, n_conformers, method):
                      (infile, outfile, n_conformers, method)
     p = subprocess.Popen(command_string.split())
 
-def sdf_to_smiles(infile, outfile):
+def smiles_to_sdf(infile, outfile):
     """
-    Given an input file in SDF format, call obabel to convert to SMILES format.
+    Given an input file in SMILES format, call obabel to convert to SDF format.
     """
     import subprocess
     # Should hydrogens be included?
-    command_string = "obabel %s -O %s -h" % (infile, outfile)
+    command_string = "obabel -ismi %s -O %s " % (infile, outfile)
     p = subprocess.Popen(command_string.split())
 
 
