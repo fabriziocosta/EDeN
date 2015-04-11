@@ -57,6 +57,7 @@ docs/_build/
 target/
 
 *.sdf
+*.smi
 *.tmproj
 *.ipynb_checkpoints
 *.model
