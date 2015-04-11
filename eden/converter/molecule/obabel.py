@@ -94,7 +94,7 @@ class OBabelConverter(object):
                 G = self.obabel_to_networkx3d(self.cache[x], similarity_fn, atom_types=atom_types, k=k)
                 # TODO: change back to yield (below too!)
                 if len(G):
-                    return G
+                    yield G
         else: # construct global graph and accumulate everything there
             G_global = nx.Graph()
             for x in read(input):
@@ -113,7 +113,7 @@ class OBabelConverter(object):
                 G = self.obabel_to_networkx3d(self.cache[x], similarity_fn, atom_types=atom_types, k=k)
                 if len(G):
                     G_global = nx.disjoint_union(G_global, G)
-            return G_global
+            yield G_global
 
 
 
