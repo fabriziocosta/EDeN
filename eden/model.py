@@ -67,13 +67,11 @@ class ActiveLearningBinaryClassificationModel(object):
     def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False, n_jobs=1):
         assert(is_iterable(iterable_pos) and is_iterable(iterable_neg)), 'Not iterable'
         self.vectorizer.set_params(**self.vectorizer_args)
-        print "calling pre processor with iterable_pos"
         iterator_pos = self.pre_processor(iterable_pos, **self.pre_processor_args)
         if fit_vectorizer:
             Xpos = self.vectorizer.fit_transform(iterator_pos, n_jobs=n_jobs)
         else:
             Xpos = self.vectorizer.transform(iterator_pos, n_jobs=n_jobs)
-        print "calling pre processor with iterable_neg"
         iterator_neg = self.pre_processor(iterable_neg, **self.pre_processor_args)
         Xneg = self.vectorizer.transform(iterator_neg, n_jobs=n_jobs)
         return self._assemble_data_matrix(Xpos, Xneg)
