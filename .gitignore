@@ -63,6 +63,7 @@ target/
 *.model
 
 examples/plot/*
+data
 
 *RData
 *Rhistory
