@@ -39,7 +39,11 @@ Omer S. Alkhnbashi, Fabrizio Costa, Shiraz A. Shah, Roger A. Garrett, Sita J. Sa
 
 Videm P., Rose D., Costa F., Backofen R. ,"BlockClust: efficient clustering and classification of non-coding RNAs from short read RNA-seq profiles", Bioinformatics, 2014 Jun 15;30(12):i274-82. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4058930/))
 
+Daniel Maticzka, Sita J Lange, Fabrizio Costa, Rolf Backofen, "GraphProt: modeling binding preferences of RNA-binding proteins", Genome Biology 2014, 15:R17 (22 January 2014). ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4053806/))
 
+Gianluca Corrado, Toma Tebaldi, Giulio Bertamini, Fabrizio Costa, Alessandro Quattrone, Gabriella Viero and Andrea Passerini, "PTRcombiner: mining combinatorial regulation of gene expression from post-transcriptional interaction maps", BMC Genomics, 2014; 15:304. ([PDF](http://www.biomedcentral.com/1471-2164/15/304/abstract))
+
+R. Ferrarese, G. R. 4th Harsh, A. K. Yadav, E. Bug, D. Maticzka, W. Reichardt, S. M. Dombrowski, T. E. Miller, A. P. Masilamani, F. Dai, H. Kim, M. Hadler, D. M. Scholtens, I. L. Y. Yu, J. Beck, V. Srinivasasainagendra, F. Costa, N. Baxan, D. Pfeifer, D. V. Elverfeldt, R. Backofen, A. Weyerbrock, C. W. Duarte, X. He, M. Prinz, J. P. Chandler, H. Vogel, A. Chakravarti, J. N. Rich, M. S. Carro, M. Bredel, Lineage-specific splicing of a brain-enriched alternative exon promotes glioblastoma progression. J Clin Invest, 124 no. 7 pp. 2861-2876, 2014. ([PDF](http://www.jci.org/articles/view/68836))
 
 
 Examples
