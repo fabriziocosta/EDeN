@@ -26,6 +26,8 @@ References
 
 Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distance kernel." Proceedings of the 26th International Conference on Machine Learning, 2010. ([ref](http://www.icml2010.org/papers/347.pdf))
 
+K. De Grave, F. Costa, "Molecular Graph Augmentation with Rings and Functional Groups", Journal of Chemical Information and Modeling, 50 (9), pp 1660–1668, 2010. ([ref](http://pubs.acs.org/doi/abs/10.1021/ci9005035))
+
 Steffen Heyne, Fabrizio Costa, Dominic Rose, and Rolf Backofen,"GraphClust: alignment-free structural clustering of local RNA secondary structures",Bioinformatics, 28 no. 12 pp. i224-i232, 2012.
 ([ref](http://bioinformatics.oxfordjournals.org/content/28/12/i224))
 
