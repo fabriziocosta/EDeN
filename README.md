@@ -24,16 +24,20 @@ pip install git+https://github.com/fabriziocosta/EDeN.git --user
 References
 ==========
 
-Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distance kernel." Proceedings of the 26th International Conference on Machine Learning. 2010. ([PDF](http://www.icml2010.org/papers/347.pdf))
+Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distance kernel." Proceedings of the 26th International Conference on Machine Learning, 2010. ([PDF](http://www.icml2010.org/papers/347.pdf))
 
-Steffen Heyne, Fabrizio Costa, Dominic Rose, and Rolf Backofen,"GraphClust: alignment-free structural clustering of local RNA secondary structures",Bioinformatics, 28 no. 12 pp. i224-i232, 2012
-([PDF](http://bioinformatics.oxfordjournals.org/content/28/12/i224.abstract))
+Steffen Heyne, Fabrizio Costa, Dominic Rose, and Rolf Backofen,"GraphClust: alignment-free structural clustering of local RNA secondary structures",Bioinformatics, 28 no. 12 pp. i224-i232, 2012.
+([PDF](http://bioinformatics.oxfordjournals.org/content/28/12/i224))
+
+
+Kousik Kundu, Fabrizio Costa, and Rolf Backofen, "A graph kernel approach for alignment-free domain-peptide interaction prediction with an application to human SH3 domains", Bioinformatics, 29 no. 13 pp. i335-i343, 2013. ([PDF](http://bioinformatics.oxfordjournals.org/content/29/13/i335))
+
 
 P. Frasconi, F. Costa, K. De Grave, L. De Raedt,"kLog: A Language for Logical and Relational Learning with Kernels", Artificial Intelligence, 2014. ([PDF](http://www.sciencedirect.com/science/article/pii/S0004370214001064)) 
 
 Omer S. Alkhnbashi, Fabrizio Costa, Shiraz A. Shah, Roger A. Garrett, Sita J. Saunders and Rolf Backofen, "CRISPRstrand: Predicting repeat orientations to determine the crRNA-encoding strand at CRISPR loci", ECCB, 13th European Conference on Computational Biology, 2014. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4147912/))
 
-Videm P., Rose D., Costa F., Backofen R. ,"BlockClust: efficient clustering and classification of non-coding RNAs from short read RNA-seq profiles", Bioinformatics. 2014 Jun 15;30(12):i274-82. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4058930/))
+Videm P., Rose D., Costa F., Backofen R. ,"BlockClust: efficient clustering and classification of non-coding RNAs from short read RNA-seq profiles", Bioinformatics, 2014 Jun 15;30(12):i274-82. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4058930/))
 
 
 
