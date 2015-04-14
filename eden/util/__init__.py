@@ -89,6 +89,34 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
     return (graphs_list, weights)
 
 
+def serial_vectorize(graphs, vectorizer=None):
+    X = vectorizer.transform(graphs)
+    return X
+
+
+def multiprocess_vectorize(graphs, vectorizer=None, negative_ratio=2, n_blocks=5, n_processes=8):
+    graphs = list(graphs)
+    import multiprocessing as mp
+    size = len(graphs)
+    block_size = size / n_blocks
+    pool = mp.Pool(processes=n_processes)
+    results = [pool.apply_async(serial_vectorize, args=(graphs[s * block_size:(s + 1) * block_size], vectorizer)) for s in range(n_blocks - 1)]
+    output = [p.get() for p in results]
+    import numpy as np
+    from scipy.sparse import vstack
+    X = output[0]
+    for Xi in output[1:]:
+        X = vstack([X, Xi], format="csr")
+    return X
+
+
+def vectorize(graphs, vectorizer=None, multiprocess=True, n_blocks=5, n_processes=8):
+    if multiprocess:
+        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, n_processes=n_processes)
+    else:
+        return serial_vectorize(graphs, vectorizer=vectorizer)
+
+
 def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
     assert(
         positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
@@ -139,7 +167,8 @@ def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10, n_i
     X_pos_train = vectorizer.transform(iterable_pos_train, n_jobs=n_jobs)
     X_neg_train = vectorizer.transform(iterable_neg_train, n_jobs=n_jobs)
     # optimize hyperparameters classifier
-    optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv, n_jobs=n_jobs, n_iter_search=n_iter_search, random_state=random_state)
+    optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv,
+                                 n_jobs=n_jobs, n_iter_search=n_iter_search, random_state=random_state)
     return optpredictor
 
 
