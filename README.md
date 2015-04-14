@@ -28,7 +28,7 @@ Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distanc
 
 P. Frasconi, F. Costa, K. De Grave, L. De Raedt,"kLog: A Language for Logical and Relational Learning with Kernels", Artificial Intelligence, 2014. ([PDF](http://www.sciencedirect.com/science/article/pii/S0004370214001064)) 
 
-
+Omer S. Alkhnbashi, Fabrizio Costa, Shiraz A. Shah, Roger A. Garrett, Sita J. Saunders and Rolf Backofen, "CRISPRstrand: Predicting repeat orientations to determine the crRNA-encoding strand at CRISPR loci", ECCB, 13th European Conference on Computational Biology, 2014. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4147912/))
 
 Examples
 ========
