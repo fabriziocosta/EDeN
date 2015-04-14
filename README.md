@@ -39,13 +39,13 @@ Examples
 
 A few examples can be found as IPython Notebook inside of the examples folder.
 
+* [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
+
 * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb)
 
 * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb)
 
 * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb)
-
-* [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
 
 * [RNA introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_example.ipynb)
 
