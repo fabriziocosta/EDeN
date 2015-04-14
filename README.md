@@ -27,7 +27,7 @@ References
 Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distance kernel." Proceedings of the 26th International Conference on Machine Learning, 2010. ([ref](http://www.icml2010.org/papers/347.pdf))
 
 Steffen Heyne, Fabrizio Costa, Dominic Rose, and Rolf Backofen,"GraphClust: alignment-free structural clustering of local RNA secondary structures",Bioinformatics, 28 no. 12 pp. i224-i232, 2012.
-([PDF](http://bioinformatics.oxfordjournals.org/content/28/12/i224))
+([ref](http://bioinformatics.oxfordjournals.org/content/28/12/i224))
 
 
 Kousik Kundu, Fabrizio Costa, and Rolf Backofen, "A graph kernel approach for alignment-free domain-peptide interaction prediction with an application to human SH3 domains", Bioinformatics, 29 no. 13 pp. i335-i343, 2013. ([ref](http://bioinformatics.oxfordjournals.org/content/29/13/i335))
