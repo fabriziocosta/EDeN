@@ -30,6 +30,9 @@ P. Frasconi, F. Costa, K. De Grave, L. De Raedt,"kLog: A Language for Logical an
 
 Omer S. Alkhnbashi, Fabrizio Costa, Shiraz A. Shah, Roger A. Garrett, Sita J. Saunders and Rolf Backofen, "CRISPRstrand: Predicting repeat orientations to determine the crRNA-encoding strand at CRISPR loci", ECCB, 13th European Conference on Computational Biology, 2014. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4147912/))
 
+
+Videm P., Rose D., Costa F., Backofen R. ,"BlockClust: efficient clustering and classification of non-coding RNAs from short read RNA-seq profiles", Bioinformatics. 2014 Jun 15;30(12):i274-82. ([PDF](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4058930/))
+
 Examples
 ========
 
