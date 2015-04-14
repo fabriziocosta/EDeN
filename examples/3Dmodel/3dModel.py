@@ -101,7 +101,11 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
                           'eta0': [10**x for x in range(-4,-1)],
                           'learning_rate': ["invscaling", "constant", "optimal"]}
 
-    print "calling optimizer.."
+    print "*"*40
+
+    print "Type of iterable_pos_train: ", str(type(iterable_pos_train))
+    for i in iterable_pos_train:
+        print str(type(i))
     model.optimize(iterable_pos_train, iterable_neg_train,
                    model_name=model_fname,
                    fit_vectorizer=True,
@@ -149,4 +153,4 @@ model = train_obabel_model(pos_iterator, neg_iterator,
                            n_active_learning_iterations=0,
                            threshold=1,
                            train_test_split=0.5,
-                           verbose=2)
+                           verbose=1)
