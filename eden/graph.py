@@ -12,7 +12,7 @@ import itertools
 import networkx as nx
 import multiprocessing
 import copy
-from eden import run_dill_encoded, apply_async, calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char, grouper
+from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 
 
 class Vectorizer(object):
