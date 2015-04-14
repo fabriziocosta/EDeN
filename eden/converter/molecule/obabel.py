@@ -87,6 +87,7 @@ class OBabelConverter(object):
                     command_string = 'obabel -:"' + x + '" -osdf --gen3d'
                     args = shlex.split(command_string)
                     sdf = subprocess.check_output(args)
+                    # Add the MOL object, not sdf to cache
                     self.cache[x] = sdf
                     # print "Output: "
                     # print sdf
@@ -117,7 +118,7 @@ class OBabelConverter(object):
 
 
 
-    def obabel_to_networkx3d(self, mol, similarity_fn, atom_types=None, k=3):
+    def obabel_to_networkx3d(self, input_mol, similarity_fn, atom_types=None, k=3):
         """
         Takes a pybel molecule object and converts it into a networkx graph.
 
@@ -147,7 +148,7 @@ class OBabelConverter(object):
             atom_types = [1,2,8,6,10,26,7,14,12,16]
 
         # Assume the incoming string contains only one molecule
-        mol = pybel.readstring(format="sdf", string=mol)
+        mol = pybel.readstring(format="sdf", string=input_mol)
 
         # Calculate pairwise distances between all atoms:
         coords = []
