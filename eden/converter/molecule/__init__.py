@@ -6,5 +6,3 @@ __version__ = "0.1"
 __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
-
-from .obabel import OBabelConverter

@@ -37,10 +37,7 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
     from numpy.random import randint
     from numpy.random import uniform
 
-
-    #### Create the obabel converter that is to be used inside the preprocessor (???) ######
-    converter = obabel.OBabelConverter()
-
+    cache = {}
     # this will be passed as an argument to the model later on
     def pre_processor(data, model_type="default", converter=None, **kwargs):
 
@@ -48,9 +45,9 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
         # model_type = kwargs.get('mode', 'default')
 
         if model_type == "default":
-            iterable = converter.obabel_to_eden(data, **kwargs)
+            iterable = obabel.obabel_to_eden(data, **kwargs)
         elif model_type == "3d":
-            iterable = converter.obabel_to_eden3d(data, **kwargs)
+            iterable = obabel.obabel_to_eden3d(data, cache, **kwargs)
         return iterable
 
     from eden.graph import Vectorizer
@@ -88,7 +85,6 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
     #optimize hyperparameters and fit model
 
     pre_processor_parameters={'k':randint(1, 10,size=n_iter),
-                             'converter':[converter],
                              'model_type':['default']}
 
     #print "pre processor parameters: " + str(pre_processor_parameters)
@@ -118,8 +114,6 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
                    estimator_parameters=estimator_parameters)
 
     #estimate predictive performance
-    #model.estimate( iterable_pos_test, iterable_neg_test, cv=5 )
-    # Had to change this call, estimate has no cv parameter
     model.estimate( iterable_pos_test, iterable_neg_test )
 
     return model
@@ -145,17 +139,14 @@ pos_iterator=make_iterable(active_fname) #this is a SMILES file
 neg_iterator=make_iterable(inactive_fname) #this is a SMILES file
 model_fname=DATA_DIR + '/AID%s.model3d'%AID
 
-for i in pos_iterator:
-    print i
-print "ok"
 
-# model = train_obabel_model(pos_iterator, neg_iterator,
-#                            data_dir=DATA_DIR,
-#                            model_type = "default",
-#                            model_fname=model_fname,
-#                            n_iter=5,
-#                            active_set_size=500,
-#                            n_active_learning_iterations=0,
-#                            threshold=1,
-#                            train_test_split=0.5,
-#                            verbose=2)
+model = train_obabel_model(pos_iterator, neg_iterator,
+                           data_dir=DATA_DIR,
+                           model_type = "default",
+                           model_fname=model_fname,
+                           n_iter=5,
+                           active_set_size=500,
+                           n_active_learning_iterations=0,
+                           threshold=1,
+                           train_test_split=0.5,
+                           verbose=2)
