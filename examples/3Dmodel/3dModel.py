@@ -22,7 +22,7 @@ inactive_fname=DATA_DIR + '/AID%s_inactive.smi'%AID
 def make_iterable(filename):
     with open(filename) as f:
         for line in f:
-            yield line
+            yield line.strip()
 
 # Functions for training and testing the model
 
@@ -42,7 +42,7 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
     converter = obabel.OBabelConverter()
 
     # this will be passed as an argument to the model later on
-    def pre_processor(data, **kwargs):
+    def pre_processor(data, model_type="default", converter=None, **kwargs):
 
         #### Use the model_type variable from outside (?) ####
         # model_type = kwargs.get('mode', 'default')
@@ -87,7 +87,9 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
 
     #optimize hyperparameters and fit model
 
-    pre_processor_parameters={'k':randint(1, 10,size=n_iter)}
+    pre_processor_parameters={'k':randint(1, 10,size=n_iter),
+                             'converter':[converter],
+                             'model_type':['default']}
 
     #print "pre processor parameters: " + str(pre_processor_parameters)
     vectorizer_parameters={'complexity':[2,3,4],
@@ -142,13 +144,18 @@ def test_obabel_model(fname, model_type = "default", model_fname=None):
 pos_iterator=make_iterable(active_fname) #this is a SMILES file
 neg_iterator=make_iterable(inactive_fname) #this is a SMILES file
 model_fname=DATA_DIR + '/AID%s.model3d'%AID
-model = train_obabel_model(pos_iterator, neg_iterator,
-                           data_dir=DATA_DIR,
-                           model_type = "default",
-                           model_fname=model_fname,
-                           n_iter=5,
-                           active_set_size=500,
-                           n_active_learning_iterations=0,
-                           threshold=1,
-                           train_test_split=0.5,
-                           verbose=2)
+
+for i in pos_iterator:
+    print i
+print "ok"
+
+# model = train_obabel_model(pos_iterator, neg_iterator,
+#                            data_dir=DATA_DIR,
+#                            model_type = "default",
+#                            model_fname=model_fname,
+#                            n_iter=5,
+#                            active_set_size=500,
+#                            n_active_learning_iterations=0,
+#                            threshold=1,
+#                            train_test_split=0.5,
+#                            verbose=2)
