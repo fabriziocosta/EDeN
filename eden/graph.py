@@ -212,19 +212,15 @@ class Vectorizer(object):
         """
         Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
         """
-        self._reference_vec = self._convert_dict_to_sparse_matrix(
-            self._transform(0, ref_instance))
+        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
             yield self._similarity(G)
-
-    def _similarity(self, original_graph):
-        # extract feature vector
-        x = self._convert_dict_to_sparse_matrix(
-            self._transform(0, original_graph))
-        res = self._reference_vec.dot(x.T).todense()
-        prediction = res[0, 0]
-        return prediction
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
+            res = reference_vec.dot(x.T).todense()
+            prediction = res[0, 0]
+            yield prediction
 
     def _test_goodness(self, G):
         if G.number_of_nodes() == 0:
@@ -375,10 +371,11 @@ class Vectorizer(object):
                     hlabel = []
                     for m in range(self.discretization_dimension):
                         if len(self.discretization_model_dict[node_class]) < m:
-                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required'%(node_class,len(self.discretization_model_dict[node_class]),m))
+                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required' % (
+                                node_class, len(self.discretization_model_dict[node_class]), m))
                         predictions = self.discretization_model_dict[node_class][m].predict(data)
                         if len(predictions) != 1:
-                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions'%len(predictions))
+                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
                         code = fast_hash([hash(node_class), discretization_code], self.bitmask)
                         hlabel.append(code)
