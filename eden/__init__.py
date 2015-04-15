@@ -16,12 +16,15 @@ def serial_vectorize(graphs, vectorizer=None):
     return X
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, negative_ratio=2, n_blocks=5, n_processes=8):
+def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
     block_size = size / n_blocks
-    pool = mp.Pool(processes=n_processes)
+    if n_jobs == -1:
+        pool = mp.Pool()
+    else:
+        pool = mp.Pool(processes=n_jobs)
     results = [pool.apply_async(serial_vectorize, args=(graphs[s * block_size:(s + 1) * block_size], vectorizer)) for s in range(n_blocks - 1)]
     output = [p.get() for p in results]
     import numpy as np
@@ -32,11 +35,11 @@ def multiprocess_vectorize(graphs, vectorizer=None, negative_ratio=2, n_blocks=5
     return X
 
 
-def vectorize(graphs, vectorizer=None, multiprocess=True, n_blocks=5, n_processes=8):
-    if multiprocess:
-        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, n_processes=n_processes)
-    else:
+def vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
+    if n_jobs == 1:
         return serial_vectorize(graphs, vectorizer=vectorizer)
+    else:
+        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
 
 
 def calc_running_hash(running_hash, list_item, counter):
