@@ -39,8 +39,8 @@ class ActiveLearningBinaryClassificationModel(object):
         self.estimator_args = None
         self.description = description
         self.fit_vectorizer = fit_vectorizer
-        self.n_jobs=n_jobs
-        self.n_blocks=n_blocks
+        self.n_jobs = n_jobs
+        self.n_blocks = n_blocks
         random.seed(random_seed)
 
     def get_description(self):
@@ -205,7 +205,7 @@ class ActiveLearningBinaryClassificationModel(object):
         for i in range(n_iter):
             if time.time() - start > max_total_time:
                 if verbose > 1:
-                    print 'Reached max time: %s'%(str(datetime.timedelta(seconds=(time.time() - start))))
+                    print 'Reached max time: %s' % (str(datetime.timedelta(seconds=(time.time() - start))))
                 break
             try:
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
