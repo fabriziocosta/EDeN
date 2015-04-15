@@ -56,7 +56,8 @@ def obabel_to_networkx(mol):
 ####################################################################################
 
 
-def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14,12,16], k=3, split_components=True):
+def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14,12,16], k=3, split_components=True,
+                     threshold=0):
     """
     Takes an input file and yields the corresponding networkx graphs.
     """
@@ -81,7 +82,7 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
                 # print "Output: "
                 # print sdf
             # Convert to networkx
-            G = obabel_to_networkx3d(cache[x], similarity_fn, atom_types=atom_types, k=k)
+            G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
             # TODO: change back to yield (below too!)
             if len(G):
                 yield G
@@ -100,14 +101,14 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
                 sdf = subprocess.check_output(args)
                 cache[x] = sdf
             # Convert to networkx
-            G = obabel_to_networkx3d(cache[x], similarity_fn, atom_types=atom_types, k=k)
+            G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
             if len(G):
                 G_global = nx.disjoint_union(G_global, G)
         yield G_global
 
 
 
-def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3):
+def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, threshold=0):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
 
@@ -151,7 +152,7 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3):
     for atom in mol:
         label = str(atom.type)
         # print "atom index: ", atom.idx
-        g.add_node(atom.idx, label=find_nearest_neighbors(mol, distances, atom.idx, k, atom_types, similarity_fn))
+        g.add_node(atom.idx, label=find_nearest_neighbors(mol, distances, atom.idx, k, atom_types, similarity_fn, threshold))
         g.node[atom.idx]['atom_type'] = label
 
     for bond in ob.OBMolBondIter(mol.OBMol):
@@ -163,7 +164,8 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3):
     # print g.edges()
     return g
 
-def find_nearest_neighbors(mol, distances, current_idx, k, atom_types, similarity_fn):
+def find_nearest_neighbors(mol, distances, current_idx, k, atom_types, similarity_fn,
+                           threshold=0):
 
     sorted_indices = np.argsort(distances[current_idx-1, ])
 
@@ -171,9 +173,7 @@ def find_nearest_neighbors(mol, distances, current_idx, k, atom_types, similarit
     nearest_atoms = []
 
     for atomic_no in atom_types:
-        # Remove the current atom from this list as well
-        # atom_idx = [atom.idx for atom in mol if atom.atomicnum == atomic_no and atom.idx != current_idx]
-        # Don't remove it:
+        # Don't remove current atom from list:
         atom_idx = [atom.idx for atom in mol if atom.atomicnum == atomic_no]
         # Indices cannot be compared directly with idx
         if len(atom_idx) >= k:
@@ -183,8 +183,13 @@ def find_nearest_neighbors(mol, distances, current_idx, k, atom_types, similarit
 
     # The following expression flattens the list
     nearest_atoms = [x for sublist in nearest_atoms for x in sublist]
-    # Replace idx for inverse distance (similarities)
-    nearest_atoms = [similarity_fn(distances[current_idx-1, i]) if not i is None else 0 for i in nearest_atoms]
+    # Replace idx for distances
+    nearest_atoms = [distances[current_idx-1, i] if not i is None else 0 for i in nearest_atoms]
+    # If a threshold value is entered, filter the list of distances
+    if threshold > 0:
+        nearest_atoms = [x if x <= threshold else 0 for x in nearest_atoms]
+    # Finally apply the similarity function to the resulting list and return
+    nearest_atoms = [similarity_fn(x) for x in nearest_atoms]
 
     return nearest_atoms
 
@@ -206,19 +211,6 @@ def smiles_to_sdf(infile, outfile):
     # Should hydrogens be included?
     command_string = "obabel -ismi %s -O %s " % (infile, outfile)
     p = subprocess.call(command_string.split())
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
