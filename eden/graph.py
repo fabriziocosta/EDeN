@@ -149,7 +149,6 @@ class Vectorizer(object):
                 discretization_model = KMeans(init='random',
                                               n_clusters=self.discretization_size,
                                               max_iter=100,
-                                              n_jobs=n_jobs,
                                               n_init=1,
                                               random_state=m + 1)
                 discretization_model.fit(label_data_matrix_dict[node_class])
@@ -845,7 +844,7 @@ class ListVectorizer(Vectorizer):
                                      discretization_dimension=discretization_dimension)
         self.vectorizers = list()
 
-    def fit(self, G_iterators_list, n_jobs=-1):
+    def fit(self, G_iterators_list):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -857,9 +856,9 @@ class ListVectorizer(Vectorizer):
         """
         for i, graphs in enumerate(G_iterators_list):
             self.vectorizers.append(copy.copy(self.vectorizer))
-            self.vectorizers[i].fit(graphs, n_jobs=n_jobs)
+            self.vectorizers[i].fit(graphs)
 
-    def fit_transform(self, G_iterators_list, weights=list(), n_jobs=-1):
+    def fit_transform(self, G_iterators_list, weights=list()):
         """ 
 
         Parameters
@@ -870,12 +869,11 @@ class ListVectorizer(Vectorizer):
         weights : list of positive real values.
           Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.   
         """
-        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(
-            G_iterators_list)
-        self.fit(G_iterators_list_fit, n_jobs=n_jobs)
-        return self.transform(G_iterators_list_transf, n_jobs=n_jobs)
+        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(G_iterators_list)
+        self.fit(G_iterators_list_fit)
+        return self.transform(G_iterators_list_transf)
 
-    def transform(self, G_iterators_list, weights=list(), n_jobs=-1):
+    def transform(self, G_iterators_list, weights=list()):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         ( Compressed Sparse Row matrix ).
@@ -897,9 +895,9 @@ class ListVectorizer(Vectorizer):
                0), 'ERROR: weight list contains negative values.'
         for i, graphs in enumerate(G_iterators_list):
             if len(self.vectorizers) == 0:
-                X_curr = self.vectorizer.transform(graphs, n_jobs=n_jobs)
+                X_curr = self.vectorizer.transform(graphs)
             else:
-                X_curr = self.vectorizers[i].transform(graphs, n_jobs=n_jobs)
+                X_curr = self.vectorizers[i].transform(graphs)
             if i == 0:
                 X = X_curr * weights[i]
             else:

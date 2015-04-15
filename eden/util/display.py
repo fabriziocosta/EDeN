@@ -376,7 +376,9 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from sklearn import manifold
-    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100).fit_transform(X)
+    from sklearn.metrics.pairwise import pairwise_distances
+    D = pairwise_distances(X)
+    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100, dissimilarity='precomputed').fit_transform(D)
     duration = time.time() - start
     plt.subplot(322)
     plot_embedding(X_, y, labels=labels, title="MDS (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
