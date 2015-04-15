@@ -21,11 +21,15 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
     import multiprocessing as mp
     size = len(graphs)
     block_size = size / n_blocks
+    reminder = size % n_blocks
     if n_jobs == -1:
         pool = mp.Pool()
     else:
         pool = mp.Pool(processes=n_jobs)
-    results = [pool.apply_async(serial_vectorize, args=(graphs[s * block_size:(s + 1) * block_size], vectorizer)) for s in range(n_blocks - 1)]
+    intervals = [(s * block_size,(s + 1) * block_size) for s in range(n_blocks)]
+    if reminder > 1: 
+        intervals += [(n_blocks * block_size, n_blocks * block_size + reminder)]
+    results = [pool.apply_async(serial_vectorize, args=(graphs[start:end], vectorizer)) for start,end in intervals]
     output = [p.get() for p in results]
     import numpy as np
     from scipy.sparse import vstack
