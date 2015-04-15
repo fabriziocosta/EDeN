@@ -18,6 +18,7 @@ from eden.util import fit_estimator, selection_iterator
 from eden.util import is_iterable
 from eden.util.util import report_base_statistics
 from eden.graph import Vectorizer
+from eden import vectorize
 
 
 class ActiveLearningBinaryClassificationModel(object):
@@ -57,23 +58,23 @@ class ActiveLearningBinaryClassificationModel(object):
     def _data_matrix(self, iterable, fit_vectorizer=False):
         assert(is_iterable(iterable)), 'Not iterable'
         iterable = self.pre_processor(iterable, **self.pre_processor_args)
+        iterable, iterable_ = tee(iterable)
         self.vectorizer.set_params(**self.vectorizer_args)
         if fit_vectorizer:
-            X = self.vectorizer.fit_transform(iterable)
-        else:
-            X = self.vectorizer.transform(iterable)
+            self.vectorizer.fit(iterable_)
+        X = vectorize(iterable, vectorizer=self.vectorizer)
         return X
 
     def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False):
         assert(is_iterable(iterable_pos) and is_iterable(iterable_neg)), 'Not iterable'
         self.vectorizer.set_params(**self.vectorizer_args)
         iterator_pos = self.pre_processor(iterable_pos, **self.pre_processor_args)
+        iterator_pos, iterator_pos_ = tee(iterator_pos)
         if fit_vectorizer:
-            Xpos = self.vectorizer.fit_transform(iterator_pos)
-        else:
-            Xpos = self.vectorizer.transform(iterator_pos)
+            self.vectorizer.fit(iterator_pos_)
+        Xpos = vectorize(iterator_pos, vectorizer=self.vectorizer)
         iterator_neg = self.pre_processor(iterable_neg, **self.pre_processor_args)
-        Xneg = self.vectorizer.transform(iterator_neg)
+        Xneg = vectorize(iterator_neg, vectorizer=self.vectorizer)
         return self._assemble_data_matrix(Xpos, Xneg)
 
     def _assemble_data_matrix(self, Xpos, Xneg):
