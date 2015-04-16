@@ -36,6 +36,12 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
+    #if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block 
+    if n_blocks >= size:
+        n_blocks = size / 10
+    #if one block will end up containing a single instance reduce the number of blocks to avoid the case
+    if size % n_blocks == 1:
+        n_blocks = max(1, n_blocks - 1)
     block_size = size / n_blocks
     reminder = size % n_blocks
     if n_jobs == -1:

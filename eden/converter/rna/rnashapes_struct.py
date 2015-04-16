@@ -37,8 +37,12 @@ def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None
     #extract the dot bracket notation
     dotbracket_list += [line.split()[1] for line in text[1:-1]] 
     #make a list of triplets
+    assert(len(shape_list)==len(energy_list)==len(dotbracket_list)), 'ERROR: unequal length in lists'
     seq_struct_list = []
     for shape,energy,dotbracket in zip(shape_list,energy_list,dotbracket_list): 
+        assert(len(shape)>0), 'ERROR: null shape'
+        assert(len(energy)>0), 'ERROR: null energy'
+        assert(len(dotbracket)>0), 'ERROR: null dotbracket'
         seq_struct_list.append((shape,energy,dotbracket))
     return seq_info, seq_struct_list
 
