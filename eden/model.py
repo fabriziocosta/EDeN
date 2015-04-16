@@ -27,7 +27,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  vectorizer=Vectorizer(complexity=1),
                  estimator=SGDClassifier(class_weight='auto', shuffle=True),
                  fit_vectorizer=False,
-                 n_jobs=1,
+                 n_jobs=-1,
                  n_blocks=5,
                  description=None,
                  random_seed=1):

@@ -65,4 +65,4 @@ def rnashapes_to_eden(iterable, **options):
             print e.message
             print 'Error in: %s' % seq
             G = seq_to_networkx(header, seq, **options)
-        yield G
+            yield G
