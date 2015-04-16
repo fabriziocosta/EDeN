@@ -27,7 +27,7 @@ def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None
         energy_dec = int( energy / 10 )
         reminder = energy % 10
         energy_string = ""
-        for i in range(energy_dec):
+        for i in range(energy_dec + 1):
             energy_string += str(i)
         if reminder > 5:
             energy_string += 'x'
@@ -98,6 +98,6 @@ def rnashapes_struct_to_eden(iterable, **options):
         except Exception as e:
             print e.__doc__
             print e.message
-            print 'Error in: %s' % seq
+            print 'Error in: %s %s' % (header, seq)
             G = seq_to_networkx(header, seq, **options)
             yield G
