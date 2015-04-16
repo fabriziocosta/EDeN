@@ -889,10 +889,8 @@ class ListVectorizer(Vectorizer):
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
-               ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
-               0), 'ERROR: weight list contains negative values.'
+        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
+        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         for i, graphs in enumerate(G_iterators_list):
             if len(self.vectorizers) == 0:
                 X_curr = self.vectorizer.transform(graphs)
@@ -953,10 +951,8 @@ class ListVectorizer(Vectorizer):
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
-               ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
-               0), 'ERROR: weight list contains negative values.'
+        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
+        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         try:
             while True:
                 graphs = [G_iterator.next() for G_iterator in G_iterators_list]
@@ -967,8 +963,7 @@ class ListVectorizer(Vectorizer):
     def _predict(self, graphs, weights=list()):
         # extract feature vector
         for i, graph in enumerate(graphs):
-            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
-                self.vectorizer._transform(0, graph))
+            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(self.vectorizer._transform(0, graph))
             if i == 0:
                 x = x_curr * weights[i]
             else:
