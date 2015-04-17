@@ -16,6 +16,9 @@ def fasta_to_fasta(input, modifier=null_modifier, **options):
     ----------
     input : string
         A pointer to the data source.
+
+    normalize : bool
+        If True all characters are uppercased and Ts are replaced by Us
     """
     normalize = options.get('normalize', True)
     iterable = _fasta_to_fasta(input)
