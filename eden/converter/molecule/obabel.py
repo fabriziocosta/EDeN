@@ -12,14 +12,13 @@ import shlex
 from eden.util import read
 
 
-def obabel_to_eden(input, file_type = 'sdf', **options):
+def obabel_to_eden(input, format = 'sdf', **options):
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
     Parameters
     ----------
-    input : string
-        A pointer to the data source.
+    input : SMILES strings containing molecular structures.
 
     """
     #cache={}
@@ -27,13 +26,34 @@ def obabel_to_eden(input, file_type = 'sdf', **options):
     #if smi in cache:
     #do openbabel with cache[smi]
     #else do 3dobabel and store mol in cache[smi]=mol
-    for mol in pybel.readfile(file_type, input):
-        #remove hydrogens
-        mol.removeh()
-        G = obabel_to_networkx(mol)
-        if len(G):
-            yield G
-
+    if format == 'sdf':
+        for mol in pybel.readfile("sdf", input):
+            #remove hydrogens
+            mol.removeh()
+            G = obabel_to_networkx(mol)
+            if len(G):
+                yield G
+    elif format == 'smi':
+        for x in read(input):
+            # First check if the molecule has appeared before and thus is already converted
+            if x not in cache:
+                # convert from SMILES to SDF and store in cache
+                # TODO: do we assume that the input is "clean", i.e. only the SMILES strings?
+                # command_string = 'obabel -:"' + x.split()[1] + '" -osdf --gen3d'
+                # TODO: conformer generation still isn't working - is it a problem in my installation?
+                # command_string = 'obabel -:"' + x + '" -osdf --gen3d --conformer --nconf 5 --score rmsd'
+                command_string = 'obabel -:"' + x + '" -osdf --gen3d'
+                args = shlex.split(command_string)
+                sdf = subprocess.check_output(args)
+                # Add the MOL object, not sdf to cache
+                cache[x] = sdf
+                # print "Output: "
+                # print sdf
+            # Convert to networkx
+            G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
+            # TODO: change back to yield (below too!)
+            if len(G):
+                yield G
 def obabel_to_networkx(mol):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
@@ -78,9 +98,10 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
                 args = shlex.split(command_string)
                 sdf = subprocess.check_output(args)
                 # Add the MOL object, not sdf to cache
-                cache[x] = sdf
-                # print "Output: "
-                # print sdf
+                # Assume the incoming string contains only one molecule
+                mol = pybel.readstring(format="sdf", string=sdf)
+                cache[x] = mol
+                # print "Molecule converted and stored"
             # Convert to networkx
             G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
             # TODO: change back to yield (below too!)
@@ -112,8 +133,8 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
     """
     Takes a pybel molecule object and converts it into a networkx graph.
 
-    :param mol: A string containing SDF data
-    :type mol: string
+    :param input_mol: A molecule object
+    :type input_mol: pybel.Molecule
     :param atom_types: A list containing the atomic number of atom types to be looked for in the molecule
     :type atom_types: list or None
     :param k: The number of nearest neighbors to be considered
@@ -137,25 +158,22 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
         # 16 Sulfur
         atom_types = [1,2,8,6,10,26,7,14,12,16]
 
-    # Assume the incoming string contains only one molecule
-    mol = pybel.readstring(format="sdf", string=input_mol)
-
     # Calculate pairwise distances between all atoms:
     coords = []
-    for atom in mol:
+    for atom in input_mol:
         coords.append(atom.coords)
     coords = np.asarray(coords)
     distances = scipy.spatial.distance.squareform(scipy.spatial.distance.pdist(coords))
 
     # Find the nearest neighbors for each atom
     # atoms
-    for atom in mol:
+    for atom in input_mol:
         label = str(atom.type)
         # print "atom index: ", atom.idx
-        g.add_node(atom.idx, label=find_nearest_neighbors(mol, distances, atom.idx, k, atom_types, similarity_fn, threshold))
+        g.add_node(atom.idx, label=find_nearest_neighbors(input_mol, distances, atom.idx, k, atom_types, similarity_fn, threshold))
         g.node[atom.idx]['atom_type'] = label
 
-    for bond in ob.OBMolBondIter(mol.OBMol):
+    for bond in ob.OBMolBondIter(input_mol.OBMol):
         label = str(bond.GetBO())
         g.add_edge(bond.GetBeginAtomIdx(),
                    bond.GetEndAtomIdx(),
