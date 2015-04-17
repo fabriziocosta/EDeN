@@ -12,7 +12,7 @@ import itertools
 import networkx as nx
 import multiprocessing
 import copy
-from eden import run_dill_encoded, apply_async, calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char, grouper
+from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 
 
 class Vectorizer(object):
@@ -129,7 +129,7 @@ class Vectorizer(object):
             self.discretization_dimension)
         return representation
 
-    def fit(self, graphs, n_jobs=-1):
+    def fit(self, graphs):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -138,10 +138,6 @@ class Vectorizer(object):
         ----------
         graphs : list of networkx graphs. 
           The data.
-
-        n_jobs : integer, optional
-          Number of jobs to run in parallel ( default 1 ).
-          Use -1 to indicate the total number of CPUs available.
         """
         label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
         label_data_matrix_dict.update(
@@ -153,29 +149,24 @@ class Vectorizer(object):
                 discretization_model = KMeans(init='random',
                                               n_clusters=self.discretization_size,
                                               max_iter=100,
-                                              n_jobs=n_jobs,
                                               n_init=1,
                                               random_state=m + 1)
                 discretization_model.fit(label_data_matrix_dict[node_class])
                 self.discretization_model_dict[node_class] += [discretization_model]
 
-    def fit_transform(self, graphs, n_jobs=-1):
+    def fit_transform(self, graphs):
         """
 
         Parameters
         ----------
         graphs : list of networkx graphs. 
           The data.
-
-        n_jobs : integer, optional
-          Number of jobs to run in parallel ( default 1 ).
-          Use -1 to indicate the total number of CPUs available.
         """
-        graphs_fit, graphs_transf = itertools.tee(graphs)
-        self.fit(graphs_fit, n_jobs=n_jobs)
-        return self.transform(graphs_transf, n_jobs=n_jobs)
+        graphs, graphs_ = itertools.tee(graphs)
+        self.fit(graphs_)
+        return self.transform(graphs)
 
-    def transform(self, graphs, n_jobs=-1, block_size=-1):
+    def transform(self, graphs):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         ( Compressed Sparse Row matrix ).
@@ -184,28 +175,25 @@ class Vectorizer(object):
         ----------
         graphs : list of networkx graphs. 
           The data.
-
-        n_jobs : integer, optional
-          Number of jobs to run in parallel ( default 1 ). 
-          Use -1 to indicate the total number of CPUs available.
-
-        block_size : integer, optional
-          Number of instances per block ( default -1 meaning no blocks ). 
-          After block_size instances a sparse matrix is 
-          materialized and stacked to previous ones. 
         """
+        instance_id = 0
+        feature_dict = {}
+        for instance_id, G in enumerate(graphs):
+            self._test_goodness(G)
+            feature_dict.update(self._transform(instance_id, G))
+        if instance_id == 0:
+            raise Exception('ERROR: something went wrong, no graphs are present in current iterator.')
+        return self._convert_dict_to_sparse_matrix(feature_dict)
 
-        if block_size == -1:
-            return self._transform_block(graphs, n_jobs=n_jobs)
-        else:
-            G_block_list = grouper(graphs, block_size)
-            for i, graphs in enumerate(G_block_list):
-                X_curr = self._transform_block(graphs, n_jobs=n_jobs)
-                if i == 0:
-                    X = X_curr
-                else:
-                    X = vstack([X, X_curr], format="csr")
-            return X
+    def transform_iter(self, graphs):
+        """
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        ( Compressed Sparse Row matrix ) and returns one sparse row at a time.
+        This is a generator.
+        """
+        for instance_id, G in enumerate(graphs):
+            self._test_goodness(G)
+            yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, G))
 
     def predict(self, graphs, estimator):
         """
@@ -223,67 +211,19 @@ class Vectorizer(object):
         """
         Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
         """
-        self._reference_vec = self._convert_dict_to_sparse_matrix(
-            self._transform(0, ref_instance))
+        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
             yield self._similarity(G)
-
-    def _similarity(self, original_graph):
-        # extract feature vector
-        x = self._convert_dict_to_sparse_matrix(
-            self._transform(0, original_graph))
-        res = self._reference_vec.dot(x.T).todense()
-        prediction = res[0, 0]
-        return prediction
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
+            res = reference_vec.dot(x.T).todense()
+            prediction = res[0, 0]
+            yield prediction
 
     def _test_goodness(self, G):
         if G.number_of_nodes() == 0:
             raise Exception('ERROR: something went wrong, empty graph.')
-
-    def _transform_block(self, graphs, n_jobs=-1):
-        if n_jobs == 1:
-            return self._transform_serial(graphs)
-        else:
-            return self._transform_parallel(graphs, n_jobs)
-
-    def _transform_parallel(self, graphs, n_jobs):
-        feature_dict = {}
-
-        def my_callback(result):
-            feature_dict.update(result)
-
-        if n_jobs == -1:
-            n_jobs = None
-        pool = multiprocessing.Pool(n_jobs)
-        for instance_id, G in enumerate(graphs):
-            self._test_goodness(G)
-            apply_async(
-                pool, self._transform, args=(instance_id, G), callback = my_callback)
-        pool.close()
-        pool.join()
-        return self._convert_dict_to_sparse_matrix(feature_dict)
-
-    def _transform_serial(self, graphs):
-        instance_id = 0
-        feature_dict = {}
-        for instance_id, G in enumerate(graphs):
-            self._test_goodness(G)
-            feature_dict.update(self._transform(instance_id, G))
-        if instance_id == 0:
-            raise Exception(
-                'ERROR: something went wrong, no graphs are present in current iterator.')
-        return self._convert_dict_to_sparse_matrix(feature_dict)
-
-    def transform_iter(self, graphs):
-        """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
-        ( Compressed Sparse Row matrix ) and returns one sparse row at a time.
-        This is a generator.
-        """
-        for instance_id, G in enumerate(graphs):
-            self._test_goodness(G)
-            yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, G))
 
     def _extract_dense_vectors_from_labels(self, original_graph):
         # from each vertex extract the node_class and the label as a list and return a
@@ -430,10 +370,11 @@ class Vectorizer(object):
                     hlabel = []
                     for m in range(self.discretization_dimension):
                         if len(self.discretization_model_dict[node_class]) < m:
-                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required'%(node_class,len(self.discretization_model_dict[node_class]),m))
+                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required' % (
+                                node_class, len(self.discretization_model_dict[node_class]), m))
                         predictions = self.discretization_model_dict[node_class][m].predict(data)
                         if len(predictions) != 1:
-                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions'%len(predictions))
+                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
                         code = fast_hash([hash(node_class), discretization_code], self.bitmask)
                         hlabel.append(code)
@@ -501,7 +442,6 @@ class Vectorizer(object):
         return G
 
     def _graph_preprocessing(self, original_graph):
-        assert(original_graph.number_of_nodes() > 0), 'ERROR: Empty graph'
         G = self._edge_to_vertex_transform(original_graph)
         self._weight_preprocessing(G)
         self._label_preprocessing(G)
@@ -520,9 +460,6 @@ class Vectorizer(object):
         return G
 
     def _transform(self, instance_id, original_graph):
-        if original_graph is None or original_graph.number_of_nodes() == 0:
-            raise Exception(
-                'ERROR: something went wrong, empty instance at position %d.' % instance_id)
         G = self._graph_preprocessing(original_graph)
         # collect all features for all vertices for each label_index
         feature_list = defaultdict(lambda: defaultdict(float))
@@ -907,7 +844,7 @@ class ListVectorizer(Vectorizer):
                                      discretization_dimension=discretization_dimension)
         self.vectorizers = list()
 
-    def fit(self, G_iterators_list, n_jobs=-1):
+    def fit(self, G_iterators_list):
         """
         Constructs an approximate explicit mapping of a kernel function on the data 
         stored in the nodes of the graphs.
@@ -919,9 +856,9 @@ class ListVectorizer(Vectorizer):
         """
         for i, graphs in enumerate(G_iterators_list):
             self.vectorizers.append(copy.copy(self.vectorizer))
-            self.vectorizers[i].fit(graphs, n_jobs=n_jobs)
+            self.vectorizers[i].fit(graphs)
 
-    def fit_transform(self, G_iterators_list, weights=list(), n_jobs=-1):
+    def fit_transform(self, G_iterators_list, weights=list()):
         """ 
 
         Parameters
@@ -932,12 +869,11 @@ class ListVectorizer(Vectorizer):
         weights : list of positive real values.
           Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.   
         """
-        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(
-            G_iterators_list)
-        self.fit(G_iterators_list_fit, n_jobs=n_jobs)
-        return self.transform(G_iterators_list_transf, n_jobs=n_jobs)
+        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(G_iterators_list)
+        self.fit(G_iterators_list_fit)
+        return self.transform(G_iterators_list_transf)
 
-    def transform(self, G_iterators_list, weights=list(), n_jobs=-1):
+    def transform(self, G_iterators_list, weights=list()):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix 
         ( Compressed Sparse Row matrix ).
@@ -953,15 +889,13 @@ class ListVectorizer(Vectorizer):
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
-               ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
-               0), 'ERROR: weight list contains negative values.'
+        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
+        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         for i, graphs in enumerate(G_iterators_list):
             if len(self.vectorizers) == 0:
-                X_curr = self.vectorizer.transform(graphs, n_jobs=n_jobs)
+                X_curr = self.vectorizer.transform(graphs)
             else:
-                X_curr = self.vectorizers[i].transform(graphs, n_jobs=n_jobs)
+                X_curr = self.vectorizers[i].transform(graphs)
             if i == 0:
                 X = X_curr * weights[i]
             else:
@@ -1017,10 +951,8 @@ class ListVectorizer(Vectorizer):
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
             weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
-               ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
-               0), 'ERROR: weight list contains negative values.'
+        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
+        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         try:
             while True:
                 graphs = [G_iterator.next() for G_iterator in G_iterators_list]
@@ -1031,8 +963,7 @@ class ListVectorizer(Vectorizer):
     def _predict(self, graphs, weights=list()):
         # extract feature vector
         for i, graph in enumerate(graphs):
-            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
-                self.vectorizer._transform(0, graph))
+            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(self.vectorizer._transform(0, graph))
             if i == 0:
                 x = x_curr * weights[i]
             else:

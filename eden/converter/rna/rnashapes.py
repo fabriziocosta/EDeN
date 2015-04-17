@@ -19,8 +19,12 @@ def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None
     #parse output
     text = out.strip().split('\n')
     seq_info = text[0]
-    seq_struct_list = [line.split()[1] for line in text[1:-1]] 
-    struct_list = [line.split()[2] for line in text[1:-1]] 
+    if 'configured to print' in text[-1]:
+        struct_text = text[1:-1]
+    else:
+        struct_text = text[1:]
+    seq_struct_list = [line.split()[1] for line in struct_text] 
+    struct_list = [line.split()[2] for line in struct_text] 
     return seq_info, seq_struct_list, struct_list
 
 
@@ -65,4 +69,4 @@ def rnashapes_to_eden(iterable, **options):
             print e.message
             print 'Error in: %s' % seq
             G = seq_to_networkx(header, seq, **options)
-        yield G
+            yield G

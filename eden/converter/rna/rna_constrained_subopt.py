@@ -3,7 +3,7 @@
 import networkx as nx
 import subprocess as sp
 import numpy as np
-from eden.modifier.fasta import fasta_to_fasta
+from eden.modifier.fasta_with_constraints import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.util import read
@@ -48,9 +48,9 @@ def max_difference_subselection(seqs, scores=None, max_num=None):
     return np.array([i for i, x in enumerate(np.diag(D)) if x == 0])
 
 
-def rnasubopt_wrapper(sequence, energy_range=None, max_num=None, max_num_subopts=None):
+def rnasubopt_wrapper(sequence, constraint, energy_range=None, max_num=None, max_num_subopts=None):
     # command line
-    cmd = 'echo "%s" | RNAsubopt -e %d' % (sequence, energy_range)
+    cmd = 'echo "%s\n%s" | RNAsubopt -C -e %d' % (sequence, constraint, energy_range)
     out = sp.check_output(cmd, shell=True)
     # parse output
     text = out.strip().split('\n')
@@ -63,13 +63,13 @@ def rnasubopt_wrapper(sequence, energy_range=None, max_num=None, max_num_subopts
     return selected_seq_struct_list, selected_energy_list
 
 
-def string_to_networkx(header, sequence, **options):
+def string_to_networkx(header, sequence, constraint, **options):
     # defaults
     energy_range = options.get('energy_range', 10)
     max_num = options.get('max_num', 3)
     max_num_subopts = options.get('max_num_subopts', 100)
     split_components = options.get('split_components', False)
-    seq_struct_list, energy_list = rnasubopt_wrapper(sequence, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
+    seq_struct_list, energy_list = rnasubopt_wrapper(sequence, constraint, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
     if split_components:
         for seq_struct, energy in zip(seq_struct_list, energy_list):
             G = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
@@ -94,9 +94,9 @@ def string_to_networkx(header, sequence, **options):
 
 def rnasubopt_to_eden(iterable, **options):
     assert(is_iterable(iterable)), 'Not iterable'
-    for header, seq in iterable:
+    for header, seq, const in iterable:
         try:
-            for G in string_to_networkx(header, seq, **options):
+            for G in string_to_networkx(header, seq, const, **options):
                 yield G
         except Exception as e:
             print e.__doc__

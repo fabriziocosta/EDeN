@@ -4,7 +4,8 @@ import math
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
 import multiprocessing
-from eden import run_dill_encoded, apply_async, calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char, grouper
+from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
+
 
 class Vectorizer():
 
@@ -44,38 +45,13 @@ class Vectorizer():
             self. inner_normalization)
         return representation
 
-    def transform(self, seq_list, n_jobs=-1):
+    def transform(self, seq_list):
         """
         Parameters
         ----------
         seq_list : list of strings 
             The data.
-
-        n_jobs : integer, optional
-            Number of jobs to run in parallel (default 1).
-            Use -1 to indicate the total number of CPUs available.
         """
-        if n_jobs is 1:
-            return self._transform_serial(seq_list)
-        else:
-            return self._transform_parallel(seq_list, n_jobs)
-
-    def _transform_parallel(self, seq_list, n_jobs):
-        feature_dict = {}
-
-        def my_callback(result):
-            feature_dict.update(result)
-
-        if n_jobs == -1:
-            n_jobs = None
-        pool = multiprocessing.Pool(n_jobs)
-        for instance_id, seq in enumerate(seq_list):
-            apply_async(pool, self._transform, args=(instance_id, seq), callback = my_callback)
-        pool.close()
-        pool.join()
-        return self._convert_dict_to_sparse_matrix(feature_dict)
-
-    def _transform_serial(self, seq_list):
         feature_dict = {}
         for instance_id, seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id, seq))
@@ -150,92 +126,27 @@ class Vectorizer():
         subseq = seq[pos:pos + self.r]
         return fast_hash_vec_char(subseq, self.bitmask)
 
-
-class OutOfCoreSimilarity(Vectorizer):
-
-    def __init__(self,
-                 ref_instance=None,
-                 vectorizer=Vectorizer()):
+    def predict(self, seqs, estimator):
         """
-        Purpose:
-        ----------
-        It outputs the similarity score between 'graph' and a stream of graphs.  
-
-        Parameters
-        ----------
-        graph : an EDeN compatible graph 
-
-        vectorizer : EDeN graph vectorizer 
+        Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
         """
-        self.r = vectorizer.r
-        self.d = vectorizer.d
-        self.min_r = vectorizer.min_r
-        self.min_d = vectorizer.min_d
-        self.nbits = vectorizer.nbits
-        self.normalization = vectorizer.normalization
-        self.inner_normalization = vectorizer.inner_normalization
-        self.bitmask = vectorizer.bitmask
-        self.feature_size = vectorizer.feature_size
-        if ref_instance is None:
-            raise Exception('ERROR: null ref_instance.')
-        self._reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        for seq in seqs:
+            if len(seq) == 0:
+                raise Exception('ERROR: something went wrong, empty instance.')
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq))
+            margins = estimator.decision_function(x)
+            yield margins[0]
 
-    def predict(self, sequences):
+    def similarity(self, seqs, ref_instance=None):
         """
-        This is a generator.
+        Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
         """
+        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for seq in sequences:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
-            yield self._predict(seq)
-
-    def _predict(self, seq_orig):
-        # extract feature vector
-        x = self._convert_dict_to_sparse_matrix(self._transform(0, seq_orig))
-        res = self._reference_vec.dot(x.T).todense()
-        return res[0, 0]
-
-
-class OutOfCorePredictor(Vectorizer):
-
-    def __init__(self,
-                 estimator=SGDClassifier(),
-                 vectorizer=Vectorizer()):
-        """
-        Purpose:
-        ----------
-        It outputs the estimator prediction of the vectorized graph.  
-
-        Parameters
-        ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
-            If None the vertex weigths are by default 1.
-
-        vectorizer : EDeN graph vectorizer 
-        """
-        self._estimator = estimator
-        self.r = vectorizer.r
-        self.d = vectorizer.d
-        self.min_r = vectorizer.min_r
-        self.min_d = vectorizer.min_d
-        self.nbits = vectorizer.nbits
-        self.normalization = vectorizer.normalization
-        self.inner_normalization = vectorizer.inner_normalization
-        self.bitmask = vectorizer.bitmask
-        self.feature_size = vectorizer.feature_size
-
-    def predict(self, sequences):
-        """
-
-        This is a generator.
-        """
-        for seq in sequences:
-            if len(seq) == 0:
-                raise Exception('ERROR: something went wrong, empty instance.')
-            yield self._predict(seq)
-
-    def _predict(self, seq_orig):
-        # extract feature vector
-        x = self._convert_dict_to_sparse_matrix(self._transform(0, seq_orig))
-        margins = self._estimator.decision_function(x)
-        return margins[0]
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq_orig))
+            res = reference_vec.dot(x.T).todense()
+            yield res[0, 0]

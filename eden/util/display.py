@@ -152,7 +152,7 @@ def serialize_graph(graph):
     return serial_data
 
 
-def embed2D(data, vectorizer, size=10, n_components=5, n_jobs=1, colormap='YlOrRd'):
+def embed2D(data, vectorizer, size=10, n_components=5, colormap='YlOrRd'):
     import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
@@ -168,7 +168,7 @@ def embed2D(data, vectorizer, size=10, n_components=5, n_jobs=1, colormap='YlOrR
             labels.append(label)
 
     # transform iterable into sparse vectors
-    X = vectorizer.transform(iterable_1, n_jobs=n_jobs)
+    X = vectorizer.transform(iterable_1)
     # embed high dimensional sparse vectors in 2D
     from sklearn import metrics
     D = metrics.pairwise.pairwise_distances(X)
@@ -234,7 +234,7 @@ def embed_dat_matrix_2D(X_reduced, y=None, labels=None, density_colormap='Blues'
             plt.annotate(label, xy=(x, y), xytext = (0, 0), textcoords = 'offset points')
 
 
-def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, n_jobs=1, filename=None):
+def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, filename=None):
     '"median","centroid","weighted","single","ward","complete","average"'
     import numpy as np
     if hasattr(data, '__iter__'):
@@ -250,7 +250,7 @@ def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, n_jo
         if label:
             labels.append(label)
     # transform input into sparse vectors
-    X = vectorizer.transform(iterable_1, n_jobs=n_jobs)
+    X = vectorizer.transform(iterable_1)
 
     # labels
     if not labels:
@@ -376,7 +376,9 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from sklearn import manifold
-    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100).fit_transform(X)
+    from sklearn.metrics.pairwise import pairwise_distances
+    D = pairwise_distances(X)
+    X_ = manifold.MDS(n_components=2, n_init=1, max_iter=100, dissimilarity='precomputed').fit_transform(D)
     duration = time.time() - start
     plt.subplot(322)
     plot_embedding(X_, y, labels=labels, title="MDS (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)

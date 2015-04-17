@@ -89,9 +89,8 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
     return (graphs_list, weights)
 
 
-def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
-    assert(
-        positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
+def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, target=None):
+    assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
     if target is None and negative_data_matrix is not None:
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
@@ -100,7 +99,10 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
     if target is not None:
         X = positive_data_matrix
         y = target
+    return X, y
 
+
+def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
     predictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
@@ -111,49 +113,37 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
                   "learning_rate": ["invscaling", "constant", "optimal"]}
     scoring = 'roc_auc'
     n_iter_search = n_iter_search
-    random_search = RandomizedSearchCV(
-        predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs, random_state=random_state)
+    random_search = RandomizedSearchCV(predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs, random_state=random_state)
+    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
     random_search.fit(X, y)
     optpredictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs, **random_search.best_params_)
     # fit the predictor on all available data
     optpredictor.fit(X, y)
-
     print 'Classifier:'
     print optpredictor
     print '-' * 80
-
     print 'Predictive performance:'
     # assess the generalization capacity of the model via a 10-fold cross
     # validation
     for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score(
-            optpredictor, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-        print('%20s: %.3f +- %.3f' %
-              (scoring, np.mean(scores), np.std(scores)))
+        scores = cross_validation.cross_val_score(optpredictor, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+        print('%20s: %.3f +- %.3f' %(scoring, np.mean(scores), np.std(scores)))
     print '-' * 80
-
     return optpredictor
 
 
-def fit(iterable_pos_train, iterable_neg_train, vectorizer, n_jobs=1, cv=10, n_iter_search=40, random_state=1):
-    X_pos_train = vectorizer.transform(iterable_pos_train, n_jobs=n_jobs)
-    X_neg_train = vectorizer.transform(iterable_neg_train, n_jobs=n_jobs)
+def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1):
+    from eden import vectorize
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer)
     # optimize hyperparameters classifier
-    optpredictor = fit_estimator(positive_data_matrix=X_pos_train, negative_data_matrix=X_neg_train, cv=cv, n_jobs=n_jobs, n_iter_search=n_iter_search, random_state=random_state)
+    optpredictor = fit_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, cv=cv,
+                                 n_jobs=n_jobs, n_iter_search=n_iter_search, random_state=random_state)
     return optpredictor
 
 
-def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None, cv=10, n_jobs=-1):
-    assert(
-        positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
-    if target is None and negative_data_matrix is not None:
-        yp = [1] * positive_data_matrix.shape[0]
-        yn = [-1] * negative_data_matrix.shape[0]
-        y = np.array(yp + yn)
-        X = vstack([positive_data_matrix, negative_data_matrix], format="csr")
-    if target is not None:
-        X = positive_data_matrix
-        y = target
+def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
+    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
     print 'Test set'
     describe(X)
     print '-' * 80
@@ -168,10 +158,11 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
     return apr, roc
 
 
-def estimate(iterable_pos_test, iterable_neg_test, estimator, vectorizer, n_jobs=1):
-    X_pos_test = vectorizer.transform(iterable_pos_test, n_jobs=n_jobs)
-    X_neg_test = vectorizer.transform(iterable_neg_test, n_jobs=n_jobs)
-    return estimate_estimator(positive_data_matrix=X_pos_test, negative_data_matrix=X_neg_test, estimator=estimator, n_jobs=n_jobs)
+def estimate(iterable_pos, iterable_neg, estimator, vectorizer):
+    from eden import vectorize
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer)
+    return estimate_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, estimator=estimator)
 
 
 def load_target(name):
