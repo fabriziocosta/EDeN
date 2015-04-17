@@ -40,7 +40,8 @@ def _fasta_to_fasta(input):
     seq = ""
     const = ""
     for line in util.read(input):
-        if not line:
+        line = str(line).strip()
+        if line == "":
             # assume the empty line indicates that next line describes the constraints
             if seq:
                 yield seq
@@ -51,11 +52,11 @@ def _fasta_to_fasta(input):
                 header = ""
                 seq = ""
                 const = ""
-            header = str(line).strip()
+            header = line 
             yield header
         else:
             # remove trailing chars, split and take only first part, removing comments
-            line_str = line.strip().split()[0]
+            line_str = line.split()[0]
             if line_str:
                 if seq is None:
                     const += line_str
