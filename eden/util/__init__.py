@@ -42,6 +42,48 @@ def is_iterable(test):
         return False
 
 
+def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
+    return list(pre_processor(iterable, **pre_processor_args ))
+
+
+def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
+    from eden import apply_async
+    iterable = list(iterable)
+    import multiprocessing as mp
+    size = len(iterable)
+    # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
+    if n_blocks >= size:
+        n_blocks = size / 10
+    # if one block will end up containing a single instance reduce the number of blocks to avoid the case
+    if size % n_blocks == 1:
+        n_blocks = max(1, n_blocks - 1)
+    block_size = size / n_blocks
+    reminder = size % n_blocks
+    if n_jobs == -1:
+        pool = mp.Pool()
+    else:
+        pool = mp.Pool(n_jobs)
+    intervals = [(s * block_size, (s + 1) * block_size) for s in range(n_blocks)]
+    if reminder > 1:
+        intervals += [(n_blocks * block_size, n_blocks * block_size + reminder)]
+    results = [apply_async(pool, serial_pre_process, args=(iterable[start:end], pre_processor, pre_processor_args)) for start, end in intervals]
+    output = [p.get() for p in results]
+    pool.close()
+    pool.join()
+    return_list = []
+    for items in output:
+        for item in items:
+            return_list.append(item)
+    return return_list
+
+
+def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
+    if n_jobs == 1:
+        return serial_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args)
+    else:
+        return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, n_jobs=n_jobs)
+
+
 def describe(X):
     print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
 
@@ -102,8 +144,7 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
     return X, y
 
 
-def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
-    predictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
+def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -113,33 +154,51 @@ def fit_estimator(positive_data_matrix=None, negative_data_matrix=None, target=N
                   "learning_rate": ["invscaling", "constant", "optimal"]}
     scoring = 'roc_auc'
     n_iter_search = n_iter_search
-    random_search = RandomizedSearchCV(predictor, param_distributions=param_dist, n_iter=n_iter_search, cv=cv, scoring=scoring, n_jobs=n_jobs, random_state=random_state)
-    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
+    random_search = RandomizedSearchCV(estimator,
+                                       param_distributions=param_dist,
+                                       n_iter=n_iter_search,
+                                       cv=cv,
+                                       scoring=scoring,
+                                       n_jobs=n_jobs,
+                                       random_state=random_state,
+                                       refit=True)
+    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix,
+                            negative_data_matrix=negative_data_matrix,
+                            target=target)
     random_search.fit(X, y)
-    optpredictor = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs, **random_search.best_params_)
-    # fit the predictor on all available data
-    optpredictor.fit(X, y)
+
     print 'Classifier:'
-    print optpredictor
+    print random_search.best_estimator_
     print '-' * 80
     print 'Predictive performance:'
     # assess the generalization capacity of the model via a 10-fold cross
     # validation
     for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score(optpredictor, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-        print('%20s: %.3f +- %.3f' %(scoring, np.mean(scores), np.std(scores)))
+        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+        print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
     print '-' * 80
-    return optpredictor
+    return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1):
+def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5):
+    estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     from eden import vectorize
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer)
-    # optimize hyperparameters classifier
-    optpredictor = fit_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, cv=cv,
-                                 n_jobs=n_jobs, n_iter_search=n_iter_search, random_state=random_state)
-    return optpredictor
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+    if n_iter_search <= 1:
+        X, y = make_data_matrix(positive_data_matrix=X_pos,
+                                negative_data_matrix=X_neg)
+        estimator.fit(X, y)
+    else:
+        # optimize hyperparameters classifier
+        estimator = fit_estimator(estimator,
+                                  positive_data_matrix=X_pos,
+                                  negative_data_matrix=X_neg,
+                                  cv=cv,
+                                  n_jobs=n_jobs,
+                                  n_iter_search=n_iter_search,
+                                  random_state=random_state)
+    return estimator
 
 
 def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
@@ -158,10 +217,10 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
     return apr, roc
 
 
-def estimate(iterable_pos, iterable_neg, estimator, vectorizer):
+def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, n_jobs=4):
     from eden import vectorize
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer)
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
     return estimate_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, estimator=estimator)
 
 

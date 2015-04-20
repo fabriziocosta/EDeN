@@ -78,6 +78,7 @@ def string_to_networkx(header, sequence, **options):
                 G = seq_to_networkx(header, sequence, **options)
             G.graph['id'] = header 
             G.graph['sequence'] = sequence
+            G.graph['structure'] = seq_struct
             yield G
     else:
         G_global = nx.Graph()
