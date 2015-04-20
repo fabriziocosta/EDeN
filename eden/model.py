@@ -31,7 +31,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  n_jobs=8,
                  n_blocks=8,
                  pre_processor_n_jobs=1,
-                 pre_processor_n_blocks=1,
+                 pre_processor_n_blocks=8,
                  description=None,
                  random_seed=1):
         self.pre_processor = copy.deepcopy(pre_processor)
@@ -47,9 +47,6 @@ class ActiveLearningBinaryClassificationModel(object):
         self.pre_processor_n_jobs = pre_processor_n_jobs
         self.pre_processor_n_blocks = pre_processor_n_blocks
         random.seed(random_seed)
-
-    def get_description(self):
-        print self.description
 
     def save(self, model_name):
         joblib.dump(self, model_name, compress=1)
@@ -171,10 +168,12 @@ class ActiveLearningBinaryClassificationModel(object):
                  verbose=1,
                  cv=10,
                  scoring='roc_auc',
-                 score_func=lambda u, s: u - s):
+                 score_func=lambda u, s: u - s,
+                 two_steps_optimization=True):
         def print_parameters_range():
             print '-' * 80
             print('Parameters range:')
+            print '-' * 80
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
             print('Vectorizer:')
@@ -211,7 +210,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 break
             try:
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
-                if i == int(n_iter / 2):
+                if i == int(n_iter / 2) and two_steps_optimization == True:
                     if len(best_pre_processor_parameters_) > 0:
                         pre_processor_parameters = dict(best_pre_processor_parameters_)
                     if len(best_vectorizer_parameters_) > 0:
