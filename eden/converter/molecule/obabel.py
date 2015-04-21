@@ -97,10 +97,8 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
                 command_string = 'obabel -:"' + x + '" -osdf --gen3d'
                 args = shlex.split(command_string)
                 sdf = subprocess.check_output(args)
-                # Add the MOL object, not sdf to cache
                 # Assume the incoming string contains only one molecule
-                mol = pybel.readstring(format="sdf", string=sdf)
-                cache[x] = mol
+                cache[x] = sdf
                 # print "Molecule converted and stored"
             # Convert to networkx
             G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
@@ -142,6 +140,8 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
     :param label_name: the name to be used for the neighbors attribute
     :type label_name: string
     """
+
+    input_mol = pybel.readstring(format="sdf", string=input_mol)
     g = nx.Graph()
 
     if atom_types is None:
@@ -230,6 +230,3 @@ def smiles_to_sdf(infile, outfile):
     command_string = "obabel -ismi %s -O %s " % (infile, outfile)
     p = subprocess.call(command_string.split())
 
-
-
-    
