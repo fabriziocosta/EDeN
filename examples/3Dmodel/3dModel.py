@@ -41,7 +41,7 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
     global_cache = {}
 
     # this will be passed as an argument to the model later on
-    def pre_processor(data, model_type="3d", converter=None, **kwargs):
+    def pre_processor(data, model_type="3d", **kwargs):
 
         #### Use the model_type variable from outside (?) ####
         # model_type = kwargs.get('mode', 'default')

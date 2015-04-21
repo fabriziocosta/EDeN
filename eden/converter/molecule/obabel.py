@@ -76,14 +76,13 @@ def obabel_to_networkx(mol):
 ####################################################################################
 
 
-def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14,12,16], k=3, split_components=True,
-                     threshold=0):
+def obabel_to_eden3d(input, cache={}, split_components=True, **kwargs):
+                     # similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14,12,16], k=3, threshold=0):
     """
     Takes an input file and yields the corresponding networkx graphs.
-    """
 
-    if similarity_fn is None:
-        similarity_fn = lambda x: 1./(1e-10 + x)
+    **kwargs: arguments to be passed to other methods.
+    """
 
     if split_components: # yield every graph separately
         for x in read(input):
@@ -103,7 +102,7 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
                 cache[x] = sdf
                 # print "Molecule converted and stored"
             # Convert to networkx
-            G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
+            G = obabel_to_networkx3d(cache[x], **kwargs)
             # TODO: change back to yield (below too!)
             if len(G):
                 yield G
@@ -130,7 +129,9 @@ def obabel_to_eden3d(input, cache={}, similarity_fn=None, atom_types = [1,2,8,6,
 
 
 
-def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, threshold=0):
+def obabel_to_networkx3d(input_mol, **kwargs):
+    # similarity_fn, atom_types=None, k=3, threshold=0):
+
     """
     Takes a pybel molecule object and converts it into a networkx graph.
 
@@ -144,22 +145,9 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
     :type label_name: string
     """
 
+    vector_label = kwargs.get('vector_label', 'label')
     input_mol = pybel.readstring(format="sdf", string=input_mol)
     g = nx.Graph()
-
-    if atom_types is None:
-        # Most common elements in our galaxy with atomic number:
-        # 1 Hydrogen
-        # 2 Helium
-        # 8 Oxygen
-        # 6 Carbon
-        # 10 Neon
-        # 26 Iron
-        # 7 Nitrogen
-        # 14 Silicon
-        # 12 Magnesium
-        # 16 Sulfur
-        atom_types = [1,2,8,6,10,26,7,14,12,16]
 
     # Calculate pairwise distances between all atoms:
     coords = []
@@ -171,10 +159,10 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
     # Find the nearest neighbors for each atom
     # atoms
     for atom in input_mol:
-        label = str(atom.type)
-        # print "atom index: ", atom.idx
-        g.add_node(atom.idx, label=find_nearest_neighbors(input_mol, distances, atom.idx, k, atom_types, similarity_fn, threshold))
-        g.node[atom.idx]['atom_type'] = label
+        atomic_no = str(atom.type)
+        g.add_node(atom.idx)
+        g.node[atom.idx][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
+        g.node[atom.idx]['atom_type'] = atomic_no
 
     for bond in ob.OBMolBondIter(input_mol.OBMol):
         label = str(bond.GetBO())
@@ -185,9 +173,24 @@ def obabel_to_networkx3d(input_mol, similarity_fn, atom_types=None, k=3, thresho
     # print g.edges()
     return g
 
-def find_nearest_neighbors(mol, distances, current_idx, k, atom_types, similarity_fn,
-                           threshold=0):
+def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
 
+    # Most common elements in our galaxy with atomic number:
+    # 1 Hydrogen
+    # 2 Helium
+    # 8 Oxygen
+    # 6 Carbon
+    # 10 Neon
+    # 26 Iron
+    # 7 Nitrogen
+    # 14 Silicon
+    # 12 Magnesium
+    # 16 Sulfur
+    atom_types = kwargs.get('atom_types', [1,2,8,6,10,26,7,14,12,16])
+    similarity_fn = kwargs.get('similarity_fn', lambda x: 1./(1e-10 + x))
+    k = kwargs.get('k', 3)
+    threshold = kwargs.get('threshold', 0)
+    # print "Value of threshold parameter: %s" % threshold
     sorted_indices = np.argsort(distances[current_idx-1, ])
 
     # Obs: nearest_atoms will contain the atom index, which starts in 0
