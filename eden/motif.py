@@ -22,7 +22,7 @@ from eden import vectorize
 from eden.util import mp_pre_process
 from eden.converter.fasta import sequence_to_eden
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
-from eden.util import fit as eden_fit
+from eden.util import fit
 from eden.util.iterated_maximum_subarray import compute_max_subarrays
 
 
@@ -117,7 +117,7 @@ class SequenceMotif(object):
         neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=2)
         neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
         # fit discriminative estimator
-        self.estimator = eden_fit(pos_graphs, neg_graphs, vectorizer=self.vectorizer,
+        self.estimator = fit(pos_graphs, neg_graphs, vectorizer=self.vectorizer,
                                   n_iter_search=self.n_iter_search, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
 
     def cluster(self, seqs):
