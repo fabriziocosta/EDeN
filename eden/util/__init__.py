@@ -279,3 +279,22 @@ def load(output_dir_path='', out_file_name=''):
     full_out_file_name = os.path.join(output_dir_path, out_file_name) + ".pkl"
     obj = joblib.load(full_out_file_name)
     return obj
+
+
+def report_base_statistics(vec):
+    from collections import Counter
+    c = Counter(vec)
+    msg = ''
+    for k in c:
+        msg += "class: %s count:%d (%0.2f)\t" % (k, c[k], c[k] / float(len(vec)))
+    return msg
+
+
+def save_output(text=None, output_dir_path=None, out_file_name=None, logger=None):
+    if not os.path.exists(output_dir_path):
+        os.mkdir(output_dir_path)
+    full_out_file_name = os.path.join(output_dir_path, out_file_name)
+    with open(full_out_file_name, 'w') as f:
+        for line in text:
+            f.write("%s\n" % str(line).strip())
+    logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))
