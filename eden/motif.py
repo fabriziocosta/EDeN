@@ -64,14 +64,14 @@ class SequenceMotif(object):
 
     def __init__(self,
                  min_subarray_size=7,
-                 max_subarray_size=9,
+                 max_subarray_size=10,
                  min_motif_count=1,
                  min_cluster_size=1,
                  training_size=None,
                  negative_ratio=2,
                  n_iter_search=1,
-                 complexity=3,
-                 nbits=14,
+                 complexity=4,
+                 nbits=20,
                  algorithm='DBSCAN',
                  n_clusters=4,
                  eps=0.3,
@@ -80,7 +80,7 @@ class SequenceMotif(object):
                  min_samples=3,
                  verbosity=0,
                  n_blocks=2,
-                 n_jobs=2,
+                 n_jobs=8,
                  random_seed=1):
         self.n_blocks = n_blocks
         self.n_jobs = n_jobs
@@ -242,9 +242,12 @@ class SequenceMotif(object):
 
 
 def main(args):
+    # read in sequences in FASTA format
     from eden.converter.fasta import fasta_to_sequence
     seqs = fasta_to_sequence(args.input_file)
     seqs = list(seqs)
+
+    # setup
     sequence_motif = SequenceMotif(training_size=args.training_size,
                            verbosity=args.verbosity,
                            algorithm=args.algorithm,
@@ -263,6 +266,7 @@ def main(args):
                            complexity=args.complexity,
                            n_blocks=args.n_blocks,
                            n_jobs=args.n_jobs)
+    # find motives
     sequence_motif.fit(seqs)
 
     # output motives
