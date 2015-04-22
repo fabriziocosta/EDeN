@@ -43,7 +43,10 @@ def is_iterable(test):
 
 
 def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
-    return list(pre_processor(iterable, **pre_processor_args))
+    if pre_processor_args:
+        return list(pre_processor(iterable, **pre_processor_args))
+    else:
+        return list(pre_processor(iterable))
 
 
 def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
