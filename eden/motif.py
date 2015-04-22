@@ -118,7 +118,7 @@ class SequenceMotif(object):
         neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
         # fit discriminative estimator
         self.estimator = fit(pos_graphs, neg_graphs, vectorizer=self.vectorizer,
-                                  n_iter_search=self.n_iter_search, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
+                             n_iter_search=self.n_iter_search, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
 
     def cluster(self, seqs):
         X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
@@ -249,23 +249,23 @@ def main(args):
 
     # setup
     sequence_motif = SequenceMotif(training_size=args.training_size,
-                           verbosity=args.verbosity,
-                           algorithm=args.algorithm,
-                           min_subarray_size=args.min_subarray_size,
-                           max_subarray_size=args.max_subarray_size,
-                           min_motif_count=args.min_motif_count,
-                           min_cluster_size=args.min_cluster_size,
-                           n_clusters=args.n_clusters,
-                           eps=args.eps,
-                           min_samples=args.min_samples,
-                           threshold=args.threshold,
-                           branching_factor=args.branching_factor,
-                           negative_ratio=args.negative_ratio,
-                           n_iter_search=args.n_iter_search,
-                           nbits=args.nbits,
-                           complexity=args.complexity,
-                           n_blocks=args.n_blocks,
-                           n_jobs=args.n_jobs)
+                                   verbosity=args.verbosity,
+                                   algorithm=args.algorithm,
+                                   min_subarray_size=args.min_subarray_size,
+                                   max_subarray_size=args.max_subarray_size,
+                                   min_motif_count=args.min_motif_count,
+                                   min_cluster_size=args.min_cluster_size,
+                                   n_clusters=args.n_clusters,
+                                   eps=args.eps,
+                                   min_samples=args.min_samples,
+                                   threshold=args.threshold,
+                                   branching_factor=args.branching_factor,
+                                   negative_ratio=args.negative_ratio,
+                                   n_iter_search=args.n_iter_search,
+                                   nbits=args.nbits,
+                                   complexity=args.complexity,
+                                   n_blocks=args.n_blocks,
+                                   n_jobs=args.n_jobs)
     # find motives
     sequence_motif.fit(seqs)
 
@@ -315,7 +315,7 @@ def main(args):
 if __name__ == "__main__":
     description = """
     Explicit Decomposition with Neighborhood (EDeN) utility program.
-    Motif finder driver. Offers: fit, predict and transform.
+    Motif finder driver. 
     """
     epilog = """
     Cite: 
@@ -421,6 +421,7 @@ if __name__ == "__main__":
                         dest="log_full_state",
                         help="If set, log all the internal parameters values and motif database of the motif finder. Warning: it can generate large logging files.",
                         action="store_true")
+    parser.add_argument('--version', action='version', version='0.1')
     args = parser.parse_args()
 
     logger = setup.logger(logger_name=sys.argv[0], filename="log", verbosity=args.verbosity)
