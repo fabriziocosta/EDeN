@@ -64,9 +64,7 @@ class SequenceMotif(object):
                  n_iter_search=1,
                  complexity=3,
                  nbits=14,
-                 algorithm='greedy_density',
-                 nearest_neighbor_algorithm='NearestNeighbors',
-                 n_neighbors=10,
+                 algorithm='DBSCAN',
                  n_clusters=4,
                  eps=0.3,
                  threshold=0.2,
@@ -86,9 +84,7 @@ class SequenceMotif(object):
         self.vectorizer = Vectorizer(complexity=self.complexity)
         self.seq_vectorizer = PathVectorizer(complexity=self.complexity, nbits=self.nbits)
         self.negative_ratio = negative_ratio
-        self.n_neighbors = n_neighbors
         self.algorithm = algorithm
-        self.nearest_neighbor_algorithm = nearest_neighbor_algorithm
         self.n_clusters = n_clusters
         self.eps = eps
         self.threshold = threshold
@@ -116,70 +112,21 @@ class SequenceMotif(object):
         self.estimator = eden_fit(pos_graphs, neg_graphs, vectorizer=self.vectorizer,
                                   n_iter_search=self.n_iter_search, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
 
-    def greedy_density_cluster(self, density_order, indices):
-        num = len(indices)
-        instance_id_to_cluster_id_map = np.zeros((num,), 'int64')
-        # init: the densest neighbourhood constitutes the first cluster
-        id = density_order[0]
-        neighbors = indices[id]
-        instance_id_to_cluster_id_map[neighbors] = id
-        for id in density_order:
-                # work only on instances that have not alrady been assigned to clusters
-            if instance_id_to_cluster_id_map[id] == 0:
-                neighbors = indices[id]
-                neighbor_cluster_ids = instance_id_to_cluster_id_map[neighbors]
-                neighbor_cluster_id_hist = np.bincount(neighbor_cluster_ids)  # NOTE:replace with dict
-                cluster_id = np.argmax(neighbor_cluster_id_hist)
-                # count the max num occurrences of the cluster_id associated to each neighbor
-                cluster_count = neighbor_cluster_id_hist[cluster_id]
-                # print id, neighbors,neighbor_cluster_ids , neighbor_cluster_id_hist, cluster_id, cluster_count
-                # if we are allocating instance 0 then give it the id num = max_id+1
-                if id == 0:
-                    id = num
-                # if most of the instances are not assigned and have 0 as representative then create a new cluster
-                if cluster_id == 0:
-                    cluster_id = id
-                # give to all non-yet-cluster-associated (i.e. with clust_id=0) neighbors the cluster_id of max_count
-                # or if this corresponds to 0 then give as cluster id the id of the instance
-                mask = np.array([True if x == 0 else False for x in neighbor_cluster_ids])
-                instance_id_to_cluster_id_map[neighbors[mask]] = cluster_id
-        return instance_id_to_cluster_id_map
-
-    def kneighbors_greedy_density_clustering(self, X):
-        if self.nearest_neighbor_algorithm == 'NearestNeighbors':
-            from sklearn.neighbors import NearestNeighbors
-            nn = NearestNeighbors()
-        elif self.nearest_neighbor_algorithm == 'LSHForest':
-            from sklearn.neighbors import LSHForest
-            nn = LSHForest()
-        else:
-            raise Exception('Unknown algorithm: %s' % self.nearest_neighbor_algorithm)
-        nn.fit(X)
-        distances, indices = nn.kneighbors(X, n_neighbors=self.n_neighbors)
-        avg_distance = [sum(distance) for distance in distances]
-        density_order = np.argsort(avg_distance)
-        predictions = self.greedy_density_cluster(density_order, indices)
-        return predictions
-
     def cluster(self, seqs):
         # TODO: make a standard interface of kneighbors_greedy_density_clustering with fit_predict
         X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
-        if self.algorithm == 'greedy_density':
-            predictions = self.kneighbors_greedy_density_clustering(X)
-        elif self.algorithm == 'MiniBatchKMeans':
+        if self.algorithm == 'MiniBatchKMeans':
             from sklearn.cluster import MiniBatchKMeans
             cluster_algo = MiniBatchKMeans(n_clusters=self.n_clusters)
-            predictions = cluster_algo.fit_predict(X)
         elif self.algorithm == 'DBSCAN':
             from sklearn.cluster import DBSCAN
             cluster_algo = DBSCAN(eps=self.eps, min_samples=self.min_samples)
-            predictions = cluster_algo.fit_predict(X)
         elif self.algorithm == 'Birch':
             from sklearn.cluster import Birch
             cluster_algo = Birch(threshold=self.threshold, n_clusters=self.n_clusters, branching_factor=self.branching_factor)
-            predictions = cluster_algo.fit_predict(X)
         else:
             raise Exception('Unknown algorithm: %s' % self.algorithm)
+        predictions = cluster_algo.fit_predict(X)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
             self.clusters[predictions[i]] += [i]
