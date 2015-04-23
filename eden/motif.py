@@ -13,9 +13,9 @@ from collections import defaultdict
 import argparse
 import logging
 import logging.handlers
-
 from eden.util import setup
 from eden.util import save_output
+
 from eden.graph import Vectorizer
 from eden.path import Vectorizer as PathVectorizer
 from eden import vectorize
