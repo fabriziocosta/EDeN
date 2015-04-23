@@ -173,7 +173,8 @@ class SequenceMotif(object):
             training_seqs = random.sample(seqs, self.training_size)
         self.fit_predictive_model(training_seqs)
         end = time()
-        logger.info('model induction: %d secs' % (end - start))
+        if self.verbosity > 0:
+            print('model induction: %d secs' % (end - start))
 
         start = time()
         self.motives = motif_finder(seqs,
@@ -183,13 +184,15 @@ class SequenceMotif(object):
                                     max_subarray_size=self.max_subarray_size,
                                     n_jobs=self.n_jobs)
         end = time()
-        logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
+        if self.verbosity > 0:
+            print('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
 
         start = time()
         self.cluster(self.motives)
         self.filter()
         end = time()
-        logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
+        if self.verbosity > 0:
+            print('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
 
     def _build_regex(self, seqs):
         regex = ''
@@ -239,201 +242,3 @@ class SequenceMotif(object):
                 else:
                     cluster_hits[cluster_id] = hits
             yield cluster_hits
-
-
-def main(args):
-    # read in sequences in FASTA format
-    from eden.converter.fasta import fasta_to_sequence
-    seqs = fasta_to_sequence(args.input_file)
-    seqs = list(seqs)
-
-    # setup
-    sequence_motif = SequenceMotif(training_size=args.training_size,
-                                   verbosity=args.verbosity,
-                                   algorithm=args.algorithm,
-                                   min_subarray_size=args.min_subarray_size,
-                                   max_subarray_size=args.max_subarray_size,
-                                   min_motif_count=args.min_motif_count,
-                                   min_cluster_size=args.min_cluster_size,
-                                   n_clusters=args.n_clusters,
-                                   eps=args.eps,
-                                   min_samples=args.min_samples,
-                                   threshold=args.threshold,
-                                   branching_factor=args.branching_factor,
-                                   negative_ratio=args.negative_ratio,
-                                   n_iter_search=args.n_iter_search,
-                                   nbits=args.nbits,
-                                   complexity=args.complexity,
-                                   n_blocks=args.n_blocks,
-                                   n_jobs=args.n_jobs)
-    # find motives
-    sequence_motif.fit(seqs)
-
-    # output motives
-    text = []
-    for cluster_id in sequence_motif.motives_db:
-        text.append("# %d" % cluster_id)
-        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
-            text.append("%s %d" % (motif, count))
-        text.append("")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs', logger=logger)
-
-    # output occurrences of cluster hit in sequences
-    predictions = sequence_motif.predict(seqs, return_list=True)
-    text = []
-    for j, p in enumerate(predictions):
-        line = ""
-        for i in range(len(p)):
-            line += "%d " % p[i]
-        if line:
-            line = str(j) + "\t" + line
-            text.append(line)
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_id_hit', logger=logger)
-
-    # output occurrences of motives in sequences
-    predictions = sequence_motif.transform(seqs, return_match=True)
-    text = []
-    for j, p in enumerate(predictions):
-        line = ""
-        for i in range(len(p)):
-            if len(p[i]):
-                line += "%d:%s " % (i, p[i])
-        if line:
-            line = str(j) + "\t" + line
-            text.append(line)
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position', logger=logger)
-
-    # save state of motif finder
-    if args.log_full_state:
-        logger.debug(sequence_motif.__dict__)
-    else:
-        logger.debug(sequence_motif.estimator)
-        logger.debug(sequence_motif.vectorizer)
-        logger.debug(sequence_motif.seq_vectorizer)
-
-
-if __name__ == "__main__":
-    description = """
-    Explicit Decomposition with Neighborhood (EDeN) utility program.
-    Motif finder driver. 
-    """
-    epilog = """
-    Cite: 
-    Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise distance kernel', Proceedings of the 26th International Conference on Machine Learning. 2010.
-    """
-    start_time = time()
-    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-i", "--input-file",
-                        dest="input_file",
-                        help="Path to a FASTA file.",
-                        required=True)
-    parser.add_argument("-o", "--output-dir",
-                        dest="output_dir_path",
-                        help="Path to output directory.",
-                        default="out")
-    parser.add_argument("-a", "--algorithm",  choices=["MiniBatchKMeans", "DBSCAN", "Birch"],
-                        help="""
-                        Type of clustering algorithm for extracted motives. 
-                        For deatails see: 
-                        http://scikit-learn.org/stable/modules/clustering.html 
-                        """,
-                        default="DBSCAN")
-    parser.add_argument("-B", "--nbits",
-                        type=int,
-                        help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
-                        default=20)
-    parser.add_argument("-C", "--complexity",
-                        type=int,
-                        help="Size of the generalization of k-mers for graphs.",
-                        default=4)
-    parser.add_argument("-t", "--training-size",
-                        dest="training_size",
-                        type=int,
-                        help="Size of the random sequence sample to use for fitting the discriminative model. If None then all instances are used.",
-                        default=None)
-    parser.add_argument("-n", "--negative-ratio",
-                        dest="negative_ratio",
-                        type=int,
-                        help="Factor multiplying the training-size to obtain the number of negative instances generated by random permutation.",
-                        default=2)
-    parser.add_argument("-e", "--n-iter-search",
-                        dest="n_iter_search",
-                        type=int,
-                        help="Number of randomly geenrated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
-                        default=1)
-    parser.add_argument("-m", "--min-subarray-size",
-                        dest="min_subarray_size",
-                        type=int,
-                        help="Minimal size in number of nucleotides of the motives to search.",
-                        default=7)
-    parser.add_argument("-M", "--max-subarray-size",
-                        dest="max_subarray_size",
-                        type=int,
-                        help="Maximal size in number of nucleotides of the motives to search.",
-                        default=10)
-    parser.add_argument("-c", "--min-motif-count",
-                        dest="min_motif_count",
-                        type=int,
-                        help="Minimal number of occurrences for a motif sequence to be accepted.",
-                        default=1)
-    parser.add_argument("-s", "--min-cluster-size",
-                        dest="min_cluster_size",
-                        type=int,
-                        help="Minimal number of motif sequences in a cluster to accept the clsuter.",
-                        default=1)
-    parser.add_argument("-u", "--n-clusters",
-                        dest="n_clusters",
-                        type=int,
-                        help="Number of clusters. In MiniBatchKMeans and Birch clustering algorithms.",
-                        default=4)
-    parser.add_argument("-E", "--eps",
-                        type=float,
-                        help="The maximum distance between two samples for them to be considered as in the same neighborhood. In DBSCAN.",
-                        default=0.3)
-    parser.add_argument("-S", "--min-samples",
-                        dest="min_samples",
-                        type=int,
-                        help="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself. In DBSCAN.",
-                        default=3)
-    parser.add_argument("-T", "--threshold",
-                        type=float,
-                        help="The radius of the subcluster obtained by merging a new sample and the closest subcluster should be lesser than the threshold. Otherwise a new subcluster is started. In Birch.",
-                        default=0.2)
-    parser.add_argument("-f", "--branching-factor",
-                        dest="branching_factor",
-                        type=int,
-                        help="Maximum number of CF subclusters in each node. If a new samples enters such that the number of subclusters exceed the branching_factor then the node has to be split. The corresponding parent also has to be split and if the number of subclusters in the parent is greater than the branching factor, then it has to be split recursively. In Birch.",
-                        default=3)
-    parser.add_argument("-j", "--n-jobs",
-                        dest="n_jobs",
-                        type=int,
-                        help="Number of cores to use in multiprocessing.",
-                        default=2)
-    parser.add_argument("-b", "--n-blocks",
-                        dest="n_blocks",
-                        type=int,
-                        help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
-                        default=2)
-    parser.add_argument("-v", "--verbosity",
-                        action="count",
-                        help="Increase output verbosity")
-    parser.add_argument("-l", "--log-full-state",
-                        dest="log_full_state",
-                        help="If set, log all the internal parameters values and motif database of the motif finder. Warning: it can generate large logging files.",
-                        action="store_true")
-    parser.add_argument('--version', action='version', version='0.1')
-    args = parser.parse_args()
-
-    logger = setup.logger(logger_name=sys.argv[0], filename="log", verbosity=args.verbosity)
-    logger.info('-' * 80)
-    logger.info('Program: %s' % sys.argv[0])
-    logger.info('Parameters: %s' % args.__dict__)
-    try:
-        main(args)
-    except Exception:
-        import datetime
-        curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
-        logger.exception("Program run failed on %s" % curr_time)
-    finally:
-        end_time = time()
-        logger.info('Elapsed time: %.1f sec', end_time - start_time)
