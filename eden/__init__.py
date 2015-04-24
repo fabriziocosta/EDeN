@@ -1,5 +1,5 @@
-__author__ = "Fabrizio Costa, Bjoern Gruening"
-__copyright__ = "Copyright 2014, Fabrizio Costa"
+__author__ = "Fabrizio Costa"
+__copyright__ = "Copyright 2015, Fabrizio Costa"
 __credits__ = ["Fabrizio Costa", "Bjoern Gruening"]
 __license__ = "GPL"
 __version__ = "0.1"
@@ -9,7 +9,6 @@ __status__ = "Production"
 
 import dill
 from itertools import izip_longest
-
 
 def run_dill_encoded(what):
     """
