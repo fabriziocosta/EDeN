@@ -147,7 +147,7 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
     return X, y
 
 
-def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
+def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1, verbose=0):
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -170,16 +170,17 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    print 'Classifier:'
-    print random_search.best_estimator_
-    print '-' * 80
-    print 'Predictive performance:'
-    # assess the generalization capacity of the model via a 10-fold cross
-    # validation
-    for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-        print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
-    print '-' * 80
+    if verbose > 0:
+        print 'Classifier:'
+        print random_search.best_estimator_
+        print '-' * 80
+        print 'Predictive performance:'
+        # assess the generalization capacity of the model via a 10-fold cross
+        # validation
+        for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+            scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+            print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+        print '-' * 80
     return random_search.best_estimator_
 
 

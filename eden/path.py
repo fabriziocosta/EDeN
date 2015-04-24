@@ -3,14 +3,13 @@ import numpy as np
 import math
 from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
-import multiprocessing
 from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 
 
 class Vectorizer():
 
     """
-
+    Transforms strings in sparse vectors.
     """
 
     def __init__(self,
@@ -37,9 +36,11 @@ class Vectorizer():
         self.feature_size = self.bitmask + 2
 
     def __repr__(self):
-        representation = """path_graph.Vectorizer(r = %d, d = %d, nbits = %d, normalization = %s, inner_normalization = %s)""" % (
+        representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s)""" % (
             self.r - 1,
             self.d - 1,
+            self.min_r,
+            self.min_d,
             self.nbits,
             self.normalization,
             self. inner_normalization)
@@ -150,3 +151,91 @@ class Vectorizer():
             x = self._convert_dict_to_sparse_matrix(self._transform(0, seq_orig))
             res = reference_vec.dot(x.T).todense()
             yield res[0, 0]
+
+    def annotate(self, seqs, estimator=None, relabel=False): 
+        """ 
+        Given a list of sequences, and a fitted estimator, it computes a vector
+        of importance values for each char in the sequence. The importance
+        corresponds to the part of the score that is imputable  to the features
+        that involve the specific char.
+
+        Parameters
+        ----------
+        sequences: iterable lists of strings
+          The input.
+
+        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+          If None only relabeling is used.
+
+        relabel : bool
+          If True replace the label attribute of each vertex with the sparse vector encoding of
+          all features that have that vertex as root.
+
+        Returns
+        ----------
+          If relabel is False: for each input sequence a pair: 1) the input
+          string, 2) a list of real  numbers with size equal to the number of
+          characters in each input sequence.
+
+
+          If relabel is True: for each input sequence a triplet: 1) the input
+          string, 2) a list of real  numbers with size equal to the number of
+          characters in each input sequence, 3) a list with  size equal to the
+          number of characters in each input sequence, of sparse vectors each
+          corresponding to the vertex induced features.
+
+
+        """
+        self.estimator = estimator
+        self.relabel = relabel
+
+        for seq in seqs:
+            yield self._annotate(seq)
+
+    def _annotate(self, seq):
+        # extract per vertex feature representation
+        X = self._compute_vertex_based_features(seq)
+        # add or update weight and importance information
+        score,vec = self._annotate_importance(seq, X)
+        # add or update label information
+        if self.relabel:
+            return seq,score,vec
+        else:
+            return seq,score
+
+    def _annotate_importance(self, seq, X):
+        # compute distance from hyperplane as proxy of vertex importance
+        if self.estimator is None:
+            # if we do not provide an estimator then consider default margin of
+            # 1 for all vertices
+            margins = np.array([1] * X.shape[0])
+        else:
+            margins = self.estimator.decision_function(X)
+        #compute the list of sparse vectors representation
+        vec=[]
+        for i in range(X.shape[0]):
+            vec.append(X.getrow(i))
+        return margins,vec
+
+    def _compute_vertex_based_features(self, seq):
+        if seq is None or len(seq) == 0:
+            raise Exception('ERROR: something went wrong, empty instance.')
+        # extract kmer hash codes for all kmers up to r in all positions in seq
+        feature_dict = {}
+        seq_len = len(seq)
+        neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
+        for pos in range(seq_len):
+            # construct features as pairs of kmers up to distance d for all radii up to r
+            feature_list = defaultdict(lambda: defaultdict(float))
+            for radius in range(self.min_r, self.r + 1):
+                if radius < len(neighborhood_hash_cache[pos]):
+                    feature = [neighborhood_hash_cache[pos][radius], radius]
+                    for distance in range(self.min_d, self.d + 1):
+                        if pos + distance + radius < seq_len:
+                            dfeature = feature + [distance, neighborhood_hash_cache[pos + distance][radius]]
+                            feature_code = fast_hash(feature, self.bitmask)
+                            key = fast_hash([radius, distance], self.bitmask)
+                            feature_list[key][feature_code] += 1
+            feature_dict.update(self._normalization(feature_list, pos))
+        X = self._convert_dict_to_sparse_matrix(feature_dict)
+        return X
