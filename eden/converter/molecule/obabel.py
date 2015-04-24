@@ -83,16 +83,16 @@ def obabel_to_eden3d(input, cache={}, split_components=True, **kwargs):
 
     **kwargs: arguments to be passed to other methods.
     """
-
+    
+    # How many conformers should be looked for
+    n_conf = kwargs.get('n_conf', 0)
+    
     if split_components: # yield every graph separately
         for x in read(input):
             # First check if the molecule has appeared before and thus is already converted
             if x not in cache:
                 # convert from SMILES to SDF and store in cache
                 # TODO: do we assume that the input is "clean", i.e. only the SMILES strings?
-                # command_string = 'obabel -:"' + x.split()[1] + '" -osdf --gen3d'
-                # TODO: conformer generation still isn't working - is it a problem in my installation?
-                # command_string = 'obabel -:"' + x + '" -osdf --gen3d --conformer --nconf 5 --score rmsd'
                 command_string = 'obabel -:"' + x + '" -osdf --gen3d'
                 args = shlex.split(command_string)
                 sdf = subprocess.check_output(args)
@@ -101,11 +101,13 @@ def obabel_to_eden3d(input, cache={}, split_components=True, **kwargs):
                 sdf = '\n'.join([x for x in sdf.split('\n') if 'WARNING' not in x])
                 cache[x] = sdf
                 # print "Molecule converted and stored"
-            # Convert to networkx
-            G = obabel_to_networkx3d(cache[x], **kwargs)
-            # TODO: change back to yield (below too!)
-            if len(G):
-                yield G
+            
+            mols = generate_conformers(cache[x], n_conf)
+            for molecule in mols:
+                G = obabel_to_networkx3d(molecule, **kwargs)
+                if len(G):
+                    yield G
+
     else: # construct global graph and accumulate everything there
         G_global = nx.Graph()
         for x in read(input):
@@ -113,18 +115,17 @@ def obabel_to_eden3d(input, cache={}, split_components=True, **kwargs):
             if x not in cache:
                 # convert from SMILES to SDF and store in cache
                 # TODO: do we assume that the input is "clean", i.e. only the SMILES strings?
-                # command_string = 'obabel -:"' + x.split()[1] + '" -osdf --gen3d'
-                # TODO: conformer generation still isn't working - is it a problem in my installation?
-                # command_string = 'obabel -:"' + x + '" -osdf --gen3d --conformer --nconf 5 --score rmsd'
                 command_string = 'obabel -:"' + x + '" -osdf --gen3d'
                 args = shlex.split(command_string)
                 sdf = subprocess.check_output(args)
                 sdf = '\n'.join([x for x in sdf.split('\n') if 'WARNING' not in x])
                 cache[x] = sdf
-            # Convert to networkx
-            G = obabel_to_networkx3d(cache[x], similarity_fn, threshold=threshold, atom_types=atom_types, k=k)
-            if len(G):
-                G_global = nx.disjoint_union(G_global, G)
+            
+            mols = generate_conformers(cache[x], n_conf)
+            for molecule in mols:
+                G = obabel_to_networkx3d(molecule, **kwargs)
+                if len(G):
+                    G_global = nx.disjoint_union(G_global, G)
         yield G_global
 
 
@@ -146,7 +147,6 @@ def obabel_to_networkx3d(input_mol, **kwargs):
     """
 
     vector_label = kwargs.get('vector_label', 'label')
-    input_mol = pybel.readstring(format="sdf", string=input_mol)
     g = nx.Graph()
 
     # Calculate pairwise distances between all atoms:
@@ -218,14 +218,33 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
     return nearest_atoms
 
 
-def generate_conformers(infile, outfile, n_conformers, method):
+def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
     """
-    Given an input file, call obabel to construct a specified number of conformers.
+    Given an input sdf string, call obabel to construct a specified number of conformers.
     """
     import subprocess
-    command_string = "obabel %s -O %s --conformer --nconf %s --score %s --writeconformers" % \
-                     (infile, outfile, n_conformers, method)
-    p = subprocess.call(command_string.split())
+    import pybel as pb
+    import re
+    
+    if n_conf == 0:
+        return [pb.readstring("sdf", input_sdf)]
+    
+    command_string = 'echo "%s" | obabel -i sdf -o sdf --conformer --nconf %d --score rmsd --writeconformers' % (input_sdf, n_conf)
+    # TODO: change this to use the piping method in subprocess (?)
+    sdf = subprocess.check_output(command_string, shell=True)
+    # Clean the resulting output
+    first_match = re.search('OpenBabel', sdf)
+    clean_sdf = sdf[first_match.start():]
+    # Accumulate molecules in a list
+    mols = []
+    matches = list(re.finditer('OpenBabel', clean_sdf))
+    for i in range(len(matches)-1):
+        # The newline at the beginning is needed for obabel to recognize the sdf format
+        mols.append(pb.readstring("sdf", '\n' + clean_sdf[matches[i].start():matches[i+1].start()]))
+    mols.append(pb.readstring("sdf", '\n' + clean_sdf[matches[-1].start():]))
+    return mols
+
+    
 
 def smiles_to_sdf(infile, outfile):
     """
