@@ -89,7 +89,7 @@ setup(
     name='eden',
     version=get_version(),
     author='Fabrizio Costa',
-    author_email='eden@googlegroups.com',
+    author_email='graph-eden@googlegroups.com',
     packages=[  'eden',
                 'eden.util', 
                 'eden.converter',
@@ -114,7 +114,7 @@ setup(
     install_requires=[
         "numpy >= 1.8.0",
         "scipy >= 0.14.0",
-        "scikit-learn",
+        "scikit-learn >= 0.16.0",
         "dill",
         "networkx",
         "matplotlib",
