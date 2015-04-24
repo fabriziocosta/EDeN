@@ -150,6 +150,7 @@ class SequenceMotif(object):
                     new_sequential_cluster_id += 1
                     for motif_id in self.clusters[cluster_id]:
                         clustered_motives[new_sequential_cluster_id].append(self.motives[motif_id])
+        motives_db = defaultdict(list)
         # extract motif count within a cluster
         for cluster_id in clustered_motives:
             # consider only non identical motives
@@ -163,7 +164,13 @@ class SequenceMotif(object):
                 # create dict with motives and their counts
                 # if counts are above a threshold
                 if count >= self.min_motif_count:
-                    self.motives_db[cluster_id].append((count, motif_i))
+                    motives_db[cluster_id].append((count, motif_i))
+        # transform cluster ids to incremental ids 
+        incremental_id = 0
+        for cluster_id in motives_db:
+            if len(motives_db[cluster_id]) > 0:
+                self.motives_db[incremental_id] = motives_db[cluster_id]
+                incremental_id += 1
 
     def fit(self, seqs):
         start = time()
