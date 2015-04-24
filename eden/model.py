@@ -19,6 +19,7 @@ from eden.util import is_iterable
 from eden.util.util import report_base_statistics
 from eden.graph import Vectorizer
 from eden import vectorize
+from eden.util import mp_pre_process
 
 
 class ActiveLearningBinaryClassificationModel(object):
@@ -27,8 +28,10 @@ class ActiveLearningBinaryClassificationModel(object):
                  vectorizer=Vectorizer(complexity=1),
                  estimator=SGDClassifier(class_weight='auto', shuffle=True),
                  fit_vectorizer=False,
-                 n_jobs=-1,
-                 n_blocks=5,
+                 n_jobs=8,
+                 n_blocks=8,
+                 pre_processor_n_jobs=1,
+                 pre_processor_n_blocks=8,
                  description=None,
                  random_seed=1):
         self.pre_processor = copy.deepcopy(pre_processor)
@@ -41,10 +44,9 @@ class ActiveLearningBinaryClassificationModel(object):
         self.fit_vectorizer = fit_vectorizer
         self.n_jobs = n_jobs
         self.n_blocks = n_blocks
+        self.pre_processor_n_jobs = pre_processor_n_jobs
+        self.pre_processor_n_blocks = pre_processor_n_blocks
         random.seed(random_seed)
-
-    def get_description(self):
-        print self.description
 
     def save(self, model_name):
         joblib.dump(self, model_name, compress=1)
@@ -61,26 +63,23 @@ class ActiveLearningBinaryClassificationModel(object):
     def get_estimator():
         return self.estimator
 
-    def _data_matrix(self, iterable):
+    def _data_matrix(self, iterable, fit_vectorizer=False):
         assert(is_iterable(iterable)), 'Not iterable'
-        iterable = self.pre_processor(iterable, **self.pre_processor_args)
-        iterable, iterable_ = tee(iterable)
+        graphs = mp_pre_process(iterable,
+                                pre_processor=self.pre_processor,
+                                pre_processor_args=self.pre_processor_args,
+                                n_blocks=self.pre_processor_n_blocks,
+                                n_jobs=self.pre_processor_n_jobs)
+        graphs, graphs_ = tee(graphs)
         self.vectorizer.set_params(**self.vectorizer_args)
-        if self.fit_vectorizer:
-            self.vectorizer.fit(iterable_)
-        X = vectorize(iterable, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
+        if fit_vectorizer:
+            self.vectorizer.fit(graphs_)
+        X = vectorize(graphs, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
         return X
 
-    def _data_matrices(self, iterable_pos, iterable_neg):
-        assert(is_iterable(iterable_pos) and is_iterable(iterable_neg)), 'Not iterable'
-        self.vectorizer.set_params(**self.vectorizer_args)
-        iterator_pos = self.pre_processor(iterable_pos, **self.pre_processor_args)
-        iterator_pos, iterator_pos_ = tee(iterator_pos)
-        if self.fit_vectorizer:
-            self.vectorizer.fit(iterator_pos_)
-        Xpos = vectorize(iterator_pos, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
-        iterator_neg = self.pre_processor(iterable_neg, **self.pre_processor_args)
-        Xneg = vectorize(iterator_neg, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
+    def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False):
+        Xpos = self._data_matrix(iterable_pos, fit_vectorizer=fit_vectorizer)
+        Xneg = self._data_matrix(iterable_neg, fit_vectorizer=False)
         return self._assemble_data_matrix(Xpos, Xneg)
 
     def _assemble_data_matrix(self, Xpos, Xneg):
@@ -100,7 +99,7 @@ class ActiveLearningBinaryClassificationModel(object):
 
     def fit(self, iterable_pos, iterable_neg):
         self.estimator.set_params(**self.estimator_args)
-        X, y = self._data_matrices(iterable_pos, iterable_neg)
+        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
         self.estimator.fit(X, y)
 
     def predict(self, iterable):
@@ -127,7 +126,7 @@ class ActiveLearningBinaryClassificationModel(object):
         print 'Classifier:'
         print self.estimator
         print '-' * 80
-        X, y = self._data_matrices(iterable_pos, iterable_neg)
+        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
         print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
         print '-' * 80
         print 'Test Estimate'
@@ -169,10 +168,12 @@ class ActiveLearningBinaryClassificationModel(object):
                  verbose=1,
                  cv=10,
                  scoring='roc_auc',
-                 score_func=lambda u, s: u - s):
+                 score_func=lambda u, s: u - s,
+                 two_steps_optimization=True):
         def print_parameters_range():
             print '-' * 80
             print('Parameters range:')
+            print '-' * 80
             print('Pre_processor:')
             pprint.pprint(pre_processor_parameters)
             print('Vectorizer:')
@@ -209,7 +210,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 break
             try:
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
-                if i == int(n_iter / 2):
+                if i == int(n_iter / 2) and two_steps_optimization == True:
                     if len(best_pre_processor_parameters_) > 0:
                         pre_processor_parameters = dict(best_pre_processor_parameters_)
                     if len(best_vectorizer_parameters_) > 0:
@@ -232,7 +233,7 @@ class ActiveLearningBinaryClassificationModel(object):
                     iterable_pos, iterable_pos_ = tee(iterable_pos)
                     iterable_neg, iterable_neg_ = tee(iterable_neg)
                     if n_active_learning_iterations == 0:  # if no active learning mode, just produce data matrix
-                        X, y = self._data_matrices(iterable_pos_, iterable_neg_)
+                        X, y = self._data_matrices(iterable_pos_, iterable_neg_, fit_vectorizer=self.fit_vectorizer)
                     else:  # otherwise use the active learning strategy
                         X, y = self._active_learning_data_matrices(iterable_pos_, iterable_neg_,
                                                                    n_active_learning_iterations=n_active_learning_iterations,
@@ -322,16 +323,16 @@ class ActiveLearningBinaryClassificationModel(object):
             if i == 0 or size_positive != -1:
                 iterable_pos, iterable_pos_, iterable_pos__ = tee(iterable_pos, 3)
                 if size_positive == -1:  # if we take all positives
-                    Xpos = self._data_matrix(iterable_pos_)
+                    Xpos = self._data_matrix(iterable_pos_, fit_vectorizer=self.fit_vectorizer)
                 else:  # otherwise use selection
-                    Xpos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids))
+                    Xpos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids), fit_vectorizer=self.fit_vectorizer)
             # if this is the first iteration or we need to select negatives
             if i == 0 or size_negative != -1:
                 iterable_neg, iterable_neg_, iterable_neg__ = tee(iterable_neg, 3)
                 if size_negative == -1:  # if we take all negatives
-                    Xneg = self._data_matrix(iterable_neg_)
+                    Xneg = self._data_matrix(iterable_neg_, fit_vectorizer=False)
                 else:  # otherwise use selection
-                    Xneg = self._data_matrix(selection_iterator(iterable_neg_, negative_ids))
+                    Xneg = self._data_matrix(selection_iterator(iterable_neg_, negative_ids), fit_vectorizer=False)
             # assemble data matrix
             X, y = self._assemble_data_matrix(Xpos, Xneg)
             # stop the fitting procedure at the last-1 iteration and return X,y
