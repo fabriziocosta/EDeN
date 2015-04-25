@@ -167,11 +167,9 @@ def main(args):
         logger.debug(sequence_motif.vectorizer)
         logger.debug(sequence_motif.seq_vectorizer)
 
-# RawTextHelpFormatter
-# RawDescriptionHelpFormatter
 if __name__ == "__main__":
     start_time = time()
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=setup.DefaultsRawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input-file",
                         dest="input_file",
                         help="Path to a FASTA file.",
