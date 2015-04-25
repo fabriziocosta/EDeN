@@ -18,8 +18,7 @@ from eden.util import save_output
 
 from eden.graph import Vectorizer
 from eden.path import Vectorizer as PathVectorizer
-from eden import vectorize
-from eden.util import mp_pre_process
+from eden.util import vectorize, mp_pre_process
 from eden.converter.fasta import sequence_to_eden
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
 from eden.util import fit
@@ -69,6 +68,7 @@ class SequenceMotif(object):
                  min_cluster_size=1,
                  training_size=None,
                  negative_ratio=2,
+                 shuffle_order=2,
                  n_iter_search=1,
                  complexity=4,
                  nbits=20,
@@ -81,7 +81,7 @@ class SequenceMotif(object):
                  verbosity=0,
                  n_blocks=2,
                  n_jobs=8,
-                 random_seed=1):
+                 random_state=1):
         self.n_blocks = n_blocks
         self.n_jobs = n_jobs
         self.training_size = training_size
@@ -92,6 +92,7 @@ class SequenceMotif(object):
         self.vectorizer = Vectorizer(complexity=self.complexity, nbits=self.nbits)
         self.seq_vectorizer = PathVectorizer(complexity=self.complexity, nbits=self.nbits)
         self.negative_ratio = negative_ratio
+        self.shuffle_order = shuffle_order
         self.algorithm = algorithm
         self.n_clusters = n_clusters
         self.eps = eps
@@ -103,7 +104,8 @@ class SequenceMotif(object):
         self.min_motif_count = min_motif_count
         self.min_cluster_size = min_cluster_size
         self.verbosity = verbosity
-        random.seed(random_seed)
+        self.random_state = random_state
+        random.seed(random_state)
 
         self.motives_db = defaultdict(list)
         self.motives = []
@@ -114,17 +116,21 @@ class SequenceMotif(object):
         pos_seqs, pos_seqs_ = tee(seqs)
         pos_graphs = mp_pre_process(pos_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
         # shuffle seqs to obtain negatives
-        neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=2)
+        neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=self.shuffle_order)
         neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
         # fit discriminative estimator
-        self.estimator = fit(pos_graphs, neg_graphs, vectorizer=self.vectorizer,
-                             n_iter_search=self.n_iter_search, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
+        self.estimator = fit(pos_graphs, neg_graphs,
+                             vectorizer=self.vectorizer,
+                             n_iter_search=self.n_iter_search,
+                             n_blocks=self.n_blocks,
+                             n_jobs=self.n_jobs,
+                             random_state=self.random_state)
 
     def cluster(self, seqs):
         X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
         if self.algorithm == 'MiniBatchKMeans':
             from sklearn.cluster import MiniBatchKMeans
-            clustering_algorithm = MiniBatchKMeans(n_clusters=self.n_clusters)
+            clustering_algorithm = MiniBatchKMeans(n_clusters=self.n_clusters, random_state=self.random_state)
         elif self.algorithm == 'DBSCAN':
             from sklearn.cluster import DBSCAN
             clustering_algorithm = DBSCAN(eps=self.eps, min_samples=self.min_samples)
@@ -165,10 +171,10 @@ class SequenceMotif(object):
                 # if counts are above a threshold
                 if count >= self.min_motif_count:
                     motives_db[cluster_id].append((count, motif_i))
-        # transform cluster ids to incremental ids 
+        # transform cluster ids to incremental ids
         incremental_id = 0
         for cluster_id in motives_db:
-            if len(motives_db[cluster_id]) > 0:
+            if len(motives_db[cluster_id]) >= self.min_cluster_size:
                 self.motives_db[incremental_id] = motives_db[cluster_id]
                 incremental_id += 1
 
@@ -196,10 +202,17 @@ class SequenceMotif(object):
 
         start = time()
         self.cluster(self.motives)
-        self.filter()
         end = time()
         if self.verbosity > 0:
             print('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
+
+        start = time()
+        self.filter()
+        end = time()
+        if self.verbosity > 0:
+            print('After filtering: %d secs' % (end - start))
+            print('  # motives: %d' % sum(len(self.motives_db[cid]) for cid in self.motives_db))
+            print('  # clusters: %d' % len(self.motives_db))
 
     def _build_regex(self, seqs):
         regex = ''
