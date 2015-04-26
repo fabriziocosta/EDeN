@@ -115,9 +115,7 @@ class Vectorizer(object):
             self.discretization_dimension = args['discretization_dimension']
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, 
-      nbits = %d, normalization = %s, inner_normalization = %s, 
-      discretization_size = %d, discretization_dimension = %d )""" % (
+        representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s, discretization_size = %d, discretization_dimension = %d )""" % (
             self.r / 2,
             self.d / 2,
             self.min_r / 2,
@@ -286,8 +284,7 @@ class Vectorizer(object):
                     feature_vector_key = (instance_id, int(feature))
                     feature_vector_value = vertex_dict[feature]
                     feature_vector[feature_vector_key] = feature_vector_value
-            label_matrix_dict[node_class] = self._convert_dict_to_sparse_matrix(
-                feature_vector)
+            label_matrix_dict[node_class] = self._convert_dict_to_sparse_matrix(feature_vector)
         return label_matrix_dict
 
     def _assemble_sparse_data_matrices(self, graphs):
@@ -487,8 +484,7 @@ class Vectorizer(object):
             if root_dist_dict.has_key(distance):
                 node_set = root_dist_dict[distance]
                 for u in node_set:
-                    self._transform_vertex_pair(
-                        G, v, u, distance, feature_list)
+                    self._transform_vertex_pair(G, v, u, distance, feature_list)
 
     def _transform_vertex_pair(self, G, v, u, distance, feature_list):
         self._transform_vertex_pair_base(G, v, u, distance, feature_list)
@@ -500,10 +496,8 @@ class Vectorizer(object):
                 if radius < len(G.node[v]['neighborhood_graph_hash'][label_index]) and radius < len(G.node[u]['neighborhood_graph_hash'][label_index]):
                     # feature as a pair of neighbourhoods at a radius,distance
                     # canonicazation of pair of neighborhoods
-                    v_hash = G.node[v]['neighborhood_graph_hash'][
-                        label_index][radius]
-                    u_hash = G.node[u]['neighborhood_graph_hash'][
-                        label_index][radius]
+                    v_hash = G.node[v]['neighborhood_graph_hash'][label_index][radius]
+                    u_hash = G.node[u]['neighborhood_graph_hash'][label_index][radius]
                     if v_hash < u_hash:
                         first_hash = v_hash
                         second_hash = u_hash
@@ -517,8 +511,7 @@ class Vectorizer(object):
                     if G.graph.get('weighted', False) == False:
                         feature_list[key][feature] += 1
                     else:
-                        feature_list[key][feature] += G.node[v]['neighborhood_graph_weight'][
-                            radius] + G.node[u]['neighborhood_graph_weight'][radius]
+                        feature_list[key][feature] += G.node[v]['neighborhood_graph_weight'][radius] + G.node[u]['neighborhood_graph_weight'][radius]
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance
@@ -570,10 +563,8 @@ class Vectorizer(object):
                 # sort it
                 hash_label_list.sort()
                 # hash it
-                hashed_nodes_at_distance_d_in_neighborhood_set = fast_hash(
-                    hash_label_list, self.bitmask)
-                hash_list.append(
-                    hashed_nodes_at_distance_d_in_neighborhood_set)
+                hashed_nodes_at_distance_d_in_neighborhood_set = fast_hash(hash_label_list, self.bitmask)
+                hash_list.append(hashed_nodes_at_distance_d_in_neighborhood_set)
             # hash the sequence of hashes of the node set at increasing
             # distances into a list of features
             hash_neighborhood = fast_hash_vec(hash_list, self.bitmask)
@@ -657,7 +648,7 @@ class Vectorizer(object):
             if d.get('node', False):
                 self._single_vertex_breadth_first_visit(G, n, max_depth)
 
-    def annotate(self, graphs, estimator=None, reweight=1.0, relabel_vertex_with_vector=False):
+    def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
         """
         Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
         graphs where each vertex has an additional attribute with key 'importance'.
@@ -678,7 +669,7 @@ class Vectorizer(object):
           If reweight = 0.5 then update with the aritmetic mean of the current weight information 
           and the abs( score )
 
-        relabel_vertex_with_vector : bool
+        relabel : bool
           If True replace the label attribute of each vertex with the 
           sparse vector encoding of all features that have that vertex as root. Create a new attribute 
           'original_label' to store the previous label. If the 'original_label' attribute is already present
@@ -687,7 +678,7 @@ class Vectorizer(object):
         """
         self.estimator = estimator
         self.reweight = reweight
-        self.relabel_vertex_with_vector = relabel_vertex_with_vector
+        self.relabel = relabel
 
         for G in graphs:
             yield self._annotate(G)
@@ -701,7 +692,7 @@ class Vectorizer(object):
         # add or update weight and importance information
         G = self._annotate_importance(G, X)
         # add or update label information
-        if self.relabel_vertex_with_vector:
+        if self.relabel:
             G = self._annotate_vector(G, X)
         G.graph = graph_dict
         return self._revert_edge_to_vertex_transform(G)
@@ -744,9 +735,7 @@ class Vectorizer(object):
                 # update the 'weight' information as a linear combination of
                 # the previuous weight and the absolute margin
                 if G.node[v].has_key("weight") and self.reweight != 0:
-                    G.node[v]["weight"] = self.reweight * \
-                        abs(margins[vertex_id]) + \
-                        (1 - self.reweight) * G.node[v]["weight"]
+                    G.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * G.node[v]["weight"]
                 # in case the original graph was not weighted then instantiate
                 # the 'weight' with the absolute margin
                 else:
@@ -766,8 +755,7 @@ class Vectorizer(object):
             if d.get('node', False):
                 feature_list = defaultdict(lambda: defaultdict(float))
                 self._transform_vertex(G, v, feature_list)
-                feature_dict.update(
-                    self._normalization(feature_list, vertex_id))
+                feature_dict.update(self._normalization(feature_list, vertex_id))
                 vertex_id += 1
         X = self._convert_dict_to_sparse_matrix(feature_dict)
         return X

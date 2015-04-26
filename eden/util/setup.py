@@ -63,6 +63,9 @@ def arguments_parser(description = None, setup_parameters_func = None):
 	args = parser.parse_args()
 	return args
 
+#To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
+class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    pass
 
 def logger(logger_name = None, filename = None, verbosity = 0):
 	logger = logging.getLogger(logger_name)
