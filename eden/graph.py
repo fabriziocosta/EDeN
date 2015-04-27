@@ -129,7 +129,7 @@ class Vectorizer(object):
 
     def fit(self, graphs):
         """
-        Constructs an approximate explicit mapping of a kernel function on the data 
+        Constructs a discretization of the real valued vector data 
         stored in the nodes of the graphs.
 
         Parameters
@@ -140,17 +140,13 @@ class Vectorizer(object):
         label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
         label_data_matrix_dict.update(
             self._assemble_sparse_data_matrices(graphs))
-        for node_class in label_data_matrix_dict:
+        for node_entity in label_data_matrix_dict:
             # TODO: parameters for KMeans
-            self.discretization_model_dict[node_class] = []
+            self.discretization_model_dict[node_entity] = []
             for m in range(self.discretization_dimension):
-                discretization_model = KMeans(init='random',
-                                              n_clusters=self.discretization_size,
-                                              max_iter=100,
-                                              n_init=1,
-                                              random_state=m + 1)
-                discretization_model.fit(label_data_matrix_dict[node_class])
-                self.discretization_model_dict[node_class] += [discretization_model]
+                discretization_model = KMeans(init='k-means++', n_clusters=m + 2, max_iter=300, n_init=10, random_state=m)
+                discretization_model.fit(label_data_matrix_dict[node_entity])
+                self.discretization_model_dict[node_entity] += [discretization_model]
 
     def fit_transform(self, graphs):
         """
@@ -224,81 +220,81 @@ class Vectorizer(object):
             raise Exception('ERROR: something went wrong, empty graph.')
 
     def _extract_dense_vectors_from_labels(self, original_graph):
-        # from each vertex extract the node_class and the label as a list and return a
-        # dict with node_class as key and the vector associated to each vertex
+        # from each vertex extract the node_entity and the label as a list and return a
+        # dict with node_entity as key and the vector associated to each vertex
         label_data_dict = defaultdict(lambda: list(list()))
         # transform edges to vertices to capture labels on edges too
         G = self._edge_to_vertex_transform(original_graph)
         # for all types in every node of every graph
         for n, d in G.nodes_iter(data=True):
             if isinstance(d['label'], list):
-                node_class, data = self._extract_class_and_label(d)
-                label_data_dict[node_class] += [data]
+                node_entity, data = self._extract_entity_and_label(d)
+                label_data_dict[node_entity] += [data]
         return label_data_dict
 
     def _assemble_dense_data_matrix_dict(self, label_data_dict):
-        # given a dict with node_class as keys and lists of vectors,
+        # given a dict with node_entity as keys and lists of vectors,
         # return a dict of numpy dense matrices
         label_matrix_dict = dict()
-        for node_class in label_data_dict:
-            label_matrix_dict[node_class] = np.array(
-                label_data_dict[node_class])
+        for node_entity in label_data_dict:
+            label_matrix_dict[node_entity] = np.array(
+                label_data_dict[node_entity])
         return label_matrix_dict
 
     def _assemble_dense_data_matrices(self, graphs):
-        # take a list of graphs and extract the dictionaries of node_classes with
+        # take a list of graphs and extract the dictionaries of node_entityes with
         # all the dense vectors associated to each vertex
-        # then convert, for each node_class, the list of lists into a dense
+        # then convert, for each node_entity, the list of lists into a dense
         # numpy matrix
         label_data_dict = defaultdict(lambda: list(list()))
         # for every node of every graph
         for instance_id, G in enumerate(graphs):
             label_data = self._extract_dense_vectors_from_labels(G)
-            # for all node_classes, add the list of dense vectors to the dict
-            for node_class in label_data:
-                label_data_dict[node_class] += label_data[node_class]
+            # for all node_entityes, add the list of dense vectors to the dict
+            for node_entity in label_data:
+                label_data_dict[node_entity] += label_data[node_entity]
         # convert into dict of numpy matrices
         return self._assemble_dense_data_matrix_dict(label_data_dict)
 
     def _extract_sparse_vectors_from_labels(self, original_graph):
-        # from each vertex extract the node_class and the label
+        # from each vertex extract the node_entity and the label
         # if the label is of type dict
         # then
         label_data_dict = defaultdict(lambda: list(dict()))
         G = self._edge_to_vertex_transform(original_graph)
         for n, d in G.nodes_iter(data=True):
             if isinstance(d['label'], dict):
-                node_class, data = self._extract_class_and_label(d)
-                label_data_dict[node_class] += [data]
+                node_entity, data = self._extract_entity_and_label(d)
+                label_data_dict[node_entity] += [data]
         return label_data_dict
 
     def _assemble_sparse_data_matrix_dict(self, label_data_dict):
-        # given a dict with node_class as keys and lists of dicts,
+        # given a dict with node_entity as keys and lists of dicts,
         # return a dict of compressed sparse row matrices
         label_matrix_dict = dict()
-        for node_class in label_data_dict:
-            list_of_dicts = label_data_dict[node_class]
+        for node_entity in label_data_dict:
+            list_of_dicts = label_data_dict[node_entity]
             feature_vector = {}
             for instance_id, vertex_dict in enumerate(list_of_dicts):
                 for feature in vertex_dict:
                     feature_vector_key = (instance_id, int(feature))
                     feature_vector_value = vertex_dict[feature]
                     feature_vector[feature_vector_key] = feature_vector_value
-            label_matrix_dict[node_class] = self._convert_dict_to_sparse_matrix(feature_vector)
+            label_matrix_dict[node_entity] = self._convert_dict_to_sparse_matrix(feature_vector)
         return label_matrix_dict
 
     def _assemble_sparse_data_matrices(self, graphs):
-        # take a list of graphs and extract the dictionaries of node_classes with
+        # take a list of graphs and extract the dictionaries of node_entityes with
         # all the sparse vectors associated to each vertex
-        # then convert, for each node_class, the list of lists into a
+        # then convert, for each node_entity, the list of lists into a
         # compressed sparse row matrix
         label_data_dict = defaultdict(lambda: list(dict()))
         # for every node of every graph
         for instance_id, G in enumerate(graphs):
             label_data = self._extract_sparse_vectors_from_labels(G)
-            # for all node_classes, update the list of dicts
-            for node_class in label_data:
-                label_data_dict[node_class] += label_data[node_class]
+            # for all node_entityes, update the list of dicts
+            for node_entity in label_data:
+                label_data_dict[node_entity] += label_data[node_entity]
         # convert into dict of numpy matrices
         return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
@@ -324,19 +320,19 @@ class Vectorizer(object):
             col.append(j)
         return csr_matrix((data, (row, col)), shape=(max(row) + 1, self.feature_size))
 
-    def _extract_class_and_label(self, d):
-        # determine the class attribute
-        # if the vertex does not have a 'class' attribute then provide a
+    def _extract_entity_and_label(self, d):
+        # determine the entity attribute
+        # if the vertex does not have a 'entity' attribute then provide a
         # default one
-        if d.get('class', False):
-            node_class = d['class']
+        if d.get('entity', False):
+            node_entity = d['entity']
         else:
             if isinstance(d['label'], list):
-                node_class = 'vector'
+                node_entity = 'vector'
             elif isinstance(d['label'], dict):
-                node_class = 'sparse_vector'
+                node_entity = 'sparse_vector'
             else:
-                node_class = 'default'
+                node_entity = 'default'
 
         # determine the label type
         if isinstance(d['label'], list):
@@ -348,7 +344,7 @@ class Vectorizer(object):
         else:
             data = d['label']
 
-        return node_class, data
+        return node_entity, data
 
     def _label_preprocessing(self, G):
         try:
@@ -356,24 +352,24 @@ class Vectorizer(object):
             for n, d in G.nodes_iter(data=True):
                 # for dense or sparse vectors
                 if isinstance(d['label'], list) or isinstance(d['label'], dict):
-                    node_class, data = self._extract_class_and_label(d)
+                    node_entity, data = self._extract_entity_and_label(d)
                     if isinstance(d['label'], dict):
                         data = self._convert_dict_to_sparse_vector(data)
                     # create a list of integer codes of size: discretization_dimension
                     # each integer code is determined as follows:
-                    # for each class, use the correspondent discretization_model_dict[node_class] to extract the id of the
+                    # for each entity, use the correspondent discretization_model_dict[node_entity] to extract the id of the
                     # nearest cluster centroid, return the centroid id as the
                     # integer code
                     hlabel = []
                     for m in range(self.discretization_dimension):
-                        if len(self.discretization_model_dict[node_class]) < m:
-                            raise Exception('Error: discretization_model_dict for node class: %s has length: %d but component %d was required' % (
-                                node_class, len(self.discretization_model_dict[node_class]), m))
-                        predictions = self.discretization_model_dict[node_class][m].predict(data)
+                        if len(self.discretization_model_dict[node_entity]) < m:
+                            raise Exception('Error: discretization_model_dict for node entity: %s has length: %d but component %d was required' % (
+                                node_entity, len(self.discretization_model_dict[node_entity]), m))
+                        predictions = self.discretization_model_dict[node_entity][m].predict(data)
                         if len(predictions) != 1:
                             raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
-                        code = fast_hash([hash(node_class), discretization_code], self.bitmask)
+                        code = fast_hash([hash(node_entity), discretization_code], self.bitmask)
                         hlabel.append(code)
                     G.node[n]['hlabel'] = hlabel
                 if isinstance(d['label'], basestring):
@@ -711,10 +707,10 @@ class Vectorizer(object):
                 if G.node[v].get('original_label', False) == False:
                     G.node[v]["original_label"] = G.node[v]["label"]
                 G.node[v]["label"] = vec_dict
-                # if a node does not have a 'class' attribute then assign one
+                # if a node does not have a 'entity' attribute then assign one
                 # called 'vactor' by default
-                if G.node[v].get("class", False) == False:
-                    G.node[v]["class"] = 'vector'
+                if G.node[v].get("entity", False) == False:
+                    G.node[v]["entity"] = 'vector'
                 vertex_id += 1
         return G
 
