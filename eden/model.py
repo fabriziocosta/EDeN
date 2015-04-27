@@ -18,7 +18,7 @@ from eden.util import fit_estimator, selection_iterator
 from eden.util import is_iterable
 from eden.util.util import report_base_statistics
 from eden.graph import Vectorizer
-from eden import vectorize
+from eden.util import vectorize
 from eden.util import mp_pre_process
 
 
@@ -33,7 +33,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  pre_processor_n_jobs=1,
                  pre_processor_n_blocks=8,
                  description=None,
-                 random_seed=1):
+                 random_state=1):
         self.pre_processor = copy.deepcopy(pre_processor)
         self.vectorizer = copy.deepcopy(vectorizer)
         self.estimator = copy.deepcopy(estimator)
@@ -46,7 +46,7 @@ class ActiveLearningBinaryClassificationModel(object):
         self.n_blocks = n_blocks
         self.pre_processor_n_jobs = pre_processor_n_jobs
         self.pre_processor_n_blocks = pre_processor_n_blocks
-        random.seed(random_seed)
+        random.seed(random_state)
 
     def save(self, model_name):
         joblib.dump(self, model_name, compress=1)
