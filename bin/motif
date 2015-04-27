@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--min-cluster-size",
                         dest="min_cluster_size",
                         type=int,
-                        help="Minimal number of motif sequences in a cluster to accept the clsuter.",
+                        help="Minimal number of motif sequences in a cluster to accept the cluster.",
                         default=1)
     parser.add_argument("-u", "--n-clusters",
                         dest="n_clusters",
