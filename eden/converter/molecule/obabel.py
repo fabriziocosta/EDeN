@@ -76,7 +76,33 @@ def obabel_to_networkx(mol):
 ####################################################################################
 
 
-def obabel_to_eden3d(input, cache={}, split_components=True, **kwargs):
+def obabel_to_eden3d(input, split_components=True, **kwargs):
+    """
+    Takes an input file and yields the corresponding networkx graphs.
+
+    **kwargs: arguments to be passed to other methods.
+    """
+    
+    n_conf = kwargs.get('n_conf', 0)
+    
+    if split_components: # yield every graph separately
+        for x in read(input):
+            mols = generate_conformers(x, n_conf)
+            for molecule in mols:
+                G = obabel_to_networkx3d(molecule, **kwargs)
+                if len(G):
+                    yield G
+    else: # construct a global graph and accumulate everything there
+        G_global = nx.Graph()
+        for x in read(input):
+            mols = generate_conformers(x, n_conf)
+            for molecule in mols:
+                G = obabel_to_networkx3d(molecule, **kwargs)
+                if len(G):
+                    G_global = nx.disjoint_union(G_global, G)
+        yield G_global
+
+def obabel_smiles_to_eden3d(input, cache={}, split_components=True, **kwargs):
                      # similarity_fn=None, atom_types = [1,2,8,6,10,26,7,14,12,16], k=3, threshold=0):
     """
     Takes an input file and yields the corresponding networkx graphs.
