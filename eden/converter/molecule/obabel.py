@@ -237,6 +237,7 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
     clean_sdf = sdf[first_match.start():]
     # Accumulate molecules in a list
     mols = []
+    # Each molecule in the sdf output begins with the 'OpenBabel' string
     matches = list(re.finditer('OpenBabel', clean_sdf))
     for i in range(len(matches)-1):
         # The newline at the beginning is needed for obabel to recognize the sdf format
