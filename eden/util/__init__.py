@@ -14,6 +14,7 @@ from scipy import stats
 from scipy.sparse import vstack
 from itertools import tee
 import random
+from eden import apply_async
 
 
 def read(uri):
@@ -42,18 +43,7 @@ def is_iterable(test):
         return False
 
 
-def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
-    if pre_processor_args:
-        return list(pre_processor(iterable, **pre_processor_args))
-    else:
-        return list(pre_processor(iterable))
-
-
-def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
-    from eden import apply_async
-    iterable = list(iterable)
-    import multiprocessing as mp
-    size = len(iterable)
+def compute_intervals(size=None, n_blocks=None):
     # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
     if n_blocks >= size:
         n_blocks = size / 10
@@ -62,13 +52,28 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
         n_blocks = max(1, n_blocks - 1)
     block_size = size / n_blocks
     reminder = size % n_blocks
+    intervals = [(s * block_size, (s + 1) * block_size) for s in range(n_blocks)]
+    if reminder > 1:
+        intervals += [(n_blocks * block_size, n_blocks * block_size + reminder)]
+    return intervals
+
+
+def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
+    if pre_processor_args:
+        return list(pre_processor(iterable, **pre_processor_args))
+    else:
+        return list(pre_processor(iterable))
+
+
+def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
+    iterable = list(iterable)
+    import multiprocessing as mp
+    size = len(iterable)
+    intervals = compute_intervals(size=size, n_blocks=n_blocks)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    intervals = [(s * block_size, (s + 1) * block_size) for s in range(n_blocks)]
-    if reminder > 1:
-        intervals += [(n_blocks * block_size, n_blocks * block_size + reminder)]
     results = [apply_async(pool, serial_pre_process, args=(iterable[start:end], pre_processor, pre_processor_args)) for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
@@ -85,6 +90,39 @@ def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_bloc
         return pre_processor(iterable, **pre_processor_args)
     else:
         return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, n_jobs=n_jobs)
+
+
+def serial_vectorize(graphs, vectorizer=None):
+    X = vectorizer.transform(graphs)
+    return X
+
+
+def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
+    graphs = list(graphs)
+    import multiprocessing as mp
+    size = len(graphs)
+    intervals = compute_intervals(size=size, n_blocks=n_blocks)
+    if n_jobs == -1:
+        pool = mp.Pool()
+    else:
+        pool = mp.Pool(n_jobs)
+    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer)) for start, end in intervals]
+    output = [p.get() for p in results]
+    pool.close()
+    pool.join()
+    import numpy as np
+    from scipy.sparse import vstack
+    X = output[0]
+    for Xi in output[1:]:
+        X = vstack([X, Xi], format="csr")
+    return X
+
+
+def vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
+    if n_jobs == 1:
+        return serial_vectorize(graphs, vectorizer=vectorizer)
+    else:
+        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
 
 
 def describe(X):
@@ -147,7 +185,7 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
     return X, y
 
 
-def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
+def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1, verbose=0):
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -170,22 +208,22 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    print 'Classifier:'
-    print random_search.best_estimator_
-    print '-' * 80
-    print 'Predictive performance:'
-    # assess the generalization capacity of the model via a 10-fold cross
-    # validation
-    for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-        print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
-    print '-' * 80
+    if verbose > 0:
+        print 'Classifier:'
+        print random_search.best_estimator_
+        print '-' * 80
+        print 'Predictive performance:'
+        # assess the generalization capacity of the model via a 10-fold cross
+        # validation
+        for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+            scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+            print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+        print '-' * 80
     return random_search.best_estimator_
 
 
 def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5):
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
-    from eden import vectorize
     X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
     X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
     if n_iter_search <= 1:
@@ -221,7 +259,6 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
 
 
 def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, n_jobs=4):
-    from eden import vectorize
     X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
     X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
     return estimate_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, estimator=estimator)

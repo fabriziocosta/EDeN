@@ -111,3 +111,8 @@ def compute_max_subarrays(graph=None, min_subarray_size=None, max_subarray_size=
     # extract subarrays
     for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
         yield subarray
+
+def compute_max_subarrays_sequence(seq=None, score=None, min_subarray_size=None, max_subarray_size=None):
+    # extract subarrays
+    for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
+        yield subarray
