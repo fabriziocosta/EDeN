@@ -165,7 +165,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
                  estimator_parameters=dict(),
-                 verbose=1,
+                 verbosity=1,
                  cv=10,
                  scoring='roc_auc',
                  score_func=lambda u, s: u - s,
@@ -182,7 +182,7 @@ class ActiveLearningBinaryClassificationModel(object):
             pprint.pprint(estimator_parameters)
             print '-' * 80
 
-        if verbose > 1:
+        if verbosity > 1:
             print_parameters_range()
         # init
         best_pre_processor_ = None
@@ -196,8 +196,14 @@ class ActiveLearningBinaryClassificationModel(object):
         best_estimator_parameters_ = defaultdict(list)
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
-        mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
-        mean_len_vectorizer_parameters = np.mean([len(vectorizer_parameters[p]) for p in vectorizer_parameters])
+        if len(pre_processor_parameters) == 0:
+            mean_len_pre_processor_parameters = 0    
+        else:
+            mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
+        if len(vectorizer_parameters) == 0:
+            mean_len_vectorizer_parameters = 0
+        else:
+            mean_len_vectorizer_parameters = np.mean([len(vectorizer_parameters[p]) for p in vectorizer_parameters])
         if (mean_len_pre_processor_parameters == 1 or mean_len_pre_processor_parameters == 0) and (mean_len_vectorizer_parameters == 1 or mean_len_vectorizer_parameters == 0):
             data_matrix_is_stable = True
         else:
@@ -205,7 +211,7 @@ class ActiveLearningBinaryClassificationModel(object):
         # main iteration
         for i in range(n_iter):
             if time.time() - start > max_total_time:
-                if verbose > 1:
+                if verbosity > 1:
                     print 'Reached max time: %s' % (str(datetime.timedelta(seconds=(time.time() - start))))
                 break
             try:
@@ -217,7 +223,7 @@ class ActiveLearningBinaryClassificationModel(object):
                         vectorizer_parameters = dict(best_vectorizer_parameters_)
                     if len(best_estimator_parameters_) > 0:
                         estimator_parameters = dict(best_estimator_parameters_)
-                    if verbose > 1:
+                    if verbosity > 1:
                         print_parameters_range()
 
                 self.estimator_args = self._sample(estimator_parameters)
@@ -245,12 +251,12 @@ class ActiveLearningBinaryClassificationModel(object):
                                                                    upper_bound_threshold_negative=upper_bound_threshold_negative)
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=self.n_jobs)
             except Exception as e:
-                if verbose > 0:
+                if verbosity > 0:
                     print('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
                           (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     print e.__doc__
                     print e.message
-                if verbose > 1:
+                if verbosity > 1:
                     print('Failed with the following setting:')
                     self.print_model_parameter_configuration()
                     print '...continuing'
@@ -281,7 +287,7 @@ class ActiveLearningBinaryClassificationModel(object):
                             best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
                         for key in self.estimator_args:
                             best_estimator_parameters_[key].append(self.estimator_args[key])
-                    if verbose > 0:
+                    if verbosity > 0:
                         print
                         print('Iteration: %d/%d (at %.1f sec; %s)' %
                               (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
@@ -289,7 +295,7 @@ class ActiveLearningBinaryClassificationModel(object):
                               (scoring, best_score_, best_score_mean_, best_score_std_))
                         print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
                         print report_base_statistics(y)
-                    if verbose > 1:
+                    if verbosity > 1:
                         self.print_model_parameter_configuration()
                         print('Saved current best model in %s' % model_name)
         # store the best hyperparamter configuration
