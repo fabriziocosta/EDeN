@@ -279,7 +279,7 @@ def load_target(name):
     return np.array(Y).astype(int)
 
 
-def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=''):
+def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format='', logger=None):
     if not os.path.exists(output_dir_path):
         os.mkdir(output_dir_path)
     full_out_file_name = os.path.join(output_dir_path, out_file_name)
@@ -303,6 +303,7 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")
+    logger.info("Written file: %s" % full_out_file_name)
 
 
 def dump(obj, output_dir_path='', out_file_name=''):
