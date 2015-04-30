@@ -40,13 +40,11 @@ from numpy.random import randint
 from numpy.random import uniform
 
 from sklearn.linear_model import SGDClassifier
+from sklearn import metrics
 
 from eden.model import ActiveLearningBinaryClassificationModel
 from eden.graph import Vectorizer
-
-from eden.util import setup
-from eden.util import save_output
-
+from eden.util import setup, save_output, store_matrix
 from eden.converter.graph.node_link_data import node_link_data_to_eden
 
 
@@ -99,41 +97,70 @@ def main_fit(args):
                                                     pre_processor_n_jobs=args.pre_processor_n_jobs,
                                                     pre_processor_n_blocks=args.pre_processor_n_blocks,
                                                     random_state=args.random_state)
+    # save model
+    if not os.path.exists(args.output_dir_path):
+        os.mkdir(args.output_dir_path)
+    full_out_file_name = os.path.join(args.output_dir_path, args.model_file)
+
     model.optimize(pos_train_iterator, neg_train_iterator,
-                   model_name=args.model_file,
+                   model_name=full_out_file_name,
                    n_iter=args.n_iter,
-                   verbose=args.verbosity,
+                   verbosity=args.verbosity,
                    pre_processor_parameters=pre_processor_parameters,
                    vectorizer_parameters=vectorizer_parameters,
                    estimator_parameters=estimator_parameters)
+
+
+def main_estimate(args):
+    pos_test_iterator = load_data(args.positive_input_file)
+    neg_test_iterator = load_data(args.negative_input_file)
+    model = ActiveLearningBinaryClassificationModel()
+    model.load(args.model_file)
+    model.print_model_parameter_configuration()
+    apr, rocauc = model.estimate(pos_test_iterator, neg_test_iterator)
 
 
 def main_predict(args):
     iterator = load_data(args.input_file)
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
-    if args.print_estimate:
-        model.print_model_parameter_configuration()
-        model.estimate(pos_test_graphs, neg_test_graphs)
     predictions = model.decision_function(iterator)
     text = []
     for p in predictions:
         text.append(str(p) + "\n")
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt', logger=logger)
+    text = []
+    for p in predictions:
+        if p > 0:
+            prediction = 1
+        else:
+            prediction = -1
+        text.append(str(prediction) + "\n")
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='classifications.txt', logger=logger)
 
 
 def main_matrix(args):
     iterator = load_data(args.input_file)
-    pass
+    model = ActiveLearningBinaryClassificationModel()
+    model.load(args.model_file)
+    X = model._data_matrix(iterator)
+    K=metrics.pairwise.pairwise_kernels(X, metric='linear')
+    store_matrix(matrix=K, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format, logger=logger)
+
 
 def main_feature(args):
     iterator = load_data(args.input_file)
-    pass
+    model = ActiveLearningBinaryClassificationModel()
+    model.load(args.model_file)
+    X = model._data_matrix(iterator)
+    store_matrix(matrix=X, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format, logger=logger)
 
 
 def main(args):
     if args.which == 'fit':
         main_fit(args)
+    elif args.which == 'estimate':
+        main_estimate(args)
     elif args.which == 'predict':
         main_predict(args)
     elif args.which == 'matrix':
@@ -170,7 +197,7 @@ if __name__ == "__main__":
                             default="out")
     fit_parser.add_argument("-m", "--model-file",
                             dest="model_file",
-                            help="Path to a fit model file.",
+                            help="Model file name. Note: it will be located in the output directory.",
                             default="model",
                             required=True)
     fit_parser.add_argument("-B", "--nbits",
@@ -212,6 +239,26 @@ if __name__ == "__main__":
                             help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
                             default=8)
 
+    # estimate commands
+    estimate_parser = subparsers.add_parser('estimate', help='Estimate commands')
+    estimate_parser.set_defaults(which='estimate')
+    estimate_parser.add_argument("-p", "--positive-input-file",
+                                 dest="positive_input_file",
+                                 help="Path to networkx JSON file containing graphs for the positive class.",
+                                 required=True)
+    estimate_parser.add_argument("-n", "--negative-input-file",
+                                 dest="negative_input_file",
+                                 help="Path to networkx JSON file containing graphs for the negative class.",
+                                 required=True)
+    estimate_parser.add_argument("-m", "--model-file",
+                                 dest="model_file",
+                                 help="Path to a fit model file.",
+                                 required=True)
+    estimate_parser.add_argument("-o", "--output-dir",
+                                 dest="output_dir_path",
+                                 help="Path to output directory.",
+                                 default="out")
+
     # predict commands
     predict_parser = subparsers.add_parser('predict', help='Predict commands')
     predict_parser.set_defaults(which='predict')
@@ -227,42 +274,46 @@ if __name__ == "__main__":
                                 dest="output_dir_path",
                                 help="Path to output directory.",
                                 default="out")
-    predict_parser.add_argument("-p", "--print_estimate",
-                                dest="print-estimate",
-                                help="Print predictive performance estimate.",
-                                action="store_true")
 
     # matrix commands
-    predict_parser = subparsers.add_parser('matrix', help='Matrix commands')
-    predict_parser.set_defaults(which='matrix')
-    predict_parser.add_argument("-i", "--input-file",
-                                dest="input_file",
-                                help="Path to networkx JSON file containing input graphs.",
-                                required=True)
-    predict_parser.add_argument("-m", "--model-file",
-                                dest="model_file",
-                                help="Path to a fit model file.",
-                                required=True)
-    predict_parser.add_argument("-o", "--output-dir",
-                                dest="output_dir_path",
-                                help="Path to output directory.",
-                                default="out")
+    matrix_parser = subparsers.add_parser('matrix', help='Matrix commands')
+    matrix_parser.set_defaults(which='matrix')
+    matrix_parser.add_argument("-i", "--input-file",
+                               dest="input_file",
+                               help="Path to networkx JSON file containing input graphs.",
+                               required=True)
+    matrix_parser.add_argument("-m", "--model-file",
+                               dest="model_file",
+                               help="Path to a fit model file.",
+                               required=True)
+    matrix_parser.add_argument("-o", "--output-dir",
+                               dest="output_dir_path",
+                               help="Path to output directory.",
+                               default="out")
+    matrix_parser.add_argument("-t", "--output-format",  choices=["text", "numpy", "MatrixMarket", "joblib"],
+                               dest="output_format",
+                               help="Output file format.",
+                               default="MatrixMarket")
 
     # feature commands
-    predict_parser = subparsers.add_parser('feature', help='Feature commands')
-    predict_parser.set_defaults(which='feature')
-    predict_parser.add_argument("-i", "--input-file",
+    feature_parser = subparsers.add_parser('feature', help='Feature commands')
+    feature_parser.set_defaults(which='feature')
+    feature_parser.add_argument("-i", "--input-file",
                                 dest="input_file",
                                 help="Path to networkx JSON file containing input graphs.",
                                 required=True)
-    predict_parser.add_argument("-m", "--model-file",
+    feature_parser.add_argument("-m", "--model-file",
                                 dest="model_file",
                                 help="Path to a fit model file.",
                                 required=True)
-    predict_parser.add_argument("-o", "--output-dir",
+    feature_parser.add_argument("-o", "--output-dir",
                                 dest="output_dir_path",
                                 help="Path to output directory.",
                                 default="out")
+    feature_parser.add_argument("-t", "--output-format",  choices=["text", "numpy", "MatrixMarket", "joblib"],
+                                dest="output_format",
+                                help="Output file format.",
+                                default="MatrixMarket")
 
     args = parser.parse_args()
 
