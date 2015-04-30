@@ -5,10 +5,9 @@ import requests
 import os.path
 import time
 
-AID=2
-#AID=2401
-#DATA_DIR = '/Volumes/seagate/thesis/examples/data'
-DATA_DIR = '/Users/jl/uni-freiburg/thesis/EDeN/examples/3Dmodel/data'
+#AID=2
+AID=2401
+DATA_DIR = '/home/liconj/proj/thesis/EDeN/examples/3Dmodel/data'
 active_fname=DATA_DIR + '/AID%s_active.smi'%AID
 inactive_fname=DATA_DIR + '/AID%s_inactive.smi'%AID
 
@@ -74,8 +73,8 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
     model = ActiveLearningBinaryClassificationModel(pre_processor,
                                                     estimator=estimator,
                                                     vectorizer=vectorizer,
-                                                    n_jobs=1,
-                                                    n_blocks = 2,
+                                                    n_jobs=2,
+                                                    n_blocks = 5,
                                                     fit_vectorizer=True)
 
     #optimize hyperparameters and fit model
@@ -98,7 +97,6 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
                           'eta0': [10**x for x in range(-4,-1)],
                           'learning_rate': ["invscaling", "constant", "optimal"]}
 
-    print "calling optimizer.."
     model.optimize(iterable_pos_train, iterable_neg_train,
                    model_name=model_fname,
                    n_active_learning_iterations=n_active_learning_iterations,
@@ -109,9 +107,7 @@ def train_obabel_model(iterable_pos, iterable_neg, data_dir,
                    vectorizer_parameters=vectorizer_parameters,
                    estimator_parameters=estimator_parameters)
 
-    #estimate predictive performance
-    #model.estimate( iterable_pos_test, iterable_neg_test, cv=5 )
-    # Had to change this call, estimate has no cv parameter
+    # estimate predictive performance
     model.estimate( iterable_pos_test, iterable_neg_test )
 
     return model
@@ -144,12 +140,12 @@ model = train_obabel_model(pos_iterator, neg_iterator,
                            data_dir=DATA_DIR,
                            model_type = "3d",
                            model_fname=model_fname,
-                           n_iter=5,
+                           n_iter=10,
                            active_set_size=5,
                            n_active_learning_iterations=0,
                            threshold=1,
                            train_test_split=0.8,
-                           verbose=2)
+                           verbose=1)
 
 end_time = time.time()
 print("--- Training time: %s seconds ---" % (time.time() - start_time))
