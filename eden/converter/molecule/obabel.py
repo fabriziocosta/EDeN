@@ -255,7 +255,7 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
     if n_conf == 0:
         return [pb.readstring("sdf", input_sdf)]
     
-    command_string = 'echo "%s" | obabel -i sdf -o sdf --conformer --nconf %d --score rmsd --writeconformers' % (input_sdf, n_conf)
+    command_string = 'echo "%s" | obabel -i sdf -o sdf --conformer --nconf %d --score rmsd --writeconformers 2>&-' % (input_sdf, n_conf)
     # TODO: change this to use the piping method in subprocess (?)
     sdf = subprocess.check_output(command_string, shell=True)
     # Clean the resulting output
