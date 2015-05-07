@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# TODO: make a predictive model of each cluster
+
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
 Motif finder driver. 
@@ -77,11 +79,7 @@ from collections import defaultdict
 import argparse
 import logging
 import logging.handlers
-
-from eden.util import setup
-from eden.util import save_output
-
-from eden.motif import SequenceMotif
+from eden.util import configure_logging
 
 
 def main(args):
@@ -89,11 +87,11 @@ def main(args):
     from eden.converter.fasta import fasta_to_sequence
     seqs = fasta_to_sequence(args.input_file)
     seqs = list(seqs)
-    logger.info("Extracting motives from %d sequences"%len(seqs))
+    logger.info("Extracting motives from %d sequences" % len(seqs))
 
     # setup
+    from eden.motif import SequenceMotif
     sequence_motif = SequenceMotif(training_size=args.training_size,
-                                   verbosity=args.verbosity,
                                    algorithm=args.algorithm,
                                    min_subarray_size=args.min_subarray_size,
                                    max_subarray_size=args.max_subarray_size,
@@ -110,21 +108,24 @@ def main(args):
                                    nbits=args.nbits,
                                    complexity=args.complexity,
                                    n_blocks=args.n_blocks,
+                                   block_size=args.block_size,
                                    n_jobs=args.n_jobs,
                                    random_state=args.random_state)
     # find motives
     sequence_motif.fit(seqs)
+    # save
+    sequence_motif.save(args.model_filename)
 
     # output motives
+    from eden.util import save_output
     text = []
     for cluster_id in sequence_motif.motives_db:
         text.append("ID %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
         for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
             text.append("%s\t%d" % (motif, count))
         text.append("")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt', logger=logger)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
 
-      
     # output occurrences of cluster hit in sequences
     predictions = sequence_motif.predict(seqs, return_list=True)
     text = []
@@ -135,7 +136,7 @@ def main(args):
         if line:
             line = str(j) + "\t" + line
             text.append(line)
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_id_hit.txt', logger=logger)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_id_hit.txt')
 
     # output occurrences of motives in sequences
     predictions = sequence_motif.transform(seqs, return_match=True)
@@ -148,34 +149,43 @@ def main(args):
         if line:
             line = str(j) + "\t" + line
             text.append(line)
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.txt', logger=logger)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.txt')
 
     # output occurrences of motives in sequences in BED format
     predictions = sequence_motif.transform(seqs, return_match=True)
     text = []
-    for (header,seq), p in izip(seqs, predictions):
+    for (header, seq), p in izip(seqs, predictions):
         line = ""
         for i in range(len(p)):
-            for start,end in p[i]:
+            for start, end in p[i]:
                 line = header + '\t' + str(start) + '\t' + str(end) + '\t' + str(i)
                 text.append(line)
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.bed', logger=logger)
-    
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.bed')
+
     # save state of motif finder
     if args.log_full_state:
-        logger.debug(sequence_motif.__dict__)
+        logging.debug(sequence_motif.__dict__)
     else:
-        logger.debug(sequence_motif.estimator)
-        logger.debug(sequence_motif.vectorizer)
-        logger.debug(sequence_motif.seq_vectorizer)
+        logging.debug(sequence_motif.estimator)
+        logging.debug(sequence_motif.vectorizer)
+        logging.debug(sequence_motif.seq_vectorizer)
+
 
 if __name__ == "__main__":
+    class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+        # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
+        pass
+
     start_time = time()
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=setup.DefaultsRawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument("-i", "--input-file",
                         dest="input_file",
                         help="Path to a FASTA file.",
                         required=True)
+    parser.add_argument("-d", "--model-filename",
+                        dest="model_filename",
+                        help="File name for serialized model object.",
+                        default="motif.model")
     parser.add_argument("-o", "--output-dir",
                         dest="output_dir_path",
                         help="Path to output directory.",
@@ -279,7 +289,12 @@ if __name__ == "__main__":
                         dest="n_blocks",
                         type=int,
                         help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
-                        default=2)
+                        default=8)
+    parser.add_argument("-k", "-block-size",
+                        dest="block_size",
+                        type=int,
+                        help="Number of instances per block for the multiprocessing elaboration.",
+                        default=None)
     parser.add_argument("-r", "--random-state",
                         dest="random_state",
                         type=int,
@@ -295,10 +310,11 @@ if __name__ == "__main__":
     parser.add_argument('--version', action='version', version='0.1')
     args = parser.parse_args()
 
-    logger = setup.logger(logger_name=sys.argv[0], filename="log", verbosity=args.verbosity)
-    logger.info('-' * 80)
-    logger.info('Program: %s' % sys.argv[0])
-    logger.debug('Parameters: %s' % args.__dict__)
+    logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
+
+    logger.debug('-' * 80)
+    logger.debug('Program: %s' % os.path.basename(__file__))
+    logger.debug('Called with parameters: %s' % args.__dict__)
     try:
         main(args)
     except Exception:
