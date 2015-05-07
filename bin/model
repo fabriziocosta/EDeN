@@ -35,6 +35,8 @@ from collections import defaultdict
 import argparse
 import logging
 import logging.handlers
+from eden.util import configure_logging
+
 
 from numpy.random import randint
 from numpy.random import uniform
@@ -44,7 +46,7 @@ from sklearn import metrics
 
 from eden.model import ActiveLearningBinaryClassificationModel
 from eden.graph import Vectorizer
-from eden.util import setup, save_output, store_matrix
+from eden.util import save_output, store_matrix
 from eden.converter.graph.node_link_data import node_link_data_to_eden
 
 
@@ -94,6 +96,7 @@ def main_fit(args):
                                                     vectorizer=vectorizer,
                                                     n_jobs=args.n_jobs,
                                                     n_blocks=args.n_blocks,
+                                                    block_size=args.block_size,
                                                     pre_processor_n_jobs=args.pre_processor_n_jobs,
                                                     pre_processor_n_blocks=args.pre_processor_n_blocks,
                                                     random_state=args.random_state)
@@ -128,7 +131,7 @@ def main_predict(args):
     text = []
     for p in predictions:
         text.append(str(p) + "\n")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt', logger=logger)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt')
     text = []
     for p in predictions:
         if p > 0:
@@ -136,7 +139,7 @@ def main_predict(args):
         else:
             prediction = -1
         text.append(str(prediction) + "\n")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='classifications.txt', logger=logger)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='classifications.txt')
 
 
 def main_matrix(args):
@@ -144,8 +147,8 @@ def main_matrix(args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     X = model._data_matrix(iterator)
-    K=metrics.pairwise.pairwise_kernels(X, metric='linear')
-    store_matrix(matrix=K, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format, logger=logger)
+    K = metrics.pairwise.pairwise_kernels(X, metric='linear')
+    store_matrix(matrix=K, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format)
 
 
 def main_feature(args):
@@ -153,7 +156,7 @@ def main_feature(args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     X = model._data_matrix(iterator)
-    store_matrix(matrix=X, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format, logger=logger)
+    store_matrix(matrix=X, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format)
 
 
 def main(args):
@@ -172,8 +175,12 @@ def main(args):
 
 
 if __name__ == "__main__":
+    class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+        # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
+        pass
+
     start_time = time()
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version='0.1')
     parser.add_argument("-v", "--verbosity",
                         action="count",
@@ -181,7 +188,7 @@ if __name__ == "__main__":
 
     subparsers = parser.add_subparsers(help='commands')
     # fit commands
-    fit_parser = subparsers.add_parser('fit', help='Fit commands')
+    fit_parser = subparsers.add_parser('fit', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     fit_parser.set_defaults(which='fit')
     fit_parser.add_argument("-p", "--positive-input-file",
                             dest="positive_input_file",
@@ -204,10 +211,6 @@ if __name__ == "__main__":
                             type=int,
                             help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
                             default=20)
-    fit_parser.add_argument("-C", "--complexity",
-                            type=int,
-                            help="Size of the generalization of k-mers for graphs.",
-                            default=4)
     fit_parser.add_argument("-e", "--n-iter",
                             dest="n_iter",
                             type=int,
@@ -218,6 +221,11 @@ if __name__ == "__main__":
                             type=int,
                             help="Number of cores to use in multiprocessing.",
                             default=2)
+    fit_parser.add_argument("-k", "-block-size",
+                            dest="block_size",
+                            type=int,
+                            help="Number of instances per block for the multiprocessing elaboration.",
+                            default=None)
     fit_parser.add_argument("-b", "--n-blocks",
                             dest="n_blocks",
                             type=int,
@@ -240,7 +248,7 @@ if __name__ == "__main__":
                             default=8)
 
     # estimate commands
-    estimate_parser = subparsers.add_parser('estimate', help='Estimate commands')
+    estimate_parser = subparsers.add_parser('estimate', help='Estimate commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     estimate_parser.set_defaults(which='estimate')
     estimate_parser.add_argument("-p", "--positive-input-file",
                                  dest="positive_input_file",
@@ -260,7 +268,7 @@ if __name__ == "__main__":
                                  default="out")
 
     # predict commands
-    predict_parser = subparsers.add_parser('predict', help='Predict commands')
+    predict_parser = subparsers.add_parser('predict', help='Predict commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     predict_parser.set_defaults(which='predict')
     predict_parser.add_argument("-i", "--input-file",
                                 dest="input_file",
@@ -276,7 +284,7 @@ if __name__ == "__main__":
                                 default="out")
 
     # matrix commands
-    matrix_parser = subparsers.add_parser('matrix', help='Matrix commands')
+    matrix_parser = subparsers.add_parser('matrix', help='Matrix commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     matrix_parser.set_defaults(which='matrix')
     matrix_parser.add_argument("-i", "--input-file",
                                dest="input_file",
@@ -296,7 +304,7 @@ if __name__ == "__main__":
                                default="MatrixMarket")
 
     # feature commands
-    feature_parser = subparsers.add_parser('feature', help='Feature commands')
+    feature_parser = subparsers.add_parser('feature', help='Feature commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     feature_parser.set_defaults(which='feature')
     feature_parser.add_argument("-i", "--input-file",
                                 dest="input_file",
@@ -317,10 +325,11 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    logger = setup.logger(logger_name=sys.argv[0], filename="log", verbosity=args.verbosity)
-    logger.info('-' * 80)
-    logger.info('Program: %s' % sys.argv[0])
-    logger.info('Parameters: %s' % args.__dict__)
+    logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
+
+    logger.debug('-' * 80)
+    logger.debug('Program: %s' % os.path.basename(__file__))
+    logger.debug('Called with parameters: %s' % args.__dict__)
     try:
         main(args)
     except Exception:
