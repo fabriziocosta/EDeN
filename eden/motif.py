@@ -40,12 +40,7 @@ class SequenceMotif(object):
                  n_iter_search=1,
                  complexity=4,
                  nbits=20,
-                 algorithm='DBSCAN',
-                 n_clusters=4,
-                 eps=0.3,
-                 threshold=0.2,
-                 branching_factor=50,
-                 min_samples=3,
+                 clustering_algorithm=None,
                  n_blocks=2,
                  block_size=None,
                  n_jobs=8,
@@ -62,12 +57,7 @@ class SequenceMotif(object):
         self.seq_vectorizer = PathVectorizer(complexity=self.complexity, nbits=self.nbits)
         self.negative_ratio = negative_ratio
         self.shuffle_order = shuffle_order
-        self.algorithm = algorithm
-        self.n_clusters = n_clusters
-        self.eps = eps
-        self.threshold = threshold
-        self.branching_factor = branching_factor
-        self.min_samples = min_samples
+        self.clustering_algorithm = clustering_algorithm
         self.min_subarray_size = min_subarray_size
         self.max_subarray_size = max_subarray_size
         self.min_motif_count = min_motif_count
@@ -78,7 +68,7 @@ class SequenceMotif(object):
         self.motives_db = defaultdict(list)
         self.motives = []
         self.clusters = defaultdict(list)
-        self.cluster_model = []
+        self.cluster_models = []
 
     def _serial_graph_motif(self, seqs, placeholder=None):
         # make graphs
@@ -115,6 +105,7 @@ class SequenceMotif(object):
 
     def load(self, obj):
         self.__dict__.update(joblib.load(obj).__dict__)
+        self._build_cluster_models()
 
     def _fit_predictive_model(self, seqs):
         # duplicate iterator
@@ -132,19 +123,8 @@ class SequenceMotif(object):
                              n_jobs=self.n_jobs,
                              random_state=self.random_state)
 
-    def _cluster(self, seqs):
+    def _cluster(self, seqs, clustering_algorithm=None):
         X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
-        if self.algorithm == 'MiniBatchKMeans':
-            from sklearn.cluster import MiniBatchKMeans
-            clustering_algorithm = MiniBatchKMeans(n_clusters=self.n_clusters, random_state=self.random_state)
-        elif self.algorithm == 'DBSCAN':
-            from sklearn.cluster import DBSCAN
-            clustering_algorithm = DBSCAN(eps=self.eps, min_samples=self.min_samples)
-        elif self.algorithm == 'Birch':
-            from sklearn.cluster import Birch
-            clustering_algorithm = Birch(threshold=self.threshold, n_clusters=self.n_clusters, branching_factor=self.branching_factor)
-        else:
-            raise Exception('Unknown algorithm: %s' % self.algorithm)
         predictions = clustering_algorithm.fit_predict(X)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
@@ -200,7 +180,7 @@ class SequenceMotif(object):
         logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
 
         start = time()
-        self._cluster(self.motives)
+        self._cluster(self.motives, clustering_algorithm=self.clustering_algorithm)
         end = time()
         logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
 
@@ -213,31 +193,33 @@ class SequenceMotif(object):
 
         start = time()
         # create models
-        for cluster_id in self.motives_db:
-            motives = [motif for count, motif in self.motives_db[cluster_id]]
-            index = esm.Index()
-            for motif in motives:
-                index.enter(motif)
-            index.fix()
-            self.cluster_model = index
+        self._build_cluster_models()
         end = time()
         logger.info('motif model construction: %d secs' % (end - start))
 
-    def _build_regex(self, seqs):
-        regex = ''
-        for m in seqs:
-            regex += '|' + m
-        regex = regex[1:]
-        return regex
+    def _build_cluster_models(self):
+        self.cluster_models = []
+        for cluster_id in self.motives_db:
+            motives = [motif for count, motif in self.motives_db[cluster_id]]
+            cluster_model = esm.Index()
+            for motif in motives:
+                cluster_model.enter(motif)
+            cluster_model.fix()
+            self.cluster_models.append(cluster_model)
+
+    def fit_predict(self, seqs, return_list=False):
+        self.fit(seqs)
+        for prediction in self.predict(seqs, return_list=return_list):
+            yield prediction
+
+    def fit_transform(self, seqs, return_match=False):
+        self.fit(seqs)
+        for prediction in self.transform(seqs, return_match=return_match):
+            yield prediction
 
     def _cluster_hit(self, seq, cluster_id):
-        motives = [motif for count, motif in self.motives_db[cluster_id]]
-        pattern = self._build_regex(motives)
-        for m in re.finditer(pattern, seq):
-            if m:
-                yield (m.start(), m.end())
-            else:
-                yield None
+        for ((start, end), motif) in self.cluster_models[cluster_id].query(seq):
+            yield (start, end)
 
     def predict(self, seqs, return_list=False):
         # returns for each instance a list with the cluster ids that have a hit
