@@ -101,6 +101,7 @@ class SequenceMotif(object):
             return self._serial_graph_motif(seqs)
 
     def save(self, model_name):
+        self.clustering_algorithm = None  #NOTE: some algorithms cannot be pickled
         joblib.dump(self, model_name, compress=1)
 
     def load(self, obj):
