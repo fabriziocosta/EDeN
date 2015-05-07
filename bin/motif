@@ -89,19 +89,26 @@ def main(args):
     seqs = list(seqs)
     logger.info("Extracting motives from %d sequences" % len(seqs))
 
+    if args.algorithm == 'MiniBatchKMeans':
+        from sklearn.cluster import MiniBatchKMeans
+        clustering_algorithm = MiniBatchKMeans(n_clusters=args.n_clusters)
+
+    if args.algorithm == 'DBSCAN':
+        from sklearn.cluster import DBSCAN
+        clustering_algorithm = DBSCAN(eps=args.eps, min_samples=args.min_samples)
+
+    if args.algorithm == 'Birch':
+        from sklearn.cluster import Birch
+        clustering_algorithm = Birch(threshold=args.threshold, n_clusters=args.n_clusters, branching_factor=args.branching_factor)
+
     # setup
     from eden.motif import SequenceMotif
     sequence_motif = SequenceMotif(training_size=args.training_size,
-                                   algorithm=args.algorithm,
+                                   clustering_algorithm=clustering_algorithm,
                                    min_subarray_size=args.min_subarray_size,
                                    max_subarray_size=args.max_subarray_size,
                                    min_motif_count=args.min_motif_count,
                                    min_cluster_size=args.min_cluster_size,
-                                   n_clusters=args.n_clusters,
-                                   eps=args.eps,
-                                   min_samples=args.min_samples,
-                                   threshold=args.threshold,
-                                   branching_factor=args.branching_factor,
                                    negative_ratio=args.negative_ratio,
                                    shuffle_order=args.shuffle_order,
                                    n_iter_search=args.n_iter_search,
@@ -178,6 +185,13 @@ if __name__ == "__main__":
 
     start_time = time()
     parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser.add_argument('--version', action='version', version='0.1')
+    parser.add_argument("-v", "--verbosity",
+                        action="count",
+                        help="Increase output verbosity")
+
+
+
     parser.add_argument("-i", "--input-file",
                         dest="input_file",
                         help="Path to a FASTA file.",
@@ -300,14 +314,10 @@ if __name__ == "__main__":
                         type=int,
                         help="Random seed.",
                         default=1)
-    parser.add_argument("-v", "--verbosity",
-                        action="count",
-                        help="Increase output verbosity")
     parser.add_argument("-l", "--log-full-state",
                         dest="log_full_state",
                         help="If set, log all the internal parameters values and motif database of the motif finder. Warning: it can generate large logging files.",
                         action="store_true")
-    parser.add_argument('--version', action='version', version='0.1')
     args = parser.parse_args()
 
     logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
