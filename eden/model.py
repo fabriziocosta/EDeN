@@ -14,12 +14,12 @@ from sklearn.linear_model import SGDClassifier
 from itertools import tee, izip
 from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
-from eden.util import fit_estimator, selection_iterator
-from eden.util import is_iterable
-from eden.util.util import report_base_statistics
+from eden.util import fit_estimator, selection_iterator, is_iterable, report_base_statistics
+from eden.util import vectorize, mp_pre_process
 from eden.graph import Vectorizer
-from eden.util import vectorize
-from eden.util import mp_pre_process
+
+import logging
+logger = logging.getLogger('root.%s' % (__name__))
 
 
 class ActiveLearningBinaryClassificationModel(object):
@@ -123,33 +123,39 @@ class ActiveLearningBinaryClassificationModel(object):
             yield margin, graph_info
 
     def estimate(self, iterable_pos, iterable_neg):
-        print 'Classifier:'
-        print self.estimator
-        print '-' * 80
+        text = []
+        text.append('\nClassifier:')
+        text.append('%s' % self.estimator)
         X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
-        print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
-        print '-' * 80
-        print 'Test Estimate'
+        text.append('\nData:')
+        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+        text.append('\nPredictive performace estimate:')
         margins = self.estimator.decision_function(X)
         predictions = self.estimator.predict(X)
-        print classification_report(y, predictions)
+        text.append('%s' % classification_report(y, predictions))
         apr = average_precision_score(y, margins)
-        print 'APR: %.3f' % apr
+        text.append('APR: %.3f' % apr)
         roc = roc_auc_score(y, margins)
-        print 'ROC: %.3f' % roc
-        print '-' * 80
+        text.append('ROC: %.3f' % roc)
+        logger.info('\n'.join(text))
         return apr, roc
 
-    def print_model_parameter_configuration(self):
-        print '-' * 80
-        print('Current parameters:')
-        print('Pre_processor:')
-        pprint.pprint(self.pre_processor_args)
-        print('Vectorizer:')
-        pprint.pprint(self.vectorizer_args)
-        print('Estimator:')
-        pprint.pprint(self.estimator_args)
-        print '-' * 80
+    def _serialize_dict(self, the_dict):
+        text = []
+        for key in the_dict:
+            text.append('%15s: %s' % (key, the_dict[key]))
+        return '\n'.join(text)
+
+    def get_parameters(self):
+        text = []
+        text.append('\n\tModel parameters:')
+        text.append('\nPre_processor:')
+        text.append(self._serialize_dict(self.pre_processor_args))
+        text.append('\nVectorizer:')
+        text.append(self._serialize_dict(self.vectorizer_args))
+        text.append('\nEstimator:')
+        text.append(self._serialize_dict(self.estimator_args))
+        return '\n'.join(text)
 
     def optimize(self, iterable_pos, iterable_neg,
                  model_name='model',
@@ -161,29 +167,26 @@ class ActiveLearningBinaryClassificationModel(object):
                  lower_bound_threshold_negative=-1,
                  upper_bound_threshold_negative=1,
                  n_iter=20,
-                 max_total_time=3600,
+                 max_total_time=-1,
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
                  estimator_parameters=dict(),
-                 verbosity=1,
                  cv=10,
                  scoring='roc_auc',
                  score_func=lambda u, s: u - s,
                  two_steps_optimization=True):
-        def print_parameters_range():
-            print '-' * 80
-            print('Parameters range:')
-            print '-' * 80
-            print('Pre_processor:')
-            pprint.pprint(pre_processor_parameters)
-            print('Vectorizer:')
-            pprint.pprint(vectorizer_parameters)
-            print('Estimator:')
-            pprint.pprint(estimator_parameters)
-            print '-' * 80
+        def _serialize_parameters_range():
+            text = []
+            text.append('\n\n\tParameters range:')
+            text.append('\nPre_processor:')
+            text.append(self._serialize_dict(pre_processor_parameters))
+            text.append('\nVectorizer:')
+            text.append(self._serialize_dict(vectorizer_parameters))
+            text.append('\nEstimator:')
+            text.append(self._serialize_dict(estimator_parameters))
+            return '\n'.join(text)
 
-        if verbosity > 1:
-            print_parameters_range()
+        logger.debug(_serialize_parameters_range())
         # init
         best_pre_processor_ = None
         best_vectorizer_ = None
@@ -197,7 +200,7 @@ class ActiveLearningBinaryClassificationModel(object):
         best_score_ = best_score_mean_ = best_score_std_ = 0
         start = time.time()
         if len(pre_processor_parameters) == 0:
-            mean_len_pre_processor_parameters = 0    
+            mean_len_pre_processor_parameters = 0
         else:
             mean_len_pre_processor_parameters = np.mean([len(pre_processor_parameters[p]) for p in pre_processor_parameters])
         if len(vectorizer_parameters) == 0:
@@ -210,10 +213,10 @@ class ActiveLearningBinaryClassificationModel(object):
             data_matrix_is_stable = False
         # main iteration
         for i in range(n_iter):
-            if time.time() - start > max_total_time:
-                if verbosity > 1:
-                    print 'Reached max time: %s' % (str(datetime.timedelta(seconds=(time.time() - start))))
-                break
+            if max_total_time != -1:
+                if time.time() - start > max_total_time:
+                    logger.warning('Reached max time: %s' % (str(datetime.timedelta(seconds=(time.time() - start)))))
+                    break
             try:
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
                 if i == int(n_iter / 2) and two_steps_optimization == True:
@@ -223,8 +226,7 @@ class ActiveLearningBinaryClassificationModel(object):
                         vectorizer_parameters = dict(best_vectorizer_parameters_)
                     if len(best_estimator_parameters_) > 0:
                         estimator_parameters = dict(best_estimator_parameters_)
-                    if verbosity > 1:
-                        print_parameters_range()
+                    logger.debug(_serialize_parameters_range())
 
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(**self.estimator_args)
@@ -251,15 +253,14 @@ class ActiveLearningBinaryClassificationModel(object):
                                                                    upper_bound_threshold_negative=upper_bound_threshold_negative)
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=self.n_jobs)
             except Exception as e:
-                if verbosity > 0:
-                    print('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
-                          (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
-                    print e.__doc__
-                    print e.message
-                if verbosity > 1:
-                    print('Failed with the following setting:')
-                    self.print_model_parameter_configuration()
-                    print '...continuing'
+                text = []
+                text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' % (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                text.append(e.__doc__)
+                text.append(e.message)
+                text.append('Failed with the following setting:')
+                text.append(self.get_parameters())
+                text.append('...continuing')
+                logger.debug('\n'.join(text))
             else:
                 # consider as score the mean-std for a robust estimate of predictive performance
                 score_mean = np.mean(scores)
@@ -287,17 +288,14 @@ class ActiveLearningBinaryClassificationModel(object):
                             best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
                         for key in self.estimator_args:
                             best_estimator_parameters_[key].append(self.estimator_args[key])
-                    if verbosity > 0:
-                        print
-                        print('Iteration: %d/%d (at %.1f sec; %s)' %
-                              (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
-                        print('Best score (%s): %f (%f +- %f)' %
-                              (scoring, best_score_, best_score_mean_, best_score_std_))
-                        print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
-                        print report_base_statistics(y)
-                    if verbosity > 1:
-                        self.print_model_parameter_configuration()
-                        print('Saved current best model in %s' % model_name)
+                    text = []
+                    text.append('\n\n\tIteration: %d/%d (after %.1f sec; %s)' % (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                    text.append('Best score (%s): %.3f (%.3f +- %.3f)' % (scoring, best_score_, best_score_mean_, best_score_std_))
+                    text.append('\nData:')
+                    text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+                    text.append(report_base_statistics(y))  
+                    text.append(self.get_parameters())
+                    logger.info('\n'.join(text))
         # store the best hyperparamter configuration
         self.pre_processor_args = copy.deepcopy(best_pre_processor_args_)
         self.vectorizer_args = copy.deepcopy(best_vectorizer_args_)
@@ -307,6 +305,7 @@ class ActiveLearningBinaryClassificationModel(object):
         self.vectorizer = copy.deepcopy(best_vectorizer_)
         self.estimator = copy.deepcopy(best_estimator_)
         # save to disk
+        logger.info('Saved current best model in %s' % model_name)
         self.save(model_name)
 
     def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
