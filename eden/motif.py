@@ -10,53 +10,21 @@ import numpy as np
 from itertools import tee, chain
 from collections import defaultdict
 
-import argparse
-import logging
-import logging.handlers
-from eden.util import setup
-from eden.util import save_output
+import joblib
 
+from eden import apply_async
 from eden.graph import Vectorizer
 from eden.path import Vectorizer as PathVectorizer
-from eden.util import vectorize, mp_pre_process
+from eden.util import vectorize, mp_pre_process, compute_intervals
 from eden.converter.fasta import sequence_to_eden
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
 from eden.util import fit
 from eden.util.iterated_maximum_subarray import compute_max_subarrays
 
+import esm
 
-def serial_graph_motif(seqs, vectorizer=None, estimator=None, min_subarray_size=5, max_subarray_size=18):
-    # make graphs
-    iterable = sequence_to_eden(seqs)
-    # use node importance and 'position' attribute to identify max_subarrays of a specific size
-    graphs = vectorizer.annotate(iterable, estimator=estimator)
-    # use compute_max_subarrays to return an iterator over motives
-    motives = []
-    for graph in graphs:
-        subarrays = compute_max_subarrays(graph=graph, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size)
-        for subarray in subarrays:
-            motives.append(subarray['subarray_string'])
-    return motives
-
-
-def multiprocess_graph_motif(seqs, vectorizer=None, estimator=None, min_subarray_size=5, max_subarray_size=18, n_blocks=5, n_jobs=8):
-    size = len(seqs)
-    block_size = size / n_blocks
-    if n_jobs == -1:
-        pool = mp.Pool()
-    else:
-        pool = mp.Pool(processes=n_jobs)
-    results = [pool.apply_async(serial_graph_motif, args=(
-        seqs[s * block_size:(s + 1) * block_size], vectorizer, estimator, min_subarray_size, max_subarray_size)) for s in range(n_blocks - 1)]
-    output = [p.get() for p in results]
-    return list(chain(*output))
-
-
-def motif_finder(seqs, vectorizer=None, estimator=None, min_subarray_size=5, max_subarray_size=18, n_blocks=5, n_jobs=8):
-    if n_jobs > 1 or n_jobs == -1:
-        return multiprocess_graph_motif(seqs, vectorizer=vectorizer, estimator=estimator, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size, n_blocks=n_blocks, n_jobs=n_jobs)
-    else:
-        return serial_graph_motif(seqs, vectorizer=vectorizer, estimator=estimator, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size)
+import logging
+logger = logging.getLogger('root.%s' % (__name__))
 
 
 class SequenceMotif(object):
@@ -72,17 +40,13 @@ class SequenceMotif(object):
                  n_iter_search=1,
                  complexity=4,
                  nbits=20,
-                 algorithm='DBSCAN',
-                 n_clusters=4,
-                 eps=0.3,
-                 threshold=0.2,
-                 branching_factor=50,
-                 min_samples=3,
-                 verbosity=0,
+                 clustering_algorithm=None,
                  n_blocks=2,
+                 block_size=None,
                  n_jobs=8,
                  random_state=1):
         self.n_blocks = n_blocks
+        self.block_size = block_size
         self.n_jobs = n_jobs
         self.training_size = training_size
         self.n_iter_search = n_iter_search
@@ -93,25 +57,58 @@ class SequenceMotif(object):
         self.seq_vectorizer = PathVectorizer(complexity=self.complexity, nbits=self.nbits)
         self.negative_ratio = negative_ratio
         self.shuffle_order = shuffle_order
-        self.algorithm = algorithm
-        self.n_clusters = n_clusters
-        self.eps = eps
-        self.threshold = threshold
-        self.branching_factor = branching_factor
-        self.min_samples = min_samples
+        self.clustering_algorithm = clustering_algorithm
         self.min_subarray_size = min_subarray_size
         self.max_subarray_size = max_subarray_size
         self.min_motif_count = min_motif_count
         self.min_cluster_size = min_cluster_size
-        self.verbosity = verbosity
         self.random_state = random_state
         random.seed(random_state)
 
         self.motives_db = defaultdict(list)
         self.motives = []
         self.clusters = defaultdict(list)
+        self.cluster_models = []
 
-    def fit_predictive_model(self, seqs):
+    def _serial_graph_motif(self, seqs, placeholder=None):
+        # make graphs
+        iterable = sequence_to_eden(seqs)
+        # use node importance and 'position' attribute to identify max_subarrays of a specific size
+        graphs = self.vectorizer.annotate(iterable, estimator=self.estimator)
+        # use compute_max_subarrays to return an iterator over motives
+        motives = []
+        for graph in graphs:
+            subarrays = compute_max_subarrays(graph=graph, min_subarray_size=self.min_subarray_size, max_subarray_size=self.max_subarray_size)
+            for subarray in subarrays:
+                motives.append(subarray['subarray_string'])
+        return motives
+
+    def _multiprocess_graph_motif(self, seqs):
+        size = len(seqs)
+        intervals = compute_intervals(size=size, n_blocks=self.n_blocks, block_size=self.block_size)
+        if self.n_jobs == -1:
+            pool = mp.Pool()
+        else:
+            pool = mp.Pool(processes=self.n_jobs)
+        results = [apply_async(pool, self._serial_graph_motif, args=(seqs[start:end], True)) for start, end in intervals]
+        output = [p.get() for p in results]
+        return list(chain(*output))
+
+    def _motif_finder(self, seqs):
+        if self.n_jobs > 1 or self.n_jobs == -1:
+            return self._multiprocess_graph_motif(seqs)
+        else:
+            return self._serial_graph_motif(seqs)
+
+    def save(self, model_name):
+        self.clustering_algorithm = None  #NOTE: some algorithms cannot be pickled
+        joblib.dump(self, model_name, compress=1)
+
+    def load(self, obj):
+        self.__dict__.update(joblib.load(obj).__dict__)
+        self._build_cluster_models()
+
+    def _fit_predictive_model(self, seqs):
         # duplicate iterator
         pos_seqs, pos_seqs_ = tee(seqs)
         pos_graphs = mp_pre_process(pos_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
@@ -123,28 +120,18 @@ class SequenceMotif(object):
                              vectorizer=self.vectorizer,
                              n_iter_search=self.n_iter_search,
                              n_blocks=self.n_blocks,
+                             block_size=self.block_size,
                              n_jobs=self.n_jobs,
                              random_state=self.random_state)
 
-    def cluster(self, seqs):
+    def _cluster(self, seqs, clustering_algorithm=None):
         X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
-        if self.algorithm == 'MiniBatchKMeans':
-            from sklearn.cluster import MiniBatchKMeans
-            clustering_algorithm = MiniBatchKMeans(n_clusters=self.n_clusters, random_state=self.random_state)
-        elif self.algorithm == 'DBSCAN':
-            from sklearn.cluster import DBSCAN
-            clustering_algorithm = DBSCAN(eps=self.eps, min_samples=self.min_samples)
-        elif self.algorithm == 'Birch':
-            from sklearn.cluster import Birch
-            clustering_algorithm = Birch(threshold=self.threshold, n_clusters=self.n_clusters, branching_factor=self.branching_factor)
-        else:
-            raise Exception('Unknown algorithm: %s' % self.algorithm)
         predictions = clustering_algorithm.fit_predict(X)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
             self.clusters[predictions[i]] += [i]
 
-    def filter(self):
+    def _filter(self):
         # transform self.clusters that contains only the ids of the motives to
         # clustered_motives that contains the actual sequences
         new_sequential_cluster_id = -1
@@ -184,51 +171,56 @@ class SequenceMotif(object):
             training_seqs = seqs
         else:
             training_seqs = random.sample(seqs, self.training_size)
-        self.fit_predictive_model(training_seqs)
+        self._fit_predictive_model(training_seqs)
         end = time()
-        if self.verbosity > 0:
-            print('model induction: %d secs' % (end - start))
+        logger.info('model induction: %d positive instances %d secs' % (len(training_seqs), (end - start)))
 
         start = time()
-        self.motives = motif_finder(seqs,
-                                    vectorizer=self.vectorizer,
-                                    estimator=self.estimator,
-                                    min_subarray_size=self.min_subarray_size,
-                                    max_subarray_size=self.max_subarray_size,
-                                    n_jobs=self.n_jobs)
+        self.motives = self._motif_finder(seqs)
         end = time()
-        if self.verbosity > 0:
-            print('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
+        logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
 
         start = time()
-        self.cluster(self.motives)
+        self._cluster(self.motives, clustering_algorithm=self.clustering_algorithm)
         end = time()
-        if self.verbosity > 0:
-            print('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
+        logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
 
         start = time()
-        self.filter()
+        self._filter()
         end = time()
-        if self.verbosity > 0:
-            print('After filtering: %d secs' % (end - start))
-            print('  # motives: %d' % sum(len(self.motives_db[cid]) for cid in self.motives_db))
-            print('  # clusters: %d' % len(self.motives_db))
+        n_motives = sum(len(self.motives_db[cid]) for cid in self.motives_db)
+        n_clusters = len(self.motives_db)
+        logger.info('after filtering: %d motives %d clusters %d secs' % (n_motives, n_clusters, (end - start)))
 
-    def _build_regex(self, seqs):
-        regex = ''
-        for m in seqs:
-            regex += '|' + m
-        regex = regex[1:]
-        return regex
+        start = time()
+        # create models
+        self._build_cluster_models()
+        end = time()
+        logger.info('motif model construction: %d secs' % (end - start))
+
+    def _build_cluster_models(self):
+        self.cluster_models = []
+        for cluster_id in self.motives_db:
+            motives = [motif for count, motif in self.motives_db[cluster_id]]
+            cluster_model = esm.Index()
+            for motif in motives:
+                cluster_model.enter(motif)
+            cluster_model.fix()
+            self.cluster_models.append(cluster_model)
+
+    def fit_predict(self, seqs, return_list=False):
+        self.fit(seqs)
+        for prediction in self.predict(seqs, return_list=return_list):
+            yield prediction
+
+    def fit_transform(self, seqs, return_match=False):
+        self.fit(seqs)
+        for prediction in self.transform(seqs, return_match=return_match):
+            yield prediction
 
     def _cluster_hit(self, seq, cluster_id):
-        motives = [motif for count, motif in self.motives_db[cluster_id]]
-        pattern = self._build_regex(motives)
-        for m in re.finditer(pattern, seq):
-            if m:
-                yield (m.start(), m.end())
-            else:
-                yield None
+        for ((start, end), motif) in self.cluster_models[cluster_id].query(seq):
+            yield (start, end)
 
     def predict(self, seqs, return_list=False):
         # returns for each instance a list with the cluster ids that have a hit
