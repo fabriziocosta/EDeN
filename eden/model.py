@@ -30,6 +30,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  fit_vectorizer=False,
                  n_jobs=8,
                  n_blocks=8,
+                 block_size=None,
                  pre_processor_n_jobs=1,
                  pre_processor_n_blocks=8,
                  description=None,
@@ -44,6 +45,7 @@ class ActiveLearningBinaryClassificationModel(object):
         self.fit_vectorizer = fit_vectorizer
         self.n_jobs = n_jobs
         self.n_blocks = n_blocks
+        self.block_size = block_size
         self.pre_processor_n_jobs = pre_processor_n_jobs
         self.pre_processor_n_blocks = pre_processor_n_blocks
         random.seed(random_state)
@@ -69,6 +71,7 @@ class ActiveLearningBinaryClassificationModel(object):
                                 pre_processor=self.pre_processor,
                                 pre_processor_args=self.pre_processor_args,
                                 n_blocks=self.pre_processor_n_blocks,
+                                block_size=self.block_size,
                                 n_jobs=self.pre_processor_n_jobs)
         graphs, graphs_ = tee(graphs)
         self.vectorizer.set_params(**self.vectorizer_args)
@@ -254,7 +257,8 @@ class ActiveLearningBinaryClassificationModel(object):
                 scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=self.n_jobs)
             except Exception as e:
                 text = []
-                text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' % (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
+                            (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                 text.append(e.__doc__)
                 text.append(e.message)
                 text.append('Failed with the following setting:')
@@ -289,11 +293,13 @@ class ActiveLearningBinaryClassificationModel(object):
                         for key in self.estimator_args:
                             best_estimator_parameters_[key].append(self.estimator_args[key])
                     text = []
-                    text.append('\n\n\tIteration: %d/%d (after %.1f sec; %s)' % (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                    text.append('\n\n\tIteration: %d/%d (after %.1f sec; %s)' %
+                                (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     text.append('Best score (%s): %.3f (%.3f +- %.3f)' % (scoring, best_score_, best_score_mean_, best_score_std_))
                     text.append('\nData:')
-                    text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
-                    text.append(report_base_statistics(y))  
+                    text.append('Instances: %d ; Features: %d with an avg of %d features per instance' %
+                                (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+                    text.append(report_base_statistics(y))
                     text.append(self.get_parameters())
                     logger.info('\n'.join(text))
         # store the best hyperparamter configuration
