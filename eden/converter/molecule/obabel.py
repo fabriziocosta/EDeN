@@ -271,7 +271,23 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
     mols.append(pb.readstring("sdf", '\n' + clean_sdf[matches[-1].start():]))
     return mols
 
-    
+def make_iterable(filename, file_format):
+    if file_format == 'sdf':
+        with open(filename) as f:
+            s = ''
+            for line in f:
+                if line.strip() != '$$$$':
+                    s = s + line
+                else:
+                    return_value = s + line
+                    s = ''
+                    yield return_value
+    elif file_format == 'smi':
+        with open(filename) as f:
+            for line in f:
+                yield line
+
+
 
 def smiles_to_sdf(infile, outfile):
     """
