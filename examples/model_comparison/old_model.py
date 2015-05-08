@@ -7,6 +7,12 @@ import argparse
 import requests
 import os.path
 
+import logging
+logger = logging.getLogger('root.%s' % (__name__))
+hdl = logging.FileHandler('log/train.log')
+logger.addHandler(hdl)
+logger.setLevel(logging.INFO)
+
 
 def main(argv=None):
     
@@ -19,51 +25,55 @@ def main(argv=None):
     ## Training options:
     parser.add_argument('--niter', default = 10, type = int,
                         help = "Number of training iterations")
-    parser.add_argument('--asize', default = 1000, type = int,
+    parser.add_argument('--asize', default = 0, type = int,
                         help = "Active set size")
-    parser.add_argument('--aiter', default = 3, type = int,
+    parser.add_argument('--aiter', default = 0, type = int,
                         help = "Number of active learning iterations")
     parser.add_argument('-t', default = 10, type = int,
                         help = "Threshold value")
     parser.add_argument('--split', default = 0.7, type = float,
                         help = "Train-test split")
-    parser.add_argument('-v', default = 0, type = int,
+    parser.add_argument('-v', default = 1, type = int,
                         help = "Verbosity")
     parser.add_argument('-m', default = "default",
                         help = "Model type")
+    ## Other options:
     parser.add_argument('--nconf', default = 0, type = int,
                         help = "Number of molecule conformers")
-    ## Vectorizer options:
-    #parser.add_argument()
         
     global args
     args = vars(parser.parse_args())
     
     AID = args['aid']
-
+    mode = args['m']
+    
+    
     active_fname   = 'data/AID%s_active.sdf'   % AID
     inactive_fname = 'data/AID%s_inactive.sdf' % AID
 
-    model_fname = 'AID%s_%s.model' % (AID, args['m'])
+    model_fname = 'models/AID%s_%s.model' % (AID, mode)
     
-    print "model name: ", model_fname
     
-    #for key, value in args:
-        #print key, " is of type " + str(type(value))
+    logger.info(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")) + 
+                " --- Starting model training for AID %s, %s mode" % (AID, mode))
     
-    print args
     
-    model = train_obabel_model(active_fname, inactive_fname,
+    model = train_obabel_model(active_fname, inactive_fname, mode,
                                model_fname = model_fname, 
                                n_iter = args['niter'], 
-                               active_set_size=500, 
-                               n_active_learning_iterations=4, 
-                               threshold=1, 
-                               train_test_split=0.7, 
-                               verbose=1)
+                               active_set_size= args['asize'], 
+                               n_active_learning_iterations = args['aiter'], 
+                               threshold = args['t'], 
+                               train_test_split = args['split'], 
+                               verbose = args['v'])
+    
+    
+    logger.info(str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")) + 
+                " --- Model training finished.")
 
 
-def train_obabel_model(pos_fname, neg_fname, model_fname=None,
+def train_obabel_model(pos_fname, neg_fname, model_type,
+                       model_fname=None,
                        n_iter=40,
                        active_set_size=1000,
                        n_active_learning_iterations=3,
@@ -73,10 +83,54 @@ def train_obabel_model(pos_fname, neg_fname, model_fname=None,
     
     import networkx as nx
     import pybel
+    from eden.converter.molecule import obabel
     
+    if model_type == "default":
+        def pre_processor( data, **args):
+            return data
+        
+        # Create iterable from files
+        iterable_pos = obabel.obabel_to_eden(pos_fname)
+        iterable_neg = obabel.obabel_to_eden(neg_fname)
+        
+        # The training time for this model is much smaller, so we can use 
+        # various iterations of the vectorizer
+        vectorizer_parameters={'complexity':[3,4]}
+        pre_processor_parameters={} 
+        
+    elif model_type == "3d":
+        
+        n_conf = args['nconf']
+        
+        def pre_processor(data, model_type="3d", **kwargs):
+            iterable = obabel.obabel_to_eden3d(data, **kwargs)
+            return iterable
+        
+        # Create iterable from files
+        iterable_pos = obabel.make_iterable(pos_fname, 'sdf')
+        iterable_neg = obabel.make_iterable(neg_fname, 'sdf')
+        
+        vectorizer_parameters={'complexity':[3]}
+        
+        from numpy.random import randint
+        pre_processor_parameters={'k':randint(1, 10,size=n_iter),
+                                  'threshold':randint(3, 10, size=n_iter),
+                                  'n_conf':[n_conf]}
+        
     
-    def pre_processor( data, **args):
-        return data
+    ### the definition below does not work. why, I have no idea - it leads to 
+    ### python trying to pickle an unpickleable fortran ddot object...
+    
+    #def pre_processor(data, model_type = model_type, **kwargs):
+        ## model_type = kwargs.get('mode', 'default')
+        #print "preprocessor model type : ", model_type
+        #if model_type == "default":
+            #return data
+        #elif model_type == "3d":
+            #iterable = obabel.obabel_to_eden3d(data, **kwargs)
+            #return iterable
+        
+    
     
     from eden.graph import Vectorizer
     vectorizer = Vectorizer()
@@ -85,10 +139,7 @@ def train_obabel_model(pos_fname, neg_fname, model_fname=None,
     # estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
     estimator = SGDClassifier(class_weight='auto', shuffle=True)
     
-    # Create iterable from files
-    from eden.converter.molecule import obabel
-    iterable_pos = obabel.obabel_to_eden(pos_fname)
-    iterable_neg = obabel.obabel_to_eden(neg_fname)
+    
     
     from itertools import tee
     iterable_pos, iterable_pos_ = tee(iterable_pos)
@@ -111,21 +162,16 @@ def train_obabel_model(pos_fname, neg_fname, model_fname=None,
         pre_processor,
         estimator = estimator,
         vectorizer = vectorizer,
-        n_jobs = 2,
-        n_blocks = 2,
+        n_jobs = 1,
+        n_blocks = 1,
         fit_vectorizer = True)
 
     # Optimize hyperparameters and fit model
     from numpy.random import randint
     from numpy.random import uniform
 
-    pre_processor_parameters={} 
     
-    # The training time for this model is much smaller, so we can use various iterations of the
-    # vectorizer
-    # vectorizer_parameters={'complexity':[2,3,4,5]}
-    vectorizer_parameters={'complexity':[3]}
-
+    
     estimator_parameters={'n_iter':randint(5, 100, size=n_iter),
                           'penalty':['l1','l2','elasticnet'],
                           'l1_ratio':uniform(0.1,0.9, size=n_iter), 
@@ -142,7 +188,6 @@ def train_obabel_model(pos_fname, neg_fname, model_fname=None,
                    size_negative = active_set_size,
                    n_iter=n_iter,
                    cv=3,
-                   verbosity=verbose,
                    pre_processor_parameters = pre_processor_parameters, 
                    vectorizer_parameters = vectorizer_parameters, 
                    estimator_parameters = estimator_parameters)
