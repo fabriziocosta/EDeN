@@ -14,7 +14,41 @@ from scipy import stats
 from scipy.sparse import vstack
 from itertools import tee
 import random
+import logging
 from eden import apply_async
+
+
+def configure_logging(verbosity=0, filename=None):
+    logger = logging.getLogger('root')
+    logger.propagate = False
+    logger.handlers = []
+    log_level = logging.WARNING
+    if verbosity == 1:
+        log_level = logging.INFO
+    elif verbosity >= 2:
+        log_level = logging.DEBUG
+    logger.setLevel(logging.DEBUG)
+    # create console handler
+    ch = logging.StreamHandler()
+    ch.setLevel(log_level)
+    # create formatter
+    cformatter = logging.Formatter('%(message)s')
+    # add formatter to ch
+    ch.setFormatter(cformatter)
+    # add handlers to logger
+    logger.addHandler(ch)
+
+    if filename is not None:
+        # create a file handler
+        fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=100000, backupCount=10)
+        fh.setLevel(logging.DEBUG)
+        # create formatter
+        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)20s | %(filename)20s | %(lineno)4s | %(message)s')
+        # add formatter to fh
+        fh.setFormatter(fformatter)
+        # add handlers to logger
+        logger.addHandler(fh)
+    return logger
 
 
 def read(uri):
@@ -43,7 +77,9 @@ def is_iterable(test):
         return False
 
 
-def compute_intervals(size=None, n_blocks=None):
+def compute_intervals(size=None, n_blocks=None, block_size=None):
+    if block_size is not None:
+        n_blocks = int(size / block_size)
     # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
     if n_blocks >= size:
         n_blocks = size / 10
@@ -65,11 +101,11 @@ def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
         return list(pre_processor(iterable))
 
 
-def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
+def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None, n_jobs=8):
     iterable = list(iterable)
     import multiprocessing as mp
     size = len(iterable)
-    intervals = compute_intervals(size=size, n_blocks=n_blocks)
+    intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
@@ -85,11 +121,11 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
     return return_list
 
 
-def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, n_jobs=8):
+def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None,  n_jobs=8):
     if n_jobs == 1:
         return pre_processor(iterable, **pre_processor_args)
     else:
-        return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, n_jobs=n_jobs)
+        return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
 
 
 def serial_vectorize(graphs, vectorizer=None):
@@ -97,11 +133,11 @@ def serial_vectorize(graphs, vectorizer=None):
     return X
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
+def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5,  block_size=None, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
-    intervals = compute_intervals(size=size, n_blocks=n_blocks)
+    intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
@@ -118,11 +154,11 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
     return X
 
 
-def vectorize(graphs, vectorizer=None, n_blocks=5, n_jobs=8):
+def vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
     if n_jobs == 1:
         return serial_vectorize(graphs, vectorizer=vectorizer)
     else:
-        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
 
 
 def describe(X):
@@ -185,7 +221,7 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
     return X, y
 
 
-def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1, verbose=0):
+def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -208,27 +244,24 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    if verbose > 0:
-        print 'Classifier:'
-        print random_search.best_estimator_
-        print '-' * 80
-        print 'Predictive performance:'
-        # assess the generalization capacity of the model via a 10-fold cross
-        # validation
-        for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-            scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
-            print('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
-        print '-' * 80
+    logger = logging.getLogger('root.%s' % (__name__))
+    logger.debug('\nClassifier:')
+    logger.debug('%s' % random_search.best_estimator_)
+    logger.debug('\nPredictive performance:')
+    # assess the generalization capacity of the model via a 10-fold cross validation
+    for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+        logger.debug('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5):
+def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     if n_iter_search <= 1:
-        X, y = make_data_matrix(positive_data_matrix=X_pos,
-                                negative_data_matrix=X_neg)
+        X, y = make_data_matrix(positive_data_matrix=X_pos, negative_data_matrix=X_neg)
         estimator.fit(X, y)
     else:
         # optimize hyperparameters classifier
@@ -258,9 +291,9 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
     return apr, roc
 
 
-def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, n_jobs=4):
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, n_jobs=n_jobs)
+def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, block_size=None, n_jobs=4):
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     return estimate_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, estimator=estimator)
 
 
@@ -279,7 +312,7 @@ def load_target(name):
     return np.array(Y).astype(int)
 
 
-def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format='', logger=None):
+def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=''):
     if not os.path.exists(output_dir_path):
         os.mkdir(output_dir_path)
     full_out_file_name = os.path.join(output_dir_path, out_file_name)
@@ -303,6 +336,7 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")
+    logger = logging.getLogger('root.%s' % (__name__))
     logger.info("Written file: %s" % full_out_file_name)
 
 
@@ -328,11 +362,12 @@ def report_base_statistics(vec):
     return msg
 
 
-def save_output(text=None, output_dir_path=None, out_file_name=None, logger=None):
+def save_output(text=None, output_dir_path=None, out_file_name=None):
     if not os.path.exists(output_dir_path):
         os.mkdir(output_dir_path)
     full_out_file_name = os.path.join(output_dir_path, out_file_name)
     with open(full_out_file_name, 'w') as f:
         for line in text:
             f.write("%s\n" % str(line).strip())
+    logger = logging.getLogger('root.%s' % (__name__))
     logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))
