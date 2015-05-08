@@ -50,6 +50,11 @@ def configure_logging(verbosity=0, filename=None):
         logger.addHandler(fh)
     return logger
 
+def serialize_dict(the_dict):
+    text = []
+    for key in the_dict:
+        text.append('%15s: %s' % (key, the_dict[key]))
+    return '\n'.join(text)
 
 def read(uri):
     """

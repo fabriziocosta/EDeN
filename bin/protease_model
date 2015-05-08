@@ -2,14 +2,7 @@
 
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
-Model driver. 
-
-Example usage:
-- for fitting a predictive model:
-model -vv fit --cv 5 --scoring 'f1'  --n-active-learning-iterations 3 --size-negative 50 -p pos_train.nx -n neg_train.nx -j 8 -e 20
-
--for predicting using a fit model
-
+Protease modelling driver. 
 
 
 Note: the current implementation uses as estimator a regularized linear model
@@ -43,7 +36,6 @@ import argparse
 import logging
 import logging.handlers
 from eden.util import configure_logging
-from eden.util import serialize_dict
 
 
 from numpy.random import randint
@@ -58,23 +50,31 @@ from eden.converter.graph.node_link_data import node_link_data_to_eden
 
 
 def load_data(fname):
-    iterator = node_link_data_to_eden(fname)
-    return iterator
+    from eden.converter.fasta import fasta_to_sequence
+    seqs = fasta_to_sequence(fname)
+    return seqs
 
 
-def null_pre_processor(graphs, **args):
+def pre_processor(seqs, **args):
+    # insert landmark in the cleavage site after pos 4, in our case this means always in the middle position
+    from eden.modifier.seq import seq_to_seq, mark_modifier
+    seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.5, mark='%')
+    seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.0, mark='@')
+    seqs = seq_to_seq(seqs, modifier=mark_modifier, position=1.0, mark='*')
+    # convert to graph
+    from eden.converter.fasta import sequence_to_eden
+    graphs = sequence_to_eden(seqs)
     return graphs
 
 
 def pre_processor_init(n_iter):
-    pre_processor = null_pre_processor
     pre_processor_parameters = {}
     return pre_processor, pre_processor_parameters
 
 
 def vectorizer_init(n_iter):
     vectorizer = Vectorizer()
-    vectorizer_parameters = {'complexity': [2, 3, 4]}
+    vectorizer_parameters = {'complexity': [2, 3, 4, 5, 6]}
     return vectorizer, vectorizer_parameters
 
 
@@ -93,8 +93,13 @@ def estimator_init(n_iter):
 
 
 def main_fit(args):
-    pos_train_iterator = load_data(args.positive_input_file)
-    neg_train_iterator = load_data(args.negative_input_file)
+    iterator = load_data(args.input_file)
+    from itertools import tee
+    seqs, seqs_ = tee(iterator)
+    pos_train_iterator = seqs
+    from eden.modifier.seq import seq_to_seq, shuffle_modifier
+    neg_train_iterator = seq_to_seq(seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
+
     pre_processor, pre_processor_parameters = pre_processor_init(args.n_iter)
     vectorizer, vectorizer_parameters = vectorizer_init(args.n_iter)
     estimator, estimator_parameters = estimator_init(args.n_iter)
@@ -136,8 +141,13 @@ def main_fit(args):
 
 
 def main_estimate(args):
-    pos_test_iterator = load_data(args.positive_input_file)
-    neg_test_iterator = load_data(args.negative_input_file)
+    iterator = load_data(args.input_file)
+    from itertools import tee
+    seqs, seqs_ = tee(iterator)
+    pos_train_iterator = seqs
+    from eden.modifier.seq import seq_to_seq, shuffle_modifier
+    neg_train_iterator = seq_to_seq(seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
+
     from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
@@ -219,13 +229,9 @@ if __name__ == "__main__":
     # fit commands
     fit_parser = subparsers.add_parser('fit', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     fit_parser.set_defaults(which='fit')
-    fit_parser.add_argument("-p", "--positive-input-file",
-                            dest="positive_input_file",
-                            help="Path to networkx JSON file containing graphs for the positive class.",
-                            required=True)
-    fit_parser.add_argument("-n", "--negative-input-file",
-                            dest="negative_input_file",
-                            help="Path to networkx JSON file containing graphs for the negative class.",
+    fit_parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to FASTA file containing input sequences.",
                             required=True)
     fit_parser.add_argument("-o", "--output-dir",
                             dest="output_dir_path",
@@ -338,13 +344,9 @@ if __name__ == "__main__":
     # estimate commands
     estimate_parser = subparsers.add_parser('estimate', help='Estimate commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     estimate_parser.set_defaults(which='estimate')
-    estimate_parser.add_argument("-p", "--positive-input-file",
-                                 dest="positive_input_file",
-                                 help="Path to networkx JSON file containing graphs for the positive class.",
-                                 required=True)
-    estimate_parser.add_argument("-n", "--negative-input-file",
-                                 dest="negative_input_file",
-                                 help="Path to networkx JSON file containing graphs for the negative class.",
+    estimate_parser.add_argument("-i", "--input-file",
+                                 dest="input_file",
+                                 help="Path to FASTA file containing input sequences.",
                                  required=True)
     estimate_parser.add_argument("-m", "--model-file",
                                  dest="model_file",
@@ -360,7 +362,7 @@ if __name__ == "__main__":
     predict_parser.set_defaults(which='predict')
     predict_parser.add_argument("-i", "--input-file",
                                 dest="input_file",
-                                help="Path to networkx JSON file containing input graphs.",
+                                help="Path to FASTA file containing input sequences.",
                                 required=True)
     predict_parser.add_argument("-m", "--model-file",
                                 dest="model_file",
@@ -376,7 +378,7 @@ if __name__ == "__main__":
     matrix_parser.set_defaults(which='matrix')
     matrix_parser.add_argument("-i", "--input-file",
                                dest="input_file",
-                               help="Path to networkx JSON file containing input graphs.",
+                               help="Path to FASTA file containing input sequences.",
                                required=True)
     matrix_parser.add_argument("-m", "--model-file",
                                dest="model_file",
@@ -396,7 +398,7 @@ if __name__ == "__main__":
     feature_parser.set_defaults(which='feature')
     feature_parser.add_argument("-i", "--input-file",
                                 dest="input_file",
-                                help="Path to networkx JSON file containing input graphs.",
+                                help="Path to FASTA file containing input sequences.",
                                 required=True)
     feature_parser.add_argument("-m", "--model-file",
                                 dest="model_file",
@@ -417,7 +419,6 @@ if __name__ == "__main__":
         logger = configure_logging(verbosity=args.verbosity)
     else:
         logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
-
     logger.debug('-' * 80)
     logger.debug('Program: %s' % os.path.basename(__file__))
     logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
