@@ -320,7 +320,7 @@ if __name__ == "__main__":
     DBSCAN_algorithm_parser.add_argument("-E", "--eps",
                                          type=float,
                                          help="The maximum distance between two samples for them to be considered as in the same neighborhood.",
-                                         default=0.3)
+                                         default=0.2)
     DBSCAN_algorithm_parser.add_argument("-S", "--min-samples",
                                          dest="min_samples",
                                          type=int,
@@ -337,12 +337,12 @@ if __name__ == "__main__":
     Birch_algorithm_parser.add_argument("-T", "--threshold",
                                         type=float,
                                         help="The radius of the subcluster obtained by merging a new sample and the closest subcluster should be lesser than the threshold. Otherwise a new subcluster is started.",
-                                        default=0.2)
+                                        default=0.1)
     Birch_algorithm_parser.add_argument("-f", "--branching-factor",
                                         dest="branching_factor",
                                         type=int,
                                         help="Maximum number of CF subclusters in each node. If a new samples enters such that the number of subclusters exceed the branching_factor then the node has to be split. The corresponding parent also has to be split and if the number of subclusters in the parent is greater than the branching factor, then it has to be split recursively.",
-                                        default=3)
+                                        default=50)
 
     predict_parser = subparsers.add_parser('predict', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
     predict_parser.set_defaults(which='predict')

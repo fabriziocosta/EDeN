@@ -44,7 +44,6 @@ from numpy.random import uniform
 from sklearn.linear_model import SGDClassifier
 from sklearn import metrics
 
-from eden.model import ActiveLearningBinaryClassificationModel
 from eden.graph import Vectorizer
 from eden.util import save_output, store_matrix
 from eden.converter.graph.node_link_data import node_link_data_to_eden
@@ -91,6 +90,7 @@ def main_fit(args):
     pre_processor, pre_processor_parameters = pre_processor_init(args.n_iter)
     vectorizer, vectorizer_parameters = vectorizer_init(args.n_iter)
     estimator, estimator_parameters = estimator_init(args.n_iter)
+    from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel(pre_processor=pre_processor,
                                                     estimator=estimator,
                                                     vectorizer=vectorizer,
@@ -108,7 +108,6 @@ def main_fit(args):
     model.optimize(pos_train_iterator, neg_train_iterator,
                    model_name=full_out_file_name,
                    n_iter=args.n_iter,
-                   verbosity=args.verbosity,
                    pre_processor_parameters=pre_processor_parameters,
                    vectorizer_parameters=vectorizer_parameters,
                    estimator_parameters=estimator_parameters)
@@ -117,14 +116,16 @@ def main_fit(args):
 def main_estimate(args):
     pos_test_iterator = load_data(args.positive_input_file)
     neg_test_iterator = load_data(args.negative_input_file)
+    from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
-    model.print_model_parameter_configuration()
+    logger.info(model.get_parameters())
     apr, rocauc = model.estimate(pos_test_iterator, neg_test_iterator)
 
 
 def main_predict(args):
     iterator = load_data(args.input_file)
+    from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     predictions = model.decision_function(iterator)
@@ -144,6 +145,7 @@ def main_predict(args):
 
 def main_matrix(args):
     iterator = load_data(args.input_file)
+    from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     X = model._data_matrix(iterator)
@@ -153,6 +155,7 @@ def main_matrix(args):
 
 def main_feature(args):
     iterator = load_data(args.input_file)
+    from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     X = model._data_matrix(iterator)
