@@ -95,16 +95,16 @@ def estimator_init(n_iter):
 def main_fit(args):
     iterator = load_data(args.input_file)
     from itertools import tee
-    seqs,seqs_=tee(iterator)
+    seqs, seqs_ = tee(iterator)
     pos_train_iterator = seqs
     from eden.modifier.seq import seq_to_seq, shuffle_modifier
-    neg_train_iterator = seq_to_seq( seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order )
+    neg_train_iterator = seq_to_seq(seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
 
     pre_processor, pre_processor_parameters = pre_processor_init(args.n_iter)
     vectorizer, vectorizer_parameters = vectorizer_init(args.n_iter)
     estimator, estimator_parameters = estimator_init(args.n_iter)
     from eden.model import ActiveLearningBinaryClassificationModel
-        model = ActiveLearningBinaryClassificationModel(pre_processor=pre_processor,
+    model = ActiveLearningBinaryClassificationModel(pre_processor=pre_processor,
                                                     estimator=estimator,
                                                     vectorizer=vectorizer,
                                                     fit_vectorizer=args.fit_vectorizer,
@@ -143,10 +143,10 @@ def main_fit(args):
 def main_estimate(args):
     iterator = load_data(args.input_file)
     from itertools import tee
-    seqs,seqs_=tee(iterator)
+    seqs, seqs_ = tee(iterator)
     pos_train_iterator = seqs
     from eden.modifier.seq import seq_to_seq, shuffle_modifier
-    neg_train_iterator = seq_to_seq( seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order )
+    neg_train_iterator = seq_to_seq(seqs_, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
 
     from eden.model import ActiveLearningBinaryClassificationModel
     model = ActiveLearningBinaryClassificationModel()
