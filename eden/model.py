@@ -21,7 +21,9 @@ from eden.graph import Vectorizer
 
 import logging
 logger = logging.getLogger('root.%s' % (__name__))
-
+hdl = logging.FileHandler('log/model.log')
+logger.addHandler(hdl)
+logger.setLevel(logging.INFO)
 
 class ActiveLearningBinaryClassificationModel(object):
 
