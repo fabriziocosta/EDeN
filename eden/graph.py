@@ -379,8 +379,11 @@ class Vectorizer(object):
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
                     G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
         except Exception as e:
-            print e.__doc__
-            print e.message
+            import datetime
+            curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
+            print("Program run failed on %s" % curr_time)
+            print(e.__doc__)
+            print(e.message)
 
     def _weight_preprocessing(self, G):
         # it is expected that all vertices either have or do not have the attribute 'weight'
