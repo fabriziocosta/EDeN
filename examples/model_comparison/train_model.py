@@ -25,13 +25,13 @@ def main(argv=None):
     ## Training options:
     parser.add_argument('--niter', default = 10, type = int,
                         help = "Number of training iterations")
-    parser.add_argument('--asize', default = 0, type = int,
+    parser.add_argument('--asize', default = 500, type = int,
                         help = "Active set size")
-    parser.add_argument('--aiter', default = 0, type = int,
+    parser.add_argument('--aiter', default = 4, type = int,
                         help = "Number of active learning iterations")
-    parser.add_argument('-t', default = 10, type = int,
+    parser.add_argument('-t', default = 1, type = int,
                         help = "Threshold value")
-    parser.add_argument('--split', default = 0.7, type = float,
+    parser.add_argument('--split', default = 0.8, type = float,
                         help = "Train-test split")
     parser.add_argument('-v', default = 1, type = int,
                         help = "Verbosity")
@@ -40,6 +40,7 @@ def main(argv=None):
     ## Other options:
     parser.add_argument('--nconf', default = 0, type = int,
                         help = "Number of molecule conformers")
+    #parser.add_argument()
         
     global args
     args = vars(parser.parse_args())
@@ -83,40 +84,19 @@ def train_obabel_model(pos_fname, neg_fname, model_type,
     
     import networkx as nx
     import pybel
-    from eden.converter.molecule import obabel
     
     if model_type == "default":
         def pre_processor( data, **args):
             return data
         
-        # Create iterable from files
-        iterable_pos = obabel.obabel_to_eden(pos_fname)
-        iterable_neg = obabel.obabel_to_eden(neg_fname)
         
-        # The training time for this model is much smaller, so we can use 
-        # various iterations of the vectorizer
-        vectorizer_parameters={'complexity':[3,4]}
-        pre_processor_parameters={} 
+        
         
     elif model_type == "3d":
-        
-        n_conf = args['nconf']
-        
         def pre_processor(data, model_type="3d", **kwargs):
             iterable = obabel.obabel_to_eden3d(data, **kwargs)
             return iterable
-        
-        # Create iterable from files
-        iterable_pos = obabel.make_iterable(pos_fname, 'sdf')
-        iterable_neg = obabel.make_iterable(neg_fname, 'sdf')
-        
-        vectorizer_parameters={'complexity':[3]}
-        
-        from numpy.random import randint
-        pre_processor_parameters={'k':randint(1, 10,size=n_iter),
-                                  'threshold':randint(3, 10, size=n_iter),
-                                  'n_conf':[n_conf]}
-        
+    
     
     ### the definition below does not work. why, I have no idea - it leads to 
     ### python trying to pickle an unpickleable fortran ddot object...
@@ -139,7 +119,10 @@ def train_obabel_model(pos_fname, neg_fname, model_type,
     # estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
     estimator = SGDClassifier(class_weight='auto', shuffle=True)
     
-    
+    # Create iterable from files
+    from eden.converter.molecule import obabel
+    iterable_pos = obabel.obabel_to_eden(pos_fname)
+    iterable_neg = obabel.obabel_to_eden(neg_fname)
     
     from itertools import tee
     iterable_pos, iterable_pos_ = tee(iterable_pos)
@@ -170,8 +153,13 @@ def train_obabel_model(pos_fname, neg_fname, model_type,
     from numpy.random import randint
     from numpy.random import uniform
 
+    pre_processor_parameters={} 
     
-    
+    # The training time for this model is much smaller, so we can use various iterations of the
+    # vectorizer
+    # vectorizer_parameters={'complexity':[2,3,4,5]}
+    vectorizer_parameters={'complexity':[3]}
+
     estimator_parameters={'n_iter':randint(5, 100, size=n_iter),
                           'penalty':['l1','l2','elasticnet'],
                           'l1_ratio':uniform(0.1,0.9, size=n_iter), 
