@@ -380,7 +380,7 @@ if __name__ == "__main__":
         logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
     logger.debug('-' * 80)
     logger.debug('Program: %s' % os.path.basename(__file__))
-    logger.debug('Called with parameters: %s' % args.__dict__)
+    logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
     try:
         main(args)
     except Exception:

@@ -16,11 +16,14 @@ from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from eden.util import fit_estimator, selection_iterator, is_iterable, report_base_statistics
 from eden.util import vectorize, mp_pre_process
+from eden.util import serialize_dict
 from eden.graph import Vectorizer
 
 import logging
 logger = logging.getLogger('root.%s' % (__name__))
-
+hdl = logging.FileHandler('log/model.log')
+logger.addHandler(hdl)
+logger.setLevel(logging.INFO)
 
 class ActiveLearningBinaryClassificationModel(object):
 
@@ -33,6 +36,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  block_size=None,
                  pre_processor_n_jobs=1,
                  pre_processor_n_blocks=8,
+                 pre_processor_block_size=None,
                  description=None,
                  random_state=1):
         self.pre_processor = copy.deepcopy(pre_processor)
@@ -48,6 +52,7 @@ class ActiveLearningBinaryClassificationModel(object):
         self.block_size = block_size
         self.pre_processor_n_jobs = pre_processor_n_jobs
         self.pre_processor_n_blocks = pre_processor_n_blocks
+        self.pre_processor_block_size = pre_processor_block_size
         random.seed(random_state)
 
     def save(self, model_name):
@@ -71,7 +76,7 @@ class ActiveLearningBinaryClassificationModel(object):
                                 pre_processor=self.pre_processor,
                                 pre_processor_args=self.pre_processor_args,
                                 n_blocks=self.pre_processor_n_blocks,
-                                block_size=self.block_size,
+                                block_size=self.pre_processor_block_size,
                                 n_jobs=self.pre_processor_n_jobs)
         graphs, graphs_ = tee(graphs)
         self.vectorizer.set_params(**self.vectorizer_args)
@@ -126,38 +131,34 @@ class ActiveLearningBinaryClassificationModel(object):
             yield margin, graph_info
 
     def estimate(self, iterable_pos, iterable_neg):
+        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
+        margins = self.estimator.decision_function(X)
+        predictions = self.estimator.predict(X)
+        apr = average_precision_score(y, margins)
+        roc = roc_auc_score(y, margins)
+
+        #output results
         text = []
         text.append('\nClassifier:')
         text.append('%s' % self.estimator)
-        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
         text.append('\nData:')
         text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
         text.append('\nPredictive performace estimate:')
-        margins = self.estimator.decision_function(X)
-        predictions = self.estimator.predict(X)
         text.append('%s' % classification_report(y, predictions))
-        apr = average_precision_score(y, margins)
         text.append('APR: %.3f' % apr)
-        roc = roc_auc_score(y, margins)
         text.append('ROC: %.3f' % roc)
         logger.info('\n'.join(text))
         return apr, roc
-
-    def _serialize_dict(self, the_dict):
-        text = []
-        for key in the_dict:
-            text.append('%15s: %s' % (key, the_dict[key]))
-        return '\n'.join(text)
 
     def get_parameters(self):
         text = []
         text.append('\n\tModel parameters:')
         text.append('\nPre_processor:')
-        text.append(self._serialize_dict(self.pre_processor_args))
+        text.append(serialize_dict(self.pre_processor_args))
         text.append('\nVectorizer:')
-        text.append(self._serialize_dict(self.vectorizer_args))
+        text.append(serialize_dict(self.vectorizer_args))
         text.append('\nEstimator:')
-        text.append(self._serialize_dict(self.estimator_args))
+        text.append(serialize_dict(self.estimator_args))
         return '\n'.join(text)
 
     def optimize(self, iterable_pos, iterable_neg,
@@ -178,15 +179,16 @@ class ActiveLearningBinaryClassificationModel(object):
                  scoring='roc_auc',
                  score_func=lambda u, s: u - s,
                  two_steps_optimization=True):
+    
         def _serialize_parameters_range():
             text = []
             text.append('\n\n\tParameters range:')
             text.append('\nPre_processor:')
-            text.append(self._serialize_dict(pre_processor_parameters))
+            text.append(serialize_dict(pre_processor_parameters))
             text.append('\nVectorizer:')
-            text.append(self._serialize_dict(vectorizer_parameters))
+            text.append(serialize_dict(vectorizer_parameters))
             text.append('\nEstimator:')
-            text.append(self._serialize_dict(estimator_parameters))
+            text.append(serialize_dict(estimator_parameters))
             return '\n'.join(text)
 
         logger.debug(_serialize_parameters_range())
