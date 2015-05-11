@@ -86,7 +86,7 @@ from collections import defaultdict
 import argparse
 import logging
 import logging.handlers
-from eden.util import configure_logging
+from eden.util import configure_logging, serialize_dict
 
 
 def predict(seqs, sequence_motif, args):
