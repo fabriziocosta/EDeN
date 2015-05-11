@@ -6,9 +6,10 @@ Model driver.
 
 Example usage:
 - for fitting a predictive model:
-model -vv fit --cv 5 --scoring 'f1'  --n-active-learning-iterations 3 --size-negative 50 -p pos_train.nx -n neg_train.nx -j 8 -e 20
+model -vv fit --cv 5 --scoring 'f1'  --n-active-learning-iterations 3 --size-negative 50 -p pos_train.nx -n neg_train.nx -j 8 -e 20 --model-file mod --output-dir out
 
--for predicting using a fit model
+-for predicting using a fit model:
+model -vv predict -i test.nx --model-file out/mod
 
 
 
@@ -355,57 +356,45 @@ if __name__ == "__main__":
                                  help="Path to output directory.",
                                  default="out")
 
+    # base parser
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument("-i", "--input-file",
+                             dest="input_file",
+                             help="Path to networkx JSON file containing input graphs.",
+                             required=True)
+    base_parser.add_argument("-m", "--model-file",
+                             dest="model_file",
+                             help="Path to a fit model file.",
+                             default="model")
+    base_parser.add_argument("-o", "--output-dir",
+                             dest="output_dir_path",
+                             help="Path to output directory.",
+                             default="out")
+
     # predict commands
-    predict_parser = subparsers.add_parser('predict', help='Predict commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    predict_parser = subparsers.add_parser('predict',
+                                           help='Predict commands',
+                                           parents=[base_parser],
+                                           formatter_class=DefaultsRawDescriptionHelpFormatter)
     predict_parser.set_defaults(which='predict')
-    predict_parser.add_argument("-i", "--input-file",
-                                dest="input_file",
-                                help="Path to networkx JSON file containing input graphs.",
-                                required=True)
-    predict_parser.add_argument("-m", "--model-file",
-                                dest="model_file",
-                                help="Path to a fit model file.",
-                                required=True)
-    predict_parser.add_argument("-o", "--output-dir",
-                                dest="output_dir_path",
-                                help="Path to output directory.",
-                                default="out")
 
     # matrix commands
-    matrix_parser = subparsers.add_parser('matrix', help='Matrix commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    matrix_parser = subparsers.add_parser('matrix',
+                                          help='Matrix commands',
+                                          parents=[base_parser],
+                                          formatter_class=DefaultsRawDescriptionHelpFormatter)
     matrix_parser.set_defaults(which='matrix')
-    matrix_parser.add_argument("-i", "--input-file",
-                               dest="input_file",
-                               help="Path to networkx JSON file containing input graphs.",
-                               required=True)
-    matrix_parser.add_argument("-m", "--model-file",
-                               dest="model_file",
-                               help="Path to a fit model file.",
-                               required=True)
-    matrix_parser.add_argument("-o", "--output-dir",
-                               dest="output_dir_path",
-                               help="Path to output directory.",
-                               default="out")
     matrix_parser.add_argument("-t", "--output-format",  choices=["text", "numpy", "MatrixMarket", "joblib"],
                                dest="output_format",
                                help="Output file format.",
                                default="MatrixMarket")
 
     # feature commands
-    feature_parser = subparsers.add_parser('feature', help='Feature commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    feature_parser = subparsers.add_parser('feature',
+                                           help='Feature commands',
+                                           parents=[base_parser],
+                                           formatter_class=DefaultsRawDescriptionHelpFormatter)
     feature_parser.set_defaults(which='feature')
-    feature_parser.add_argument("-i", "--input-file",
-                                dest="input_file",
-                                help="Path to networkx JSON file containing input graphs.",
-                                required=True)
-    feature_parser.add_argument("-m", "--model-file",
-                                dest="model_file",
-                                help="Path to a fit model file.",
-                                required=True)
-    feature_parser.add_argument("-o", "--output-dir",
-                                dest="output_dir_path",
-                                help="Path to output directory.",
-                                default="out")
     feature_parser.add_argument("-t", "--output-format",  choices=["text", "numpy", "MatrixMarket", "joblib"],
                                 dest="output_format",
                                 help="Output file format.",
