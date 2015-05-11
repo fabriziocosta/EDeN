@@ -199,13 +199,11 @@ def main(args):
     else:
         raise Exception('Unknown mode: %s' % args.which)
 
-
-if __name__ == "__main__":
+def argparse_setup():
     class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    start_time = time()
     parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version='0.1')
     parser.add_argument("-v", "--verbosity",
@@ -399,7 +397,13 @@ if __name__ == "__main__":
                                 dest="output_format",
                                 help="Output file format.",
                                 default="MatrixMarket")
+    return parser
 
+
+if __name__ == "__main__":
+    start_time = time()
+
+    parser = argparse_setup()
     args = parser.parse_args()
 
     if args.no_logging:
