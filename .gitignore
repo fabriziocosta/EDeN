@@ -70,3 +70,13 @@ data
 .Rproj.user/
 EDeN.Rproj
 .Rproj.user
+
+examples/3Dmodel/Molecules data.ipynb
+examples/3Dmodel/iterable.ipynb
+examples/3Dmodel/test.py
+examples/Example(GraphLearn).ipynb
+examples/Graph to obabel molecule.ipynb
+examples/LSHForest example.ipynb
+examples/TEST.ipynb
+examples/Untitled1.ipynb
+examples/model_comparison/models/
