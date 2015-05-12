@@ -189,6 +189,14 @@ class Vectorizer(object):
             self._test_goodness(G)
             yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, G))
 
+    def transform_single(single, graph):
+        """
+        Transforms a single networkx graph into a a Numpy csr sparse matrix 
+        ( Compressed Sparse Row matrix ) and returns one sparse row
+        """
+        self._test_goodness(G)
+        return self._convert_dict_to_sparse_matrix(self._transform(0, G))
+
     def predict(self, graphs, estimator):
         """
         Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
@@ -400,21 +408,26 @@ class Vectorizer(object):
     def _edge_to_vertex_transform(self, original_graph):
         """Converts edges to nodes so to process the graph ignoring the information on the 
         resulting edges."""
-        G = nx.Graph()
-        # build a graph that has as vertices the original vertex set
-        for n, d in original_graph.nodes_iter(data=True):
-            d['node'] = True
-            G.add_node(n, d)
-        # and in addition a vertex for each edge
-        new_node_id = max(original_graph.nodes()) + 1
-        for u, v, d in original_graph.edges_iter(data=True):
-            d['edge'] = True
-            G.add_node(new_node_id, d)
-            # and the corresponding edges
-            G.add_edge(new_node_id, u, label=None)
-            G.add_edge(new_node_id, v, label=None)
-            new_node_id += 1
-        return G
+        # if operating on graphs that have already been subject to the edge_to_vertex transformation, then do not repeat the transformation but simply return the graph
+        if 'expanded' in original_graph.graph:
+            return original_graph
+        else:
+            G = nx.Graph()
+            G.graph['expanded']=True
+            # build a graph that has as vertices the original vertex set
+            for n, d in original_graph.nodes_iter(data=True):
+                d['node'] = True
+                G.add_node(n, d)
+            # and in addition a vertex for each edge
+            new_node_id = max(original_graph.nodes()) + 1
+            for u, v, d in original_graph.edges_iter(data=True):
+                d['edge'] = True
+                G.add_node(new_node_id, d)
+                # and the corresponding edges
+                G.add_edge(new_node_id, u, label=None)
+                G.add_edge(new_node_id, v, label=None)
+                new_node_id += 1
+            return G
 
     def _revert_edge_to_vertex_transform(self, original_graph):
         """Converts nodes of type 'edge' to edges. Useful for display."""

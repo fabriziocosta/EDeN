@@ -270,6 +270,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
                 score = score_func(score_mean, score_std)
+                logger.debug('iteration: %d  score: %.3f +- %.3f'%(i+1, score, score_std))
                 # update the best confirguration
                 if best_score_ < score:
                     # fit the estimator since the cross_validation estimate does not set the estimator parametrs
