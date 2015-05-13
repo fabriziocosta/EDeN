@@ -102,7 +102,6 @@ setup(
                 ],
     scripts=[   'bin/alignment',
                 'bin/convert',
-                'bin/dendrogram',
                 'bin/model',
                 'bin/motif',
             ],
