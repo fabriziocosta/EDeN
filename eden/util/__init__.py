@@ -18,8 +18,7 @@ import logging
 from eden import apply_async
 
 
-def configure_logging(verbosity=0, filename=None):
-    logger = logging.getLogger('root')
+def configure_logging(logger, verbosity=0, filename=None):
     logger.propagate = False
     logger.handlers = []
     log_level = logging.WARNING
@@ -48,7 +47,6 @@ def configure_logging(verbosity=0, filename=None):
         fh.setFormatter(fformatter)
         # add handlers to logger
         logger.addHandler(fh)
-    return logger
 
 def serialize_dict(the_dict):
     text = []
