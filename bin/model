@@ -57,7 +57,7 @@ class ModelInitializer(ModelInitializerBase):
         pre_processor_parameters = {}
         return pre_processor, pre_processor_parameters
 
-    def add_arguments_fit(self, parser):
+    def add_arguments(self, parser):
         parser.add_argument('--version', action='version', version='0.1')
         return parser
 
