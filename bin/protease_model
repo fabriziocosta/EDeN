@@ -30,10 +30,18 @@ class ModelInitializer(ModelInitializerBase):
     def __init__(self):
         pass
 
-    def load_data(self, fname):
+    def load_data(self, args):
         from eden.converter.fasta import fasta_to_sequence
-        seqs = fasta_to_sequence(fname)
+        seqs = fasta_to_sequence(args.input_file)
         return seqs
+
+    def load_positive_data(self, args):
+        return self.load_data(args)
+
+    def load_negative_data(self, args):
+        seqs = self.load_data(args)
+        from eden.modifier.seq import seq_to_seq, shuffle_modifier
+        return seq_to_seq(seqs, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
 
     def pre_processor_init(self, n_iter):
         def pre_processor(seqs, **args):
@@ -71,6 +79,15 @@ class ModelInitializer(ModelInitializerBase):
                             help="Order of the k-mer for the random shuffling procedure.",
                             default=2)
         return parser
+
+    def add_arguments_estimate(self, parser):
+        parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to file containing input.",
+                            required=True)
+        return parser
+
+
 
 
 if __name__ == "__main__":
