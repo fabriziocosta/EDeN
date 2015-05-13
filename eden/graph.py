@@ -701,8 +701,9 @@ class Vectorizer(object):
         G = self._graph_preprocessing(original_graph)
         # extract per vertex feature representation
         X = self._compute_vertex_based_features(G)
-        # add or update weight and importance information
-        G = self._annotate_importance(G, X)
+        if self.estimator is not None:
+            # add or update weight and importance information
+            G = self._annotate_importance(G, X)
         # add or update label information
         if self.relabel:
             G = self._annotate_vector(G, X)

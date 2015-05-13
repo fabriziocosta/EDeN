@@ -178,7 +178,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  score_func=lambda u, s: u - s,
                  two_steps_optimization=True):
     
-        def _serialize_parameters_range():
+        def _get_parameters_range():
             text = []
             text.append('\n\n\tParameters range:')
             text.append('\nPre_processor:')
@@ -189,7 +189,7 @@ class ActiveLearningBinaryClassificationModel(object):
             text.append(serialize_dict(estimator_parameters))
             return '\n'.join(text)
 
-        logger.debug(_serialize_parameters_range())
+        logger.debug(_get_parameters_range())
         # init
         best_pre_processor_ = None
         best_vectorizer_ = None
@@ -229,7 +229,7 @@ class ActiveLearningBinaryClassificationModel(object):
                         vectorizer_parameters = dict(best_vectorizer_parameters_)
                     if len(best_estimator_parameters_) > 0:
                         estimator_parameters = dict(best_estimator_parameters_)
-                    logger.debug(_serialize_parameters_range())
+                    logger.debug(_get_parameters_range())
 
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(**self.estimator_args)
@@ -270,7 +270,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
                 score = score_func(score_mean, score_std)
-                logger.debug('iteration: %d  score: %.3f +- %.3f'%(i+1, score, score_std))
+                logger.debug('iteration: %d/%d score (%s): %.3f (%.3f +- %.3f)'%(i+1, n_iter, scoring, score, score_mean, score_std))
                 # update the best confirguration
                 if best_score_ < score:
                     # fit the estimator since the cross_validation estimate does not set the estimator parametrs
