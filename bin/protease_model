@@ -3,12 +3,7 @@
 DESCRIPTION = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
 Protease modelling driver. 
-
-
-Note: the current implementation uses as estimator a regularized linear model
-with stochastic  gradient descent (SGD) learning scheme: the gradient of the
-loss is estimated each sample at  a time and the model is updated along the way
-with a decreasing strength schedule (aka learning rate). """
+"""
 
 EPILOG = """
 Author: Fabrizio Costa
@@ -23,7 +18,6 @@ distance kernel', Proceedings of the 26th International Conference on Machine
 Learning. 2010. """
 
 from eden.model_base import *
-
 
 class ModelInitializer(ModelInitializerBase):
 
@@ -63,6 +57,10 @@ class ModelInitializer(ModelInitializerBase):
         vectorizer_parameters = {'complexity': [2, 3, 4, 5, 6]}
         return vectorizer, vectorizer_parameters
 
+    def add_arguments(self, parser):
+        parser.add_argument('--version', action='version', version='0.1')
+        return parser
+
     def add_arguments_fit(self, parser):
         parser.add_argument("-i", "--input-file",
                             dest="input_file",
@@ -81,36 +79,13 @@ class ModelInitializer(ModelInitializerBase):
         return parser
 
     def add_arguments_estimate(self, parser):
-        parser.add_argument("-i", "--input-file",
-                            dest="input_file",
-                            help="Path to file containing input.",
-                            required=True)
-        return parser
-
-
+        return self.add_arguments_fit(parser)
 
 
 if __name__ == "__main__":
-    start_time = time()
-
     model_initializer = ModelInitializer()
-    parser = argparse_setup(model_initializer, DESCRIPTION, EPILOG)
-    args = parser.parse_args()
-
-    if args.no_logging:
-        logger = configure_logging(verbosity=args.verbosity)
-    else:
-        logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
-
-    logger.debug('-' * 80)
-    logger.debug('Program: %s' % os.path.basename(__file__))
-    logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
-    try:
-        main(model_initializer, args)
-    except Exception:
-        import datetime
-        curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
-        logger.exception("Program run failed on %s" % curr_time)
-    finally:
-        end_time = time()
-        logger.info('Elapsed time: %.1f sec', end_time - start_time)
+    main_script(model_initializer=model_initializer,
+                description=DESCRIPTION,
+                epilog=EPILOG,
+                prog_name=os.path.basename(__file__),
+                logger=logging.getLogger('root'))
