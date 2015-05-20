@@ -380,12 +380,14 @@ class Vectorizer(object):
                         code = fast_hash([hash(node_entity), discretization_code], self.bitmask)
                         hlabel.append(code)
                     G.node[n]['hlabel'] = hlabel
-                if isinstance(d['label'], basestring):
+                elif isinstance(d['label'], basestring):
                     # copy a hashed version of the string for a number of times equal to self.discretization_dimension
                     # in this way qualitative ( i.e. string ) labels can be
                     # compared to the discretized labels
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
                     G.node[n]['hlabel'] = [hlabel] * self.discretization_dimension
+                else:
+                    raise Exception('ERROR: something went wrong, type of node label is unknown: %s'%d['label'])
         except Exception as e:
             import datetime
             curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
