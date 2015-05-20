@@ -42,7 +42,7 @@ def configure_logging(logger, verbosity=0, filename=None):
         fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=100000, backupCount=10)
         fh.setLevel(logging.DEBUG)
         # create formatter
-        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)20s | %(filename)20s | %(lineno)4s | %(message)s')
+        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s | %(lineno)4s | %(message)s')
         # add formatter to fh
         fh.setFormatter(fformatter)
         # add handlers to logger
@@ -247,7 +247,7 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    logger = logging.getLogger('root.%s' % (__name__))
+    logger = logging.getLogger(__name__)
     logger.debug('\nClassifier:')
     logger.debug('%s' % random_search.best_estimator_)
     logger.debug('\nPredictive performance:')
@@ -339,7 +339,7 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")
-    logger = logging.getLogger('root.%s' % (__name__))
+    logger = logging.getLogger(__name__)
     logger.info("Written file: %s" % full_out_file_name)
 
 
@@ -372,5 +372,5 @@ def save_output(text=None, output_dir_path=None, out_file_name=None):
     with open(full_out_file_name, 'w') as f:
         for line in text:
             f.write("%s\n" % str(line).strip())
-    logger = logging.getLogger('root.%s' % (__name__))
+    logger = logging.getLogger(__name__)
     logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))

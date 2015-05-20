@@ -88,4 +88,4 @@ if __name__ == "__main__":
                 description=DESCRIPTION,
                 epilog=EPILOG,
                 prog_name=os.path.basename(__file__),
-                logger=logging.getLogger('root'))
+                logger=logging.getLogger())

@@ -88,7 +88,6 @@ import logging
 import logging.handlers
 from eden.util import configure_logging, serialize_dict
 
-
 def predict(seqs, sequence_motif, args):
     from eden.util import save_output
 
@@ -213,12 +212,11 @@ def main(args):
         raise Exception('Unknown mode: %s' % args.which)
 
 
-if __name__ == "__main__":
+def argparse_setup(DESCRIPTION, EPILOG):
     class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    start_time = time()
     parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version='0.1')
     parser.add_argument("-v", "--verbosity",
@@ -371,16 +369,26 @@ if __name__ == "__main__":
                                 dest="output_dir_path",
                                 help="Path to output directory.",
                                 default="out")
+    return parser
 
+
+if __name__ == "__main__":
+    parser = argparse_setup(DESCRIPTION, EPILOG)
     args = parser.parse_args()
+    
+    prog_name = os.path.basename(__file__)
 
+    logger = logging.getLogger()
     if args.no_logging:
-        logger = configure_logging(verbosity=args.verbosity)
+        configure_logging(logger, verbosity=args.verbosity)
     else:
-        logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
+        configure_logging(logger, verbosity=args.verbosity, filename=prog_name + '.log')
+
     logger.debug('-' * 80)
-    logger.debug('Program: %s' % os.path.basename(__file__))
+    logger.debug('Program: %s' % prog_name)
     logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
+
+    start_time = time()
     try:
         main(args)
     except Exception:
