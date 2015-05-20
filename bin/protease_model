@@ -21,9 +21,6 @@ from eden.model_base import *
 
 class ModelInitializer(ModelInitializerBase):
 
-    def __init__(self):
-        pass
-
     def load_data(self, args):
         from eden.converter.fasta import fasta_to_sequence
         seqs = fasta_to_sequence(args.input_file)
