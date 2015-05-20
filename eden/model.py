@@ -29,10 +29,10 @@ class ActiveLearningBinaryClassificationModel(object):
                  vectorizer=Vectorizer(complexity=1),
                  estimator=SGDClassifier(class_weight='auto', shuffle=True),
                  fit_vectorizer=False,
-                 n_jobs=8,
+                 n_jobs=4,
                  n_blocks=8,
                  block_size=None,
-                 pre_processor_n_jobs=1,
+                 pre_processor_n_jobs=4,
                  pre_processor_n_blocks=8,
                  pre_processor_block_size=None,
                  description=None,
@@ -135,7 +135,7 @@ class ActiveLearningBinaryClassificationModel(object):
         apr = average_precision_score(y, margins)
         roc = roc_auc_score(y, margins)
 
-        #output results
+        # output results
         text = []
         text.append('\nClassifier:')
         text.append('%s' % self.estimator)
@@ -177,7 +177,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  scoring='roc_auc',
                  score_func=lambda u, s: u - s,
                  two_steps_optimization=True):
-    
+
         def _get_parameters_range():
             text = []
             text.append('\n\n\tParameters range:')
@@ -191,6 +191,7 @@ class ActiveLearningBinaryClassificationModel(object):
 
         logger.debug(_get_parameters_range())
         # init
+        n_failures = 0
         best_pre_processor_ = None
         best_vectorizer_ = None
         best_estimator_ = None
@@ -265,12 +266,13 @@ class ActiveLearningBinaryClassificationModel(object):
                 text.append(self.get_parameters())
                 text.append('...continuing')
                 logger.debug('\n'.join(text))
+                n_failures += 1
             else:
                 # consider as score the mean-std for a robust estimate of predictive performance
                 score_mean = np.mean(scores)
                 score_std = np.std(scores)
                 score = score_func(score_mean, score_std)
-                logger.debug('iteration: %d/%d score (%s): %.3f (%.3f +- %.3f)'%(i+1, n_iter, scoring, score, score_mean, score_std))
+                logger.debug('iteration: %d/%d score (%s): %.3f (%.3f +- %.3f)' % (i + 1, n_iter, scoring, score, score_mean, score_std))
                 # update the best confirguration
                 if best_score_ < score:
                     # fit the estimator since the cross_validation estimate does not set the estimator parametrs
@@ -314,6 +316,8 @@ class ActiveLearningBinaryClassificationModel(object):
         # save to disk
         logger.info('Saved current best model in %s' % model_name)
         self.save(model_name)
+        if n_failures == n_iter:
+            logger.warning('ERROR: no iteration has produced any viable solution. The model produced is unusable.')
 
     def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
                                        n_active_learning_iterations=2,
