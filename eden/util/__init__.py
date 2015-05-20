@@ -3,6 +3,7 @@ from scipy import io
 from sklearn.externals import joblib
 import requests
 import os
+import sys
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
 from sklearn import cross_validation
@@ -28,7 +29,7 @@ def configure_logging(logger, verbosity=0, filename=None):
         log_level = logging.DEBUG
     logger.setLevel(logging.DEBUG)
     # create console handler
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(log_level)
     # create formatter
     cformatter = logging.Formatter('%(message)s')
@@ -51,7 +52,7 @@ def configure_logging(logger, verbosity=0, filename=None):
 def serialize_dict(the_dict):
     text = []
     for key in sorted(the_dict):
-        text.append('%20s: %s' % (key, the_dict[key]))
+        text.append('%10s: %s' % (key, the_dict[key]))
     return '\n'.join(text)
 
 def read(uri):
