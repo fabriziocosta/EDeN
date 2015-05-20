@@ -20,7 +20,7 @@ from eden.util import serialize_dict
 from eden.graph import Vectorizer
 
 import logging
-logger = logging.getLogger('root.%s' % (__name__))
+logger = logging.getLogger(__name__)
 
 
 class ActiveLearningBinaryClassificationModel(object):
@@ -116,12 +116,12 @@ class ActiveLearningBinaryClassificationModel(object):
         X = self._data_matrix(iterable)
         return self.estimator.decision_function(X)
 
-    def get_info(self, iterable, key='info'):
+    def get_info(self, iterable, key='id'):
         iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
         for graph in iterable_graph:
             yield graph.graph.get(key, 'N/A')
 
-    def info(self, iterable, key='info'):
+    def info(self, iterable, key='id'):
         iterable, iterable_ = tee(iterable)
         X = self._data_matrix(iterable)
         info_iterable = self.get_info(iterable_, key=key)
