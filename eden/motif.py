@@ -24,7 +24,7 @@ from eden.util.iterated_maximum_subarray import compute_max_subarrays
 import esm
 
 import logging
-logger = logging.getLogger('root.%s' % (__name__))
+logger = logging.getLogger(__name__)
 
 
 class SequenceMotif(object):
