@@ -68,41 +68,6 @@ class ActiveLearningBinaryClassificationModel(object):
     def get_estimator():
         return self.estimator
 
-    def _data_matrix(self, iterable, fit_vectorizer=False):
-        assert(is_iterable(iterable)), 'Not iterable'
-        graphs = mp_pre_process(iterable,
-                                pre_processor=self.pre_processor,
-                                pre_processor_args=self.pre_processor_args,
-                                n_blocks=self.pre_processor_n_blocks,
-                                block_size=self.pre_processor_block_size,
-                                n_jobs=self.pre_processor_n_jobs)
-        graphs, graphs_ = tee(graphs)
-        self.vectorizer.set_params(**self.vectorizer_args)
-        if fit_vectorizer:
-            self.vectorizer.fit(graphs_)
-        X = vectorize(graphs, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
-        return X
-
-    def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False):
-        Xpos = self._data_matrix(iterable_pos, fit_vectorizer=fit_vectorizer)
-        Xneg = self._data_matrix(iterable_neg, fit_vectorizer=False)
-        return self._assemble_data_matrix(Xpos, Xneg)
-
-    def _assemble_data_matrix(self, Xpos, Xneg):
-        yp = [1] * Xpos.shape[0]
-        yn = [-1] * Xneg.shape[0]
-        y = np.array(yp + yn)
-        X = vstack([Xpos, Xneg], format="csr")
-        return X, y
-
-    def _sample(self, parameters):
-        parameters_sample = dict()
-        for parameter in parameters:
-            values = parameters[parameter]
-            value = random.choice(values)
-            parameters_sample[parameter] = value
-        return parameters_sample
-
     def fit(self, iterable_pos, iterable_neg):
         self.estimator.set_params(**self.estimator_args)
         X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
@@ -334,6 +299,41 @@ class ActiveLearningBinaryClassificationModel(object):
         if n_failures >= n_iter:
             logger.warning('ERROR: no iteration has produced any viable solution. The model produced is unusable.')
 
+    def _data_matrix(self, iterable, fit_vectorizer=False):
+        assert(is_iterable(iterable)), 'Not iterable'
+        graphs = mp_pre_process(iterable,
+                                pre_processor=self.pre_processor,
+                                pre_processor_args=self.pre_processor_args,
+                                n_blocks=self.pre_processor_n_blocks,
+                                block_size=self.pre_processor_block_size,
+                                n_jobs=self.pre_processor_n_jobs)
+        graphs, graphs_ = tee(graphs)
+        self.vectorizer.set_params(**self.vectorizer_args)
+        if fit_vectorizer:
+            self.vectorizer.fit(graphs_)
+        X = vectorize(graphs, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
+        return X
+
+    def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False):
+        Xpos = self._data_matrix(iterable_pos, fit_vectorizer=fit_vectorizer)
+        Xneg = self._data_matrix(iterable_neg, fit_vectorizer=False)
+        return self._assemble_data_matrix(Xpos, Xneg)
+
+    def _assemble_data_matrix(self, Xpos, Xneg):
+        yp = [1] * Xpos.shape[0]
+        yn = [-1] * Xneg.shape[0]
+        y = np.array(yp + yn)
+        X = vstack([Xpos, Xneg], format="csr")
+        return X, y
+
+    def _sample(self, parameters):
+        parameters_sample = dict()
+        for parameter in parameters:
+            values = parameters[parameter]
+            value = random.choice(values)
+            parameters_sample[parameter] = value
+        return parameters_sample
+        
     def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
                                        n_active_learning_iterations=2,
                                        size_positive=-1,
