@@ -256,7 +256,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                             help="Path to output directory.",
                             default="out")
     negative_group = fit_parser.add_argument_group(
-        'Negative management options', 'These options define how to deal with negative instances.')
+        'Negative management', 'These options define how to deal with negative instances.')
     negative_group.add_argument("--negative-input-file",
                                 dest="negative_input_file",
                                 help="Path to a FASTA file.",
@@ -272,7 +272,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                                 help="When shuffling sequences to create negative instances, consider k-mers of specified order.",
                                 default=2)
     complexity_group = fit_parser.add_argument_group(
-        'Complexity management options', 'These options define the complexity of the model and of the optimization phase.')
+        'Complexity management', 'These options define the complexity of the model and of the optimization phase.')
     complexity_group.add_argument("-B", "--nbits",
                                   type=int,
                                   help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
@@ -308,7 +308,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                             help="Minimal number of motif sequences in a cluster to accept the cluster.",
                             default=1)
     parallelization_group = fit_parser.add_argument_group(
-        'Parallelization options', 'These options define the granularity of the multicore parallelization.')
+        'Parallelization', 'These options define the granularity of the multicore parallelization.')
     parallelization_group.add_argument("-j", "--n-jobs",
                                        dest="n_jobs",
                                        type=int,
