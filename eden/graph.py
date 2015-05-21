@@ -30,7 +30,8 @@ class Vectorizer(object):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 n_discretization_levels=1):
+                 n_discretization_levels=1,
+                 min_n_discretization_levels=2):
         """
         Parameters
         ----------
@@ -63,7 +64,10 @@ class Vectorizer(object):
           then the resulting feature vector will be normalized.
 
         n_discretization_levels : int
-          Size of the discretized label vector.
+          The maximal number of clusters used to discretized label vectors.
+
+        min:n_discretization_levels : int
+          The minimal number of clusters used to discretized label vectors.
         """
         self.complexity = complexity
         if r is None:
@@ -74,12 +78,17 @@ class Vectorizer(object):
         self.d = d * 2
         self.min_r = min_r * 2
         self.min_d = min_d * 2
+        self.n_discretization_levels = n_discretization_levels
+        self.min_n_discretization_levels = min_n_discretization_levels
+        if self.n_discretization_levels == 1:
+            self.label_size = 1
+        else:
+            self.label_size = n_discretization_levels - min_n_discretization_levels
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
-        self.n_discretization_levels = n_discretization_levels
         self.discretization_model_dict = dict()
 
     def set_params(self, **args):
@@ -105,9 +114,11 @@ class Vectorizer(object):
             self.inner_normalization = args['inner_normalization']
         if args.get('n_discretization_levels', None) is not None:
             self.n_discretization_levels = args['n_discretization_levels']
+        if args.get('min_n_discretization_levels', None) is not None:
+            self.min_n_discretization_levels = args['min_n_discretization_levels']
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s, n_discretization_levels = %d )""" % (
+        representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s, n_discretization_levels = %d, min_n_discretization_levels = %d )""" % (
             self.r / 2,
             self.d / 2,
             self.min_r / 2,
@@ -115,7 +126,8 @@ class Vectorizer(object):
             self.nbits,
             self.normalization,
             self. inner_normalization,
-            self.n_discretization_levels)
+            self.n_discretization_levels,
+            self.min_n_discretization_levels)
         return representation
 
     def fit(self, graphs):
@@ -133,8 +145,8 @@ class Vectorizer(object):
             self._assemble_sparse_data_matrices(graphs))
         for node_entity in label_data_matrix_dict:
             self.discretization_model_dict[node_entity] = []
-            for m in range(self.n_discretization_levels):
-                discretization_model = MiniBatchKMeans(n_clusters=m + 2, init='k-means++', max_iter=5, n_init=3, random_state=m)
+            for m in range(self.min_n_discretization_levels, self.n_discretization_levels):
+                discretization_model = MiniBatchKMeans(n_clusters=m, init='k-means++', max_iter=5, n_init=3, random_state=m)
                 discretization_model.fit(label_data_matrix_dict[node_entity])
                 self.discretization_model_dict[node_entity] += [discretization_model]
 
@@ -153,8 +165,8 @@ class Vectorizer(object):
             self._assemble_sparse_data_matrices(graphs))
         for node_entity in label_data_matrix_dict:
             self.discretization_model_dict[node_entity] = []
-            for m in range(self.n_discretization_levels):
-                self.discretization_model_dict[node_entity][m].partial_fit(label_data_matrix_dict[node_entity])
+            for i in range(self.label_size):
+                self.discretization_model_dict[node_entity][i].partial_fit(label_data_matrix_dict[node_entity])
 
     def fit_transform(self, graphs):
         """
@@ -368,24 +380,24 @@ class Vectorizer(object):
 
     def _label_preprocessing(self, G):
         try:
-            G.graph['label_size'] = self.n_discretization_levels
+            G.graph['label_size'] = self.label_size
             for n, d in G.nodes_iter(data=True):
                 # for dense or sparse vectors
                 if isinstance(d['label'], list) or isinstance(d['label'], dict):
                     node_entity, data = self._extract_entity_and_label(d)
                     if isinstance(d['label'], dict):
                         data = self._convert_dict_to_sparse_vector(data)
-                    # create a list of integer codes of size: n_discretization_levels
+                    # create a list of integer codes of size: label_size
                     # each integer code is determined as follows:
                     # for each entity, use the correspondent discretization_model_dict[node_entity] to extract the id of the
                     # nearest cluster centroid, return the centroid id as the
                     # integer code
                     hlabel = []
-                    for m in range(self.n_discretization_levels):
-                        if len(self.discretization_model_dict[node_entity]) < m:
+                    for i in range(self.label_size):
+                        if len(self.discretization_model_dict[node_entity]) < i:
                             raise Exception('Error: discretization_model_dict for node entity: %s has length: %d but component %d was required' % (
-                                node_entity, len(self.discretization_model_dict[node_entity]), m))
-                        predictions = self.discretization_model_dict[node_entity][m].predict(data)
+                                node_entity, len(self.discretization_model_dict[node_entity]), i))
+                        predictions = self.discretization_model_dict[node_entity][i].predict(data)
                         if len(predictions) != 1:
                             raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
@@ -393,11 +405,11 @@ class Vectorizer(object):
                         hlabel.append(code)
                     G.node[n]['hlabel'] = hlabel
                 elif isinstance(d['label'], basestring):
-                    # copy a hashed version of the string for a number of times equal to self.n_discretization_levels
+                    # copy a hashed version of the string for a number of times equal to self.label_size
                     # in this way qualitative ( i.e. string ) labels can be
                     # compared to the discretized labels
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
-                    G.node[n]['hlabel'] = [hlabel] * self.n_discretization_levels
+                    G.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
                     raise Exception('ERROR: something went wrong, type of node label is unknown: %s' % d['label'])
         except Exception as e:
@@ -801,7 +813,8 @@ class ListVectorizer(Vectorizer):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 n_discretization_levels=1):
+                 n_discretization_levels=1,
+                 min_n_discretization_levels=2):
         """
         Parameters
         ----------
@@ -834,7 +847,10 @@ class ListVectorizer(Vectorizer):
           then the resulting feature vector will be normalized.
 
         n_discretization_levels : int
-          Size of the discretized label vector.
+          The maximal number of clusters used to discretized label vectors.
+
+        min:n_discretization_levels : int
+          The minimal number of clusters used to discretized label vectors.
         """
         self.vectorizer = Vectorizer(complexity=complexity,
                                      r=r,
@@ -844,7 +860,8 @@ class ListVectorizer(Vectorizer):
                                      nbits=nbits,
                                      normalization=normalization,
                                      inner_normalization=inner_normalization,
-                                     n_discretization_levels=n_discretization_levels)
+                                     n_discretization_levels=n_discretization_levels,
+                                     min_n_discretization_levels=min_n_discretization_levels)
         self.vectorizers = list()
 
     def fit(self, G_iterators_list):
