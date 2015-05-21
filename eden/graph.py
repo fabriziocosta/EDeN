@@ -201,7 +201,7 @@ class Vectorizer(object):
             self._test_goodness(G)
             yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, G))
 
-    def transform_single(single, graph):
+    def transform_single(self, graph):
         """
         Transforms a single networkx graph into a a Numpy csr sparse matrix 
         ( Compressed Sparse Row matrix ) and returns one sparse row
