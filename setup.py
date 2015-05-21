@@ -118,7 +118,7 @@ setup(
         "dill",
         "networkx",
         "matplotlib",
-        "biopython",
+        "request",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
