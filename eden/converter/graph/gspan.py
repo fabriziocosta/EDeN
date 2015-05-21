@@ -39,12 +39,9 @@ def gspan_to_networkx(string_list):
                 #lowercase v indicates active viewpoint
                 if fc == 'v':
                     weight = 1
-                else: #uppercase v indicates no-viewpoint
+                else: #uppercase v indicates no-viewpoint, in the new EDeN this is simulated via a smaller weight
                     weight = 0.1
                 G.add_node(vid, label = vlabel, weight = weight)
-                #abstract vertices
-                if vlabel[0] == '^':
-                    G.node[vid]['nesting'] = True
                 #extract the rest of the line  as a JSON string that contains all attributes
                 attribute_str=' '.join(line_list[3:])
                 if attribute_str.strip():
