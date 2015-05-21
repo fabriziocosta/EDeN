@@ -169,6 +169,7 @@ class ActiveLearningBinaryClassificationModel(object):
                  lower_bound_threshold_negative=-1,
                  upper_bound_threshold_negative=1,
                  n_iter=20,
+                 n_inner_iter_estimator=5,
                  max_total_time=-1,
                  pre_processor_parameters=dict(),
                  vectorizer_parameters=dict(),
@@ -221,29 +222,28 @@ class ActiveLearningBinaryClassificationModel(object):
                 if time.time() - start > max_total_time:
                     logger.warning('Reached max time: %s' % (str(datetime.timedelta(seconds=(time.time() - start)))))
                     break
-            try:
-                # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
-                if i == int(n_iter / 2) and two_steps_optimization == True:
-                    if len(best_pre_processor_parameters_) > 0:
-                        pre_processor_parameters = dict(best_pre_processor_parameters_)
-                    if len(best_vectorizer_parameters_) > 0:
-                        vectorizer_parameters = dict(best_vectorizer_parameters_)
-                    if len(best_estimator_parameters_) > 0:
-                        estimator_parameters = dict(best_estimator_parameters_)
-                    logger.debug(_get_parameters_range())
 
-                self.estimator_args = self._sample(estimator_parameters)
-                self.estimator.set_params(**self.estimator_args)
-                # build data matrix only the first time or if needed e.g. because
-                # there are more choices in the paramter settings for the
-                # pre_processor or the vectorizer
-                if i == 0 or data_matrix_is_stable == False:
-                    # sample paramters randomly
-                    self.pre_processor_args = self._sample(pre_processor_parameters)
-                    self.vectorizer_args = self._sample(vectorizer_parameters)
-                    # copy the iterators for later re-use
-                    iterable_pos, iterable_pos_ = tee(iterable_pos)
-                    iterable_neg, iterable_neg_ = tee(iterable_neg)
+            # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
+            if i == int(n_iter / 2) and two_steps_optimization == True:
+                if len(best_pre_processor_parameters_) > 0:
+                    pre_processor_parameters = dict(best_pre_processor_parameters_)
+                if len(best_vectorizer_parameters_) > 0:
+                    vectorizer_parameters = dict(best_vectorizer_parameters_)
+                if len(best_estimator_parameters_) > 0:
+                    estimator_parameters = dict(best_estimator_parameters_)
+                logger.debug(_get_parameters_range())
+
+            # build data matrix only the first time or if needed e.g. because
+            # there are more choices in the paramter settings for the
+            # pre_processor or the vectorizer
+            if i == 0 or data_matrix_is_stable == False:
+                # sample paramters randomly
+                self.pre_processor_args = self._sample(pre_processor_parameters)
+                self.vectorizer_args = self._sample(vectorizer_parameters)
+                # copy the iterators for later re-use
+                iterable_pos, iterable_pos_ = tee(iterable_pos)
+                iterable_neg, iterable_neg_ = tee(iterable_neg)
+                try:
                     if n_active_learning_iterations == 0:  # if no active learning mode, just produce data matrix
                         X, y = self._data_matrices(iterable_pos_, iterable_neg_, fit_vectorizer=self.fit_vectorizer)
                     else:  # otherwise use the active learning strategy
@@ -255,39 +255,54 @@ class ActiveLearningBinaryClassificationModel(object):
                                                                    upper_bound_threshold_positive=upper_bound_threshold_positive,
                                                                    lower_bound_threshold_negative=lower_bound_threshold_negative,
                                                                    upper_bound_threshold_negative=upper_bound_threshold_negative)
-                scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=self.n_jobs)
-            except Exception as e:
-                text = []
-                text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
-                            (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
-                text.append(e.__doc__)
-                text.append(e.message)
-                text.append('Failed with the following setting:')
-                text.append(self.get_parameters())
-                text.append('...continuing')
-                logger.debug('\n'.join(text))
-                n_failures += 1
-            else:
-                # consider as score the mean-std for a robust estimate of predictive performance
-                score_mean = np.mean(scores)
-                score_std = np.std(scores)
-                score = score_func(score_mean, score_std)
-                logger.debug('iteration: %d/%d score (%s): %.3f (%.3f +- %.3f)' % (i + 1, n_iter, scoring, score, score_mean, score_std))
-                # update the best confirguration
-                if best_score_ < score:
-                    # fit the estimator since the cross_validation estimate does not set the estimator parametrs
-                    self.estimator.fit(X, y)
-                    self.save(model_name)
-                    best_score_ = score
-                    best_score_mean_ = score_mean
-                    best_score_std_ = score_std
-                    best_pre_processor_ = copy.deepcopy(self.pre_processor)
-                    best_vectorizer_ = copy.deepcopy(self.vectorizer)
-                    best_estimator_ = copy.deepcopy(self.estimator)
-                    best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
-                    best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
-                    best_estimator_args_ = copy.deepcopy(self.estimator_args)
-                    if i > 0:  # if we improve over the very first iteration, then...
+                except Exception as e:
+                    text = []
+                    text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
+                                (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                    text.append(e.__doc__)
+                    text.append(e.message)
+                    text.append('Failed with the following setting:')
+                    text.append(self.get_parameters())
+                    text.append('...continuing')
+                    logger.debug('\n'.join(text)) 
+
+            #iterate more frequently across the estimator parameters
+            for inner_i in range(n_inner_iter_estimator):
+                try:
+                    self.estimator_args = self._sample(estimator_parameters)
+                    self.estimator.set_params(**self.estimator_args)
+                    scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv, scoring=scoring, n_jobs=self.n_jobs)
+                except Exception as e:
+                    text = []
+                    text.append('\nFailed iteration: (%d/%d) %d/%d (at %.1f sec; %s)' %
+                                (inner_i+1, n_inner_iter_estimator, i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                    text.append(e.__doc__)
+                    text.append(e.message)
+                    text.append('Failed with the following setting:')
+                    text.append(self.get_parameters())
+                    text.append('...continuing')
+                    logger.debug('\n'.join(text))
+                    n_failures += 1
+                else:
+                    # consider as score the mean-std for a robust estimate of predictive performance
+                    score_mean = np.mean(scores)
+                    score_std = np.std(scores)
+                    score = score_func(score_mean, score_std)
+                    logger.debug('iteration: (%d/%d) %d/%d score (%s): %.3f (%.3f +- %.3f)' % (inner_i+1, n_inner_iter_estimator, i + 1, n_iter, scoring, score, score_mean, score_std))
+                    # update the best confirguration
+                    if best_score_ < score:
+                        # fit the estimator since the cross_validation estimate does not set the estimator parametrs
+                        self.estimator.fit(X, y)
+                        self.save(model_name)
+                        best_score_ = score
+                        best_score_mean_ = score_mean
+                        best_score_std_ = score_std
+                        best_pre_processor_ = copy.deepcopy(self.pre_processor)
+                        best_vectorizer_ = copy.deepcopy(self.vectorizer)
+                        best_estimator_ = copy.deepcopy(self.estimator)
+                        best_pre_processor_args_ = copy.deepcopy(self.pre_processor_args)
+                        best_vectorizer_args_ = copy.deepcopy(self.vectorizer_args)
+                        best_estimator_args_ = copy.deepcopy(self.estimator_args)
                         # add parameter to list of best parameters
                         for key in self.pre_processor_args:
                             best_pre_processor_parameters_[key].append(self.pre_processor_args[key])
@@ -295,16 +310,16 @@ class ActiveLearningBinaryClassificationModel(object):
                             best_vectorizer_parameters_[key].append(self.vectorizer_args[key])
                         for key in self.estimator_args:
                             best_estimator_parameters_[key].append(self.estimator_args[key])
-                    text = []
-                    text.append('\n\n\tIteration: %d/%d (after %.1f sec; %s)' %
-                                (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
-                    text.append('Best score (%s): %.3f (%.3f +- %.3f)' % (scoring, best_score_, best_score_mean_, best_score_std_))
-                    text.append('\nData:')
-                    text.append('Instances: %d ; Features: %d with an avg of %d features per instance' %
-                                (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
-                    text.append(report_base_statistics(y))
-                    text.append(self.get_parameters())
-                    logger.info('\n'.join(text))
+                        text = []
+                        text.append('\n\n\tIteration: %d/%d (after %.1f sec; %s)' %
+                                    (i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                        text.append('Best score (%s): %.3f (%.3f +- %.3f)' % (scoring, best_score_, best_score_mean_, best_score_std_))
+                        text.append('\nData:')
+                        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' %
+                                    (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+                        text.append(report_base_statistics(y))
+                        text.append(self.get_parameters())
+                        logger.info('\n'.join(text))
         # store the best hyperparamter configuration
         self.pre_processor_args = copy.deepcopy(best_pre_processor_args_)
         self.vectorizer_args = copy.deepcopy(best_vectorizer_args_)
@@ -316,7 +331,7 @@ class ActiveLearningBinaryClassificationModel(object):
         # save to disk
         logger.info('Saved current best model in %s' % model_name)
         self.save(model_name)
-        if n_failures == n_iter:
+        if n_failures >= n_iter:
             logger.warning('ERROR: no iteration has produced any viable solution. The model produced is unusable.')
 
     def _active_learning_data_matrices(self, iterable_pos, iterable_neg,

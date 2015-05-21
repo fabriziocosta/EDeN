@@ -130,6 +130,7 @@ def main_fit(model_initializer, args):
     model.optimize(pos_train_iterator, neg_train_iterator,
                    model_name=full_out_file_name,
                    n_iter=args.n_iter,
+                   n_inner_iter_estimator=args.n_inner_iter_estimator,
                    pre_processor_parameters=pre_processor_parameters,
                    vectorizer_parameters=vectorizer_parameters,
                    estimator_parameters=estimator_parameters,
@@ -262,7 +263,12 @@ def argparse_setup(model_initializer, DESCRIPTION, EPILOG):
                             dest="n_iter",
                             type=int,
                             help="Number of randomly generated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
-                            default=10)
+                            default=20)
+    fit_parser.add_argument("--n-inner-iter-estimator",
+                            dest="n_inner_iter_estimator",
+                            type=int,
+                            help="Number of randomly generated hyper parameter configurations tried for the estimator for each parameter configuration of the pre-processor and vectorizer during optimization.",
+                            default=5)
     fit_parser.add_argument("--n-active-learning-iterations",
                             dest="n_active_learning_iterations",
                             type=int,
