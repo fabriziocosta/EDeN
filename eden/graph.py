@@ -18,7 +18,7 @@ from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 class Vectorizer(object):
 
     """
-    Transforms vector labeled, weighted, nested graphs in sparse vectors.
+    Transforms real vector labeled, weighted, nested graphs in sparse vectors.
     """
 
     def __init__(self,
@@ -160,7 +160,7 @@ class Vectorizer(object):
         """
         Constructs a discretization of the real valued vector data 
         stored in the nodes of the graphs.
-        Then transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        Then transforms a list of networkx graphs into a Numpy csr matrix 
         ( Compressed Sparse Row matrix ).
 
         Parameters
@@ -174,7 +174,7 @@ class Vectorizer(object):
 
     def transform(self, graphs):
         """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        Transforms a list of networkx graphs into a Numpy csr matrix 
         ( Compressed Sparse Row matrix ).
 
         Parameters
@@ -193,7 +193,7 @@ class Vectorizer(object):
 
     def transform_iter(self, graphs):
         """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        Transforms a list of networkx graphs into a Numpy csr matrix 
         ( Compressed Sparse Row matrix ) and returns one sparse row at a time.
         This is a generator.
         """
@@ -203,7 +203,7 @@ class Vectorizer(object):
 
     def transform_single(self, graph):
         """
-        Transforms a single networkx graph into a a Numpy csr sparse matrix 
+        Transforms a single networkx graph into a Numpy csr matrix 
         ( Compressed Sparse Row matrix ) and returns one sparse row
         """
         self._test_goodness(G)
