@@ -474,14 +474,6 @@ class Vectorizer(object):
         self._compute_neighborhood_graph_hash_cache(G)
         if G.graph.get('weighted', False):
             self._compute_neighborhood_graph_weight_cache(G)
-        #################################################################
-        # from eden.util import display
-        # display.draw_graph( G, size=6,
-        #      node_size=2500,
-        #      node_border=2,
-        #      prog = 'neato',
-        #      secondary_vertex_label='hlabel' )
-        #################################################################
         return G
 
     def _transform(self, instance_id, original_graph):
