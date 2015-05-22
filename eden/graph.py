@@ -218,8 +218,8 @@ class Vectorizer(object):
         Transforms a single networkx graph into a Numpy csr matrix 
         ( Compressed Sparse Row matrix ) and returns one sparse row
         """
-        self._test_goodness(G)
-        return self._convert_dict_to_sparse_matrix(self._transform(0, G))
+        self._test_goodness(graph)
+        return self._convert_dict_to_sparse_matrix(self._transform(0, graph))
 
     def predict(self, graphs, estimator):
         """
