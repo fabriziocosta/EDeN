@@ -118,7 +118,7 @@ setup(
         "dill",
         "networkx",
         "matplotlib",
-        "request",
+        "requests",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
