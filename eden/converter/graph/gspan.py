@@ -18,16 +18,18 @@ def gspan_to_eden(input = None, options = dict()):
         if line.strip():
             if line[0] in ['g','t']:
                 if string_list:
-                    yield gspan_to_networkx(string_list)
+                    yield gspan_to_networkx(header, string_list)
                 string_list = []
+                header = line
             string_list += [line]
 
     if string_list:
-        yield gspan_to_networkx(string_list)
+        yield gspan_to_networkx(header, string_list)
 
 
-def gspan_to_networkx(string_list):
+def gspan_to_networkx(header, string_list):
     G = nx.Graph()
+    G.graph['id']=header
     for line in string_list:
         if line.strip():
             line_list = line.split()
@@ -41,7 +43,7 @@ def gspan_to_networkx(string_list):
                     weight = 1
                 else: #uppercase v indicates no-viewpoint, in the new EDeN this is simulated via a smaller weight
                     weight = 0.1
-                G.add_node(vid, label = vlabel, weight = weight)
+                G.add_node(vid, ID=vid, label = vlabel, weight = weight)
                 #extract the rest of the line  as a JSON string that contains all attributes
                 attribute_str=' '.join(line_list[3:])
                 if attribute_str.strip():

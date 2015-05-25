@@ -361,7 +361,7 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
 
 
-def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
+def plot_embeddings(X, y, labels=None, save_image_file_name=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
     import matplotlib.pyplot as plt
     import time
 
@@ -392,15 +392,17 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn / 4, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn / 4
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(324)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (knn / 4, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+                   (KQSTE_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(325)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
@@ -408,10 +410,13 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn * 2, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn * 2
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(326)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (knn * 2, duration), cmap=cmap, density=density, image_file_name=image_file_name)
-
-    plt.show()
+                   (KQSTE_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+    if save_image_file_name:
+        plt.savefig(save_image_file_name)
+    else:
+        plt.show()    
