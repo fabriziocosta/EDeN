@@ -27,6 +27,7 @@ from eden.graph import Vectorizer
 from eden.util import save_output, store_matrix
 from eden.converter.graph.node_link_data import node_link_data_to_eden
 
+
 class ModelInitializerBase(object):
 
     def __init__(self):
@@ -168,13 +169,13 @@ def main_predict(model_initializer, args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     logger.info(model.get_parameters())
-    
+
     predictions = model.decision_function(iterator)
     text = []
     for p in predictions:
         text.append(str(p) + "\n")
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt')
-    
+
     text = []
     for p in predictions:
         if p > 0:
@@ -183,14 +184,14 @@ def main_predict(model_initializer, args):
             prediction = -1
         text.append(str(prediction) + "\n")
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='classifications.txt')
-    
+
     text = []
     from itertools import izip
     info_iterator = model.get_info(iterator_)
-    for p,info in izip(predictions,info_iterator):
-        text.append("%.4f\t%s\n"%(p,info))
+    for p, info in izip(predictions, info_iterator):
+        text.append("%.4f\t%s\n" % (p, info))
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='info.txt')
-    
+
 
 def main_matrix(model_initializer, args):
     iterator = model_initializer.load_data(args)
@@ -328,36 +329,38 @@ def argparse_setup(model_initializer, DESCRIPTION, EPILOG):
                             type=int,
                             help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
                             default=20)
-    fit_parser.add_argument("-j", "--n-jobs",
-                            dest="n_jobs",
-                            type=int,
-                            help="Number of cores to use in multiprocessing.",
-                            default=4)
-    fit_parser.add_argument("-k", "-block-size",
-                            dest="block_size",
-                            type=int,
-                            help="Number of instances per block for the multiprocessing elaboration.",
-                            default=None)
-    fit_parser.add_argument("-b", "--n-blocks",
-                            dest="n_blocks",
-                            type=int,
-                            help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
-                            default=10)
-    fit_parser.add_argument("--pre-processor-n-jobs",
-                            dest="pre_processor_n_jobs",
-                            type=int,
-                            help="Number of cores to use in multiprocessing.",
-                            default=4)
-    fit_parser.add_argument("--pre-processor-n-blocks",
-                            dest="pre_processor_n_blocks",
-                            type=int,
-                            help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
-                            default=10)
-    fit_parser.add_argument("--pre-processor-block-size",
-                            dest="pre_processor_block_size",
-                            type=int,
-                            help="Number of instances per block for the multiprocessing elaboration.",
-                            default=None)
+    parallelization_group = fit_parser.add_argument_group(
+        'Parallelization', 'These options define the granularity of the multicore parallelization.')
+    parallelization_group.add_argument("-j", "--n-jobs",
+                                       dest="n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=2)
+    parallelization_group.add_argument("-b", "--n-blocks",
+                                       dest="n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=8)
+    parallelization_group.add_argument("-k", "-block-size",
+                                       dest="block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
+    parallelization_group.add_argument("--pre-processor-n-jobs",
+                                       dest="pre_processor_n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=4)
+    parallelization_group.add_argument("--pre-processor-n-blocks",
+                                       dest="pre_processor_n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=10)
+    parallelization_group.add_argument("--pre-processor-block-size",
+                                       dest="pre_processor_block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
     fit_parser.add_argument("-r", "--random-state",
                             dest="random_state",
                             type=int,

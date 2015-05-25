@@ -92,6 +92,8 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
     # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
     if n_blocks >= size:
         n_blocks = size / 10
+    if n_blocks < 1:
+        n_blocks = 1
     # if one block will end up containing a single instance reduce the number of blocks to avoid the case
     if size % n_blocks == 1:
         n_blocks = max(1, n_blocks - 1)
@@ -174,8 +176,9 @@ def describe(X):
     print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
 
 
-def size(iterable):
-    return sum(1 for x in iterable)
+def iterator_size(iterable):
+    iterable, iterable_ = tee(iterable)
+    return sum(1 for x in iterable_)
 
 
 def random_bipartition(int_range, relative_size=.7):
@@ -199,8 +202,8 @@ def selection_iterator(iterable, ids):
 
 def random_bipartition_iter(iterable, relative_size=.5):
     size_iterable, iterable1, iterable2 = tee(iterable, 3)
-    the_size = size(size_iterable)
-    part1_ids, part2_ids = random_bipartition(the_size, relative_size=relative_size)
+    size = iterator_size(size_iterable)
+    part1_ids, part2_ids = random_bipartition(size, relative_size=relative_size)
     part1_iterable = selection_iterator(iterable1, part1_ids)
     part2_iterable = selection_iterator(iterable2, part2_ids)
     return part1_iterable, part2_iterable
