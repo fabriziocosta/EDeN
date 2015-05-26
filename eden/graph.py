@@ -194,12 +194,12 @@ class Vectorizer(object):
         graphs : list of networkx graphs. 
           The data.
         """
-        instance_id = 0
+        instance_id = None
         feature_dict = {}
         for instance_id, G in enumerate(graphs):
             self._test_goodness(G)
             feature_dict.update(self._transform(instance_id, G))
-        if instance_id == 0:
+        if instance_id is None:
             raise Exception('ERROR: something went wrong, no graphs are present in current iterator.')
         return self._convert_dict_to_sparse_matrix(feature_dict)
 
