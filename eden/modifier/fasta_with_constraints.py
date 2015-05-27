@@ -52,7 +52,7 @@ def _fasta_to_fasta(input):
                 header = ""
                 seq = ""
                 const = ""
-            header = line 
+            header = line
             yield header
         else:
             # remove trailing chars, split and take only first part, removing comments
