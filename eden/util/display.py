@@ -420,3 +420,127 @@ def plot_embeddings(X, y, labels=None, save_image_file_name=None, image_file_nam
         plt.savefig(save_image_file_name)
     else:
         plt.show()
+
+
+
+
+# draw a whole set of graphs::
+def draw_graph_set(graphs, n_graphs_per_line=5, size=4, edge_label=None, **args):
+    graphs=list(graphs)
+    while graphs:
+        draw_graph_row(graphs[:n_graphs_per_line], n_graphs_per_line=n_graphs_per_line,edge_label=edge_label,size=size, **args)
+        graphs = graphs[n_graphs_per_line:]
+
+# draw a row of graphs
+def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4,  headlinehook= lambda x: ""  , **args):
+    count = len(graphs)
+    size_y = size
+    size_x = size * n_graphs_per_line
+    plt.figure(figsize=(size_x, size_y))
+    plt.xlim(xmax=3)
+
+    for i in range(count):
+        plt.subplot(1, n_graphs_per_line, i + 1)
+        graphs[i].graph['info'] = "size:" + str(len(graphs[i])) + headlinehook(graphs[i])
+        g=graphs[i]
+        draw_graph_nice(g, **args)
+    plt.show()
+
+# this will draw a single graph,
+# but it will do so nicely -> it wont disrupt the row drawing.
+def draw_graph_nice(graph,
+                   vertex_label='label',
+                   secondary_vertex_label=None,
+                   edge_label='label',
+                   secondary_edge_label=None,
+                   vertex_color='',
+                   vertex_alpha=0.6,
+                   edge_alpha=0.5,
+                   node_size=600,
+                   font_size=9,
+                   layout='graphviz',
+                   prog='neato',
+                   node_border=False,
+                   colormap='YlOrRd',
+                   invert_colormap=False,
+                   verbose=True,
+                   **args):
+
+    plt.grid(False)
+    plt.axis('off')
+
+    if secondary_vertex_label:
+        vertex_labels = dict(
+            [(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A'))) for u, d in
+             graph.nodes(data=True)])
+    else:
+        vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
+
+    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == False]
+    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == True]
+
+    edge_labels={}
+    if secondary_edge_label:
+        edge_labels = dict(
+            [((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'), d.get(secondary_edge_label, 'N/A'))) for u, v, d in
+             graph.edges(data=True)])
+    elif edge_label:
+        edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
+
+    if vertex_color == '':
+        node_color = 'white'
+    elif vertex_color == '_labels_':
+        node_color = [hash(d.get('label', '.')) & 15 for u, d in graph.nodes(data=True)]
+    else:
+        if invert_colormap:
+            node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
+        else:
+            node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
+
+    if layout == 'graphviz':
+        pos = nx.graphviz_layout(graph, prog=prog)
+    elif layout == 'circular':
+        pos = nx.circular_layout(graph)
+    elif layout == 'random':
+        pos = nx.random_layout(graph)
+    elif layout == 'spring':
+        pos = nx.spring_layout(graph)
+    elif layout == 'shell':
+        pos = nx.shell_layout(graph)
+    elif layout == 'spectral':
+        pos = nx.spectral_layout(graph)
+    else:
+        raise Exception('Unknown layout format: %s' % layout)
+
+    if node_border == False:
+        linewidths = 0.001
+    else:
+        linewidths = 1
+
+    nx.draw_networkx_nodes(graph, pos,
+                           node_color=node_color,
+                           alpha=vertex_alpha,
+                           node_size=node_size,
+                           linewidths=linewidths,
+                           cmap=plt.get_cmap(colormap)
+                           )
+    nx.draw_networkx_labels(graph, pos, vertex_labels, font_size=font_size, font_color='black')
+    nx.draw_networkx_edges(graph, pos,
+                           edgelist=edges_normal,
+                           width=2,
+                           edge_color='k',
+                           alpha=edge_alpha)
+    nx.draw_networkx_edges(graph, pos,
+                           edgelist=edges_nesting,
+                           width=1,
+                           edge_color='k',
+                           style='dashed',
+                           alpha=edge_alpha)
+    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
+    if verbose:
+        title = str(graph.graph.get('id', '')) + "\n" + str(graph.graph.get('info', ''))
+        plt.title(title)
+        # plt.show()
+
+
+
