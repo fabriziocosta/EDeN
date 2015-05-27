@@ -229,9 +229,9 @@ class ActiveLearningBinaryClassificationModel(object):
                     text.append('Failed with the following setting:')
                     text.append(self.get_parameters())
                     text.append('...continuing')
-                    logger.debug('\n'.join(text)) 
+                    logger.debug('\n'.join(text))
 
-            #iterate more frequently across the estimator parameters
+            # iterate more frequently across the estimator parameters
             for inner_i in range(n_inner_iter_estimator):
                 try:
                     self.estimator_args = self._sample(estimator_parameters)
@@ -240,7 +240,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 except Exception as e:
                     text = []
                     text.append('\nFailed iteration: (%d/%d) %d/%d (at %.1f sec; %s)' %
-                                (inner_i+1, n_inner_iter_estimator, i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
+                                (inner_i + 1, n_inner_iter_estimator, i + 1, n_iter, time.time() - start, str(datetime.timedelta(seconds=(time.time() - start)))))
                     text.append(e.__doc__)
                     text.append(e.message)
                     text.append('Failed with the following setting:')
@@ -253,7 +253,8 @@ class ActiveLearningBinaryClassificationModel(object):
                     score_mean = np.mean(scores)
                     score_std = np.std(scores)
                     score = score_func(score_mean, score_std)
-                    logger.debug('iteration: (%d/%d) %d/%d score (%s): %.3f (%.3f +- %.3f)' % (inner_i+1, n_inner_iter_estimator, i + 1, n_iter, scoring, score, score_mean, score_std))
+                    logger.debug('iteration: (%d/%d) %d/%d score (%s): %.3f (%.3f +- %.3f)' %
+                                 (inner_i + 1, n_inner_iter_estimator, i + 1, n_iter, scoring, score, score_mean, score_std))
                     # update the best confirguration
                     if best_score_ < score:
                         # fit the estimator since the cross_validation estimate does not set the estimator parametrs
@@ -333,7 +334,7 @@ class ActiveLearningBinaryClassificationModel(object):
             value = random.choice(values)
             parameters_sample[parameter] = value
         return parameters_sample
-        
+
     def _active_learning_data_matrices(self, iterable_pos, iterable_neg,
                                        n_active_learning_iterations=2,
                                        size_positive=-1,

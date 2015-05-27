@@ -152,7 +152,7 @@ class Vectorizer():
             res = reference_vec.dot(x.T).todense()
             yield res[0, 0]
 
-    def annotate(self, seqs, estimator=None, relabel=False): 
+    def annotate(self, seqs, estimator=None, relabel=False):
         """ 
         Given a list of sequences, and a fitted estimator, it computes a vector
         of importance values for each char in the sequence. The importance
@@ -196,12 +196,12 @@ class Vectorizer():
         # extract per vertex feature representation
         X = self._compute_vertex_based_features(seq)
         # add or update weight and importance information
-        score,vec = self._annotate_importance(seq, X)
+        score, vec = self._annotate_importance(seq, X)
         # add or update label information
         if self.relabel:
-            return seq,score,vec
+            return seq, score, vec
         else:
-            return seq,score
+            return seq, score
 
     def _annotate_importance(self, seq, X):
         # compute distance from hyperplane as proxy of vertex importance
@@ -211,11 +211,11 @@ class Vectorizer():
             margins = np.array([1] * X.shape[0])
         else:
             margins = self.estimator.decision_function(X)
-        #compute the list of sparse vectors representation
-        vec=[]
+        # compute the list of sparse vectors representation
+        vec = []
         for i in range(X.shape[0]):
             vec.append(X.getrow(i))
-        return margins,vec
+        return margins, vec
 
     def _compute_vertex_based_features(self, seq):
         if seq is None or len(seq) == 0:

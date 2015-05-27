@@ -27,4 +27,4 @@ def fasta_to_sequence(input, **options):
     for line in lines:
         header = line
         seq = lines.next()
-        yield header,seq 
+        yield header, seq
