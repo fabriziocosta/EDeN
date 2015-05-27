@@ -419,4 +419,4 @@ def plot_embeddings(X, y, labels=None, save_image_file_name=None, image_file_nam
     if save_image_file_name:
         plt.savefig(save_image_file_name)
     else:
-        plt.show()    
+        plt.show()
