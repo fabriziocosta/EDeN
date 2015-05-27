@@ -26,7 +26,7 @@ def fasta_to_fasta(input, modifier=null_modifier, **options):
         header = line
         seq = iterable.next()
         if normalize:
-            seq.upper()
+            seq = seq.upper()
             seq = seq.replace('T', 'U')
         seqs = modifier(header=header, seq=seq, **options)
         for seq in seqs:
