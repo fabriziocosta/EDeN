@@ -76,7 +76,7 @@ def string_to_networkx(header, sequence, **options):
             G.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
             if G.number_of_nodes() < 2:
                 G = seq_to_networkx(header, sequence, **options)
-            G.graph['id'] = header 
+            G.graph['id'] = header
             G.graph['sequence'] = sequence
             G.graph['structure'] = seq_struct
             yield G

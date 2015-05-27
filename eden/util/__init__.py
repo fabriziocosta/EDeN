@@ -16,7 +16,10 @@ from scipy.sparse import vstack
 from itertools import tee
 import random
 import logging
+from time import time
 from eden import apply_async
+import logging
+logger = logging.getLogger(__name__)
 
 
 def configure_logging(logger, verbosity=0, filename=None):
@@ -173,7 +176,7 @@ def vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
 
 
 def describe(X):
-    print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
+    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
 
 
 def iterator_size(iterable):
@@ -269,9 +272,12 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
 
 
 def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
+    start = time()
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    logger.debug('Positive data: %s' % describe(X_pos))
+    logger.debug('Negative data: %s' % describe(X_neg))
     if n_iter_search <= 1:
         X, y = make_data_matrix(positive_data_matrix=X_pos, negative_data_matrix=X_neg)
         estimator.fit(X, y)
@@ -284,13 +290,14 @@ def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=
                                   n_jobs=n_jobs,
                                   n_iter_search=n_iter_search,
                                   random_state=random_state)
+    logger.debug('Elapsed time: %.1f secs' % (time() - start))
     return estimator
 
 
 def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
     X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
     print 'Test set'
-    describe(X)
+    print describe(X)
     print '-' * 80
     print 'Test Estimate'
     predictions = estimator.predict(X)

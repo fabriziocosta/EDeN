@@ -66,7 +66,8 @@ def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=No
                 if output == 'minimal':
                     subarray = {'subarray_string': ''.join(subarray)}
                 else:
-                    subarray = {'subarray_string': ''.join(subarray), 'subarray': subarray, 'begin': first, 'end': last, 'size': subarray_size, 'seq': seq, 'score': acc}
+                    subarray = {'subarray_string': ''.join(subarray), 'subarray': subarray, 'begin': first,
+                                'end': last, 'size': subarray_size, 'seq': seq, 'score': acc}
                 yield subarray
             if subarray_size > max_subarray_size:
                 # if the subarray is too large then rebase the score list, i.e. offset by the smallest positive value
@@ -111,6 +112,7 @@ def compute_max_subarrays(graph=None, min_subarray_size=None, max_subarray_size=
     # extract subarrays
     for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
         yield subarray
+
 
 def compute_max_subarrays_sequence(seq=None, score=None, min_subarray_size=None, max_subarray_size=None):
     # extract subarrays

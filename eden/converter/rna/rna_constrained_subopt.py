@@ -69,14 +69,15 @@ def string_to_networkx(header, sequence, constraint, **options):
     max_num = options.get('max_num', 3)
     max_num_subopts = options.get('max_num_subopts', 100)
     split_components = options.get('split_components', False)
-    seq_struct_list, energy_list = rnasubopt_wrapper(sequence, constraint, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
+    seq_struct_list, energy_list = rnasubopt_wrapper(
+        sequence, constraint, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
     if split_components:
         for seq_struct, energy in zip(seq_struct_list, energy_list):
             G = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
             G.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
             if G.number_of_nodes() < 2:
                 G = seq_to_networkx(header, sequence, **options)
-            G.graph['id'] = header 
+            G.graph['id'] = header
             G.graph['sequence'] = sequence
             G.graph['structure'] = seq_struct
             yield G
