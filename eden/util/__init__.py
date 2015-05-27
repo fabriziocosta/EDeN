@@ -16,6 +16,7 @@ from scipy.sparse import vstack
 from itertools import tee
 import random
 import logging
+import logging.handlers
 from eden import apply_async
 
 
@@ -157,11 +158,7 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5,  block_size=None
     output = [p.get() for p in results]
     pool.close()
     pool.join()
-    import numpy as np
-    from scipy.sparse import vstack
-    X = output[0]
-    for Xi in output[1:]:
-        X = vstack([X, Xi], format="csr")
+    X = vstack(output, format="csr")
     return X
 
 
