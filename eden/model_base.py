@@ -38,10 +38,12 @@ class ModelInitializerBase(object):
         return iterator
 
     def load_positive_data(self, args):
-        return self.load_data(args.positive_input_file)
+        iterator = node_link_data_to_eden(args.positive_input_file)
+        return iterator
 
     def load_negative_data(self, args):
-        return self.load_data(args.negative_input_file)
+        iterator = node_link_data_to_eden(args.negative_input_file)
+        return iterator
 
     def pre_processor_init(self, n_iter):
         def pre_processor(graphs, **args):
