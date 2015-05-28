@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 
 DESCRIPTION = """
+GraphProt sequence-based modeling of binding preferences of RNA-binding proteins.
 Explicit Decomposition with Neighborhood (EDeN) utility program.
-Protease modelling driver. 
 """
 
 EPILOG = """
-Author: Fabrizio Costa
+Author: Daniel Maticzka
 Copyright: 2015
 License: GPL
-Maintainer: Fabrizio Costa
-Email: costa@informatik.uni-freiburg.de
-Status: Production
+Maintainer: Daniel Maticzka
+Email: maticzkd@informatik.uni-freiburg.de
+Status: Development
 
-Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
-distance kernel', Proceedings of the 26th International Conference on Machine
-Learning. 2010. """
+Cite:
+
+Daniel Maticzka, Sita J. Lange, Fabrizio Costa, Rolf Backofen
+GraphProt: modeling binding preferences of RNA-binding proteins
+Genome Biology, 2014, 15(1), R17
+"""
 
 from eden.model_base import *
 
