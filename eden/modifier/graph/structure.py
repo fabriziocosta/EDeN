@@ -10,8 +10,8 @@ def edge_contraction(graph=None, node_attribute=None):
         change_has_occured = False
         for n, d in g.nodes_iter(data=True):
             g.node[n]['label'] = g.node[n][node_attribute]
-            if d.get(node_attribute, False) != False and (d.get('position', False) == 0 or d.get('position', False) != False):
-                if d.get('contracted', False) == False:
+            if d.get(node_attribute, False) is not False and (d.get('position', False) is False or d.get('position', False) is not False):
+                if d.get('contracted', False) is False:
                     g.node[n]['contracted'] = set()
                 g.node[n]['contracted'].add(n)
                 neighbors = g.neighbors(n)
@@ -35,7 +35,7 @@ def edge_contraction(graph=None, node_attribute=None):
                         g.node[n]['contracted'].update(set(greater_position_neighbors))
                         change_has_occured = True
                         break
-        if change_has_occured == False:
+        if change_has_occured is False:
             break
     return g
 
@@ -86,22 +86,22 @@ def serialize_modifiers(modifiers):
     return lines
 
 
-def contraction(graphs=None,  contraction_attribute='label', nesting=False, modifiers=modifiers, **options):
-    '''
-    modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
-    "attribute_in" identifies the node attribute that is extracted from all contracted nodes.
-    "attribute_out" identifies the node attribute that is written in the resulting graph.
-    "reduction" is one of the following reduction operations: 
-    1. histogram, 
-    2. sum, 
-    3. average, 
-    4. categorical, 
-    5. set_categorical.
-    "histogram" returns a sparse vector with numerical hased keys, 
-    "sum" and "average" cast the values into floats before computing the sum and average respectively, 
-    "categorical" returns the concatenation string of the lexicographically sorted list of input attributes, 
-    "set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
-    '''
+def contraction(graphs=None, contraction_attribute='label', nesting=False, modifiers=modifiers, **options):
+'''
+modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
+"attribute_in" identifies the node attribute that is extracted from all contracted nodes.
+"attribute_out" identifies the node attribute that is written in the resulting graph.
+"reduction" is one of the following reduction operations: 
+1. histogram, 
+2. sum, 
+3. average, 
+4. categorical, 
+5. set_categorical.
+"histogram" returns a sparse vector with numerical hased keys, 
+"sum" and "average" cast the values into floats before computing the sum and average respectively, 
+"categorical" returns the concatenation string of the lexicographically sorted list of input attributes, 
+"set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
+'''
     for g in graphs:
         # check for 'position' attribute and add it if not present
         for i, (n, d) in enumerate(g.nodes_iter(data=True)):
