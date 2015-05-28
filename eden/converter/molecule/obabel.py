@@ -1,7 +1,6 @@
 import openbabel as ob
 import pybel
 import networkx as nx
-from networkx.readwrite import json_graph
 
 
 def obabel_to_eden(input, file_type='sdf', **options):
@@ -32,8 +31,6 @@ def obabel_to_networkx(mol):
         label = str(atom.type)
         g.add_node(atom.idx, label=label)
     # bonds
-        edges = []
-    bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
         label = str(bond.GetBO())
         g.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label=label)
