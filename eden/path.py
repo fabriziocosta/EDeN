@@ -5,6 +5,9 @@ from scipy.sparse import csr_matrix
 from sklearn.linear_model import SGDClassifier
 from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Vectorizer():
 
