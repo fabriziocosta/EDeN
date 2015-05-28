@@ -1,5 +1,3 @@
-import random
-import re
 from eden import util
 
 
@@ -28,7 +26,7 @@ def fasta_to_fasta(input, modifier=null_modifier, **options):
         seq = iterable.next()
         const = iterable.next()
         if normalize:
-            seq.upper()
+            seq = seq.upper()
             seq = seq.replace('T', 'U')
         seqs = modifier(header=header, seq=seq, const=const, **options)
         for seq in seqs:

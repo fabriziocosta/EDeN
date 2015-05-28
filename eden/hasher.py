@@ -1,3 +1,5 @@
+import numpy as np
+from sklearn.kernel_approximation import Nystroem
 import logging
 logger = logging.getLogger(__name__)
 
