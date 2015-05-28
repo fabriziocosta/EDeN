@@ -1,14 +1,9 @@
-import networkx as nx
-import numpy as np
-
-
 def incident_edge_label(graph_list=None, output_attribute='type', separator='', level=1):
-    """
-            level: int
-                    level = 1 considers all incident edges
-
-                    level = 2 considers all edges incident on the neighbors  
-    """
+"""
+level: int
+level=1 considers all incident edges
+level=2 considers all edges incident on the neighbors  
+"""
     for g in graph_list:
         # iterate over nodes
         for n, d in g.nodes_iter(data=True):
@@ -30,12 +25,11 @@ def incident_edge_label(graph_list=None, output_attribute='type', separator='', 
 
 
 def incident_node_label(graph_list=None, output_attribute='type', separator='', level=1):
-    """
-            level: int
-                    level = 1 considers all incident nodes
-
-                    level = 2 considers all nodes incident on the neighbors  
-    """
+"""
+level: int
+level=1 considers all incident nodes
+level=2 considers all nodes incident on the neighbors  
+"""
     for g in graph_list:
         # iterate over nodes
         for n, d in g.nodes_iter(data=True):
@@ -92,14 +86,12 @@ def colorize_binary(graph_list=None, output_attribute='color_value', input_attri
 
 
 def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, high_weight_window_start=0, high_weight_window_end=1, low_weight_window_start=0, low_weight_window_end=1):
-    """
-    Piece wise linear weight function between two levels with specified start end positions.
-
-    high   ___
-    low __/   \__
-
-    """
-    # assert high_ weight > low_weight
+"""
+Piece wise linear weight function between two levels with specified start end positions.
+high   ___
+low __/   \__
+"""
+# assert high_ weight > low_weight
     if high_weight < low_weight:
         raise Exception('high_weight (%f) must be higher than low_weight (%f)' % (high_weight, low_weight))
 
@@ -129,7 +121,6 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                 """
                    ___
                 __/   \__
-
                 |
                 """
                 g.node[n]["weight"] = low_weight
@@ -137,7 +128,6 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                 """
                    ___
                 __/   \__
-
                   |
                 """
                 g.node[n]["weight"] = (high_weight - low_weight) / (high_weight_window_start - low_weight_window_start) * \
@@ -146,7 +136,6 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                 """
                    ___
                 __/   \__
-
                     |
                 """
                 g.node[n]["weight"] = high_weight
@@ -154,7 +143,6 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                 """
                    ___
                 __/   \__
-
                       |
                 """
                 g.node[n]["weight"] = high_weight - \
@@ -163,7 +151,6 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                 """
                    ___
                 __/   \__
-
                         |
                 """
                 g.node[n]["weight"] = low_weight
