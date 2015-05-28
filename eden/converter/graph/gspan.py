@@ -13,7 +13,7 @@ def gspan_to_eden(input=None, options=dict()):
         A pointer to the data source.
 
     """
-
+    header=''
     string_list = []
     for line in util.read(input):
         if line.strip():
