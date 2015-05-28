@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 class WTA_hash():
 
     def __init__(self, num_functions=1, dimensionality=1, sparse=False):

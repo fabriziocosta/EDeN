@@ -14,6 +14,9 @@ import multiprocessing
 import copy
 from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Vectorizer(object):
 
