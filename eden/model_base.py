@@ -27,6 +27,9 @@ from eden.graph import Vectorizer
 from eden.util import save_output, store_matrix
 from eden.converter.graph.node_link_data import node_link_data_to_eden
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class ModelInitializerBase(object):
 
