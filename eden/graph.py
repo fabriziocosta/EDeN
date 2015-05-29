@@ -4,6 +4,7 @@ import math
 import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix, vstack
+from numpy.linalg import norm
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
@@ -243,12 +244,22 @@ class Vectorizer(object):
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
-            yield self._similarity(G)
             # extract feature vector
             x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
             res = reference_vec.dot(x.T).todense()
             prediction = res[0, 0]
             yield prediction
+
+    def distance(self, graphs, ref_instance=None):
+        """
+        Takes an iterator over graphs and a reference graph, and returns an iterator over the corresponding euclidean distances.
+        """
+        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        for G in graphs:
+            self._test_goodness(G)
+            # extract feature vector
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
+            yield norm(reference_vec - x)
 
     def _test_goodness(self, G):
         if G.number_of_nodes() == 0:
