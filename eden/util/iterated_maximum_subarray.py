@@ -55,7 +55,7 @@ def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=No
             # extract maximum subarray
             # NOTE: in order to account for border effects we expand on the left and on the right by 'margin'
             first = max(0, begin - margin)
-            # NOTE: we return + 1 for the rightmost postition to be compliant with the 'one after the end' semantics 
+            # NOTE: we return + 1 for the rightmost postition to be compliant with the 'one after the end' semantics
             last = min(len(seq), end + margin + 1)
             subarray = seq[first: last]
             subarray_size = len(subarray)
