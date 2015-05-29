@@ -23,7 +23,8 @@ def draw_graph(graph,
                colormap='YlOrRd',
                invert_colormap=False,
                verbose=True,
-               file_name=None):
+               file_name=None,
+               title_key='info'):
 
     size_x = size
     size_y = int(float(size) / size_x_to_y_ratio)
@@ -98,8 +99,8 @@ def draw_graph(graph,
                            alpha=0.5)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
-    if verbose:
-        title = str(graph.graph.get('id', '')) + "\n" + str(graph.graph.get('info', ''))
+    if title_key:
+        title = str(graph.graph.get(title_key, ''))
         plt.title(title)
     if file_name is None:
         plt.show()
