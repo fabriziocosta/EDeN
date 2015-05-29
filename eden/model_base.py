@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 import sys
@@ -56,7 +57,6 @@ class ModelInitializerBase(object):
         The iterator returned here is handled by the pre_processor function
         defined in pre_processor_init.
         """
-        return self.load_data(args.positive_input_file)
         iterator = node_link_data_to_eden(args.positive_input_file)
         return iterator
 
