@@ -27,26 +27,42 @@ from eden.model_base import *
 class ModelInitializer(ModelInitializerBase):
 
     def load_data(self, input_file):
+        """Load sequence tuples from file."""
         from eden.converter.fasta import fasta_to_sequence
         seqs = fasta_to_sequence(input_file)
         return seqs
 
     def load_positive_data(self, args):
+        """Load positive class data from file."""
         return self.load_data(args.positive_input_file)
 
     def load_negative_data(self, args):
+        """Load negative class data from file."""
         return self.load_data(args.negative_input_file)
 
+    def pre_processor_init(self, n_iter):
+        """Setup conversion of sequence tuples to graphs."""
+        def pre_processor(seqs, **args):
+            """Convert sequence tuples to graphs."""
+            from eden.converter.fasta import sequence_to_eden
+            graphs = sequence_to_eden(seqs)
+            return graphs
+        pre_processor_parameters = {}
+        return pre_processor, pre_processor_parameters
+
     def vectorizer_init(self, n_iter):
+        """Setup conversion of graphs to features."""
         vectorizer = Vectorizer()
-        vectorizer_parameters = {'complexity': [2, 3, 4, 5, 6]}
+        vectorizer_parameters = {'complexity': [1, 2]}
         return vectorizer, vectorizer_parameters
 
     def add_arguments(self, parser):
+        """Add arguments for the main call."""
         parser.add_argument('--version', action='version', version='0.1')
         return parser
 
     def add_arguments_fit(self, parser):
+        """Add arguments for the fit command."""
         parser.add_argument("-i", "--bound-file",
                             dest="positive_input_file",
                             help="Path to FASTA file containing sequences of bound sites.",
@@ -58,6 +74,7 @@ class ModelInitializer(ModelInitializerBase):
         return parser
 
     def add_arguments_estimate(self, parser):
+        """Add arguments for the estimate command."""
         return self.add_arguments_fit(parser)
 
 
