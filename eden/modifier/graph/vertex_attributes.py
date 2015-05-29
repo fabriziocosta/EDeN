@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def incident_edge_label(graph_list=None, output_attribute='type', separator='', level=1):
     """
     level: int
