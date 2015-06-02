@@ -80,6 +80,15 @@ def prefix_neg(feature, prefix="negative_from_"):
     feature.name = prefix + feature.name
     return feature
 
+def offset_zero_by_one(feature):
+    """Sets the start coordinate to 1 if it is actually 0.
+    
+    Required for the flanking to work properly in those cases.
+    """
+    if (feature.start == 0):
+        feature.start = feature.start + 1
+    return feature
+
 def get_flanks(cores,
                flank_upstream_length=flank_upstream_length, 
                flank_downstream_length=flank_downstream_length):
@@ -153,7 +162,7 @@ cores = centers.slop(s = True,
                      l = int(args.core_length/2),
                      # -1 to account for the center nucleotide!
                      r = int(args.core_length/2) + (args.core_length % 2) - 1,
-                     genome=args.genome_id).saveas(pos_core_bed_fn)
+                     genome=args.genome_id).each(offset_zero_by_one).saveas(pos_core_bed_fn)
 flanks_upstream, flanks_downstream = get_flanks(cores)
 get_seqs(cores, flanks_upstream, flanks_downstream, pos_seq_fa_fn)
 
