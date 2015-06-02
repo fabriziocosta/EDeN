@@ -180,7 +180,8 @@ def iterator_size(iterable):
     return sum(1 for x in iterable_)
 
 
-def random_bipartition(int_range, relative_size=.7):
+def random_bipartition(int_range, relative_size=.7, random_state=1):
+    random.seed( random_state )
     ids = range(int_range)
     random.shuffle(ids)
     split_point = int(int_range * relative_size)
@@ -199,10 +200,10 @@ def selection_iterator(iterable, ids):
                 break
 
 
-def random_bipartition_iter(iterable, relative_size=.5):
+def random_bipartition_iter(iterable, relative_size=.5, random_state=1):
     size_iterable, iterable1, iterable2 = tee(iterable, 3)
     size = iterator_size(size_iterable)
-    part1_ids, part2_ids = random_bipartition(size, relative_size=relative_size)
+    part1_ids, part2_ids = random_bipartition(size, relative_size=relative_size, random_state=random_state)
     part1_iterable = selection_iterator(iterable1, part1_ids)
     part2_iterable = selection_iterator(iterable2, part2_ids)
     return part1_iterable, part2_iterable
