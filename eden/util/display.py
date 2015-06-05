@@ -13,6 +13,7 @@ def draw_graph(graph,
                secondary_edge_label=None,
                vertex_color=None,
                vertex_alpha=0.6,
+               edge_alpha=0.5,
                size=10,
                size_x_to_y_ratio=1,
                node_size=600,
@@ -25,11 +26,11 @@ def draw_graph(graph,
                verbose=True,
                file_name=None,
                title_key='info'):
-
-    size_x = size
-    size_y = int(float(size) / size_x_to_y_ratio)
-
-    plt.figure(figsize=(size_x, size_y))
+    
+    if size != None: 
+        size_x = size
+        size_y = int(float(size) / size_x_to_y_ratio)
+        plt.figure(figsize=(size_x, size_y))
     plt.grid(False)
     plt.axis('off')
 
@@ -52,6 +53,8 @@ def draw_graph(graph,
 
     if vertex_color is None:
         node_color = 'white'
+    elif vertex_color == '_labels_':
+        node_color = [hash(d.get('label', '.')) & 15 for u, d in graph.nodes(data=True)]
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
@@ -90,23 +93,27 @@ def draw_graph(graph,
                            edgelist=edges_normal,
                            width=2,
                            edge_color='k',
-                           alpha=0.5)
+                           alpha=edge_alpha)
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
                            edge_color='k',
                            style='dashed',
-                           alpha=0.5)
+                           alpha=edge_alpha)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
     if title_key:
         title = str(graph.graph.get(title_key, ''))
         plt.title(title)
-    if file_name is None:
-        plt.show()
-    else:
-        plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
-        plt.close()
+    if size!=None:
+        # here we decide if we output the image.
+        # note: if size is not set, the canvas has been created outside of this function.
+        # we wont write on a canvas that we didnt create ourselfes. 
+        if file_name is None:
+            plt.show()
+        else:
+            plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
+            plt.close()
 
 
 def draw_adjacency_graph(A,
@@ -444,104 +451,8 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4,  headline
         plt.subplot(1, n_graphs_per_line, i + 1)
         graphs[i].graph['info'] = "size:" + str(len(graphs[i])) + headlinehook(graphs[i])
         g=graphs[i]
-        draw_graph_nice(g, **args)
+        draw_graph(g,size=None, **args)
     plt.show()
-
-# this will draw a single graph,
-# but it will do so nicely -> it wont disrupt the row drawing.
-def draw_graph_nice(graph,
-                   vertex_label='label',
-                   secondary_vertex_label=None,
-                   edge_label='label',
-                   secondary_edge_label=None,
-                   vertex_color='',
-                   vertex_alpha=0.6,
-                   edge_alpha=0.5,
-                   node_size=600,
-                   font_size=9,
-                   layout='graphviz',
-                   prog='neato',
-                   node_border=False,
-                   colormap='YlOrRd',
-                   invert_colormap=False,
-                   verbose=True,
-                   **args):
-
-    plt.grid(False)
-    plt.axis('off')
-
-    if secondary_vertex_label:
-        vertex_labels = dict(
-            [(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A'))) for u, d in
-             graph.nodes(data=True)])
-    else:
-        vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
-
-    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == False]
-    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == True]
-
-    edge_labels={}
-    if secondary_edge_label:
-        edge_labels = dict(
-            [((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'), d.get(secondary_edge_label, 'N/A'))) for u, v, d in
-             graph.edges(data=True)])
-    elif edge_label:
-        edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
-
-    if vertex_color == '':
-        node_color = 'white'
-    elif vertex_color == '_labels_':
-        node_color = [hash(d.get('label', '.')) & 15 for u, d in graph.nodes(data=True)]
-    else:
-        if invert_colormap:
-            node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
-        else:
-            node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
-
-    if layout == 'graphviz':
-        pos = nx.graphviz_layout(graph, prog=prog)
-    elif layout == 'circular':
-        pos = nx.circular_layout(graph)
-    elif layout == 'random':
-        pos = nx.random_layout(graph)
-    elif layout == 'spring':
-        pos = nx.spring_layout(graph)
-    elif layout == 'shell':
-        pos = nx.shell_layout(graph)
-    elif layout == 'spectral':
-        pos = nx.spectral_layout(graph)
-    else:
-        raise Exception('Unknown layout format: %s' % layout)
-
-    if node_border == False:
-        linewidths = 0.001
-    else:
-        linewidths = 1
-
-    nx.draw_networkx_nodes(graph, pos,
-                           node_color=node_color,
-                           alpha=vertex_alpha,
-                           node_size=node_size,
-                           linewidths=linewidths,
-                           cmap=plt.get_cmap(colormap)
-                           )
-    nx.draw_networkx_labels(graph, pos, vertex_labels, font_size=font_size, font_color='black')
-    nx.draw_networkx_edges(graph, pos,
-                           edgelist=edges_normal,
-                           width=2,
-                           edge_color='k',
-                           alpha=edge_alpha)
-    nx.draw_networkx_edges(graph, pos,
-                           edgelist=edges_nesting,
-                           width=1,
-                           edge_color='k',
-                           style='dashed',
-                           alpha=edge_alpha)
-    nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
-    if verbose:
-        title = str(graph.graph.get('id', '')) + "\n" + str(graph.graph.get('info', ''))
-        plt.title(title)
-        # plt.show()
 
 
 
