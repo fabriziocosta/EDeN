@@ -256,7 +256,6 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    logger = logging.getLogger(__name__)
     logger.debug('\nClassifier:')
     logger.debug('%s' % random_search.best_estimator_)
     logger.debug('\nPredictive performance:')
@@ -293,17 +292,17 @@ def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=
 
 def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
     X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
-    print 'Test set'
-    print describe(X)
-    print '-' * 80
-    print 'Test Estimate'
+    logger.info('Test set')
+    logger.info(describe(X))
+    logger.info('-' * 80)
+    logger.info('Test Estimate')
     predictions = estimator.predict(X)
     margins = estimator.decision_function(X)
-    print classification_report(y, predictions)
+    logger.info(classification_report(y, predictions))
     apr = average_precision_score(y, margins)
-    print 'APR: %.3f' % apr
+    logger.info('APR: %.3f' % apr)
     roc = roc_auc_score(y, margins)
-    print 'ROC: %.3f' % roc
+    logger.info('ROC: %.3f' % roc)
     return apr, roc
 
 
