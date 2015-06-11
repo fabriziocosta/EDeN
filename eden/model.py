@@ -67,9 +67,11 @@ class ActiveLearningBinaryClassificationModel(object):
     def get_estimator():
         return self.estimator
 
-    def fit_default(self, iterable_pos, iterable_neg):
+    def fit_default(self, iterable_pos, iterable_neg, pre_processor_parameters=None, vectorizer_parameters=None, estimator_parameters=None):
         self.pre_processor_args = self._deafult(pre_processor_parameters)
         self.vectorizer_args = self._deafult(vectorizer_parameters)
+        self.estimator_args = self._deafult(estimator_parameters)
+        self.estimator.set_params(**self.estimator_args)        
         X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
         self.estimator.fit(X, y)
 
@@ -176,7 +178,7 @@ class ActiveLearningBinaryClassificationModel(object):
         start = time.time()
         if n_iter == 1:
             logger.debug('n_iter is 1: switching to default parameters')
-            self.fit_default(iterable_pos, iterable_neg)
+            self.fit_default(iterable_pos, iterable_neg, pre_processor_parameters, vectorizer_parameters, estimator_parameters)
         else:
             if len(pre_processor_parameters) == 0:
                 mean_len_pre_processor_parameters = 0
@@ -211,9 +213,14 @@ class ActiveLearningBinaryClassificationModel(object):
                 # there are more choices in the paramter settings for the
                 # pre_processor or the vectorizer
                 if i == 0 or data_matrix_is_stable == False:
-                    # sample paramters randomly
-                    self.pre_processor_args = self._sample(pre_processor_parameters)
-                    self.vectorizer_args = self._sample(vectorizer_parameters)
+                    if i == 0:
+                        # select default paramters
+                        self.pre_processor_args = self._deafult(pre_processor_parameters)
+                        self.vectorizer_args = self._deafult(vectorizer_parameters)
+                    else:
+                        # sample paramters randomly
+                        self.pre_processor_args = self._sample(pre_processor_parameters)
+                        self.vectorizer_args = self._sample(vectorizer_parameters)
                     # copy the iterators for later re-use
                     iterable_pos, iterable_pos_ = tee(iterable_pos)
                     iterable_neg, iterable_neg_ = tee(iterable_neg)
