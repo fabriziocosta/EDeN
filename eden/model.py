@@ -11,9 +11,8 @@ import copy
 from collections import defaultdict
 from sklearn.linear_model import SGDClassifier
 from itertools import tee, izip
-from sklearn.metrics import precision_recall_curve, roc_curve
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
-from eden.util import fit_estimator, selection_iterator, is_iterable, report_base_statistics
+from eden.util import selection_iterator, is_iterable, report_base_statistics
 from eden.util import vectorize, mp_pre_process
 from eden.util import serialize_dict
 from eden.graph import Vectorizer
@@ -58,20 +57,20 @@ class ActiveLearningBinaryClassificationModel(object):
     def load(self, obj):
         self.__dict__.update(joblib.load(obj).__dict__)
 
-    def get_pre_processor():
+    def get_pre_processor(self):
         return self.pre_processor
 
-    def get_vectorizer():
+    def get_vectorizer(self):
         return self.vectorizer
 
-    def get_estimator():
+    def get_estimator(self):
         return self.estimator
 
     def fit_default(self, iterable_pos, iterable_neg, pre_processor_parameters=None, vectorizer_parameters=None, estimator_parameters=None):
         self.pre_processor_args = self._deafult(pre_processor_parameters)
         self.vectorizer_args = self._deafult(vectorizer_parameters)
         self.estimator_args = self._deafult(estimator_parameters)
-        self.estimator.set_params(**self.estimator_args)        
+        self.estimator.set_params(**self.estimator_args)
         X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
         self.estimator.fit(X, y)
 
@@ -112,7 +111,7 @@ class ActiveLearningBinaryClassificationModel(object):
         text.append('\nClassifier:')
         text.append('%s' % self.estimator)
         text.append('\nData:')
-        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
         text.append('\nPredictive performace estimate:')
         text.append('%s' % classification_report(y, predictions))
         text.append('APR: %.3f' % apr)
@@ -200,7 +199,7 @@ class ActiveLearningBinaryClassificationModel(object):
                         break
 
                 # after n_iter/2 iterations, replace the parameter lists with only those values that have been found to increase the performance
-                if i == int(n_iter / 2) and two_steps_optimization == True:
+                if i == int(n_iter / 2) and two_steps_optimization is True:
                     if len(best_pre_processor_parameters_) > 0:
                         pre_processor_parameters = dict(best_pre_processor_parameters_)
                     if len(best_vectorizer_parameters_) > 0:
@@ -212,7 +211,7 @@ class ActiveLearningBinaryClassificationModel(object):
                 # build data matrix only the first time or if needed e.g. because
                 # there are more choices in the paramter settings for the
                 # pre_processor or the vectorizer
-                if i == 0 or data_matrix_is_stable == False:
+                if i == 0 or data_matrix_is_stable is False:
                     if i == 0:
                         # select default paramters
                         self.pre_processor_args = self._deafult(pre_processor_parameters)
@@ -298,7 +297,7 @@ class ActiveLearningBinaryClassificationModel(object):
                             text.append('Best score (%s): %.3f (%.3f +- %.3f)' % (scoring, best_score_, best_score_mean_, best_score_std_))
                             text.append('\nData:')
                             text.append('Instances: %d ; Features: %d with an avg of %d features per instance' %
-                                        (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0]))
+                                        (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
                             text.append(report_base_statistics(y))
                             text.append(self.get_parameters())
                             logger.info('\n'.join(text))

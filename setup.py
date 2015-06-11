@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
 
 import os
 import sys
@@ -69,7 +68,7 @@ class install(_install):
     def checkProgramIsInstalled(self, program, args, where_to_download,
                                 affected_tools):
         try:
-            _out = subprocess.Popen([program, args], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+            subprocess.Popen([program, args], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             return True
         except EnvironmentError:
             # handle file not found error.
