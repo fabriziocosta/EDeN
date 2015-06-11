@@ -43,7 +43,6 @@ def compute_maximum_subarray(score_vector=None):
 
 
 def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=None, max_subarray_size=None, output='minimal', margin=1):
-    subarray_list = []
     original_score = score
     while True:
         # find (begin,end) of subarray in each element

@@ -10,8 +10,6 @@ from sklearn import cross_validation
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from scipy.stats import randint
 from scipy.stats import uniform
-import numpy as np
-from scipy import stats
 from scipy.sparse import vstack
 from itertools import tee
 import random
@@ -135,7 +133,7 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
     return return_list
 
 
-def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None,  n_jobs=8):
+def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None, n_jobs=8):
     if n_jobs == 1:
         return pre_processor(iterable, **pre_processor_args)
     else:
@@ -147,7 +145,7 @@ def serial_vectorize(graphs, vectorizer=None):
     return X
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5,  block_size=None, n_jobs=8):
+def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
@@ -172,7 +170,7 @@ def vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
 
 
 def describe(X):
-    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
+    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0])
 
 
 def iterator_size(iterable):
@@ -181,7 +179,7 @@ def iterator_size(iterable):
 
 
 def random_bipartition(int_range, relative_size=.7, random_state=1):
-    random.seed( random_state )
+    random.seed(random_state)
     ids = range(int_range)
     random.shuffle(ids)
     split_point = int(int_range * relative_size)
@@ -346,8 +344,6 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             if len(matrix.shape) == 1:
                 for x in matrix:
                     f.write("%s\n" % (x))
-                #data_str = map(str, matrix)
-                # f.write('\n'.join(data_str))
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")

@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 
-import sys
-import os
 import random
-import re
-from time import time, clock
+from time import time
 import multiprocessing as mp
-import numpy as np
 from itertools import tee, chain
 from collections import defaultdict
 
@@ -85,10 +81,11 @@ class SequenceMotif(object):
         self._build_cluster_models()
 
     def fit(self, seqs, neg_seqs=None):
-        """Builds a discriminative estimator. 
-        Identifies the maximal subarrays in the data. 
+        """
+        Builds a discriminative estimator.
+        Identifies the maximal subarrays in the data.
         Clusters them with the clustering algorithm provided in the initialization phase.
-        For each cluster builds a fast sequence search model (Aho Corasick data structure). 
+        For each cluster builds a fast sequence search model (Aho Corasick data structure).
         """
         start = time()
         if self.training_size is None:
@@ -141,7 +138,7 @@ class SequenceMotif(object):
                 hits = self._cluster_hit(seq, cluster_id)
                 if len(list(hits)):
                     cluster_hits.append(cluster_id)
-            if return_list == False:
+            if return_list is False:
                 if len(cluster_hits):
                     yield 1
                 else:
@@ -158,7 +155,7 @@ class SequenceMotif(object):
             for cluster_id in self.motives_db:
                 hits = self._cluster_hit(seq, cluster_id)
                 hits = list(hits)
-                if return_match == False:
+                if return_match is False:
                     if len(hits):
                         cluster_hits[cluster_id] = 1
                 else:
@@ -233,7 +230,6 @@ class SequenceMotif(object):
         for cluster_id in self.clusters:
             if cluster_id != -1:
                 if len(self.clusters[cluster_id]) >= self.min_cluster_size:
-                    clustered_seqs = []
                     new_sequential_cluster_id += 1
                     for motif_id in self.clusters[cluster_id]:
                         clustered_motives[new_sequential_cluster_id].append(self.motives[motif_id])

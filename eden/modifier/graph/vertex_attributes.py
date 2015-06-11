@@ -5,7 +5,7 @@ def incident_edge_label(graph_list=None, output_attribute='type', separator='', 
     """
     level: int
     level=1 considers all incident edges
-    level=2 considers all edges incident on the neighbors  
+    level=2 considers all edges incident on the neighbors
     """
     for g in graph_list:
         # iterate over nodes
@@ -31,7 +31,7 @@ def incident_node_label(graph_list=None, output_attribute='type', separator='', 
     """
     level: int
     level=1 considers all incident nodes
-    level=2 considers all nodes incident on the neighbors  
+    level=2 considers all nodes incident on the neighbors
     """
     for g in graph_list:
         # iterate over nodes
