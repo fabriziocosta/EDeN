@@ -140,6 +140,17 @@ def main_predict(args):
     predict(seqs, sequence_motif, args)
 
 
+def _save_motives(sequence_motif, args):
+    from eden.util import save_output
+    text = []
+    for cluster_id in sequence_motif.motives_db:
+        text.append("ID %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
+        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
+            text.append("%s\t%d" % (motif, count))
+        text.append("")
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+
+
 def main_fit(args):
     # read in sequences in FASTA format
     from eden.converter.fasta import fasta_to_sequence
@@ -189,14 +200,7 @@ def main_fit(args):
     logger.info('Saved motif model in %s' % args.model_filename)
 
     # output motives
-    from eden.util import save_output
-    text = []
-    for cluster_id in sequence_motif.motives_db:
-        text.append("ID %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
-        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
-            text.append("%s\t%d" % (motif, count))
-        text.append("")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+    _save_motives(sequence_motif, args)
 
     # output hits
     predict(seqs, sequence_motif, args)
