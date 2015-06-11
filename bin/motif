@@ -140,15 +140,32 @@ def main_predict(args):
     predict(seqs, sequence_motif, args)
 
 
-def _save_motives(sequence_motif, args):
+def _save_motives_multiple_fasta_files(sequence_motif, args):
+    from eden.util import save_output
+    output_dir_path = os.path.join(args.output_dir_path, 'motives_dir')
+    for cluster_id in sequence_motif.motives_db:
+        out_file_name = 'motif_%d.fa' % cluster_id
+        text = []
+        for i, (count, motif) in enumerate(sequence_motif.motives_db[cluster_id]):
+            text.append(">cl:%d|id:%d" % (cluster_id, i))
+            text.append("%s" % motif)
+        save_output(text=text, output_dir_path=output_dir_path, out_file_name=out_file_name)
+
+
+def _save_motives_single_file(sequence_motif, args):
     from eden.util import save_output
     text = []
     for cluster_id in sequence_motif.motives_db:
-        text.append("ID %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
+        text.append("cluster: %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
         for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
             text.append("%s\t%d" % (motif, count))
         text.append("")
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+
+
+def _save_motives(sequence_motif, args):
+    _save_motives_single_file(sequence_motif, args)
+    _save_motives_multiple_fasta_files(sequence_motif, args)
 
 
 def main_fit(args):
