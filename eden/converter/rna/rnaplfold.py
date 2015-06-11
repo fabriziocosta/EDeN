@@ -3,7 +3,6 @@
 import os
 import networkx as nx
 import subprocess as sp
-from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 from eden.util import is_iterable
 

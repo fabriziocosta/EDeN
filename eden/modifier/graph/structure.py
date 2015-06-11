@@ -91,16 +91,16 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
     modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
     "attribute_in" identifies the node attribute that is extracted from all contracted nodes.
     "attribute_out" identifies the node attribute that is written in the resulting graph.
-    "reduction" is one of the following reduction operations: 
-    1. histogram, 
-    2. sum, 
-    3. average, 
-    4. categorical, 
+    "reduction" is one of the following reduction operations:
+    1. histogram,
+    2. sum,
+    3. average,
+    4. categorical,
     5. set_categorical.
-    "histogram" returns a sparse vector with numerical hased keys, 
-    "sum" and "average" cast the values into floats before computing the sum and average respectively, 
-    "categorical" returns the concatenation string of the lexicographically sorted list of input attributes, 
-    "set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
+    "histogram" returns a sparse vector with numerical hashed keys,
+    "sum" and "average" cast the values into floats before computing the sum and average respectively,
+    "categorical" returns the concatenation string of the lexicographically sorted list of input attributes,
+    "set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.
     '''
     for g in graphs:
         # check for 'position' attribute and add it if not present

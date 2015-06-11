@@ -1,7 +1,9 @@
 import numpy as np
+import heapq
 from sklearn.kernel_approximation import Nystroem
 import logging
 logger = logging.getLogger(__name__)
+
 
 class WTA_hash():
 
@@ -105,7 +107,7 @@ class discreteLSH():
         self.B = r * np.random.random_sample((1, num_functions))
 
     def transform(self, X):
-        return np.array(np.floor((np.dot(X, self.A) + self.B) / self.r), numpy.int32)
+        return np.array(np.floor((np.dot(X, self.A) + self.B) / self.r), np.int32)
 
     def transform_list(self, vec):
         return self.transform(np.array(vec))

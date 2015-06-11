@@ -2,7 +2,6 @@ import networkx as nx
 import pylab as plt
 import json
 from networkx.readwrite import json_graph
-from collections import defaultdict
 import numpy as np
 
 
@@ -28,8 +27,8 @@ def draw_graph(graph,
                verbose=True,
                file_name=None,
                title_key='info'):
-    
-    if size != None: 
+
+    if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
         plt.figure(figsize=(size_x, size_y))
@@ -43,8 +42,8 @@ def draw_graph(graph,
         else:
             vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
 
-    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == False]
-    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == True]
+    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is False]
+    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is True]
 
     if edge_label is not None:
         if secondary_edge_label:
@@ -78,7 +77,7 @@ def draw_graph(graph,
     else:
         raise Exception('Unknown layout format: %s' % layout)
 
-    if node_border == False:
+    if node_border is False:
         linewidths = 0.001
     else:
         linewidths = 1
@@ -107,12 +106,11 @@ def draw_graph(graph,
     if title_key:
         title = str(graph.graph.get(title_key, ''))
         plt.title(title)
-    if size!=None:
+    if size is not None:
         # here we decide if we output the image.
         # note: if size is not set, the canvas has been created outside of this function.
-        # we wont write on a canvas that we didnt create ourselfes. 
+        # we wont write on a canvas that we didn't create ourselves.
         if file_name is None:
-            #plt.clim(vmin, vmax)
             plt.show()
         else:
             plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
@@ -164,7 +162,6 @@ def serialize_graph(graph):
 
 
 def embed2D(data, vectorizer, size=10, n_components=5, colormap='YlOrRd'):
-    import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
     else:
@@ -247,7 +244,6 @@ def embed_dat_matrix_2D(X_reduced, y=None, labels=None, density_colormap='Blues'
 
 def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, filename=None):
     '"median","centroid","weighted","single","ward","complete","average"'
-    import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
     else:
@@ -346,7 +342,6 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
     import matplotlib.pyplot as plt
     from matplotlib import offsetbox
     from PIL import Image
-    import numpy as np
 
     if title is not None:
         plt.title(title)
@@ -358,7 +353,6 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
         plt.yticks([])
     if image_file_name is not None:
         num_instances = X.shape[0]
-        large_images = np.array([[1., 1]])
         ax = plt.subplot(111)
         for i in range(num_instances):
             img = Image.open(image_file_name + str(i) + '.png')
@@ -433,17 +427,16 @@ def plot_embeddings(X, y, labels=None, save_image_file_name=None, image_file_nam
         plt.show()
 
 
-
-
 # draw a whole set of graphs::
 def draw_graph_set(graphs, n_graphs_per_line=5, size=4, edge_label=None, **args):
-    graphs=list(graphs)
+    graphs = list(graphs)
     while graphs:
-        draw_graph_row(graphs[:n_graphs_per_line], n_graphs_per_line=n_graphs_per_line,edge_label=edge_label,size=size, **args)
+        draw_graph_row(graphs[:n_graphs_per_line], n_graphs_per_line=n_graphs_per_line, edge_label=edge_label, size=size, **args)
         graphs = graphs[n_graphs_per_line:]
 
+
 # draw a row of graphs
-def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4,  headlinehook= lambda x: ""  , **args):
+def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlinehook=lambda x: "", **args):
     count = len(graphs)
     size_y = size
     size_x = size * n_graphs_per_line
@@ -453,9 +446,6 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4,  headline
     for i in range(count):
         plt.subplot(1, n_graphs_per_line, i + 1)
         graphs[i].graph['info'] = "size:" + str(len(graphs[i])) + headlinehook(graphs[i])
-        g=graphs[i]
-        draw_graph(g,size=None, **args)
+        g = graphs[i]
+        draw_graph(g, size=None, **args)
     plt.show()
-
-
-
