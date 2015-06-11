@@ -22,6 +22,8 @@ def draw_graph(graph,
                prog='neato',
                node_border=False,
                colormap='YlOrRd',
+               vmin=0,
+               vmax=1,
                invert_colormap=False,
                verbose=True,
                file_name=None,
@@ -110,6 +112,7 @@ def draw_graph(graph,
         # note: if size is not set, the canvas has been created outside of this function.
         # we wont write on a canvas that we didnt create ourselfes. 
         if file_name is None:
+            #plt.clim(vmin, vmax)
             plt.show()
         else:
             plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
