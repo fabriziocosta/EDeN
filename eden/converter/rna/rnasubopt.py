@@ -3,10 +3,8 @@
 import networkx as nx
 import subprocess as sp
 import numpy as np
-from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import sequence_dotbracket_to_graph
-from eden.util import read
 from eden.util import is_iterable
 
 

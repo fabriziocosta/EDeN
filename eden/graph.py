@@ -3,17 +3,15 @@
 import math
 import numpy as np
 from scipy import stats
-from scipy.sparse import csr_matrix, vstack
+from scipy.sparse import csr_matrix
 from numpy.linalg import norm
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
-from operator import attrgetter, itemgetter
 import itertools
 import networkx as nx
-import multiprocessing
 import copy
-from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
+from eden import fast_hash, fast_hash_vec
 
 import logging
 logger = logging.getLogger(__name__)
@@ -43,34 +41,34 @@ class Vectorizer(object):
         complexity : int
             The complexity of the features extracted. This is equivalent to setting r=complexity, d=complexity.
 
-        r : int 
+        r : int
           The maximal radius size.
 
-        d : int 
+        d : int
           The maximal distance size.
 
         n : int
           The maximal number of clusters used to discretized label vectors.
 
-        min_r : int 
+        min_r : int
           The minimal radius size.
 
-        min_d : int 
+        min_d : int
           The minimal distance size.
 
         min_n : int
           The minimal number of clusters used to discretized label vectors.
 
-        nbits : int 
+        nbits : int
           The number of bits that defines the feature space size: |feature space|=2^nbits.
 
-        normalization : bool 
+        normalization : bool
           If set the resulting feature vector will have unit euclidean norm.
 
-        inner_normalization : bool 
-          If set the feature vector for a specific combination of the radius and 
+        inner_normalization : bool
+          If set the feature vector for a specific combination of the radius and
           distance size will have unit euclidean norm.
-          When used together with the 'normalization' flag it will be applied first and 
+          When used together with the 'normalization' flag it will be applied first and
           then the resulting feature vector will be normalized.
         """
         self.complexity = complexity
@@ -136,12 +134,12 @@ class Vectorizer(object):
 
     def fit(self, graphs):
         """
-        Constructs a discretization of the real valued vector data 
+        Constructs a discretization of the real valued vector data
         stored in the nodes of the graphs.
 
         Parameters
         ----------
-        graphs : list of networkx graphs. 
+        graphs : list of networkx graphs.
           The data.
         """
         if self.n == 1:
@@ -158,12 +156,12 @@ class Vectorizer(object):
 
     def partial_fit(self, graphs):
         """
-        Updates the discretization of the real valued vector data 
-        stored in the nodes of the graphs. 
+        Updates the discretization of the real valued vector data
+        stored in the nodes of the graphs.
 
         Parameters
         ----------
-        graphs : list of networkx graphs. 
+        graphs : list of networkx graphs.
           The data.
         """
         label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
@@ -176,14 +174,14 @@ class Vectorizer(object):
 
     def fit_transform(self, graphs):
         """
-        Constructs a discretization of the real valued vector data 
+        Constructs a discretization of the real valued vector data
         stored in the nodes of the graphs.
-        Then transforms a list of networkx graphs into a Numpy csr matrix 
+        Then transforms a list of networkx graphs into a Numpy csr matrix
         ( Compressed Sparse Row matrix ).
 
         Parameters
         ----------
-        graphs : list of networkx graphs. 
+        graphs : list of networkx graphs.
           The data.
         """
         graphs, graphs_ = itertools.tee(graphs)
@@ -192,12 +190,12 @@ class Vectorizer(object):
 
     def transform(self, graphs):
         """
-        Transforms a list of networkx graphs into a Numpy csr matrix 
+        Transforms a list of networkx graphs into a Numpy csr matrix
         ( Compressed Sparse Row matrix ).
 
         Parameters
         ----------
-        graphs : list of networkx graphs. 
+        graphs : list of networkx graphs.
           The data.
         """
         instance_id = None
@@ -211,7 +209,7 @@ class Vectorizer(object):
 
     def transform_iter(self, graphs):
         """
-        Transforms a list of networkx graphs into a Numpy csr matrix 
+        Transforms a list of networkx graphs into a Numpy csr matrix
         ( Compressed Sparse Row matrix ) and returns one sparse row at a time.
         This is a generator.
         """
@@ -221,7 +219,7 @@ class Vectorizer(object):
 
     def transform_single(self, graph):
         """
-        Transforms a single networkx graph into a Numpy csr matrix 
+        Transforms a single networkx graph into a Numpy csr matrix
         ( Compressed Sparse Row matrix ) and returns one sparse row
         """
         self._test_goodness(graph)
@@ -247,7 +245,7 @@ class Vectorizer(object):
         for G in graphs:
             self._test_goodness(G)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
             res = reference_vec.dot(x.T).todense()
             prediction = res[0, 0]
             yield prediction
@@ -260,7 +258,7 @@ class Vectorizer(object):
         for G in graphs:
             self._test_goodness(G)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, original_graph))
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
             yield norm(reference_vec - x)
 
     def _test_goodness(self, G):
@@ -443,12 +441,12 @@ class Vectorizer(object):
             G.graph['weighted'] = True
             # check that edges are weighted, if not assign unitary weight
             for n, d in G.nodes_iter(data=True):
-                if d.get('edge', False) == True:
-                    if d.get('weight', False) == False:
+                if d.get('edge', False) is True:
+                    if d.get('weight', False) is False:
                         G.node[n]['weight'] = 1
 
     def _edge_to_vertex_transform(self, original_graph):
-        """Converts edges to nodes so to process the graph ignoring the information on the 
+        """Converts edges to nodes so to process the graph ignoring the information on the
         resulting edges."""
         # if operating on graphs that have already been subject to the
         # edge_to_vertex transformation, then do not repeat the transformation but
@@ -479,7 +477,7 @@ class Vectorizer(object):
         G = nx.Graph(original_graph)
         # re-wire the endpoints of edge-vertices
         for n, d in original_graph.nodes_iter(data=True):
-            if d.get('edge', False) == True:
+            if d.get('edge', False) is True:
                 # extract the endpoints
                 endpoints = [u for u in original_graph.neighbors(n)]
                 assert (len(endpoints) == 2), 'ERROR: more than 2 endpoints'
@@ -489,7 +487,7 @@ class Vectorizer(object):
                 G.add_edge(u, v, d)
                 # remove the edge-vertex
                 G.remove_node(n)
-            if d.get('node', False) == True:
+            if d.get('node', False) is True:
                 # remove stale information
                 G.node[n].pop('remote_neighbours', None)
         return G
@@ -529,7 +527,7 @@ class Vectorizer(object):
         # for all distances
         root_dist_dict = G.node[v]['remote_neighbours']
         for distance in range(self.min_d, self.d + 2, 2):
-            if root_dist_dict.has_key(distance):
+            if distance in root_dist_dict:
                 node_set = root_dist_dict[distance]
                 for u in node_set:
                     self._transform_vertex_pair(G, v, u, distance, feature_list)
@@ -556,7 +554,7 @@ class Vectorizer(object):
                     feature = fast_hash(t, self.bitmask)
                     key = fast_hash([radius, distance], self.bitmask)
                     # if self.weighted == False :
-                    if G.graph.get('weighted', False) == False:
+                    if G.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
                     else:
                         feature_list[key][feature] += G.node[v]['neighborhood_graph_weight'][radius] + G.node[u]['neighborhood_graph_weight'][radius]
@@ -578,7 +576,7 @@ class Vectorizer(object):
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
                 total_norm += feature_vector_value * feature_vector_value
-        #global normalization
+        # global normalization
         if self.normalization:
             normalized_feature_vector = {}
             sqrt_total_norm = math.sqrt(float(total_norm))
@@ -680,14 +678,14 @@ class Vectorizer(object):
                 for v in G.neighbors(u):
                     if v not in visited:
                         # skip nesting edge-nodes
-                        if G.node[v].get('nesting', False) == False:
+                        if G.node[v].get('nesting', False) is False:
                             dist[v] = d
                             visited.add(v)
                             q.append(v)
-                            if dist_list.has_key(d) == False:
-                                dist_list[d] = set()
+                            if d in dist_list:
                                 dist_list[d].add(v)
                             else:
+                                dist_list[d] = set()
                                 dist_list[d].add(v)
         G.node[root]['remote_neighbours'] = dist_list
 
@@ -698,31 +696,31 @@ class Vectorizer(object):
 
     def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
         """
-        Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx 
+        Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx
         graphs where each vertex has an additional attribute with key 'importance'.
-        The importance value of a vertex corresponds to the part of the score that is imputable 
-        to the neighborhood of radius r+d of the vertex. 
+        The importance value of a vertex corresponds to the part of the score that is imputable
+        to the neighborhood of radius r+d of the vertex.
         It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
 
         Parameters
         ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+        estimator : scikit-learn predictor trained on data sampled from the same distribution.
           If None the vertex weigths are by default 1.
 
         reweight : float
-          Update the 'weight' information of each vertex as a linear combination of the current weight and 
-          the absolute value of the score computed by the estimator. 
+          Update the 'weight' information of each vertex as a linear combination of the current weight and
+          the absolute value of the score computed by the estimator.
           If reweight = 0 then do not update.
           If reweight = 1 then discard the current weight information and use only abs( score )
-          If reweight = 0.5 then update with the aritmetic mean of the current weight information 
+          If reweight = 0.5 then update with the aritmetic mean of the current weight information
           and the abs( score )
 
         relabel : bool
-          If True replace the label attribute of each vertex with the 
-          sparse vector encoding of all features that have that vertex as root. Create a new attribute 
+          If True replace the label attribute of each vertex with the
+          sparse vector encoding of all features that have that vertex as root. Create a new attribute
           'original_label' to store the previous label. If the 'original_label' attribute is already present
-          then it is left untouched: this allows an iterative application of the relabeling procedure while 
-          preserving the original information. 
+          then it is left untouched: this allows an iterative application of the relabeling procedure while
+          preserving the original information.
         """
         self.estimator = estimator
         self.reweight = reweight
@@ -757,12 +755,12 @@ class Vectorizer(object):
                     str(index): value for index, value in zip(row.indices, row.data)}
                 # if an original label does not exist then save it, else do
                 # nothing and preserve the information in original label
-                if G.node[v].get('original_label', False) == False:
+                if G.node[v].get('original_label', False) is False:
                     G.node[v]["original_label"] = G.node[v]["label"]
                 G.node[v]["label"] = vec_dict
                 # if a node does not have a 'entity' attribute then assign one
                 # called 'vactor' by default
-                if G.node[v].get("entity", False) == False:
+                if G.node[v].get("entity", False) is False:
                     G.node[v]["entity"] = 'vector'
                 vertex_id += 1
         return G
@@ -783,7 +781,7 @@ class Vectorizer(object):
                 G.node[v]["importance"] = margins[vertex_id]
                 # update the 'weight' information as a linear combination of
                 # the previuous weight and the absolute margin
-                if G.node[v].has_key("weight") and self.reweight != 0:
+                if "weight" in G.node[v] and self.reweight != 0:
                     G.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * G.node[v]["weight"]
                 # in case the original graph was not weighted then instantiate
                 # the 'weight' with the absolute margin
@@ -792,7 +790,7 @@ class Vectorizer(object):
                 vertex_id += 1
             if d.get('edge', False):  # keep the weight of edges
                 # ..unless they were unweighted, in this case add unit weight
-                if G.node[v].has_key("weight") == False:
+                if "weight" not in G.node[v]:
                     G.node[v]["weight"] = 1
         return G
 
@@ -813,11 +811,11 @@ class Vectorizer(object):
 class ListVectorizer(Vectorizer):
 
     """
-    Transforms vector labeled, weighted, nested graphs in sparse vectors. 
+    Transforms vector labeled, weighted, nested graphs in sparse vectors.
 
-    A list of iterators over graphs and a list of weights are taken in input. 
-    The returned vector is the linear combination of sparse vectors obtained on each 
-    corresponding graph.   
+    A list of iterators over graphs and a list of weights are taken in input.
+    The returned vector is the linear combination of sparse vectors obtained on each
+    corresponding graph.
     """
 
     def __init__(self,
@@ -838,28 +836,28 @@ class ListVectorizer(Vectorizer):
         complexity : int
           The complexity of the features extracted.
 
-        r : int 
+        r : int
           The maximal radius size.
 
-        d : int 
+        d : int
           The maximal distance size.
 
-        min_r : int 
+        min_r : int
           The minimal radius size.
 
-        min_d : int 
+        min_d : int
           The minimal distance size.
 
-        nbits : int 
+        nbits : int
           The number of bits that defines the feature space size: |feature space|=2^nbits.
 
-        normalization : bool 
+        normalization : bool
           If set the resulting feature vector will have unit euclidean norm.
 
-        inner_normalization : bool 
-          If set the feature vector for a specific combination of the radius and 
+        inner_normalization : bool
+          If set the feature vector for a specific combination of the radius and
           distance size will have unit euclidean norm.
-          When used together with the 'normalization' flag it will be applied first and 
+          When used together with the 'normalization' flag it will be applied first and
           then the resulting feature vector will be normalized.
 
         n : int
@@ -882,12 +880,12 @@ class ListVectorizer(Vectorizer):
 
     def fit(self, G_iterators_list):
         """
-        Constructs an approximate explicit mapping of a kernel function on the data 
+        Constructs an approximate explicit mapping of a kernel function on the data
         stored in the nodes of the graphs.
 
         Parameters
         ----------
-        G_iterators_list : list of iterators over networkx graphs. 
+        G_iterators_list : list of iterators over networkx graphs.
           The data.
         """
         for i, graphs in enumerate(G_iterators_list):
@@ -895,15 +893,14 @@ class ListVectorizer(Vectorizer):
             self.vectorizers[i].fit(graphs)
 
     def fit_transform(self, G_iterators_list, weights=list()):
-        """ 
-
+        """
         Parameters
         ----------
-        G_iterators_list : list of iterators over networkx graphs. 
+        G_iterators_list : list of iterators over networkx graphs.
           The data.
 
         weights : list of positive real values.
-          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.   
+          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.
         """
         G_iterators_list_fit, G_iterators_list_transf = itertools.tee(G_iterators_list)
         self.fit(G_iterators_list_fit)
@@ -911,16 +908,16 @@ class ListVectorizer(Vectorizer):
 
     def transform(self, G_iterators_list, weights=list()):
         """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix 
+        Transforms a list of networkx graphs into a Numpy csr sparse matrix
         ( Compressed Sparse Row matrix ).
 
         Parameters
         ----------
-        G_iterators_list : list of iterators over networkx graphs. 
+        G_iterators_list : list of iterators over networkx graphs.
           The data.
 
         weights : list of positive real values.
-          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.   
+          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.
         """
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
@@ -976,11 +973,11 @@ class ListVectorizer(Vectorizer):
         """
         Purpose:
         ----------
-        It outputs the estimator prediction of the vectorized graph. 
+        It outputs the estimator prediction of the vectorized graph.
 
         Parameters
         ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+        estimator : scikit-learn predictor trained on data sampled from the same distribution.
           If None the vertex weigths are by default 1.
         """
         self.estimator = estimator
