@@ -351,7 +351,6 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")
-    logger = logging.getLogger(__name__)
     logger.info("Written file: %s" % full_out_file_name)
 
 
@@ -384,5 +383,4 @@ def save_output(text=None, output_dir_path=None, out_file_name=None):
     with open(full_out_file_name, 'w') as f:
         for line in text:
             f.write("%s\n" % str(line).strip())
-    logger = logging.getLogger(__name__)
     logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))
