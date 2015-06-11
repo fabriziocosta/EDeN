@@ -27,6 +27,7 @@ In the output directory the following files with fixed name are created:
 2. sequences_cluster_id_hit.txt
 3. sequences_cluster_match_position.txt
 4. sequences_cluster_match_position.bed
+5. motives_dir with motif_n.fa
 
 The format and content of each file is as follows:
 1. motifs.txt
@@ -48,6 +49,8 @@ Ex: 47  2:[(28, 37),(15,25)] 3:[(45, 54)]
 4. sequences_cluster_match_position.bed
 Format: BED format: four columns, tab separated: header identifier of 
 sequence, match start position, match end position, cluster id.
+
+5. directory containing individual fasta files, one for each cluster
 
 Example usage:
 
