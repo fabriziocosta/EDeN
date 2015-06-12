@@ -59,8 +59,3 @@ A few examples can be found as IPython Notebook inside of the examples folder.
  * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb)
  * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb)
  * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb)
- * [RNA introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_example.ipynb)
- * [RNA visualization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_visualization.ipynb)
- * [RNA characterization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA.ipynb)
- * [RNA composite modelling](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_list.ipynb)
- * [RNA genome scan](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_genome_scan.ipynb)
