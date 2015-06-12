@@ -26,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 class ModelInitializerBase(object):
 
-    """Subclass to generate your own EDeN model driver."""
+    """
+    Subclass to generate your own EDeN model driver.
+    """
 
     def __init__(self):
         pass
