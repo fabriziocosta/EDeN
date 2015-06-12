@@ -5,4 +5,4 @@ install:
   - virtualenv .venv
   - . .venv/bin/activate
   - pip install flake8
-script:  flake8 . --ignore=E501
+script:  flake8 . --exclude=.venv --ignore=E501
