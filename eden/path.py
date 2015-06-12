@@ -9,10 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Vectorizer():
-
-    """
-    Transforms strings in sparse vectors.
-    """
+    """Transform strings into sparse vectors."""
 
     def __init__(self,
                  complexity=None,
@@ -50,11 +47,11 @@ class Vectorizer():
 
     def transform(self, seq_list):
         """
-        Parameters
-        ----------
-        seq_list : list of strings
-            The data.
+        Arguments:
+
+        seq_list -- list of strings
         """
+
         feature_dict = {}
         for instance_id, seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id, seq))
@@ -162,8 +159,8 @@ class Vectorizer():
         corresponds to the part of the score that is imputable  to the features
         that involve the specific char.
 
-        Parameters
-        ----------
+        Arguments
+
         sequences: iterable lists of strings
           The input.
 
@@ -186,9 +183,8 @@ class Vectorizer():
           characters in each input sequence, 3) a list with  size equal to the
           number of characters in each input sequence, of sparse vectors each
           corresponding to the vertex induced features.
-
-
         """
+
         self.estimator = estimator
         self.relabel = relabel
 
