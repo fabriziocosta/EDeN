@@ -5,12 +5,10 @@ import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix
 from numpy.linalg import norm
-from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
 import itertools
 import networkx as nx
-import copy
 from eden import fast_hash, fast_hash_vec
 
 import logging
@@ -19,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 class Vectorizer(object):
 
-    """
-    Transforms real vector labeled, weighted, nested graphs in sparse vectors.
-    """
+    """Transform real vector labeled, weighted, nested graphs in sparse vectors."""
 
     def __init__(self,
                  complexity=3,
@@ -35,42 +31,31 @@ class Vectorizer(object):
                  normalization=True,
                  inner_normalization=True):
         """
-        Parameters
-        ----------
+        Arguments:
 
-        complexity : int
-            The complexity of the features extracted. This is equivalent to setting r=complexity, d=complexity.
+        complexity -- the complexity of the features extracted (default 3). This is equivalent to setting r = complexity, d = complexity.
 
-        r : int
-          The maximal radius size.
+        r -- the maximal radius size.
 
-        d : int
-          The maximal distance size.
+        d -- the maximal distance size.
 
-        n : int
-          The maximal number of clusters used to discretized label vectors.
+        n -- the maximal number of clusters used to discretize real label vectors.
 
-        min_r : int
-          The minimal radius size.
+        min_r -- the minimal radius size.
 
-        min_d : int
-          The minimal distance size.
+        min_d -- the minimal distance size.
 
-        min_n : int
-          The minimal number of clusters used to discretized label vectors.
+        min_n -- the minimal number of clusters used to discretize real label vectors (default 2).
 
-        nbits : int
-          The number of bits that defines the feature space size: |feature space|=2^nbits.
+        nbits -- the number of bits that defines the feature space size: |feature space|=2^nbits (default 20).
 
-        normalization : bool
-          If set the resulting feature vector will have unit euclidean norm.
+        normalization -- flag to set the resulting feature vector to have unit euclidean norm (default True)
 
-        inner_normalization : bool
-          If set the feature vector for a specific combination of the radius and
-          distance size will have unit euclidean norm.
-          When used together with the 'normalization' flag it will be applied first and
-          then the resulting feature vector will be normalized.
+        inner_normalization -- flag to set the feature vector for a specific combination of the radius and
+        distance size to have unit euclidean norm (default True). When used together with the 'normalization'
+        flag it will be applied first and then the resulting feature vector will be normalized.
         """
+
         self.complexity = complexity
         if r is None:
             r = complexity
@@ -94,6 +79,8 @@ class Vectorizer(object):
         self.discretization_model_dict = dict()
 
     def set_params(self, **args):
+        """Set the parameters of the vectorizer."""
+
         if args.get('complexity', None) is not None:
             self.complexity = args['complexity']
             self.r = self.complexity * 2
@@ -133,15 +120,13 @@ class Vectorizer(object):
         return representation
 
     def fit(self, graphs):
-        """
-        Constructs a discretization of the real valued vector data
-        stored in the nodes of the graphs.
+        """Fit the discretizer to the real valued vector data stored in the nodes of the graphs.
 
-        Parameters
-        ----------
-        graphs : list of networkx graphs.
-          The data.
+        Arguments:
+
+        graphs -- the list of networkx graphs.
         """
+
         if self.n == 1:
             raise Exception('ERROR: fitting is not compatible with n=1.')
         label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
@@ -155,15 +140,13 @@ class Vectorizer(object):
                 self.discretization_model_dict[node_entity] += [discretization_model]
 
     def partial_fit(self, graphs):
-        """
-        Updates the discretization of the real valued vector data
-        stored in the nodes of the graphs.
+        """Update the discretizer of the real valued vector data stored in the nodes of the graphs.
 
-        Parameters
-        ----------
-        graphs : list of networkx graphs.
-          The data.
+        Arguments:
+
+        graphs -- the list of networkx graphs.
         """
+
         label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
         label_data_matrix_dict.update(
             self._assemble_sparse_data_matrices(graphs))
@@ -173,31 +156,26 @@ class Vectorizer(object):
                 self.discretization_model_dict[node_entity][i].partial_fit(label_data_matrix_dict[node_entity])
 
     def fit_transform(self, graphs):
-        """
-        Constructs a discretization of the real valued vector data
-        stored in the nodes of the graphs.
-        Then transforms a list of networkx graphs into a Numpy csr matrix
-        ( Compressed Sparse Row matrix ).
+        """Fit the discretizer to the real valued vector data stored in the nodes of the graphs and then
+        transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Parameters
-        ----------
-        graphs : list of networkx graphs.
-          The data.
+        Arguments:
+
+        graphs -- the list of networkx graphs.
         """
+
         graphs, graphs_ = itertools.tee(graphs)
         self.fit(graphs_)
         return self.transform(graphs)
 
     def transform(self, graphs):
-        """
-        Transforms a list of networkx graphs into a Numpy csr matrix
-        ( Compressed Sparse Row matrix ).
+        """Transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Parameters
-        ----------
-        graphs : list of networkx graphs.
-          The data.
+        Arguments:
+
+        graphs -- the list of networkx graphs.
         """
+
         instance_id = None
         feature_dict = {}
         for instance_id, G in enumerate(graphs):
@@ -207,28 +185,15 @@ class Vectorizer(object):
             raise Exception('ERROR: something went wrong, no graphs are present in current iterator.')
         return self._convert_dict_to_sparse_matrix(feature_dict)
 
-    def transform_iter(self, graphs):
-        """
-        Transforms a list of networkx graphs into a Numpy csr matrix
-        ( Compressed Sparse Row matrix ) and returns one sparse row at a time.
-        This is a generator.
-        """
-        for instance_id, G in enumerate(graphs):
-            self._test_goodness(G)
-            yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, G))
-
     def transform_single(self, graph):
-        """
-        Transforms a single networkx graph into a Numpy csr matrix
-        ( Compressed Sparse Row matrix ) and returns one sparse row
-        """
+        """Transform a single networkx graph into one sparse row in Compressed Sparse Row matrix format."""
+
         self._test_goodness(graph)
         return self._convert_dict_to_sparse_matrix(self._transform(0, graph))
 
     def predict(self, graphs, estimator):
-        """
-        Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
-        """
+        """Return an iterator over the decision function output of the estimator applied to the graphs in input."""
+
         for G in graphs:
             self._test_goodness(G)
             # extract feature vector
@@ -238,9 +203,8 @@ class Vectorizer(object):
             yield prediction
 
     def similarity(self, graphs, ref_instance=None):
-        """
-        Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
-        """
+        """Return an iterator over the dot product between the ref_instance graph and the graphs in input."""
+
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
@@ -251,9 +215,8 @@ class Vectorizer(object):
             yield prediction
 
     def distance(self, graphs, ref_instance=None):
-        """
-        Takes an iterator over graphs and a reference graph, and returns an iterator over the corresponding euclidean distances.
-        """
+        """Return an iterator over the euclidean distance between the ref_instance graph and the graphs in input."""
+
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
             self._test_goodness(G)
@@ -446,8 +409,8 @@ class Vectorizer(object):
                         G.node[n]['weight'] = 1
 
     def _edge_to_vertex_transform(self, original_graph):
-        """Converts edges to nodes so to process the graph ignoring the information on the
-        resulting edges."""
+        """Return a graph where the edges of the original_graph are converted to nodes."""
+
         # if operating on graphs that have already been subject to the
         # edge_to_vertex transformation, then do not repeat the transformation but
         # simply return the graph
@@ -696,32 +659,29 @@ class Vectorizer(object):
 
     def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
         """
-        Given a list of networkx graphs, and a fitted estimator, it returns a list of networkx
+        Given a list of networkx graphs, and a fitted estimator, return a list of networkx
         graphs where each vertex has an additional attribute with key 'importance'.
         The importance value of a vertex corresponds to the part of the score that is imputable
         to the neighborhood of radius r+d of the vertex.
         It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
 
-        Parameters
-        ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution.
+        Arguments:
+
+        estimator -- scikit-learn predictor trained on data sampled from the same distribution.
           If None the vertex weigths are by default 1.
 
-        reweight : float
-          Update the 'weight' information of each vertex as a linear combination of the current weight and
+        reweight -- the  coefficient used to weight the linear combination of the current weight and
           the absolute value of the score computed by the estimator.
           If reweight = 0 then do not update.
           If reweight = 1 then discard the current weight information and use only abs( score )
-          If reweight = 0.5 then update with the aritmetic mean of the current weight information
-          and the abs( score )
+          If reweight = 0.5 then update with the aritmetic mean of the current weight information and the abs( score )
 
-        relabel : bool
-          If True replace the label attribute of each vertex with the
-          sparse vector encoding of all features that have that vertex as root. Create a new attribute
-          'original_label' to store the previous label. If the 'original_label' attribute is already present
-          then it is left untouched: this allows an iterative application of the relabeling procedure while
-          preserving the original information.
+        relabel -- flag to replace the label attribute of each vertex with the sparse vector encoding of all
+          features that have that vertex as root. Create a new attribute 'original_label' to store the previous
+          label. If the 'original_label' attribute is already present then it is left untouched: this allows
+          an iterative application of the relabeling procedure while preserving the original information.
         """
+
         self.estimator = estimator
         self.reweight = reweight
         self.relabel = relabel
@@ -806,201 +766,3 @@ class Vectorizer(object):
                 vertex_id += 1
         X = self._convert_dict_to_sparse_matrix(feature_dict)
         return X
-
-
-class ListVectorizer(Vectorizer):
-
-    """
-    Transforms vector labeled, weighted, nested graphs in sparse vectors.
-
-    A list of iterators over graphs and a list of weights are taken in input.
-    The returned vector is the linear combination of sparse vectors obtained on each
-    corresponding graph.
-    """
-
-    def __init__(self,
-                 complexity=3,
-                 r=None,
-                 d=None,
-                 min_r=0,
-                 min_d=0,
-                 nbits=20,
-                 normalization=True,
-                 inner_normalization=True,
-                 n=1,
-                 min_n=2):
-        """
-        Parameters
-        ----------
-
-        complexity : int
-          The complexity of the features extracted.
-
-        r : int
-          The maximal radius size.
-
-        d : int
-          The maximal distance size.
-
-        min_r : int
-          The minimal radius size.
-
-        min_d : int
-          The minimal distance size.
-
-        nbits : int
-          The number of bits that defines the feature space size: |feature space|=2^nbits.
-
-        normalization : bool
-          If set the resulting feature vector will have unit euclidean norm.
-
-        inner_normalization : bool
-          If set the feature vector for a specific combination of the radius and
-          distance size will have unit euclidean norm.
-          When used together with the 'normalization' flag it will be applied first and
-          then the resulting feature vector will be normalized.
-
-        n : int
-          The maximal number of clusters used to discretized label vectors.
-
-        min:n : int
-          The minimal number of clusters used to discretized label vectors.
-        """
-        self.vectorizer = Vectorizer(complexity=complexity,
-                                     r=r,
-                                     d=d,
-                                     min_r=min_r,
-                                     min_d=min_d,
-                                     nbits=nbits,
-                                     normalization=normalization,
-                                     inner_normalization=inner_normalization,
-                                     n=n,
-                                     min_n=min_n)
-        self.vectorizers = list()
-
-    def fit(self, G_iterators_list):
-        """
-        Constructs an approximate explicit mapping of a kernel function on the data
-        stored in the nodes of the graphs.
-
-        Parameters
-        ----------
-        G_iterators_list : list of iterators over networkx graphs.
-          The data.
-        """
-        for i, graphs in enumerate(G_iterators_list):
-            self.vectorizers.append(copy.copy(self.vectorizer))
-            self.vectorizers[i].fit(graphs)
-
-    def fit_transform(self, G_iterators_list, weights=list()):
-        """
-        Parameters
-        ----------
-        G_iterators_list : list of iterators over networkx graphs.
-          The data.
-
-        weights : list of positive real values.
-          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.
-        """
-        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(G_iterators_list)
-        self.fit(G_iterators_list_fit)
-        return self.transform(G_iterators_list_transf)
-
-    def transform(self, G_iterators_list, weights=list()):
-        """
-        Transforms a list of networkx graphs into a Numpy csr sparse matrix
-        ( Compressed Sparse Row matrix ).
-
-        Parameters
-        ----------
-        G_iterators_list : list of iterators over networkx graphs.
-          The data.
-
-        weights : list of positive real values.
-          Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.
-        """
-        # if no weights are provided then assume unitary weight
-        if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
-        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
-        for i, graphs in enumerate(G_iterators_list):
-            if len(self.vectorizers) == 0:
-                X_curr = self.vectorizer.transform(graphs)
-            else:
-                X_curr = self.vectorizers[i].transform(graphs)
-            if i == 0:
-                X = X_curr * weights[i]
-            else:
-                X = X + X_curr * weights[i]
-        return X
-
-    def similarity(self, G_iterators_list, ref_instance=None, weights=list()):
-        """
-        This is a generator.
-        """
-        self._reference_vec = self._convert_dict_to_sparse_matrix(
-            self._transform(0, ref_instance))
-
-        # if no weights are provided then assume unitary weight
-        if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
-               ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
-               0), 'ERROR: weight list contains negative values.'
-        try:
-            while True:
-                graphs = [G_iterator.next() for G_iterator in G_iterators_list]
-                yield self._similarity(graphs, weights)
-        except StopIteration:
-            return
-
-    def _similarity(self, graphs, weights=list()):
-        # extract feature vector
-        for i, graph in enumerate(graphs):
-            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(
-                self.vectorizer._transform(0, graph))
-            if i == 0:
-                x = x_curr * weights[i]
-            else:
-                x = x + x_curr * weights[i]
-        res = self._reference_vec.dot(x.T).todense()
-        prediction = res[0, 0]
-        return prediction
-
-    def predict(self, G_iterators_list, estimator=SGDClassifier(), weights=list()):
-        """
-        Purpose:
-        ----------
-        It outputs the estimator prediction of the vectorized graph.
-
-        Parameters
-        ----------
-        estimator : scikit-learn predictor trained on data sampled from the same distribution.
-          If None the vertex weigths are by default 1.
-        """
-        self.estimator = estimator
-        # if no weights are provided then assume unitary weight
-        if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
-        try:
-            while True:
-                graphs = [G_iterator.next() for G_iterator in G_iterators_list]
-                yield self._predict(graphs, weights)
-        except StopIteration:
-            return
-
-    def _predict(self, graphs, weights=list()):
-        # extract feature vector
-        for i, graph in enumerate(graphs):
-            x_curr = self.vectorizer._convert_dict_to_sparse_matrix(self.vectorizer._transform(0, graph))
-            if i == 0:
-                x = x_curr * weights[i]
-            else:
-                x = x + x_curr * weights[i]
-        margins = self.estimator.decision_function(x)
-        prediction = margins[0]
-        return prediction
