@@ -12,6 +12,7 @@ def draw_graph(graph,
                secondary_edge_label=None,
                vertex_color=None,
                vertex_alpha=0.6,
+               edge_color=None,
                edge_alpha=0.5,
                size=10,
                size_x_to_y_ratio=1,
@@ -55,12 +56,22 @@ def draw_graph(graph,
     if vertex_color is None:
         node_color = 'white'
     elif vertex_color == '_labels_':
-        node_color = [hash(d.get('label', '.')) & 15 for u, d in graph.nodes(data=True)]
+        node_color = [hash(d.get('label', '.')) for u, d in graph.nodes(data=True)]
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
         else:
             node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
+
+    if edge_color is None:
+        edge_color = 'white'
+    elif edge_color == '_labels_':
+        edge_color = [hash(d.get('label', '.')) for u, v, d in graph.edges(data=True)]
+    else:
+        if invert_colormap:
+            edge_color = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
+        else:
+            edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog=prog)
@@ -93,7 +104,8 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=2,
-                           edge_color='k',
+                           edge_color=edge_color,
+                           cmap=plt.get_cmap(colormap),
                            alpha=edge_alpha)
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
