@@ -29,9 +29,6 @@ parser.add_argument(
     "genome_id", help="Genome UCSC id")
 parser.add_argument(
     "genome_fa_fn", help="Genome fasta sequences")
-parser.add_argument(
-    "negative_site_candidate_regions_fn",
-    help="Path to regions considered for placement of negatives in bed format")
 # optional arguments
 parser.add_argument(
     "--seq_length",
@@ -49,8 +46,10 @@ parser.add_argument(
     help="Prefix to use for output filenames")
 parser.add_argument(
     "--chromosome_limits",
-    help="Path to file containing chromosome limites as required by bedtools. Use this parameter disables automatic lookup via the genome id.",
-    default=None)
+    help="Path to file containing chromosome limites as required by bedtools. Use this parameter disables automatic lookup via the genome id.")
+parser.add_argument(
+    "--negative_site_candidate_regions_fn",
+    help="Path to regions considered for placement of negatives in bed format")
 parser.add_argument("--debug", help="Enable debug output.", action="store_true")
 args = parser.parse_args()
 
@@ -99,7 +98,7 @@ def get_flanks(cores,
                flank_upstream_length=flank_upstream_length, 
                flank_downstream_length=flank_downstream_length):
     """Calculate flanking regions of a core region."""
-    if (args.chromosome_limits):
+    if (args.chromosome_limits is not None):
         print("using chromosome_limits " + args.chromosome_limits);
         # get upstream flanks
         flanks_upstream = cores.flank(
@@ -200,30 +199,31 @@ else:
 flanks_upstream, flanks_downstream = get_flanks(cores)
 get_seqs(cores, flanks_upstream, flanks_downstream, pos_seq_fa_fn)
 
-# prepare negative instances
-# get negative candidate regions
-negative_site_candidate_regions = BedTool(args.negative_site_candidate_regions_fn)
-# remove input binding sites from negative candidate regions
-processed_negative_site_candidate_regions = negative_site_candidate_regions.subtract(
-    bsites,
-    s=True).saveas()
+# prepare negative sites if requested
+if args.negative_site_candidate_regions_fn:
+    # get negative candidate regions
+    negative_site_candidate_regions = BedTool(args.negative_site_candidate_regions_fn)
+    # remove input binding sites from negative candidate regions
+    processed_negative_site_candidate_regions = negative_site_candidate_regions.subtract(
+        bsites,
+        s=True).saveas()
 
-# create negative core sites by placing within candidate regions
-print("preparing negative instances")
-print("starting from " + str(cores.count()) + " positive cores")
-if (args.chromosome_limits):
-    print("using chromosome_limits " + args.chromosome_limits);
-    neg_cores = cores.shuffle(
-        g = args.chromosome_limits,
-        chrom=True,
-        incl=processed_negative_site_candidate_regions.fn,
-        noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
-else:
-    neg_cores = cores.shuffle(
-        genome=args.genome_id,
-        chrom=True,
-        incl=processed_negative_site_candidate_regions.fn,
-        noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
-print("derived negative cores: " + str(neg_cores.count()))
-neg_fup, neg_fdown = get_flanks(neg_cores)
-get_seqs(neg_cores, neg_fup, neg_fdown, neg_seq_fa_fn)
+    # create negative core sites by placing within candidate regions
+    print("preparing negative instances")
+    print("starting from " + str(cores.count()) + " positive cores")
+    if args.chromosome_limits:
+        print("using chromosome_limits " + args.chromosome_limits);
+        neg_cores = cores.shuffle(
+            g = args.chromosome_limits,
+            chrom=True,
+            incl=processed_negative_site_candidate_regions.fn,
+            noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
+    else:
+        neg_cores = cores.shuffle(
+            genome=args.genome_id,
+            chrom=True,
+            incl=processed_negative_site_candidate_regions.fn,
+            noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
+        print("derived negative cores: " + str(neg_cores.count()))
+        neg_fup, neg_fdown = get_flanks(neg_cores)
+        get_seqs(neg_cores, neg_fup, neg_fdown, neg_seq_fa_fn)
