@@ -67,9 +67,9 @@ class ActiveLearningBinaryClassificationModel(object):
         return self.estimator
 
     def fit_default(self, iterable_pos, iterable_neg, pre_processor_parameters=None, vectorizer_parameters=None, estimator_parameters=None):
-        self.pre_processor_args = self._deafult(pre_processor_parameters)
-        self.vectorizer_args = self._deafult(vectorizer_parameters)
-        self.estimator_args = self._deafult(estimator_parameters)
+        self.pre_processor_args = self._default(pre_processor_parameters)
+        self.vectorizer_args = self._default(vectorizer_parameters)
+        self.estimator_args = self._default(estimator_parameters)
         self.estimator.set_params(**self.estimator_args)
         X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
         self.estimator.fit(X, y)
@@ -214,8 +214,8 @@ class ActiveLearningBinaryClassificationModel(object):
                 if i == 0 or data_matrix_is_stable is False:
                     if i == 0:
                         # select default paramters
-                        self.pre_processor_args = self._deafult(pre_processor_parameters)
-                        self.vectorizer_args = self._deafult(vectorizer_parameters)
+                        self.pre_processor_args = self._default(pre_processor_parameters)
+                        self.vectorizer_args = self._default(vectorizer_parameters)
                     else:
                         # sample paramters randomly
                         self.pre_processor_args = self._sample(pre_processor_parameters)
@@ -351,7 +351,7 @@ class ActiveLearningBinaryClassificationModel(object):
             parameters_sample[parameter] = value
         return parameters_sample
 
-    def _deafult(self, parameters):
+    def _default(self, parameters):
         parameters_sample = dict()
         for parameter in parameters:
             values = parameters[parameter]
