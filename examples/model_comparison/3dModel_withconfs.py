@@ -16,8 +16,7 @@ logger.addHandler(hdl)
 logger.setLevel(logging.INFO)
 
 
-#AID=1
-AID=1905
+AID=720577
 #DATA_DIR = '/home/liconj/proj/thesis/EDeN/examples/3Dmodel/data'
 active_fname = 'data/AID%s_active.sdf'%AID
 inactive_fname = 'data/AID%s_inactive.sdf'%AID
@@ -43,7 +42,7 @@ def make_iterable(filename, file_format):
 
 # In[20]:
 import datetime, time
-def train_obabel_model(iterable_pos, iterable_neg, pre_processor_parameters, 
+def train_obabel_model(iterable_pos, iterable_neg, pre_processor_parameters,
                        model_type = "default",
                        model_fname=None, n_iter=40, active_set_size=1000,
                        n_active_learning_iterations=3, threshold=1, train_test_split=0.7,
@@ -106,7 +105,7 @@ def train_obabel_model(iterable_pos, iterable_neg, pre_processor_parameters,
     #optimize hyperparameters and fit model
 
     #print "pre processor parameters: " + str(pre_processor_parameters)
-    vectorizer_parameters={'complexity':[4]}
+    vectorizer_parameters={'complexity':[6]}
 
     estimator_parameters={'n_iter':randint(5, 100, size=n_iter),
                           'penalty':['l1','l2','elasticnet'],
@@ -162,7 +161,7 @@ neg_iterator=make_iterable(inactive_fname, 'sdf')
 
 model_fname= 'models/AID%s.model3d_withconfs'%AID
 
-n_iter = 20
+n_iter = 100
 
 pre_processor_parameters={'k':randint(1, 10,size=n_iter),
                           'threshold':randint(1, 10, size=n_iter),

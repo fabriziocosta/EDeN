@@ -70,3 +70,5 @@ data
 .Rproj.user/
 EDeN.Rproj
 .Rproj.user
+*.swp
+examples/model_comparison/models/

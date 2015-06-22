@@ -16,8 +16,7 @@ logger.addHandler(hdl)
 logger.setLevel(logging.INFO)
 
 
-#AID=1
-AID=1905
+AID=720577
 #DATA_DIR = '/home/liconj/proj/thesis/EDeN/examples/3Dmodel/data'
 active_fname = 'data/AID%s_active.sdf'%AID
 inactive_fname = 'data/AID%s_inactive.sdf'%AID
@@ -106,7 +105,7 @@ def train_obabel_model(iterable_pos, iterable_neg, pre_processor_parameters,
     #optimize hyperparameters and fit model
 
     #print "pre processor parameters: " + str(pre_processor_parameters)
-    vectorizer_parameters={'complexity':[4]}
+    vectorizer_parameters={'complexity':[6]}
 
     estimator_parameters={'n_iter':randint(5, 100, size=n_iter),
                           'penalty':['l1','l2','elasticnet'],
