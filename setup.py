@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#-*- coding: utf-8 -*-
 
 import os
 import sys
@@ -54,6 +53,7 @@ def get_version():
 
 
 class sdist(_sdist):
+
     def run(self):
         update_version_py()
         self.distribution.metadata.version = get_version()
@@ -61,14 +61,14 @@ class sdist(_sdist):
 
 
 class install(_install):
+
     def run(self):
         _install.run(self)
 
     def checkProgramIsInstalled(self, program, args, where_to_download,
                                 affected_tools):
         try:
-            _out = subprocess.Popen([program, args], stderr=subprocess.PIPE,
-                                    stdout=subprocess.PIPE)
+            subprocess.Popen([program, args], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
             return True
         except EnvironmentError:
             # handle file not found error.
@@ -90,31 +90,21 @@ setup(
     version=get_version(),
     author='Fabrizio Costa',
     author_email='graph-eden@googlegroups.com',
-    packages=[  'eden',
-                'eden.util',
-                'eden.converter',
-                'eden.converter.graph',
-                'eden.converter.molecule',
-                'eden.converter.rna',
-                'eden.modifier',
-                'eden.modifier.rna',
-                'eden.modifier.graph',
-                ],
-    scripts=[   'bin/alignment',
-                'bin/annotate',
-                'bin/cluster_kmeans',
-                'bin/cluster_DBSCAN',
-                'bin/convert',
-                'bin/dendrogram',
-                'bin/features',
-                'bin/fit',
-                'bin/matrix',
-                'bin/max_subarrays',
-                'bin/model',
-                'bin/motif',
-                'bin/nearest_neighbor',
-                'bin/predict',
-            ],
+    packages=['eden',
+              'eden.util',
+              'eden.converter',
+              'eden.converter.graph',
+              'eden.converter.molecule',
+              'eden.converter.rna',
+              'eden.modifier',
+              'eden.modifier.rna',
+              'eden.modifier.graph',
+              ],
+    scripts=['bin/alignment',
+             'bin/convert',
+             'bin/model',
+             'bin/motif',
+             ],
     include_package_data=True,
     package_data={},
     url='http://pypi.python.org/pypi/eden/',
@@ -128,7 +118,7 @@ setup(
         "dill",
         "networkx",
         "matplotlib",
-        "biopython",
+        "requests",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )

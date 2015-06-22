@@ -3,10 +3,8 @@
 import networkx as nx
 import subprocess as sp
 import numpy as np
-from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import sequence_dotbracket_to_graph
-from eden.util import read
 from eden.util import is_iterable
 
 
@@ -76,7 +74,7 @@ def string_to_networkx(header, sequence, **options):
             G.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
             if G.number_of_nodes() < 2:
                 G = seq_to_networkx(header, sequence, **options)
-            G.graph['id'] = header 
+            G.graph['id'] = header
             G.graph['sequence'] = sequence
             G.graph['structure'] = seq_struct
             yield G

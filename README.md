@@ -1,7 +1,7 @@
 
 
 [![DOI](https://zenodo.org/badge/10054/fabriziocosta/EDeN.svg)](http://dx.doi.org/10.5281/zenodo.15094)
-
+[![Build Status](https://travis-ci.org/fabriziocosta/EDeN.svg?branch=master)](https://travis-ci.org/fabriziocosta/EDeN)
 
 
 [EDeN](http://fabriziocosta.github.io/EDeN)
@@ -25,6 +25,7 @@ References
 ==========
 
 Costa, Fabrizio, and Kurt De Grave. "Fast neighborhood subgraph pairwise distance kernel." Proceedings of the 26th International Conference on Machine Learning, 2010. ([ref](http://www.icml2010.org/papers/347.pdf))
+
 
 K. De Grave, F. Costa, "Molecular Graph Augmentation with Rings and Functional Groups", Journal of Chemical Information and Modeling, 50 (9), pp 1660–1668, 2010. ([ref](http://pubs.acs.org/doi/abs/10.1021/ci9005035))
 
@@ -54,20 +55,7 @@ Examples
 
 A few examples can be found as IPython Notebook inside of the examples folder.
 
-* [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
-
-* [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb)
-
-* [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb)
-
-* [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb)
-
-* [RNA introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_example.ipynb)
-
-* [RNA visualization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_visualization.ipynb)
-
-* [RNA characterization](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA.ipynb)
-
-* [RNA composite modelling](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_list.ipynb)
-
-* [RNA genome scan](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/RNA_genome_scan.ipynb)
+ * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
+ * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb)
+ * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb)
+ * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb)

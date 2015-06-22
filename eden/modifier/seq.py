@@ -1,6 +1,4 @@
 import random
-import re
-from eden import util
 
 
 def null_modifier(header=None, seq=None, **options):

@@ -1,0 +1,13 @@
+ ../bin/motif -v fit -i artificial_motif_search_dataset.fa DBSCAN
+Extracting motives from 100 sequences
+model induction: 100 positive instances 12 secs
+motives extraction: 71 motives 5 secs
+motives clustering: 5 clusters 0 secs
+after filtering: 29 motives 4 clusters 0 secs
+motif model construction: 0 secs
+Saved motif model in motif.model
+Written file: out/motifs.txt (37 lines)
+Written file: out/sequences_cluster_id_hit.txt (33 lines)
+Written file: out/sequences_cluster_match_position.txt (33 lines)
+Written file: out/sequences_cluster_match_position.bed (43 lines)
+Elapsed time: 19.1 sec

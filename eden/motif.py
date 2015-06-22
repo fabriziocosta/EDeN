@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 
-import sys
-import os
 import random
-import re
-from time import time, clock
+from time import time
 import multiprocessing as mp
-import numpy as np
 from itertools import tee, chain
 from collections import defaultdict
 
@@ -24,7 +20,7 @@ from eden.util.iterated_maximum_subarray import compute_max_subarrays
 import esm
 
 import logging
-logger = logging.getLogger('root.%s' % (__name__))
+logger = logging.getLogger(__name__)
 
 
 class SequenceMotif(object):
@@ -41,13 +37,19 @@ class SequenceMotif(object):
                  complexity=4,
                  nbits=20,
                  clustering_algorithm=None,
-                 n_blocks=2,
+                 n_jobs=4,
+                 n_blocks=8,
                  block_size=None,
-                 n_jobs=8,
+                 pre_processor_n_jobs=4,
+                 pre_processor_n_blocks=8,
+                 pre_processor_block_size=None,
                  random_state=1):
+        self.n_jobs = n_jobs
         self.n_blocks = n_blocks
         self.block_size = block_size
-        self.n_jobs = n_jobs
+        self.pre_processor_n_jobs = pre_processor_n_jobs
+        self.pre_processor_n_blocks = pre_processor_n_blocks
+        self.pre_processor_block_size = pre_processor_block_size
         self.training_size = training_size
         self.n_iter_search = n_iter_search
         self.complexity = complexity
@@ -69,6 +71,96 @@ class SequenceMotif(object):
         self.motives = []
         self.clusters = defaultdict(list)
         self.cluster_models = []
+
+    def save(self, model_name):
+        self.clustering_algorithm = None  # NOTE: some algorithms cannot be pickled
+        joblib.dump(self, model_name, compress=1)
+
+    def load(self, obj):
+        self.__dict__.update(joblib.load(obj).__dict__)
+        self._build_cluster_models()
+
+    def fit(self, seqs, neg_seqs=None):
+        """
+        Builds a discriminative estimator.
+        Identifies the maximal subarrays in the data.
+        Clusters them with the clustering algorithm provided in the initialization phase.
+        For each cluster builds a fast sequence search model (Aho Corasick data structure).
+        """
+        start = time()
+        if self.training_size is None:
+            training_seqs = seqs
+        else:
+            training_seqs = random.sample(seqs, self.training_size)
+        self._fit_predictive_model(training_seqs, neg_seqs=neg_seqs)
+        end = time()
+        logger.info('model induction: %d positive instances %d secs' % (len(training_seqs), (end - start)))
+
+        start = time()
+        self.motives = self._motif_finder(seqs)
+        end = time()
+        logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
+
+        start = time()
+        self._cluster(self.motives, clustering_algorithm=self.clustering_algorithm)
+        end = time()
+        logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
+
+        start = time()
+        self._filter()
+        end = time()
+        n_motives = sum(len(self.motives_db[cid]) for cid in self.motives_db)
+        n_clusters = len(self.motives_db)
+        logger.info('after filtering: %d motives %d clusters %d secs' % (n_motives, n_clusters, (end - start)))
+
+        start = time()
+        # create models
+        self._build_cluster_models()
+        end = time()
+        logger.info('motif model construction: %d secs' % (end - start))
+
+    def fit_predict(self, seqs, return_list=False):
+        self.fit(seqs)
+        for prediction in self.predict(seqs, return_list=return_list):
+            yield prediction
+
+    def fit_transform(self, seqs, return_match=False):
+        self.fit(seqs)
+        for prediction in self.transform(seqs, return_match=return_match):
+            yield prediction
+
+    def predict(self, seqs, return_list=False):
+        """Returns for each instance a list with the cluster ids that have a hit
+        if  return_list=False then just return 1 if there is at least one hit from one cluster."""
+        for header, seq in seqs:
+            cluster_hits = []
+            for cluster_id in self.motives_db:
+                hits = self._cluster_hit(seq, cluster_id)
+                if len(list(hits)):
+                    cluster_hits.append(cluster_id)
+            if return_list is False:
+                if len(cluster_hits):
+                    yield 1
+                else:
+                    yield 0
+            else:
+                yield cluster_hits
+
+    def transform(self, seqs, return_match=False):
+        """Transform an instance to a dense vector with features as cluster ID and entries 0/1 if a motif is found,
+        if 'return_match' argument is True, then write a pair with (start position,end position)  in the entry instead of 0/1"""
+        num = len(self.motives_db)
+        for header, seq in seqs:
+            cluster_hits = [0] * num
+            for cluster_id in self.motives_db:
+                hits = self._cluster_hit(seq, cluster_id)
+                hits = list(hits)
+                if return_match is False:
+                    if len(hits):
+                        cluster_hits[cluster_id] = 1
+                else:
+                    cluster_hits[cluster_id] = hits
+            yield cluster_hits
 
     def _serial_graph_motif(self, seqs, placeholder=None):
         # make graphs
@@ -100,32 +192,31 @@ class SequenceMotif(object):
         else:
             return self._serial_graph_motif(seqs)
 
-    def save(self, model_name):
-        self.clustering_algorithm = None  #NOTE: some algorithms cannot be pickled
-        joblib.dump(self, model_name, compress=1)
-
-    def load(self, obj):
-        self.__dict__.update(joblib.load(obj).__dict__)
-        self._build_cluster_models()
-
-    def _fit_predictive_model(self, seqs):
+    def _fit_predictive_model(self, seqs, neg_seqs=None):
         # duplicate iterator
         pos_seqs, pos_seqs_ = tee(seqs)
-        pos_graphs = mp_pre_process(pos_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
-        # shuffle seqs to obtain negatives
-        neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=self.shuffle_order)
-        neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
+        pos_graphs = mp_pre_process(pos_seqs, pre_processor=sequence_to_eden,
+                                    n_blocks=self.pre_processor_n_blocks,
+                                    block_size=self.pre_processor_block_size,
+                                    n_jobs=self.pre_processor_n_jobs)
+        if neg_seqs is None:
+            # shuffle seqs to obtain negatives
+            neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=self.shuffle_order)
+        neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden,
+                                    n_blocks=self.pre_processor_n_blocks,
+                                    block_size=self.pre_processor_block_size,
+                                    n_jobs=self.pre_processor_n_jobs)
         # fit discriminative estimator
         self.estimator = fit(pos_graphs, neg_graphs,
                              vectorizer=self.vectorizer,
                              n_iter_search=self.n_iter_search,
+                             n_jobs=self.n_jobs,
                              n_blocks=self.n_blocks,
                              block_size=self.block_size,
-                             n_jobs=self.n_jobs,
                              random_state=self.random_state)
 
     def _cluster(self, seqs, clustering_algorithm=None):
-        X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, n_jobs=self.n_jobs)
+        X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
         predictions = clustering_algorithm.fit_predict(X)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
@@ -139,7 +230,6 @@ class SequenceMotif(object):
         for cluster_id in self.clusters:
             if cluster_id != -1:
                 if len(self.clusters[cluster_id]) >= self.min_cluster_size:
-                    clustered_seqs = []
                     new_sequential_cluster_id += 1
                     for motif_id in self.clusters[cluster_id]:
                         clustered_motives[new_sequential_cluster_id].append(self.motives[motif_id])
@@ -165,39 +255,6 @@ class SequenceMotif(object):
                 self.motives_db[incremental_id] = motives_db[cluster_id]
                 incremental_id += 1
 
-    def fit(self, seqs):
-        start = time()
-        if self.training_size is None:
-            training_seqs = seqs
-        else:
-            training_seqs = random.sample(seqs, self.training_size)
-        self._fit_predictive_model(training_seqs)
-        end = time()
-        logger.info('model induction: %d positive instances %d secs' % (len(training_seqs), (end - start)))
-
-        start = time()
-        self.motives = self._motif_finder(seqs)
-        end = time()
-        logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
-
-        start = time()
-        self._cluster(self.motives, clustering_algorithm=self.clustering_algorithm)
-        end = time()
-        logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
-
-        start = time()
-        self._filter()
-        end = time()
-        n_motives = sum(len(self.motives_db[cid]) for cid in self.motives_db)
-        n_clusters = len(self.motives_db)
-        logger.info('after filtering: %d motives %d clusters %d secs' % (n_motives, n_clusters, (end - start)))
-
-        start = time()
-        # create models
-        self._build_cluster_models()
-        end = time()
-        logger.info('motif model construction: %d secs' % (end - start))
-
     def _build_cluster_models(self):
         self.cluster_models = []
         for cluster_id in self.motives_db:
@@ -208,49 +265,6 @@ class SequenceMotif(object):
             cluster_model.fix()
             self.cluster_models.append(cluster_model)
 
-    def fit_predict(self, seqs, return_list=False):
-        self.fit(seqs)
-        for prediction in self.predict(seqs, return_list=return_list):
-            yield prediction
-
-    def fit_transform(self, seqs, return_match=False):
-        self.fit(seqs)
-        for prediction in self.transform(seqs, return_match=return_match):
-            yield prediction
-
     def _cluster_hit(self, seq, cluster_id):
         for ((start, end), motif) in self.cluster_models[cluster_id].query(seq):
             yield (start, end)
-
-    def predict(self, seqs, return_list=False):
-        # returns for each instance a list with the cluster ids that have a hit
-        # if  return_list=False then just return 1 if there is at least one hit from one cluster
-        for header, seq in seqs:
-            cluster_hits = []
-            for cluster_id in self.motives_db:
-                hits = self._cluster_hit(seq, cluster_id)
-                if len(list(hits)):
-                    cluster_hits.append(cluster_id)
-            if return_list == False:
-                if len(cluster_hits):
-                    yield 1
-                else:
-                    yield 0
-            else:
-                yield cluster_hits
-
-    def transform(self, seqs, return_match=False):
-        # transform = transform an instance to a dense vector with features as cluster ID and entries 0/1 if a motif is found,
-        # if 'return_match' argument is True, then write a pair with (start position,end position)  in the entry instead of 0/1
-        num = len(self.motives_db)
-        for header, seq in seqs:
-            cluster_hits = [0] * num
-            for cluster_id in self.motives_db:
-                hits = self._cluster_hit(seq, cluster_id)
-                hits = list(hits)
-                if return_match == False:
-                    if len(hits):
-                        cluster_hits[cluster_id] = 1
-                else:
-                    cluster_hits[cluster_id] = hits
-            yield cluster_hits
