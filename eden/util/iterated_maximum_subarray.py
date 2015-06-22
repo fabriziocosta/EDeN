@@ -42,8 +42,7 @@ def compute_maximum_subarray(score_vector=None):
     return begin, end
 
 
-def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=None, max_subarray_size=None, output='minimal'):
-    subarray_list = []
+def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=None, max_subarray_size=None, output='minimal', margin=1):
     original_score = score
     while True:
         # find (begin,end) of subarray in each element
@@ -53,9 +52,10 @@ def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=No
             break
         else:
             # extract maximum subarray
-            # NOTE: in order to account for border effects we select +1 element on the left and on the right
-            first = max(0, begin - 1)
-            last = min(len(seq), end + 1 + 1)
+            # NOTE: in order to account for border effects we expand on the left and on the right by 'margin'
+            first = max(0, begin - margin)
+            # NOTE: we return + 1 for the rightmost postition to be compliant with the 'one after the end' semantics
+            last = min(len(seq), end + margin + 1)
             subarray = seq[first: last]
             subarray_size = len(subarray)
             if max_subarray_size == -1 or subarray_size <= max_subarray_size:
@@ -66,7 +66,8 @@ def compute_iterated_maximum_subarray(seq=None, score=None, min_subarray_size=No
                 if output == 'minimal':
                     subarray = {'subarray_string': ''.join(subarray)}
                 else:
-                    subarray = {'subarray_string': ''.join(subarray), 'subarray': subarray, 'begin': first, 'end': last, 'size': subarray_size, 'seq': seq, 'score': acc}
+                    subarray = {'subarray_string': ''.join(subarray), 'subarray': subarray, 'begin': first,
+                                'end': last, 'size': subarray_size, 'seq': seq, 'score': acc}
                 yield subarray
             if subarray_size > max_subarray_size:
                 # if the subarray is too large then rebase the score list, i.e. offset by the smallest positive value
@@ -111,6 +112,7 @@ def compute_max_subarrays(graph=None, min_subarray_size=None, max_subarray_size=
     # extract subarrays
     for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
         yield subarray
+
 
 def compute_max_subarrays_sequence(seq=None, score=None, min_subarray_size=None, max_subarray_size=None):
     # extract subarrays

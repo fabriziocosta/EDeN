@@ -2,7 +2,6 @@ import networkx as nx
 import pylab as plt
 import json
 from networkx.readwrite import json_graph
-from collections import defaultdict
 import numpy as np
 
 
@@ -13,6 +12,8 @@ def draw_graph(graph,
                secondary_edge_label=None,
                vertex_color=None,
                vertex_alpha=0.6,
+               edge_color=None,
+               edge_alpha=0.5,
                size=10,
                size_x_to_y_ratio=1,
                node_size=600,
@@ -21,14 +22,17 @@ def draw_graph(graph,
                prog='neato',
                node_border=False,
                colormap='YlOrRd',
+               vmin=0,
+               vmax=1,
                invert_colormap=False,
                verbose=True,
-               file_name=None):
+               file_name=None,
+               title_key='info'):
 
-    size_x = size
-    size_y = int(float(size) / size_x_to_y_ratio)
-
-    plt.figure(figsize=(size_x, size_y))
+    if size is not None:
+        size_x = size
+        size_y = int(float(size) / size_x_to_y_ratio)
+        plt.figure(figsize=(size_x, size_y))
     plt.grid(False)
     plt.axis('off')
 
@@ -39,8 +43,8 @@ def draw_graph(graph,
         else:
             vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
 
-    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == False]
-    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) == True]
+    edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is False]
+    edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is True]
 
     if edge_label is not None:
         if secondary_edge_label:
@@ -51,11 +55,23 @@ def draw_graph(graph,
 
     if vertex_color is None:
         node_color = 'white'
+    elif vertex_color == '_labels_':
+        node_color = [hash(d.get('label', '.')) for u, d in graph.nodes(data=True)]
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
         else:
             node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
+
+    if edge_color is None:
+        edge_color = 'white'
+    elif edge_color == '_labels_':
+        edge_color = [hash(d.get('label', '.')) for u, v, d in graph.edges(data=True)]
+    else:
+        if invert_colormap:
+            edge_color = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
+        else:
+            edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog=prog)
@@ -72,7 +88,7 @@ def draw_graph(graph,
     else:
         raise Exception('Unknown layout format: %s' % layout)
 
-    if node_border == False:
+    if node_border is False:
         linewidths = 0.001
     else:
         linewidths = 1
@@ -88,24 +104,29 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=2,
-                           edge_color='k',
-                           alpha=0.5)
+                           edge_color=edge_color,
+                           cmap=plt.get_cmap(colormap),
+                           alpha=edge_alpha)
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
                            edge_color='k',
                            style='dashed',
-                           alpha=0.5)
+                           alpha=edge_alpha)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
-    if verbose:
-        title = str(graph.graph.get('id', '')) + "\n" + str(graph.graph.get('info', ''))
+    if title_key:
+        title = str(graph.graph.get(title_key, ''))
         plt.title(title)
-    if file_name is None:
-        plt.show()
-    else:
-        plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
-        plt.close()
+    if size is not None:
+        # here we decide if we output the image.
+        # note: if size is not set, the canvas has been created outside of this function.
+        # we wont write on a canvas that we didn't create ourselves.
+        if file_name is None:
+            plt.show()
+        else:
+            plt.savefig(file_name, bbox_inches='tight', transparent=True, pad_inches=0)
+            plt.close()
 
 
 def draw_adjacency_graph(A,
@@ -153,7 +174,6 @@ def serialize_graph(graph):
 
 
 def embed2D(data, vectorizer, size=10, n_components=5, colormap='YlOrRd'):
-    import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
     else:
@@ -236,7 +256,6 @@ def embed_dat_matrix_2D(X_reduced, y=None, labels=None, density_colormap='Blues'
 
 def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, filename=None):
     '"median","centroid","weighted","single","ward","complete","average"'
-    import numpy as np
     if hasattr(data, '__iter__'):
         iterable = data
     else:
@@ -335,7 +354,6 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
     import matplotlib.pyplot as plt
     from matplotlib import offsetbox
     from PIL import Image
-    import numpy as np
 
     if title is not None:
         plt.title(title)
@@ -347,7 +365,6 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
         plt.yticks([])
     if image_file_name is not None:
         num_instances = X.shape[0]
-        large_images = np.array([[1., 1]])
         ax = plt.subplot(111)
         for i in range(num_instances):
             img = Image.open(image_file_name + str(i) + '.png')
@@ -361,7 +378,7 @@ def plot_embedding(X, y, labels=None, image_file_name=None, title=None, cmap='gn
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
 
 
-def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
+def plot_embeddings(X, y, labels=None, save_image_file_name=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
     import matplotlib.pyplot as plt
     import time
 
@@ -392,15 +409,17 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn / 4, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn / 4
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(324)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (knn / 4, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+                   (KQSTE_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(325)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
@@ -408,10 +427,37 @@ def plot_embeddings(X, y, labels=None, image_file_name=None, size=25, cmap='gnup
 
     start = time.time()
     from eden.util.display import KernelQuickShiftTreeEmbedding
-    X_ = KernelQuickShiftTreeEmbedding(X, knn=knn * 2, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
+    KQSTE_knn = knn * 2
+    X_ = KernelQuickShiftTreeEmbedding(X, knn=KQSTE_knn, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
     duration = time.time() - start
     plt.subplot(326)
     plot_embedding(X_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (knn * 2, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+                   (KQSTE_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+    if save_image_file_name:
+        plt.savefig(save_image_file_name)
+    else:
+        plt.show()
 
+
+# draw a whole set of graphs::
+def draw_graph_set(graphs, n_graphs_per_line=5, size=4, edge_label=None, **args):
+    graphs = list(graphs)
+    while graphs:
+        draw_graph_row(graphs[:n_graphs_per_line], n_graphs_per_line=n_graphs_per_line, edge_label=edge_label, size=size, **args)
+        graphs = graphs[n_graphs_per_line:]
+
+
+# draw a row of graphs
+def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlinehook=lambda x: "", **args):
+    count = len(graphs)
+    size_y = size
+    size_x = size * n_graphs_per_line
+    plt.figure(figsize=(size_x, size_y))
+    plt.xlim(xmax=3)
+
+    for i in range(count):
+        plt.subplot(1, n_graphs_per_line, i + 1)
+        graphs[i].graph['info'] = "size:" + str(len(graphs[i])) + headlinehook(graphs[i])
+        g = graphs[i]
+        draw_graph(g, size=None, **args)
     plt.show()

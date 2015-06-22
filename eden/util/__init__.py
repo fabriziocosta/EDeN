@@ -3,23 +3,24 @@ from scipy import io
 from sklearn.externals import joblib
 import requests
 import os
+import sys
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
 from sklearn import cross_validation
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from scipy.stats import randint
 from scipy.stats import uniform
-import numpy as np
-from scipy import stats
 from scipy.sparse import vstack
 from itertools import tee
 import random
-import logging
+from time import time
+import logging.handlers
 from eden import apply_async
+import logging
+logger = logging.getLogger(__name__)
 
 
-def configure_logging(verbosity=0, filename=None):
-    logger = logging.getLogger('root')
+def configure_logging(logger, verbosity=0, filename=None):
     logger.propagate = False
     logger.handlers = []
     log_level = logging.WARNING
@@ -29,7 +30,7 @@ def configure_logging(verbosity=0, filename=None):
         log_level = logging.DEBUG
     logger.setLevel(logging.DEBUG)
     # create console handler
-    ch = logging.StreamHandler()
+    ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(log_level)
     # create formatter
     cformatter = logging.Formatter('%(message)s')
@@ -43,18 +44,22 @@ def configure_logging(verbosity=0, filename=None):
         fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=100000, backupCount=10)
         fh.setLevel(logging.DEBUG)
         # create formatter
-        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)20s | %(filename)20s | %(lineno)4s | %(message)s')
+        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s | %(lineno)4s | %(message)s')
         # add formatter to fh
         fh.setFormatter(fformatter)
         # add handlers to logger
         logger.addHandler(fh)
-    return logger
+
 
 def serialize_dict(the_dict):
-    text = []
-    for key in the_dict:
-        text.append('%15s: %s' % (key, the_dict[key]))
-    return '\n'.join(text)
+    if the_dict:
+        text = []
+        for key in sorted(the_dict):
+            text.append('%10s: %s' % (key, the_dict[key]))
+        return '\n'.join(text)
+    else:
+        return ""
+
 
 def read(uri):
     """
@@ -88,6 +93,8 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
     # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
     if n_blocks >= size:
         n_blocks = size / 10
+    if n_blocks < 1:
+        n_blocks = 1
     # if one block will end up containing a single instance reduce the number of blocks to avoid the case
     if size % n_blocks == 1:
         n_blocks = max(1, n_blocks - 1)
@@ -126,7 +133,7 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
     return return_list
 
 
-def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None,  n_jobs=8):
+def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None, n_jobs=8):
     if n_jobs == 1:
         return pre_processor(iterable, **pre_processor_args)
     else:
@@ -138,7 +145,7 @@ def serial_vectorize(graphs, vectorizer=None):
     return X
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5,  block_size=None, n_jobs=8):
+def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
@@ -151,11 +158,7 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5,  block_size=None
     output = [p.get() for p in results]
     pool.close()
     pool.join()
-    import numpy as np
-    from scipy.sparse import vstack
-    X = output[0]
-    for Xi in output[1:]:
-        X = vstack([X, Xi], format="csr")
+    X = vstack(output, format="csr")
     return X
 
 
@@ -167,14 +170,16 @@ def vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
 
 
 def describe(X):
-    print 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1],  X.getnnz() / X.shape[0])
+    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0])
 
 
-def size(iterable):
-    return sum(1 for x in iterable)
+def iterator_size(iterable):
+    iterable, iterable_ = tee(iterable)
+    return sum(1 for x in iterable_)
 
 
-def random_bipartition(int_range, relative_size=.7):
+def random_bipartition(int_range, relative_size=.7, random_state=1):
+    random.seed(random_state)
     ids = range(int_range)
     random.shuffle(ids)
     split_point = int(int_range * relative_size)
@@ -193,10 +198,10 @@ def selection_iterator(iterable, ids):
                 break
 
 
-def random_bipartition_iter(iterable, relative_size=.5):
+def random_bipartition_iter(iterable, relative_size=.5, random_state=1):
     size_iterable, iterable1, iterable2 = tee(iterable, 3)
-    the_size = size(size_iterable)
-    part1_ids, part2_ids = random_bipartition(the_size, relative_size=relative_size)
+    size = iterator_size(size_iterable)
+    part1_ids, part2_ids = random_bipartition(size, relative_size=relative_size, random_state=random_state)
     part1_iterable = selection_iterator(iterable1, part1_ids)
     part2_iterable = selection_iterator(iterable2, part2_ids)
     return part1_iterable, part2_iterable
@@ -249,7 +254,6 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
                             target=target)
     random_search.fit(X, y)
 
-    logger = logging.getLogger('root.%s' % (__name__))
     logger.debug('\nClassifier:')
     logger.debug('%s' % random_search.best_estimator_)
     logger.debug('\nPredictive performance:')
@@ -262,9 +266,12 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
 
 
 def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
+    start = time()
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    logger.debug('Positive data: %s' % describe(X_pos))
+    logger.debug('Negative data: %s' % describe(X_neg))
     if n_iter_search <= 1:
         X, y = make_data_matrix(positive_data_matrix=X_pos, negative_data_matrix=X_neg)
         estimator.fit(X, y)
@@ -277,22 +284,23 @@ def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=
                                   n_jobs=n_jobs,
                                   n_iter_search=n_iter_search,
                                   random_state=random_state)
+    logger.debug('Elapsed time: %.1f secs' % (time() - start))
     return estimator
 
 
 def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
     X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
-    print 'Test set'
-    describe(X)
-    print '-' * 80
-    print 'Test Estimate'
+    logger.info('Test set')
+    logger.info(describe(X))
+    logger.info('-' * 80)
+    logger.info('Test Estimate')
     predictions = estimator.predict(X)
     margins = estimator.decision_function(X)
-    print classification_report(y, predictions)
+    logger.info(classification_report(y, predictions))
     apr = average_precision_score(y, margins)
-    print 'APR: %.3f' % apr
+    logger.info('APR: %.3f' % apr)
     roc = roc_auc_score(y, margins)
-    print 'ROC: %.3f' % roc
+    logger.info('ROC: %.3f' % roc)
     return apr, roc
 
 
@@ -336,12 +344,9 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
             if len(matrix.shape) == 1:
                 for x in matrix:
                     f.write("%s\n" % (x))
-                #data_str = map(str, matrix)
-                # f.write('\n'.join(data_str))
             else:
                 raise Exception(
                     "Currently 'text' format supports only mono dimensional array and not matrices")
-    logger = logging.getLogger('root.%s' % (__name__))
     logger.info("Written file: %s" % full_out_file_name)
 
 
@@ -374,5 +379,4 @@ def save_output(text=None, output_dir_path=None, out_file_name=None):
     with open(full_out_file_name, 'w') as f:
         for line in text:
             f.write("%s\n" % str(line).strip())
-    logger = logging.getLogger('root.%s' % (__name__))
     logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))

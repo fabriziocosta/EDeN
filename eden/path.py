@@ -2,15 +2,14 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
-from sklearn.linear_model import SGDClassifier
-from eden import calc_running_hash, fast_hash, fast_hash_vec, fast_hash_vec_char
+from eden import fast_hash, fast_hash_vec_char
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Vectorizer():
-
-    """
-    Transforms strings in sparse vectors.
-    """
+    """Transform strings into sparse vectors."""
 
     def __init__(self,
                  complexity=None,
@@ -48,11 +47,11 @@ class Vectorizer():
 
     def transform(self, seq_list):
         """
-        Parameters
-        ----------
-        seq_list : list of strings 
-            The data.
+        Arguments:
+
+        seq_list -- list of strings
         """
+
         feature_dict = {}
         for instance_id, seq in enumerate(seq_list):
             feature_dict.update(self._transform(instance_id, seq))
@@ -88,7 +87,7 @@ class Vectorizer():
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
                             dfeature = feature + [distance, neighborhood_hash_cache[pos + distance][radius]]
-                            feature_code = fast_hash(feature, self.bitmask)
+                            feature_code = fast_hash(dfeature, self.bitmask)
                             key = fast_hash([radius, distance], self.bitmask)
                             feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
@@ -110,7 +109,7 @@ class Vectorizer():
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
                 total_norm += feature_vector_value * feature_vector_value
-        #global normalization
+        # global normalization
         if self.normalization:
             normalization_feature_vector = {}
             sqrt_total_norm = math.sqrt(float(total_norm))
@@ -121,8 +120,9 @@ class Vectorizer():
             return feature_vector
 
     def _compute_neighborhood_hash(self, seq, pos):
-        """Given the seq and the pos, extract all kmers up to size r in a vector
-        at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc 
+        """
+        Given the seq and the pos, extract all kmers up to size r in a vector
+        at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc
         """
         subseq = seq[pos:pos + self.r]
         return fast_hash_vec_char(subseq, self.bitmask)
@@ -144,27 +144,27 @@ class Vectorizer():
         Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
         """
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
-        for seq in sequences:
+        for seq in seqs:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq_orig))
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq))
             res = reference_vec.dot(x.T).todense()
             yield res[0, 0]
 
-    def annotate(self, seqs, estimator=None, relabel=False): 
-        """ 
+    def annotate(self, seqs, estimator=None, relabel=False):
+        """
         Given a list of sequences, and a fitted estimator, it computes a vector
         of importance values for each char in the sequence. The importance
         corresponds to the part of the score that is imputable  to the features
         that involve the specific char.
 
-        Parameters
-        ----------
+        Arguments
+
         sequences: iterable lists of strings
           The input.
 
-        estimator : scikit-learn predictor trained on data sampled from the same distribution. 
+        estimator : scikit-learn predictor trained on data sampled from the same distribution.
           If None only relabeling is used.
 
         relabel : bool
@@ -183,9 +183,8 @@ class Vectorizer():
           characters in each input sequence, 3) a list with  size equal to the
           number of characters in each input sequence, of sparse vectors each
           corresponding to the vertex induced features.
-
-
         """
+
         self.estimator = estimator
         self.relabel = relabel
 
@@ -196,12 +195,12 @@ class Vectorizer():
         # extract per vertex feature representation
         X = self._compute_vertex_based_features(seq)
         # add or update weight and importance information
-        score,vec = self._annotate_importance(seq, X)
+        score, vec = self._annotate_importance(seq, X)
         # add or update label information
         if self.relabel:
-            return seq,score,vec
+            return seq, score, vec
         else:
-            return seq,score
+            return seq, score
 
     def _annotate_importance(self, seq, X):
         # compute distance from hyperplane as proxy of vertex importance
@@ -211,11 +210,11 @@ class Vectorizer():
             margins = np.array([1] * X.shape[0])
         else:
             margins = self.estimator.decision_function(X)
-        #compute the list of sparse vectors representation
-        vec=[]
+        # compute the list of sparse vectors representation
+        vec = []
         for i in range(X.shape[0]):
             vec.append(X.getrow(i))
-        return margins,vec
+        return margins, vec
 
     def _compute_vertex_based_features(self, seq):
         if seq is None or len(seq) == 0:
@@ -233,7 +232,7 @@ class Vectorizer():
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
                             dfeature = feature + [distance, neighborhood_hash_cache[pos + distance][radius]]
-                            feature_code = fast_hash(feature, self.bitmask)
+                            feature_code = fast_hash(dfeature, self.bitmask)
                             key = fast_hash([radius, distance], self.bitmask)
                             feature_list[key][feature_code] += 1
             feature_dict.update(self._normalization(feature_list, pos))

@@ -4,6 +4,7 @@ from eden.util import is_iterable
 
 
 def seq_to_networkx(header, seq, **options):
+    """Convert sequence tuples to networkx graphs."""
     G = nx.Graph()
     G.graph['id'] = header
     for id, character in enumerate(seq):
@@ -16,6 +17,7 @@ def seq_to_networkx(header, seq, **options):
 
 
 def sequence_to_eden(iterable, **options):
+    """Convert sequence tuples to EDeN graphs."""
     assert(is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         graph = seq_to_networkx(header, seq, **options)
@@ -23,8 +25,9 @@ def sequence_to_eden(iterable, **options):
 
 
 def fasta_to_sequence(input, **options):
-    lines = fasta_to_fasta(input)
+    """Load sequences tuples from fasta file."""
+    lines = fasta_to_fasta(input, **options)
     for line in lines:
         header = line
         seq = lines.next()
-        yield header,seq 
+        yield header, seq

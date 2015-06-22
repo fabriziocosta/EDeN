@@ -1,5 +1,3 @@
-import random
-import re
 from eden import util
 
 
@@ -28,7 +26,7 @@ def fasta_to_fasta(input, modifier=null_modifier, **options):
         seq = iterable.next()
         const = iterable.next()
         if normalize:
-            seq.upper()
+            seq = seq.upper()
             seq = seq.replace('T', 'U')
         seqs = modifier(header=header, seq=seq, const=const, **options)
         for seq in seqs:
@@ -52,7 +50,7 @@ def _fasta_to_fasta(input):
                 header = ""
                 seq = ""
                 const = ""
-            header = line 
+            header = line
             yield header
         else:
             # remove trailing chars, split and take only first part, removing comments
