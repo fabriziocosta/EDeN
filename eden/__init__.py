@@ -31,41 +31,20 @@ def fast_hash(vec, bitmask):
     d = 0x01000193
     # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
     for c in vec:
-        d = ((d * 0x01000193) ^ c) & 0xffffffff
+        d = ((d * 0x01000193) ^ (c * 17)) & 0xffffffff
     return int(d & bitmask) + 1
 
 
 def fast_hash_2(dat_1, dat_2, bitmask):
-    d = 0x01000193
-    d = ((d * 0x01000193) ^ dat_1) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_2) & 0xffffffff
-    return int(d & bitmask) + 1
+    return int((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & bitmask) + 1
 
 
 def fast_hash_3(dat_1, dat_2, dat_3, bitmask):
-    d = 0x01000193
-    d = ((d * 0x01000193) ^ dat_1) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_2) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_3) & 0xffffffff
-    return int(d & bitmask) + 1
+    return int((((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & 0xffffffff) ^ (dat_3 * 23)) & bitmask) + 1
 
 
 def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
-    d = 0x01000193
-    d = ((d * 0x01000193) ^ dat_1) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_2) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_3) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_4) & 0xffffffff
-    return int(d & bitmask) + 1
-
-
-def fast_hash_5(dat_1, dat_2, dat_3, dat_4, dat_5, bitmask):
-    d = 0x01000193
-    d = ((d * 0x01000193) ^ dat_1) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_2) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_3) & 0xffffffff
-    d = ((d * 0x01000193) ^ dat_5) & 0xffffffff
-    return int(d & bitmask) + 1
+    return int((((((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & 0xffffffff) ^ (dat_3 * 23)) & 0xffffffff) ^ (dat_4 * 29)) & bitmask) + 1
 
 
 def fast_hash_vec(vec, bitmask):
@@ -73,7 +52,7 @@ def fast_hash_vec(vec, bitmask):
     d = 0x01000193
     # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
     for i, c in enumerate(vec):
-        d = ((d * 0x01000193) ^ c) & 0xffffffff
+        d = ((d * 0x01000193) ^ (c * 17)) & 0xffffffff
         hash_vec[i] = int(d & bitmask) + 1
     return hash_vec
 
@@ -83,7 +62,7 @@ def fast_hash_vec_char(vec, bitmask):
     d = 0x01000193
     # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
     for i, c in enumerate(vec):
-        d = ((d * 0x01000193) ^ ord(c)) & 0xffffffff
+        d = ((d * 0x01000193) ^ (ord(c) * 17)) & 0xffffffff
         hash_vec[i] = int(d & bitmask) + 1
     return hash_vec
 
