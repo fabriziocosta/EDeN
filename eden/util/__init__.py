@@ -140,12 +140,15 @@ def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_bloc
         return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
 
 
-def serial_vectorize(graphs, vectorizer=None):
-    X = vectorizer.transform(graphs)
+def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
+    if fit_flag:
+        X = vectorizer.fit_transform(graphs)
+    else:
+        X = vectorizer.transform(graphs)
     return X
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
+def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
     graphs = list(graphs)
     import multiprocessing as mp
     size = len(graphs)
@@ -154,7 +157,7 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None,
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer)) for start, end in intervals]
+    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, fit_flag)) for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
     pool.join()
@@ -162,9 +165,11 @@ def multiprocess_vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None,
     return X
 
 
-def vectorize(graphs, vectorizer=None, n_blocks=5, block_size=None, n_jobs=8):
+def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
+    if fit_flag and n_jobs != 1:
+        raise Exception("Cannot perform fit in parallel: set n_jobs to 1")
     if n_jobs == 1:
-        return serial_vectorize(graphs, vectorizer=vectorizer)
+        return serial_vectorize(graphs, vectorizer=vectorizer, fit_flag=fit_flag)
     else:
         return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
 
@@ -265,11 +270,11 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
+def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
     start = time()
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, fit_flag=fit_flag, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, fit_flag=False, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     logger.debug('Positive data: %s' % describe(X_pos))
     logger.debug('Negative data: %s' % describe(X_neg))
     if n_iter_search <= 1:
@@ -331,8 +336,7 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
     full_out_file_name = os.path.join(output_dir_path, out_file_name)
     if output_format == "MatrixMarket":
         if len(matrix.shape) == 1:
-            raise Exception(
-                "'MatrixMarket' format supports only 2D dimensional array and not vectors")
+            raise Exception("'MatrixMarket' format supports only 2D dimensional array and not vectors")
         else:
             io.mmwrite(full_out_file_name, matrix, precision=None)
     elif output_format == "numpy":
