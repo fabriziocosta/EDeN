@@ -9,7 +9,7 @@ from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
 import itertools
 import networkx as nx
-from eden import fast_hash, fast_hash_vec
+from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
 
 import logging
 logger = logging.getLogger(__name__)
@@ -77,6 +77,7 @@ class Vectorizer(object):
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.discretization_model_dict = dict()
+        self.fit_status = None
 
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
@@ -107,16 +108,17 @@ class Vectorizer(object):
             self.min_n = args['min_n']
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s, n = %d, min_n = %d )""" % (
+        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
             self.r / 2,
             self.d / 2,
+            self.n,
             self.min_r / 2,
             self.min_d / 2,
+            self.min_n,
             self.nbits,
+            self.fit_status,
             self.normalization,
-            self. inner_normalization,
-            self.n,
-            self.min_n)
+            self. inner_normalization)
         return representation
 
     def fit(self, graphs):
@@ -138,6 +140,7 @@ class Vectorizer(object):
                 discretization_model = MiniBatchKMeans(n_clusters=m, init='k-means++', max_iter=5, n_init=3, random_state=m)
                 discretization_model.fit(label_data_matrix_dict[node_entity])
                 self.discretization_model_dict[node_entity] += [discretization_model]
+        self.fit_status = 'fit'
 
     def partial_fit(self, graphs):
         """Update the discretizer of the real valued vector data stored in the nodes of the graphs.
@@ -147,13 +150,17 @@ class Vectorizer(object):
         graphs -- the list of networkx graphs.
         """
 
-        label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
-        label_data_matrix_dict.update(
-            self._assemble_sparse_data_matrices(graphs))
-        for node_entity in label_data_matrix_dict:
-            self.discretization_model_dict[node_entity] = []
-            for i in range(self.label_size):
-                self.discretization_model_dict[node_entity][i].partial_fit(label_data_matrix_dict[node_entity])
+        # if partial_fit is invoked prior to a fit invocation then run fit instead
+        if self.fit_status != 'fit':
+            self.fit(graphs)
+        else:
+            label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
+            label_data_matrix_dict.update(
+                self._assemble_sparse_data_matrices(graphs))
+            for node_entity in label_data_matrix_dict:
+                self.discretization_model_dict[node_entity] = []
+                for i in range(self.label_size):
+                    self.discretization_model_dict[node_entity][i].partial_fit(label_data_matrix_dict[node_entity])
 
     def fit_transform(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs and then
@@ -367,8 +374,7 @@ class Vectorizer(object):
                     # create a list of integer codes of size: label_size
                     # each integer code is determined as follows:
                     # for each entity, use the correspondent discretization_model_dict[node_entity] to extract the id of the
-                    # nearest cluster centroid, return the centroid id as the
-                    # integer code
+                    # nearest cluster centroid, return the centroid id as the integer code
                     hlabel = []
                     for i in range(self.label_size):
                         if len(self.discretization_model_dict[node_entity]) < i:
@@ -378,13 +384,12 @@ class Vectorizer(object):
                         if len(predictions) != 1:
                             raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
-                        code = fast_hash([hash(node_entity), discretization_code], self.bitmask)
+                        code = fast_hash_2(hash(node_entity), discretization_code, self.bitmask)
                         hlabel.append(code)
                     G.node[n]['hlabel'] = hlabel
                 elif isinstance(d['label'], basestring):
                     # copy a hashed version of the string for a number of times equal to self.label_size
-                    # in this way qualitative ( i.e. string ) labels can be
-                    # compared to the discretized labels
+                    # in this way qualitative ( i.e. string ) labels can be compared to the discretized labels
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
                     G.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
@@ -398,8 +403,7 @@ class Vectorizer(object):
 
     def _weight_preprocessing(self, G):
         # it is expected that all vertices either have or do not have the attribute 'weight'
-        # we sniff the attributes of the first node to determine if graph is
-        # weighted
+        # we sniff the attributes of the first node to determine if graph is weighted
         if 'weight' in G.nodes(data=True)[0][1]:
             G.graph['weighted'] = True
             # check that edges are weighted, if not assign unitary weight
@@ -513,9 +517,8 @@ class Vectorizer(object):
                     else:
                         first_hash = u_hash
                         second_hash = v_hash
-                    t = [first_hash, second_hash, radius, distance]
-                    feature = fast_hash(t, self.bitmask)
-                    key = fast_hash([radius, distance], self.bitmask)
+                    feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
+                    key = fast_hash_2(radius, distance, self.bitmask)
                     # if self.weighted == False :
                     if G.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1

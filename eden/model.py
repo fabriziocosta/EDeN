@@ -207,6 +207,9 @@ class ActiveLearningBinaryClassificationModel(object):
                     if len(best_estimator_parameters_) > 0:
                         estimator_parameters = dict(best_estimator_parameters_)
                     logger.debug(_get_parameters_range())
+                    if len(pre_processor_parameters) == 1 and len(vectorizer_parameters) == 1 and len(estimator_parameters) == 1:
+                        logger.debug('Optimal parameters range is singular, bailing out')
+                        break
 
                 # build data matrix only the first time or if needed e.g. because
                 # there are more choices in the paramter settings for the
