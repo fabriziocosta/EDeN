@@ -50,7 +50,8 @@ parser.add_argument(
 parser.add_argument(
     "--negative_site_candidate_regions_fn",
     help="Path to regions considered for placement of negatives in bed format")
-parser.add_argument("--debug", help="Enable debug output.", action="store_true")
+parser.add_argument(
+    "--debug", help="Enable debug output.", action="store_true")
 args = parser.parse_args()
 
 # fixed global variables
@@ -68,10 +69,11 @@ neg_seq_fa_fn = args.output_file_prefix + ".negatives.fa"
 
 # calculate flank lengths
 flank_length = args.seq_length - args.core_length
-flank_upstream_length = int(flank_length/2)
-flank_downstream_length = int(flank_length/2) + (flank_length % 2)
+flank_upstream_length = int(flank_length / 2)
+flank_downstream_length = int(flank_length / 2) + (flank_length % 2)
 if (args.core_length + flank_upstream_length + flank_downstream_length != args.seq_length):
     raise Exception("Error: bad length calculation.")
+
 
 def dbg_head(sites, description="", n=npeek, run=args.debug):
     """Print the first few bed entries."""
@@ -80,58 +82,63 @@ def dbg_head(sites, description="", n=npeek, run=args.debug):
         for i in sites[0:n]:
             print(i)
 
+
 def prefix_neg(feature, prefix="negative_from_"):
     """Modify BedTool feature by adding a prefix."""
     feature.name = prefix + feature.name
     return feature
 
+
 def offset_zero_by_one(feature):
     """Sets the start coordinate to 1 if it is actually 0.
-    
+
     Required for the flanking to work properly in those cases.
     """
     if (feature.start == 0):
         feature.start = feature.start + 1
     return feature
 
+
 def get_flanks(cores,
-               flank_upstream_length=flank_upstream_length, 
+               flank_upstream_length=flank_upstream_length,
                flank_downstream_length=flank_downstream_length):
     """Calculate flanking regions of a core region."""
     if (args.chromosome_limits is not None):
-        print("using chromosome_limits " + args.chromosome_limits);
+        print("using chromosome_limits " + args.chromosome_limits)
         # get upstream flanks
         flanks_upstream = cores.flank(
-            s = True,
-            l = flank_upstream_length,
-            r = 0,
-            g = args.chromosome_limits).saveas()
+            s=True,
+            l=flank_upstream_length,
+            r=0,
+            g=args.chromosome_limits).saveas()
         # get downstream flanks
         flanks_downstream = cores.flank(
-            s = True,
-            r = flank_downstream_length,
-            l = 0,
-            g = args.chromosome_limits).saveas()
+            s=True,
+            r=flank_downstream_length,
+            l=0,
+            g=args.chromosome_limits).saveas()
     else:
         # get upstream flanks
         flanks_upstream = cores.flank(
-            s = True,
-            l = flank_upstream_length,
-            r = 0,
-            genome = args.genome_id).saveas()
+            s=True,
+            l=flank_upstream_length,
+            r=0,
+            genome=args.genome_id).saveas()
         # get downstream flanks
         flanks_downstream = cores.flank(
-            s = True,
-            r = flank_downstream_length,
-            l = 0,
-            genome = args.genome_id).saveas()
+            s=True,
+            r=flank_downstream_length,
+            l=0,
+            genome=args.genome_id).saveas()
     # check if sites and flanks have the same number of entries
     if (not cores.count() == flanks_upstream.count() == flanks_downstream.count()):
         cores.saveas("debug_cores.bed")
         flanks_upstream.saveas("debug_upstream.bed")
         flanks_downstream.saveas("debug_downstream.bed")
-        raise Exception("Error: numbers of cores and flanks don't match: got " + str(cores.count()) + " cores, " + str(flanks_upstream.count()) + " upstream flanks and " + str(flanks_downstream.count()) + " downstream flanks." )
+        raise Exception("Error: numbers of cores and flanks don't match: got " + str(cores.count()) + " cores, " + str(
+            flanks_upstream.count()) + " upstream flanks and " + str(flanks_downstream.count()) + " downstream flanks.")
     return flanks_upstream, flanks_downstream
+
 
 def get_seqs(cores,
              flanks_upstream,
@@ -142,18 +149,18 @@ def get_seqs(cores,
     # get sequences
     genome_fa = BedTool(genome_fa_fn)
     cores = cores.sequence(
-        fi=genome_fa, 
-        s=True, 
+        fi=genome_fa,
+        s=True,
         tab=True, name=True).save_seqs(cores.fn + ".tabseq")
     flanks_upstream = flanks_upstream.sequence(
-        fi=genome_fa, 
-        s=True, 
-        tab=True, 
+        fi=genome_fa,
+        s=True,
+        tab=True,
         name=True).save_seqs(flanks_upstream.fn + ".tabseq")
     flanks_downstream = flanks_downstream.sequence(
-        fi=genome_fa, 
-        s=True, 
-        tab=True, 
+        fi=genome_fa,
+        s=True,
+        tab=True,
         name=True).save_seqs(flanks_downstream.fn + ".tabseq")
     # write sequences to disk
     fup_seq_fn = flanks_upstream.seqfn
@@ -161,16 +168,17 @@ def get_seqs(cores,
     fdown_seq_fn = flanks_downstream.seqfn
     viewpointfa = open(viewpointfa_fn, "wb")
     with open(fup_seq_fn, "rb") as fup_tabseq, open(cores_seq_fn, "rb") as core_tabseq, open(fdown_seq_fn, "rb") as fdown_tabseq:
-        fup_reader   = reader(fup_tabseq,   delimiter="\t")
-        core_reader  = reader(core_tabseq,  delimiter="\t")
+        fup_reader = reader(fup_tabseq, delimiter="\t")
+        core_reader = reader(core_tabseq, delimiter="\t")
         fdown_reader = reader(fdown_tabseq, delimiter="\t")
         for fup, core, fdown in izip(fup_reader, core_reader, fdown_reader):
             if (not fup[0] == core[0] == fdown[0]):
-                raise Exception("Error: sequence ids of cores and flanks don't match")
+                raise Exception(
+                    "Error: sequence ids of cores and flanks don't match")
             # setup fasta headers and sequences
             fa_header = ">" + core[0]
             seq_viewpoint = fup[1].lower() + core[1].upper() + fdown[1].lower()
-            seq_normal    = fup[1].upper() + core[1].upper() + fdown[1].upper()
+            # seq_normal = fup[1].upper() + core[1].upper() + fdown[1].upper()
 
             viewpointfa.write(fa_header + "\n")
             viewpointfa.write(seq_viewpoint + "\n")
@@ -183,17 +191,19 @@ centers = bsites.each(midpoint).saveas()
 # prepare positive instances
 print("preparing positive instances")
 if (args.chromosome_limits):
-    print("using chromosome_limits " + args.chromosome_limits);
-    cores = centers.slop(s = True,
-                         l = int(args.core_length/2),
+    print("using chromosome_limits " + args.chromosome_limits)
+    cores = centers.slop(s=True,
+                         l=int(args.core_length / 2),
                          # -1 to account for the center nucleotide!
-                         r = int(args.core_length/2) + (args.core_length % 2) - 1,
-                         g = args.chromosome_limits).each(offset_zero_by_one).saveas(pos_core_bed_fn)
+                         r=int(args.core_length / 2) +
+                         (args.core_length % 2) - 1,
+                         g=args.chromosome_limits).each(offset_zero_by_one).saveas(pos_core_bed_fn)
 else:
-    cores = centers.slop(s = True,
-                         l = int(args.core_length/2),
+    cores = centers.slop(s=True,
+                         l=int(args.core_length / 2),
                          # -1 to account for the center nucleotide!
-                         r = int(args.core_length/2) + (args.core_length % 2) - 1,
+                         r=int(args.core_length / 2) +
+                         (args.core_length % 2) - 1,
                          genome=args.genome_id).each(offset_zero_by_one).saveas(pos_core_bed_fn)
 
 flanks_upstream, flanks_downstream = get_flanks(cores)
@@ -202,7 +212,8 @@ get_seqs(cores, flanks_upstream, flanks_downstream, pos_seq_fa_fn)
 # prepare negative sites if requested
 if args.negative_site_candidate_regions_fn:
     # get negative candidate regions
-    negative_site_candidate_regions = BedTool(args.negative_site_candidate_regions_fn)
+    negative_site_candidate_regions = BedTool(
+        args.negative_site_candidate_regions_fn)
     # remove input binding sites from negative candidate regions
     processed_negative_site_candidate_regions = negative_site_candidate_regions.subtract(
         bsites,
@@ -212,9 +223,9 @@ if args.negative_site_candidate_regions_fn:
     print("preparing negative instances")
     print("starting from " + str(cores.count()) + " positive cores")
     if args.chromosome_limits:
-        print("using chromosome_limits " + args.chromosome_limits);
+        print("using chromosome_limits " + args.chromosome_limits)
         neg_cores = cores.shuffle(
-            g = args.chromosome_limits,
+            g=args.chromosome_limits,
             chrom=True,
             incl=processed_negative_site_candidate_regions.fn,
             noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
