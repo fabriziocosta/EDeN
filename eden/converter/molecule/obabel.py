@@ -155,7 +155,7 @@ def obabel_smiles_to_eden3d(input, cache={}, split_components=True, **kwargs):
         yield G_global
 
 
-
+####
 def obabel_to_networkx3d(input_mol, **kwargs):
     # similarity_fn, atom_types=None, k=3, threshold=0):
 
