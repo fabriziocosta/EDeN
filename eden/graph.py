@@ -440,24 +440,29 @@ class Vectorizer(object):
 
     def _revert_edge_to_vertex_transform(self, original_graph):
         """Converts nodes of type 'edge' to edges. Useful for display."""
-        # start from a copy of the original graph
-        G = nx.Graph(original_graph)
-        # re-wire the endpoints of edge-vertices
-        for n, d in original_graph.nodes_iter(data=True):
-            if d.get('edge', False) is True:
-                # extract the endpoints
-                endpoints = [u for u in original_graph.neighbors(n)]
-                assert (len(endpoints) == 2), 'ERROR: more than 2 endpoints'
-                u = endpoints[0]
-                v = endpoints[1]
-                # add the corresponding edge
-                G.add_edge(u, v, d)
-                # remove the edge-vertex
-                G.remove_node(n)
-            if d.get('node', False) is True:
-                # remove stale information
-                G.node[n].pop('remote_neighbours', None)
-        return G
+
+        if 'expanded' not in original_graph.graph:
+            return original_graph
+        else:        
+            # start from a copy of the original graph
+            G = nx.Graph(original_graph)
+            G.graph['expanded'].pop()
+            # re-wire the endpoints of edge-vertices
+            for n, d in original_graph.nodes_iter(data=True):
+                if d.get('edge', False) is True:
+                    # extract the endpoints
+                    endpoints = [u for u in original_graph.neighbors(n)]
+                    assert (len(endpoints) == 2), 'ERROR: more than 2 endpoints'
+                    u = endpoints[0]
+                    v = endpoints[1]
+                    # add the corresponding edge
+                    G.add_edge(u, v, d)
+                    # remove the edge-vertex
+                    G.remove_node(n)
+                if d.get('node', False) is True:
+                    # remove stale information
+                    G.node[n].pop('remote_neighbours', None)
+            return G
 
     def _graph_preprocessing(self, original_graph):
         G = self._edge_to_vertex_transform(original_graph)

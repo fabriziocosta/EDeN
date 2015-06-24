@@ -64,7 +64,7 @@ def draw_graph(graph,
             node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
 
     if edge_color is None:
-        edge_color = 'white'
+        edge_color = 'black'
     elif edge_color == '_labels_':
         edge_color = [hash(d.get('label', '.')) for u, v, d in graph.edges(data=True)]
     else:
@@ -457,7 +457,7 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlineh
 
     for i in range(count):
         plt.subplot(1, n_graphs_per_line, i + 1)
-        graphs[i].graph['info'] = "size:" + str(len(graphs[i])) + headlinehook(graphs[i])
+        graphs[i].graph['info'] = headlinehook(graphs[i])
         g = graphs[i]
         draw_graph(g, size=None, **args)
     plt.show()
