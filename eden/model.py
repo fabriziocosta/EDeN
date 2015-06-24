@@ -231,7 +231,11 @@ class ActiveLearningBinaryClassificationModel(object):
                         vectorizer_parameters = dict(best_vectorizer_parameters_)
                     if len(best_estimator_parameters_) > 0:
                         estimator_parameters = dict(best_estimator_parameters_)
-                    logger.debug(_serialize_parameters_range())
+
+                    logger.debug(_get_parameters_range())
+                    if len(pre_processor_parameters) == 1 and len(vectorizer_parameters) == 1 and len(estimator_parameters) == 1:
+                        logger.debug('Optimal parameters range is singular, bailing out')
+                        break
 
                 self.estimator_args = self._sample(estimator_parameters)
                 self.estimator.set_params(**self.estimator_args)

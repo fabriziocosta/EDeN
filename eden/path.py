@@ -2,13 +2,14 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
-from eden import fast_hash, fast_hash_vec_char
+from eden import fast_hash, fast_hash_vec_char, fast_hash_2, fast_hash_4
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 class Vectorizer():
+
     """Transform strings into sparse vectors."""
 
     def __init__(self,
@@ -83,12 +84,10 @@ class Vectorizer():
         for pos in range(seq_len):
             for radius in range(self.min_r, self.r + 1):
                 if radius < len(neighborhood_hash_cache[pos]):
-                    feature = [neighborhood_hash_cache[pos][radius], radius]
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
-                            dfeature = feature + [distance, neighborhood_hash_cache[pos + distance][radius]]
-                            feature_code = fast_hash(dfeature, self.bitmask)
-                            key = fast_hash([radius, distance], self.bitmask)
+                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius], radius, distance, neighborhood_hash_cache[pos + distance][radius], self.bitmask)
+                            key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
 
@@ -228,11 +227,9 @@ class Vectorizer():
             feature_list = defaultdict(lambda: defaultdict(float))
             for radius in range(self.min_r, self.r + 1):
                 if radius < len(neighborhood_hash_cache[pos]):
-                    feature = [neighborhood_hash_cache[pos][radius], radius]
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
-                            dfeature = feature + [distance, neighborhood_hash_cache[pos + distance][radius]]
-                            feature_code = fast_hash(dfeature, self.bitmask)
+                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius], radius, distance, neighborhood_hash_cache[pos + distance][radius], self.bitmask)
                             key = fast_hash([radius, distance], self.bitmask)
                             feature_list[key][feature_code] += 1
             feature_dict.update(self._normalization(feature_list, pos))
