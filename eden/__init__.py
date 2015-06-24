@@ -27,43 +27,55 @@ def apply_async(pool, fun, args, callback=None):
     return pool.apply_async(run_dill_encoded, (dill.dumps((fun, args)),), callback=callback)
 
 
-def fast_hash(vec, bitmask):
-    d = 0x01000193
-    # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
-    for c in vec:
-        d = ((d * 0x01000193) ^ (c * 17)) & 0xffffffff
+def fast_hash_2(dat_1, dat_2, bitmask):
+    d = (~((7919 + dat_1) ^ 2999 )) ^ (3257 ^ dat_2 * 4057)
     return int(d & bitmask) + 1
 
 
-def fast_hash_2(dat_1, dat_2, bitmask):
-    return int((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & bitmask) + 1
-
-
 def fast_hash_3(dat_1, dat_2, dat_3, bitmask):
-    return int((((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & 0xffffffff) ^ (dat_3 * 23)) & bitmask) + 1
+    d = 0xAAAAAAAA
+    d ^= (~(((d << 11) + dat_1) ^ (d >> 5)))
+    d ^= ((d << 7) ^ dat_2 * (d >> 3))
+    d ^= (~(((d << 11) + dat_3) ^ (d >> 5)))
+    return int(d & bitmask) + 1
 
 
 def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
-    return int((((((((0x01000193 ^ (dat_1 * 17)) & 0xffffffff) ^ (dat_2 * 19)) & 0xffffffff) ^ (dat_3 * 23)) & 0xffffffff) ^ (dat_4 * 29)) & bitmask) + 1
+    d = 0xAAAAAAAA
+    d ^= (~(((d << 11) + dat_1) ^ (d >> 5)))
+    d ^= ((d << 7) ^ dat_2 * (d >> 3))
+    d ^= (~(((d << 11) + dat_3) ^ (d >> 5)))
+    d ^= ((d << 7) ^ dat_4 * (d >> 3))
+    return int(d & bitmask) + 1
+
+
+def calc_running_hash(running_hash, list_item, counter):
+    return ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))), ((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((counter & 1) == 0)]
+
+
+def fast_hash(vec, bitmask):
+    running_hash = 0xAAAAAAAA
+    for i, list_item in enumerate(vec):
+        running_hash ^= calc_running_hash(running_hash, list_item, i)
+    return int(running_hash & bitmask) + 1
 
 
 def fast_hash_vec(vec, bitmask):
-    hash_vec = [0] * len(vec)
-    d = 0x01000193
-    # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
-    for i, c in enumerate(vec):
-        d = ((d * 0x01000193) ^ (c * 17)) & 0xffffffff
-        hash_vec[i] = int(d & bitmask) + 1
+    hash_vec = []
+    running_hash = 0xAAAAAAAA
+    for i, list_item in enumerate(vec):
+        running_hash ^= calc_running_hash(running_hash, list_item, i)
+        hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
 
 
 def fast_hash_vec_char(vec, bitmask):
-    hash_vec = [0] * len(vec)
-    d = 0x01000193
-    # Use the FNV algorithm from http://isthe.com/chongo/tech/comp/fnv/
-    for i, c in enumerate(vec):
-        d = ((d * 0x01000193) ^ (ord(c) * 17)) & 0xffffffff
-        hash_vec[i] = int(d & bitmask) + 1
+    hash_vec = []
+    running_hash = 0xAAAAAAAA
+    for i, list_item_char in enumerate(vec):
+        list_item = ord(list_item_char)
+        running_hash ^= calc_running_hash(running_hash, list_item, i)
+        hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
 
 
