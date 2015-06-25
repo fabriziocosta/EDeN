@@ -375,7 +375,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                             action="store_true")
 
     subsubparsers = fit_parser.add_subparsers(help='Clustering algorithm. For deatils see: http://scikit-learn.org/stable/modules/clustering.html.')
-    MiniBatchKMeans_algorithm_parser = subsubparsers.add_parser('MiniBatchKMeans', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    MiniBatchKMeans_algorithm_parser = subsubparsers.add_parser('K', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                                 help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
     MiniBatchKMeans_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
     MiniBatchKMeans_algorithm_parser.add_argument("-u", "--n-clusters",
@@ -383,7 +383,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                                                   type=int,
                                                   help="Number of clusters.",
                                                   default=4)
-    DBSCAN_algorithm_parser = subsubparsers.add_parser('DBSCAN', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    DBSCAN_algorithm_parser = subsubparsers.add_parser('D', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                        help="DBSCAN - Density-Based Spatial Clustering of Applications with Noise finds core samples of high density and expands clusters from them. Good for data which contains clusters of similar density.")
     DBSCAN_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
     DBSCAN_algorithm_parser.add_argument("-E", "--eps",
@@ -395,7 +395,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
                                          type=int,
                                          help="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself.",
                                          default=3)
-    Birch_algorithm_parser = subsubparsers.add_parser('Birch', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    Birch_algorithm_parser = subsubparsers.add_parser('B', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                       help="In the Birch clustering algorithm every new sample is inserted into the root of the Clustering Feature Tree. It is then clubbed together with the subcluster that has the centroid closest to the new sample. This is done recursively till it ends up at the subcluster of the leaf of the tree has the closest centroid.")
     Birch_algorithm_parser.set_defaults(which_algorithm='Birch')
     Birch_algorithm_parser.add_argument("-u", "--n-clusters",
