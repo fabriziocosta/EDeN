@@ -167,12 +167,14 @@ class SequenceMotif(object):
         iterable = sequence_to_eden(seqs)
         # use node importance and 'position' attribute to identify max_subarrays of a specific size
         graphs = self.vectorizer.annotate(iterable, estimator=self.estimator)
+
         # use compute_max_subarrays to return an iterator over motives
         motives = []
         for graph in graphs:
             subarrays = compute_max_subarrays(graph=graph, min_subarray_size=self.min_subarray_size, max_subarray_size=self.max_subarray_size)
-            for subarray in subarrays:
-                motives.append(subarray['subarray_string'])
+            if subarrays:
+                for subarray in subarrays:
+                    motives.append(subarray['subarray_string'])
         return motives
 
     def _multiprocess_graph_motif(self, seqs):

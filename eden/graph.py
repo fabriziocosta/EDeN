@@ -439,30 +439,31 @@ class Vectorizer(object):
             return G
 
     def _revert_edge_to_vertex_transform(self, original_graph):
-        """Converts nodes of type 'edge' to edges. Useful for display."""
+        """Converts nodes of type 'edge' to edges."""
 
-        if 'expanded' not in original_graph.graph:
-            return original_graph
-        else:        
+        if 'expanded' in original_graph.graph:
             # start from a copy of the original graph
             G = nx.Graph(original_graph)
-            G.graph['expanded'].pop()
+            G.graph.pop('expanded',None)
             # re-wire the endpoints of edge-vertices
             for n, d in original_graph.nodes_iter(data=True):
-                if d.get('edge', False) is True:
+                if 'edge' in d:
                     # extract the endpoints
                     endpoints = [u for u in original_graph.neighbors(n)]
-                    assert (len(endpoints) == 2), 'ERROR: more than 2 endpoints'
+                    if len(endpoints) != 2:
+                        raise Exception('ERROR: more than 2 endpoints in a single edge: %s' % endpoints)
                     u = endpoints[0]
                     v = endpoints[1]
                     # add the corresponding edge
                     G.add_edge(u, v, d)
                     # remove the edge-vertex
                     G.remove_node(n)
-                if d.get('node', False) is True:
+                if 'node' in d:
                     # remove stale information
                     G.node[n].pop('remote_neighbours', None)
             return G
+        else:
+            return original_graph
 
     def _graph_preprocessing(self, original_graph):
         G = self._edge_to_vertex_transform(original_graph)
@@ -709,8 +710,9 @@ class Vectorizer(object):
         # add or update label information
         if self.relabel:
             G = self._annotate_vector(G, X)
-        G.graph = graph_dict
-        return self._revert_edge_to_vertex_transform(G)
+        annotated_G = self._revert_edge_to_vertex_transform(G)
+        annotated_G.graph = graph_dict
+        return annotated_G
 
     def _annotate_vector(self, G, X):
         # annotate graph structure with vertex importance

@@ -12,9 +12,8 @@ from itertools import izip_longest
 
 
 def run_dill_encoded(what):
-    """
-    Use dill as replacement for pickle to enable multiprocessing on instance methods
-    """
+    """Use dill as replacement for pickle to enable multiprocessing on instance methods"""
+
     fun, args = dill.loads(what)
     return fun(*args)
 
@@ -33,7 +32,7 @@ def fast_hash_2(dat_1, dat_2, bitmask):
 
 
 def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
-    d = ((~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999)) 
+    d = ((~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999))
     d ^= (~((d  << 11 + dat_3) ^ (d >> 5))) ^ ((d << 7) ^ (dat_4 >> 3) * d)
     return int(d & bitmask) + 1
 
