@@ -270,7 +270,7 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
+def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=1, random_state=1, n_blocks=5, block_size=None):
     start = time()
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
     X_pos = vectorize(iterable_pos, vectorizer=vectorizer, fit_flag=fit_flag, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
