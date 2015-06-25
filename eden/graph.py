@@ -231,8 +231,8 @@ class Vectorizer(object):
             x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
             yield norm(reference_vec - x)
 
-    def _test_goodness(self, G):
-        if G.number_of_nodes() == 0:
+    def _test_goodness(self, graph):
+        if graph.number_of_nodes() == 0:
             raise Exception('ERROR: something went wrong, empty graph.')
 
     def _extract_dense_vectors_from_labels(self, original_graph):
@@ -240,9 +240,9 @@ class Vectorizer(object):
         # dict with node_entity as key and the vector associated to each vertex
         label_data_dict = defaultdict(lambda: list(list()))
         # transform edges to vertices to capture labels on edges too
-        G = self._edge_to_vertex_transform(original_graph)
+        graph = self._edge_to_vertex_transform(original_graph)
         # for all types in every node of every graph
-        for n, d in G.nodes_iter(data=True):
+        for n, d in graph.nodes_iter(data=True):
             if isinstance(d['label'], list):
                 node_entity, data = self._extract_entity_and_label(d)
                 label_data_dict[node_entity] += [data]
@@ -277,8 +277,8 @@ class Vectorizer(object):
         # if the label is of type dict
         # then
         label_data_dict = defaultdict(lambda: list(dict()))
-        G = self._edge_to_vertex_transform(original_graph)
-        for n, d in G.nodes_iter(data=True):
+        graph = self._edge_to_vertex_transform(original_graph)
+        for n, d in graph.nodes_iter(data=True):
             if isinstance(d['label'], dict):
                 node_entity, data = self._extract_entity_and_label(d)
                 label_data_dict[node_entity] += [data]
@@ -362,10 +362,10 @@ class Vectorizer(object):
 
         return node_entity, data
 
-    def _label_preprocessing(self, G):
+    def _label_preprocessing(self, graph):
         try:
-            G.graph['label_size'] = self.label_size
-            for n, d in G.nodes_iter(data=True):
+            graph.graph['label_size'] = self.label_size
+            for n, d in graph.nodes_iter(data=True):
                 # for dense or sparse vectors
                 if isinstance(d['label'], list) or isinstance(d['label'], dict):
                     node_entity, data = self._extract_entity_and_label(d)
@@ -386,12 +386,12 @@ class Vectorizer(object):
                         discretization_code = predictions[0] + 1
                         code = fast_hash_2(hash(node_entity), discretization_code, self.bitmask)
                         hlabel.append(code)
-                    G.node[n]['hlabel'] = hlabel
+                    graph.node[n]['hlabel'] = hlabel
                 elif isinstance(d['label'], basestring):
                     # copy a hashed version of the string for a number of times equal to self.label_size
                     # in this way qualitative ( i.e. string ) labels can be compared to the discretized labels
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
-                    G.node[n]['hlabel'] = [hlabel] * self.label_size
+                    graph.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
                     raise Exception('ERROR: something went wrong, type of node label is unknown: %s' % d['label'])
         except Exception as e:
@@ -401,16 +401,16 @@ class Vectorizer(object):
             print(e.__doc__)
             print(e.message)
 
-    def _weight_preprocessing(self, G):
+    def _weight_preprocessing(self, graph):
         # it is expected that all vertices either have or do not have the attribute 'weight'
         # we sniff the attributes of the first node to determine if graph is weighted
-        if 'weight' in G.nodes(data=True)[0][1]:
-            G.graph['weighted'] = True
+        if 'weight' in graph.nodes(data=True)[0][1]:
+            graph.graph['weighted'] = True
             # check that edges are weighted, if not assign unitary weight
-            for n, d in G.nodes_iter(data=True):
+            for n, d in graph.nodes_iter(data=True):
                 if d.get('edge', False) is True:
                     if d.get('weight', False) is False:
-                        G.node[n]['weight'] = 1
+                        graph.node[n]['weight'] = 1
 
     def _edge_to_vertex_transform(self, original_graph):
         """Return a graph where the edges of the original_graph are converted to nodes."""
@@ -421,30 +421,30 @@ class Vectorizer(object):
         if 'expanded' in original_graph.graph:
             return original_graph
         else:
-            G = nx.Graph()
-            G.graph['expanded'] = True
+            graph = nx.Graph()
+            graph.graph['expanded'] = True
             # build a graph that has as vertices the original vertex set
             for n, d in original_graph.nodes_iter(data=True):
                 d['node'] = True
-                G.add_node(n, d)
+                graph.add_node(n, d)
             # and in addition a vertex for each edge
             new_node_id = max(original_graph.nodes()) + 1
             for u, v, d in original_graph.edges_iter(data=True):
                 d['edge'] = True
-                G.add_node(new_node_id, d)
+                graph.add_node(new_node_id, d)
                 # and the corresponding edges
-                G.add_edge(new_node_id, u, label=None)
-                G.add_edge(new_node_id, v, label=None)
+                graph.add_edge(new_node_id, u, label=None)
+                graph.add_edge(new_node_id, v, label=None)
                 new_node_id += 1
-            return G
+            return graph
 
     def _revert_edge_to_vertex_transform(self, original_graph):
         """Converts nodes of type 'edge' to edges."""
 
         if 'expanded' in original_graph.graph:
             # start from a copy of the original graph
-            G = nx.Graph(original_graph)
-            G.graph.pop('expanded',None)
+            graph = nx.Graph(original_graph)
+            graph.graph.pop('expanded', None)
             # re-wire the endpoints of edge-vertices
             for n, d in original_graph.nodes_iter(data=True):
                 if 'edge' in d:
@@ -455,13 +455,13 @@ class Vectorizer(object):
                     u = endpoints[0]
                     v = endpoints[1]
                     # add the corresponding edge
-                    G.add_edge(u, v, d)
+                    graph.add_edge(u, v, d)
                     # remove the edge-vertex
-                    G.remove_node(n)
+                    graph.remove_node(n)
                 if 'node' in d:
                     # remove stale information
-                    G.node[n].pop('remote_neighbours', None)
-            return G
+                    graph.node[n].pop('remote_neighbours', None)
+            return graph
         else:
             return original_graph
 
