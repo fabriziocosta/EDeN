@@ -218,8 +218,8 @@ class SequenceMotif(object):
                              random_state=self.random_state)
 
     def _cluster(self, seqs, clustering_algorithm=None):
-        X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
-        predictions = clustering_algorithm.fit_predict(X)
+        data_matrix = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
+        predictions = clustering_algorithm.fit_predict(data_matrix)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
             self.clusters[predictions[i]] += [i]

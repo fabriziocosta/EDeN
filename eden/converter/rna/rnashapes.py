@@ -36,37 +36,37 @@ def string_to_networkx(header, sequence, **options):
     seq_info, seq_struct_list, struct_list = rnashapes_wrapper(sequence, shape_type=shape_type, energy_range=energy_range, max_num=max_num)
     if split_components:
         for seq_struct, struct in zip(seq_struct_list, struct_list):
-            G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
-            G.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
-            G.graph['id'] = header + '_' + struct
-            if G.number_of_nodes() < 2:
-                G = seq_to_networkx(header, sequence, **options)
-                G.graph['id'] = header
-            G.graph['sequence'] = sequence
-            G.graph['structure'] = seq_struct
-            yield G
+            graph = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+            graph.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
+            graph.graph['id'] = header + '_' + struct
+            if graph.number_of_nodes() < 2:
+                graph = seq_to_networkx(header, sequence, **options)
+                graph.graph['id'] = header
+            graph.graph['sequence'] = sequence
+            graph.graph['structure'] = seq_struct
+            yield graph
     else:
-        G_global = nx.Graph()
-        G_global.graph['id'] = header
-        G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
-        G_global.graph['sequence'] = sequence
+        graph_global = nx.Graph()
+        graph_global.graph['id'] = header
+        graph_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s' % (shape_type, energy_range, max_num)
+        graph_global.graph['sequence'] = sequence
         for seq_struct in seq_struct_list:
-            G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
-            G_global = nx.disjoint_union(G_global, G)
-        if G_global.number_of_nodes() < 2:
-            G_global = seq_to_networkx(header, sequence, **options)
-        yield G_global
+            graph = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+            graph_global = nx.disjoint_union(graph_global, graph)
+        if graph_global.number_of_nodes() < 2:
+            graph_global = seq_to_networkx(header, sequence, **options)
+        yield graph_global
 
 
 def rnashapes_to_eden(iterable, **options):
     assert(is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         try:
-            for G in string_to_networkx(header, seq, **options):
-                yield G
+            for graph in string_to_networkx(header, seq, **options):
+                yield graph
         except Exception as e:
             print e.__doc__
             print e.message
             print 'Error in: %s' % seq
-            G = seq_to_networkx(header, seq, **options)
-            yield G
+            graph = seq_to_networkx(header, seq, **options)
+            yield graph

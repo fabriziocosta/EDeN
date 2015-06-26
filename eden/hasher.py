@@ -5,7 +5,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class WTA_hash():
+class WinnerTakesAllHash():
 
     def __init__(self, num_functions=1, dimensionality=1, sparse=False):
         self.num_functions = num_functions
@@ -22,9 +22,9 @@ class WTA_hash():
         hashv ^= ((~(((seed << 11) + item) ^ (seed >> 5))), ((seed << 7) ^ item * (seed >> 3)))[True]
         return hashv + 1
 
-    def transform(self, X):
-        # NOTE: we assume X is a numpy 2D array
-        return [self.signature(vec.tolist()) for vec in X]
+    def transform(self, data_matrix):
+        # NOTE: we assume data_matrix is a numpy 2D array
+        return [self.signature(vec.tolist()) for vec in data_matrix]
 
     def signature(self, vec):
         if self.sparse:
@@ -90,7 +90,7 @@ class WTA_hash():
         return sim
 
 
-class discreteLSH():
+class DiscreteLocalitySensitiveHash():
 
     def __init__(self, r=0.1, num_functions=50, dimensionality=128):
         self.r = r
@@ -106,23 +106,23 @@ class discreteLSH():
         self.A = np.random.randn(dimensionality, num_functions)
         self.B = r * np.random.random_sample((1, num_functions))
 
-    def transform(self, X):
-        return np.array(np.floor((np.dot(X, self.A) + self.B) / self.r), np.int32)
+    def transform(self, data_matrix):
+        return np.array(np.floor((np.dot(data_matrix, self.A) + self.B) / self.r), np.int32)
 
     def transform_list(self, vec):
         return self.transform(np.array(vec))
 
 
-class LSH():
+class LocalitySensitiveHash():
 
     def __init__(self, r=0.1, num_functions=50, dimensionality=128, gamma=1):
-        self.feature_map_LSH = discreteLSH(r, num_functions, dimensionality)
+        self.feature_map_LSH = DiscreteLocalitySensitiveHash(r, num_functions, dimensionality)
         self.feature_map_nystroem = Nystroem(kernel='rbf', gamma=gamma, n_components=dimensionality)
 
     def set_params(self, r=0.1, num_functions=50, dimensionality=128, gamma=1):
-        self.feature_map_LSH = discreteLSH(r, num_functions, dimensionality)
+        self.feature_map_LSH = DiscreteLocalitySensitiveHash(r, num_functions, dimensionality)
         self.feature_map_nystroem = Nystroem(kernel='rbf', gamma=gamma, n_components=dimensionality)
 
-    def transform(self, X):
-        Xl = self.feature_map_nystroem.fit_transform(X)
-        return self.feature_map_LSH.transform(Xl)
+    def transform(self, data_matrix):
+        data_matrix_dense = self.feature_map_nystroem.fit_transform(data_matrix)
+        return self.feature_map_LSH.transform(data_matrix_dense)

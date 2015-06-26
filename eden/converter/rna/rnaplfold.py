@@ -52,39 +52,39 @@ def string_to_networkx(header, sequence, **options):
                                               max_bp_span=max_bp_span,
                                               avg_bp_prob_cutoff=avg_bp_prob_cutoff,
                                               no_lonely_bps=no_lonely_bps), reverse=True)
-    G = nx.Graph()
-    G.graph['id'] = header
-    G.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (
+    graph = nx.Graph()
+    graph.graph['id'] = header
+    graph.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (
         max_num_edges, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps)
-    G.graph['sequence'] = sequence
+    graph.graph['sequence'] = sequence
     # Add nucleotide vertices.
     for i, c in enumerate(sequence):
-        G.add_node(i, label=c, position=i)
+        graph.add_node(i, label=c, position=i)
     # Add plfold base pairs and average probabilites.
     for avg_prob_str, source_str, dest_str in plfold_bp_list:
         source = int(source_str) - 1
         dest = int(dest_str) - 1
         avg_prob = float(avg_prob_str)
         # Check if either source or dest already have more than max_num_edges edges.
-        if len(G.edges(source)) >= max_num_edges or len(G.edges(dest)) >= max_num_edges:
+        if len(graph.edges(source)) >= max_num_edges or len(graph.edges(dest)) >= max_num_edges:
             pass
         else:
-            G.add_edge(source, dest, label='=', type='basepair', value=avg_prob)
+            graph.add_edge(source, dest, label='=', type='basepair', value=avg_prob)
     # Add backbone edges.
     for i, c in enumerate(sequence):
         if i > 0:
-            G.add_edge(i, i - 1, label='-', type='backbone')
-    return G
+            graph.add_edge(i, i - 1, label='-', type='backbone')
+    return graph
 
 
 def rnaplfold_to_eden(iterable, **options):
     assert(is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         try:
-            G = string_to_networkx(header, seq, **options)
+            graph = string_to_networkx(header, seq, **options)
         except Exception as e:
             print e.__doc__
             print e.message
             print 'Error in: %s' % seq
-            G = seq_to_networkx(header, seq, **options)
-        yield G
+            graph = seq_to_networkx(header, seq, **options)
+        yield graph

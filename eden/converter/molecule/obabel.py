@@ -16,9 +16,9 @@ def obabel_to_eden(input, file_type='sdf', **options):
     for mol in pybel.readfile(file_type, input):
         # remove hydrogens
         mol.removeh()
-        G = obabel_to_networkx(mol)
-        if len(G):
-            yield G
+        graph = obabel_to_networkx(mol)
+        if len(graph):
+            yield graph
 
 
 def obabel_to_networkx(mol):

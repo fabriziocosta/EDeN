@@ -29,8 +29,8 @@ def gspan_to_eden(input=None, options=dict()):
 
 
 def gspan_to_networkx(header, string_list):
-    G = nx.Graph()
-    G.graph['id'] = header
+    graph = nx.Graph()
+    graph.graph['id'] = header
     for line in string_list:
         if line.strip():
             line_list = line.split()
@@ -44,21 +44,21 @@ def gspan_to_networkx(header, string_list):
                     weight = 1
                 else:  # uppercase v indicates no-viewpoint, in the new EDeN this is simulated via a smaller weight
                     weight = 0.1
-                G.add_node(vid, ID=vid, label=vlabel, weight=weight)
+                graph.add_node(vid, ID=vid, label=vlabel, weight=weight)
                 # extract the rest of the line  as a JSON string that contains all attributes
                 attribute_str = ' '.join(line_list[3:])
                 if attribute_str.strip():
                     attribute_dict = json.loads(attribute_str)
-                    G.node[vid].update(attribute_dict)
+                    graph.node[vid].update(attribute_dict)
             # process edges
             if fc == 'e':
                 srcid = int(line_list[1])
                 destid = int(line_list[2])
                 elabel = line_list[3]
-                G.add_edge(srcid, destid, label=elabel)
+                graph.add_edge(srcid, destid, label=elabel)
                 attribute_str = ' '.join(line_list[4:])
                 if attribute_str.strip():
                     attribute_dict = json.loads(attribute_str)
-                    G.edge[srcid][destid].update(attribute_dict)
-    assert(len(G) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
-    return G
+                    graph.edge[srcid][destid].update(attribute_dict)
+    assert(len(graph) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
+    return graph
