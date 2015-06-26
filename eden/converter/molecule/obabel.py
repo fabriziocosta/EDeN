@@ -54,6 +54,7 @@ def obabel_to_eden(input, format = 'sdf', **options):
             # TODO: change back to yield (below too!)
             if len(G):
                 yield G
+
 def obabel_to_networkx(mol):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
@@ -61,15 +62,17 @@ def obabel_to_networkx(mol):
     g = nx.Graph()
 
     #atoms
+
     for atom in mol:
+        node_id = atom.idx - 1
         label = str(atom.type)
-        g.add_node(atom.idx, label=label)
+        g.add_node(node_id, label=label)
     #bonds
         edges = []
     bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
         label = str(bond.GetBO())
-        g.add_edge( bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label = label )
+        g.add_edge( bond.GetBeginAtomIdx()-1, bond.GetEndAtomIdx()-1, label = label )
     return g
 
 
@@ -86,17 +89,19 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
     n_conf = kwargs.get('n_conf', 0)
     
     if split_components: # yield every graph separately
-        for x in read(input):
-            mols = generate_conformers(x, n_conf)
+        for mol in pybel.readfile("sdf", input):
+            mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
+                molecule.removeh()
                 G = obabel_to_networkx3d(molecule, **kwargs)
                 if len(G):
                     yield G
     else: # construct a global graph and accumulate everything there
         G_global = nx.Graph()
-        for x in read(input):
-            mols = generate_conformers(x, n_conf)
+        for mol in pybel.readfile("sdf", input):
+            mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
+                molecule.removeh()
                 G = obabel_to_networkx3d(molecule, **kwargs)
                 if len(G):
                     G_global = nx.disjoint_union(G_global, G)
@@ -186,14 +191,19 @@ def obabel_to_networkx3d(input_mol, **kwargs):
     # atoms
     for atom in input_mol:
         atomic_no = str(atom.type)
-        g.add_node(atom.idx)
-        g.node[atom.idx][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
-        g.node[atom.idx]['atom_type'] = atomic_no
+        node_id = atom.idx - 1
+        g.add_node(node_id)
+        g.node[node_id][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
+        if vector_label == 'label':
+            g.node[node_id]['atom_type'] = atomic_no
+        else:
+            g.node[node_id]['label'] = atomic_no
+        g.node[node_id]['ID'] = node_id
 
     for bond in ob.OBMolBondIter(input_mol.OBMol):
         label = str(bond.GetBO())
-        g.add_edge(bond.GetBeginAtomIdx(),
-                   bond.GetEndAtomIdx(),
+        g.add_edge(bond.GetBeginAtomIdx() - 1,
+                   bond.GetEndAtomIdx() - 1,
                    label = label)
     # print "current graph edges: "
     # print g.edges()
