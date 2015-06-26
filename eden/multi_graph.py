@@ -77,42 +77,42 @@ class ListVectorizer(Vectorizer):
                                      min_n=min_n)
         self.vectorizers = list()
 
-    def fit(self, G_iterators_list):
+    def fit(self, graphs_iterators_list):
         """
         Constructs an approximate explicit mapping of a kernel function on the data
         stored in the nodes of the graphs.
 
         Arguments:
 
-        G_iterators_list : list of iterators over networkx graphs.
+        graphs_iterators_list : list of iterators over networkx graphs.
           The data.
         """
-        for i, graphs in enumerate(G_iterators_list):
+        for i, graphs in enumerate(graphs_iterators_list):
             self.vectorizers.append(copy.copy(self.vectorizer))
             self.vectorizers[i].fit(graphs)
 
-    def fit_transform(self, G_iterators_list, weights=list()):
+    def fit_transform(self, graphs_iterators_list, weights=list()):
         """
         Arguments:
 
-        G_iterators_list : list of iterators over networkx graphs.
+        graphs_iterators_list : list of iterators over networkx graphs.
           The data.
 
         weights : list of positive real values.
           Weights for the linear combination of sparse vectors obtained on each iterated tuple of graphs.
         """
-        G_iterators_list_fit, G_iterators_list_transf = itertools.tee(G_iterators_list)
-        self.fit(G_iterators_list_fit)
-        return self.transform(G_iterators_list_transf)
+        graphs_iterators_list_fit, graphs_iterators_list_transf = itertools.tee(graphs_iterators_list)
+        self.fit(graphs_iterators_list_fit)
+        return self.transform(graphs_iterators_list_transf)
 
-    def transform(self, G_iterators_list, weights=list()):
+    def transform(self, graphs_iterators_list, weights=list()):
         """
         Transforms a list of networkx graphs into a Numpy csr sparse matrix
         ( Compressed Sparse Row matrix ).
 
         Arguments:
 
-        G_iterators_list : list of iterators over networkx graphs.
+        graphs_iterators_list : list of iterators over networkx graphs.
           The data.
 
         weights : list of positive real values.
@@ -120,21 +120,21 @@ class ListVectorizer(Vectorizer):
         """
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
+            weights = [1] * len(graphs_iterators_list)
+        assert(len(graphs_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
         assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
-        for i, graphs in enumerate(G_iterators_list):
+        for i, graphs in enumerate(graphs_iterators_list):
             if len(self.vectorizers) == 0:
-                X_curr = self.vectorizer.transform(graphs)
+                data_matrix_curr = self.vectorizer.transform(graphs)
             else:
-                X_curr = self.vectorizers[i].transform(graphs)
+                data_matrix_curr = self.vectorizers[i].transform(graphs)
             if i == 0:
-                X = X_curr * weights[i]
+                data_matrix = data_matrix_curr * weights[i]
             else:
-                X = X + X_curr * weights[i]
-        return X
+                data_matrix = data_matrix + data_matrix_curr * weights[i]
+        return data_matrix
 
-    def similarity(self, G_iterators_list, ref_instance=None, weights=list()):
+    def similarity(self, graphs_iterators_list, ref_instance=None, weights=list()):
         """
         This is a generator.
         """
@@ -143,14 +143,14 @@ class ListVectorizer(Vectorizer):
 
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)
+            weights = [1] * len(graphs_iterators_list)
+        assert(len(graphs_iterators_list) == len(weights)
                ), 'ERROR: weights count is different than iterators count.'
         assert(len(filter(lambda x: x < 0, weights)) ==
                0), 'ERROR: weight list contains negative values.'
         try:
             while True:
-                graphs = [G_iterator.next() for G_iterator in G_iterators_list]
+                graphs = [G_iterator.next() for G_iterator in graphs_iterators_list]
                 yield self._similarity(graphs, weights)
         except StopIteration:
             return
@@ -168,7 +168,7 @@ class ListVectorizer(Vectorizer):
         prediction = res[0, 0]
         return prediction
 
-    def predict(self, G_iterators_list, estimator=SGDClassifier(), weights=list()):
+    def predict(self, graphs_iterators_list, estimator=SGDClassifier(), weights=list()):
         """
         Purpose:
         ----------
@@ -182,12 +182,12 @@ class ListVectorizer(Vectorizer):
         self.estimator = estimator
         # if no weights are provided then assume unitary weight
         if len(weights) == 0:
-            weights = [1] * len(G_iterators_list)
-        assert(len(G_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
+            weights = [1] * len(graphs_iterators_list)
+        assert(len(graphs_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
         assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
         try:
             while True:
-                graphs = [G_iterator.next() for G_iterator in G_iterators_list]
+                graphs = [G_iterator.next() for G_iterator in graphs_iterators_list]
                 yield self._predict(graphs, weights)
         except StopIteration:
             return

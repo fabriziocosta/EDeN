@@ -129,7 +129,7 @@ def draw_graph(graph,
             plt.close()
 
 
-def draw_adjacency_graph(A,
+def draw_adjacency_graph(adjacency_matrix,
                          node_color=None,
                          size=10,
                          layout='graphviz',
@@ -137,7 +137,7 @@ def draw_adjacency_graph(A,
                          node_size=80,
                          colormap='autumn'):
 
-    graph = nx.from_scipy_sparse_matrix(A)
+    graph = nx.from_scipy_sparse_matrix(adjacency_matrix)
 
     plt.figure(figsize=(size, size))
     plt.grid(False)

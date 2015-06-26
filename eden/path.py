@@ -70,8 +70,8 @@ class Vectorizer():
         for i, j in feature_dict.iterkeys():
             row.append(i)
             col.append(j)
-        X = csr_matrix((data, (row, col)), shape=(max(row) + 1, self.feature_size))
-        return X
+        data_matrix = csr_matrix((data, (row, col)), shape=(max(row) + 1, self.feature_size))
+        return data_matrix
 
     def _transform(self, instance_id, seq):
         if seq is None or len(seq) == 0:
@@ -192,27 +192,27 @@ class Vectorizer():
 
     def _annotate(self, seq):
         # extract per vertex feature representation
-        X = self._compute_vertex_based_features(seq)
+        data_matrix = self._compute_vertex_based_features(seq)
         # add or update weight and importance information
-        score, vec = self._annotate_importance(seq, X)
+        score, vec = self._annotate_importance(seq, data_matrix)
         # add or update label information
         if self.relabel:
             return seq, score, vec
         else:
             return seq, score
 
-    def _annotate_importance(self, seq, X):
+    def _annotate_importance(self, seq, data_matrix):
         # compute distance from hyperplane as proxy of vertex importance
         if self.estimator is None:
             # if we do not provide an estimator then consider default margin of
             # 1 for all vertices
-            margins = np.array([1] * X.shape[0])
+            margins = np.array([1] * data_matrix.shape[0])
         else:
-            margins = self.estimator.decision_function(X)
+            margins = self.estimator.decision_function(data_matrix)
         # compute the list of sparse vectors representation
         vec = []
-        for i in range(X.shape[0]):
-            vec.append(X.getrow(i))
+        for i in range(data_matrix.shape[0]):
+            vec.append(data_matrix.getrow(i))
         return margins, vec
 
     def _compute_vertex_based_features(self, seq):
@@ -233,5 +233,5 @@ class Vectorizer():
                             key = fast_hash([radius, distance], self.bitmask)
                             feature_list[key][feature_code] += 1
             feature_dict.update(self._normalization(feature_list, pos))
-        X = self._convert_dict_to_sparse_matrix(feature_dict)
-        return X
+        data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
+        return data_matrix

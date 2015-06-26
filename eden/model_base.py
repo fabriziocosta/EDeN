@@ -242,9 +242,9 @@ def main_matrix(model_initializer, args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     logger.info(model.get_parameters())
-    X = model._data_matrix(iterator)
-    K = metrics.pairwise.pairwise_kernels(X, metric='linear')
-    store_matrix(matrix=K, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format)
+    data_matrix = model._data_matrix(iterator)
+    kernel_matrix = metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
+    store_matrix(matrix=kernel_matrix, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format)
 
 
 def main_feature(model_initializer, args):
@@ -254,8 +254,8 @@ def main_feature(model_initializer, args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     logger.info(model.get_parameters())
-    X = model._data_matrix(iterator)
-    store_matrix(matrix=X, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format)
+    data_matrix = model._data_matrix(iterator)
+    store_matrix(matrix=data_matrix, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format)
 
 
 def main(model_initializer, args):
@@ -273,12 +273,12 @@ def main(model_initializer, args):
         raise Exception('Unknown mode: %s' % args.which)
 
 
-def argparse_setup(model_initializer, DESCRIPTION, EPILOG):
+def argparse_setup(model_initializer, description, epilog):
     class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser = model_initializer.add_arguments(parser)
     parser.add_argument("-v", "--verbosity",
                         action="count",

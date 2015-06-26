@@ -71,21 +71,21 @@ class ActiveLearningBinaryClassificationModel(object):
         self.vectorizer_args = self._default(vectorizer_parameters)
         self.estimator_args = self._default(estimator_parameters)
         self.estimator.set_params(**self.estimator_args)
-        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
-        self.estimator.fit(X, y)
+        data_matrix, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
+        self.estimator.fit(data_matrix, y)
 
     def fit(self, iterable_pos, iterable_neg):
         self.estimator.set_params(**self.estimator_args)
-        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
-        self.estimator.fit(X, y)
+        data_matrix, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=self.fit_vectorizer)
+        self.estimator.fit(data_matrix, y)
 
     def predict(self, iterable):
-        X = self._data_matrix(iterable)
-        return self.estimator.predict(X)
+        data_matrix = self._data_matrix(iterable)
+        return self.estimator.predict(data_matrix)
 
     def decision_function(self, iterable):
-        X = self._data_matrix(iterable)
-        return self.estimator.decision_function(X)
+        data_matrix = self._data_matrix(iterable)
+        return self.estimator.decision_function(data_matrix)
 
     def get_info(self, iterable, key='id'):
         iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
@@ -94,15 +94,15 @@ class ActiveLearningBinaryClassificationModel(object):
 
     def info(self, iterable, key='id'):
         iterable, iterable_ = tee(iterable)
-        X = self._data_matrix(iterable)
+        data_matrix = self._data_matrix(iterable)
         info_iterable = self.get_info(iterable_, key=key)
-        for margin, graph_info in izip(self.estimator.decision_function(X), info_iterable):
+        for margin, graph_info in izip(self.estimator.decision_function(data_matrix), info_iterable):
             yield margin, graph_info
 
     def estimate(self, iterable_pos, iterable_neg):
-        X, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
-        margins = self.estimator.decision_function(X)
-        predictions = self.estimator.predict(X)
+        data_matrix, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
+        margins = self.estimator.decision_function(data_matrix)
+        predictions = self.estimator.predict(data_matrix)
         apr = average_precision_score(y, margins)
         roc = roc_auc_score(y, margins)
 
@@ -111,7 +111,7 @@ class ActiveLearningBinaryClassificationModel(object):
         text.append('\nClassifier:')
         text.append('%s' % self.estimator)
         text.append('\nData:')
-        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0]))
+        text.append('Instances: %d ; Features: %d with an avg of %d features per instance' % (data_matrix.shape[0], data_matrix.shape[1], data_matrix.getnnz() / data_matrix.shape[0]))
         text.append('\nPredictive performace estimate:')
         text.append('%s' % classification_report(y, predictions))
         text.append('APR: %.3f' % apr)
@@ -331,20 +331,20 @@ class ActiveLearningBinaryClassificationModel(object):
         self.vectorizer.set_params(**self.vectorizer_args)
         if fit_vectorizer:
             self.vectorizer.fit(graphs_)
-        X = vectorize(graphs, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
-        return X
+        data_matrix = vectorize(graphs, vectorizer=self.vectorizer, n_jobs=self.n_jobs, n_blocks=self.n_blocks)
+        return data_matrix
 
     def _data_matrices(self, iterable_pos, iterable_neg, fit_vectorizer=False):
-        Xpos = self._data_matrix(iterable_pos, fit_vectorizer=fit_vectorizer)
-        Xneg = self._data_matrix(iterable_neg, fit_vectorizer=False)
-        return self._assemble_data_matrix(Xpos, Xneg)
+        data_matrix_pos = self._data_matrix(iterable_pos, fit_vectorizer=fit_vectorizer)
+        data_matrix_neg = self._data_matrix(iterable_neg, fit_vectorizer=False)
+        return self._assemble_data_matrix(data_matrix_pos, data_matrix_neg)
 
-    def _assemble_data_matrix(self, Xpos, Xneg):
-        yp = [1] * Xpos.shape[0]
-        yn = [-1] * Xneg.shape[0]
+    def _assemble_data_matrix(self, data_matrix_pos, data_matrix_neg):
+        yp = [1] * data_matrix_pos.shape[0]
+        yn = [-1] * data_matrix_neg.shape[0]
         y = np.array(yp + yn)
-        X = vstack([Xpos, Xneg], format="csr")
-        return X, y
+        data_matrix = vstack([data_matrix_pos, data_matrix_neg], format="csr")
+        return data_matrix, y
 
     def _sample(self, parameters):
         parameters_sample = dict()
@@ -382,23 +382,23 @@ class ActiveLearningBinaryClassificationModel(object):
             if i == 0 or size_positive != -1:
                 iterable_pos, iterable_pos_, iterable_pos__ = tee(iterable_pos, 3)
                 if size_positive == -1:  # if we take all positives
-                    Xpos = self._data_matrix(iterable_pos_, fit_vectorizer=self.fit_vectorizer)
+                    data_matrix_pos = self._data_matrix(iterable_pos_, fit_vectorizer=self.fit_vectorizer)
                 else:  # otherwise use selection
-                    Xpos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids), fit_vectorizer=self.fit_vectorizer)
+                    data_matrix_pos = self._data_matrix(selection_iterator(iterable_pos_, positive_ids), fit_vectorizer=self.fit_vectorizer)
             # if this is the first iteration or we need to select negatives
             if i == 0 or size_negative != -1:
                 iterable_neg, iterable_neg_, iterable_neg__ = tee(iterable_neg, 3)
                 if size_negative == -1:  # if we take all negatives
-                    Xneg = self._data_matrix(iterable_neg_, fit_vectorizer=False)
+                    data_matrix_neg = self._data_matrix(iterable_neg_, fit_vectorizer=False)
                 else:  # otherwise use selection
-                    Xneg = self._data_matrix(selection_iterator(iterable_neg_, negative_ids), fit_vectorizer=False)
+                    data_matrix_neg = self._data_matrix(selection_iterator(iterable_neg_, negative_ids), fit_vectorizer=False)
             # assemble data matrix
-            X, y = self._assemble_data_matrix(Xpos, Xneg)
-            # stop the fitting procedure at the last-1 iteration and return X,y
+            data_matrix, y = self._assemble_data_matrix(data_matrix_pos, data_matrix_neg)
+            # stop the fitting procedure at the last-1 iteration and return data_matrix,y
             if i == n_active_learning_iterations - 1:
                 break
             # fit the estimator on selected instances
-            self.estimator.fit(X, y)
+            self.estimator.fit(data_matrix, y)
             # use the trained estimator to select the next instances
             if size_positive != -1:
                 positive_ids = self._bounded_selection(
@@ -406,7 +406,7 @@ class ActiveLearningBinaryClassificationModel(object):
             if size_negative != -1:
                 negative_ids = self._bounded_selection(
                     iterable_neg__, size=size_negative, lower_bound_threshold=lower_bound_threshold_negative, upper_bound_threshold=upper_bound_threshold_negative)
-        return X, y
+        return data_matrix, y
 
     def _bounded_selection(self, iterable, size=None, lower_bound_threshold=None, upper_bound_threshold=None):
         # transform row data to graphs

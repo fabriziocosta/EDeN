@@ -9,41 +9,41 @@ from eden.util import is_iterable
 
 
 def difference(seq_a, seq_b):
-    ''' Computes the number of characters that are different between the two sequences
-    '''
+    ''' Compute the number of characters that are different between the two sequences.'''
+
     return sum(1 if a != b else 0 for a, b in zip(seq_a, seq_b))
 
 
 def difference_matrix(seqs):
-    ''' Computes the matrix of differences between all pairs of sequences in input
-    '''
+    ''' Compute the matrix of differences between all pairs of sequences in input.'''
+
     size = len(seqs)
-    D = np.zeros((size, size))
+    diff_matrix = np.zeros((size, size))
     for i in range(size):
         for j in range(i + 1, size):
-            D[i, j] = difference(seqs[i], seqs[j])
-    return D + D.T
+            diff_matrix[i, j] = difference(seqs[i], seqs[j])
+    return diff_matrix + diff_matrix.T
 
 
 def max_difference_subselection(seqs, scores=None, max_num=None):
     # extract difference matrix
-    D = difference_matrix(seqs)
+    diff_matrix = difference_matrix(seqs)
     size = len(seqs)
-    m = np.max(D) + 1
+    m = np.max(diff_matrix) + 1
     # iterate size - k times, i.e. until only k instances are left
     for t in range(size - max_num):
         # find pairs with smallest difference
-        (min_i, min_j) = np.unravel_index(np.argmin(D), D.shape)
+        (min_i, min_j) = np.unravel_index(np.argmin(diff_matrix), diff_matrix.shape)
         # choose instance with highest score
         if scores[min_i] > scores[min_j]:
             id = min_i
         else:
             id = min_j
         # remove instance with highest score by setting all its pairwise differences to max value
-        D[id, :] = m
-        D[:, id] = m
+        diff_matrix[id, :] = m
+        diff_matrix[:, id] = m
     # extract surviving elements, i.e. element that have 0 on the diagonal
-    return np.array([i for i, x in enumerate(np.diag(D)) if x == 0])
+    return np.array([i for i, x in enumerate(np.diag(diff_matrix)) if x == 0])
 
 
 def rnasubopt_wrapper(sequence, energy_range=None, max_num=None, max_num_subopts=None):
@@ -70,36 +70,36 @@ def string_to_networkx(header, sequence, **options):
     seq_struct_list, energy_list = rnasubopt_wrapper(sequence, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
     if split_components:
         for seq_struct, energy in zip(seq_struct_list, energy_list):
-            G = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
-            G.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
-            if G.number_of_nodes() < 2:
-                G = seq_to_networkx(header, sequence, **options)
-            G.graph['id'] = header
-            G.graph['sequence'] = sequence
-            G.graph['structure'] = seq_struct
-            yield G
+            graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
+            graph.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
+            if graph.number_of_nodes() < 2:
+                graph = seq_to_networkx(header, sequence, **options)
+            graph.graph['id'] = header
+            graph.graph['sequence'] = sequence
+            graph.graph['structure'] = seq_struct
+            yield graph
     else:
-        G_global = nx.Graph()
-        G_global.graph['id'] = header
-        G_global.graph['info'] = 'RNAsubopt energy_range=%s max_num=%s' % (energy_range, max_num)
-        G_global.graph['sequence'] = sequence
+        graph_global = nx.Graph()
+        graph_global.graph['id'] = header
+        graph_global.graph['info'] = 'RNAsubopt energy_range=%s max_num=%s' % (energy_range, max_num)
+        graph_global.graph['sequence'] = sequence
         for seq_struct in seq_struct_list:
-            G = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
-            G_global = nx.disjoint_union(G_global, G)
-        if G_global.number_of_nodes() < 2:
-            G_global = seq_to_networkx(header, sequence, **options)
-        yield G_global
+            graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
+            graph_global = nx.disjoint_union(graph_global, graph)
+        if graph_global.number_of_nodes() < 2:
+            graph_global = seq_to_networkx(header, sequence, **options)
+        yield graph_global
 
 
 def rnasubopt_to_eden(iterable, **options):
     assert(is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         try:
-            for G in string_to_networkx(header, seq, **options):
-                yield G
+            for graph in string_to_networkx(header, seq, **options):
+                yield graph
         except Exception as e:
             print e.__doc__
             print e.message
             print 'Error in: %s' % seq
-            G = seq_to_networkx(header, seq, **options)
-            yield G
+            graph = seq_to_networkx(header, seq, **options)
+            yield graph
