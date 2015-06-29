@@ -29,6 +29,9 @@ def edge_contraction(graph=None, node_attribute=None):
                         # i.e. move the endpoint of all edges ending in v to n
                         cntr_edge_set = g.edges(greater_position_neighbors, data=True)
                         new_edges = map(lambda x: (n, x[1], x[2]), cntr_edge_set)
+                        # we are going to remove the greater pos neighbors , so we better make sure not to loose their contracted sets.
+                        gpn_contracted = set([removed_node for greater_position_node in greater_position_neighbors for removed_node in g.node[greater_position_node]['contracted']])
+
                         # remove nodes
                         g.remove_nodes_from(greater_position_neighbors)
                         # remove edges
@@ -37,7 +40,7 @@ def edge_contraction(graph=None, node_attribute=None):
                         new_valid_edges = [e for e in new_edges if e[1] in g.nodes() and e[1] != n]
                         g.add_edges_from(new_valid_edges)
                         # store neighbor ids in the contracted list
-                        g.node[n]['contracted'].update(set(greater_position_neighbors))
+                        g.node[n]['contracted'].update(gpn_contracted)
                         change_has_occured = True
                         break
         if change_has_occured is False:
