@@ -193,13 +193,15 @@ class Vectorizer():
     def _annotate(self, seq):
         # extract per vertex feature representation
         data_matrix = self._compute_vertex_based_features(seq)
-        # add or update weight and importance information
+        # extract importance information
         score, vec = self._annotate_importance(seq, data_matrix)
+        # extract list of chars
+        out_sequence = [c for c in seq]
         # add or update label information
         if self.relabel:
-            return seq, score, vec
+            return out_sequence, score, vec
         else:
-            return seq, score
+            return out_sequence, score
 
     def _annotate_importance(self, seq, data_matrix):
         # compute distance from hyperplane as proxy of vertex importance

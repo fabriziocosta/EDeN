@@ -107,13 +107,13 @@ def extract_sequence_and_score(graph=None):
     return seq, score
 
 
-def compute_max_subarrays_sequence(seq=None, score=None, min_subarray_size=None, max_subarray_size=None):
+def compute_max_subarrays_sequence(seq=None, score=None, min_subarray_size=None, max_subarray_size=None, output='minimal', margin=1):
     # extract subarrays
-    for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
+    for subarray in compute_iterated_maximum_subarray(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size, output=output, margin=margin):
         yield subarray
 
 
-def compute_max_subarrays(graph=None, min_subarray_size=None, max_subarray_size=None):
+def compute_max_subarrays(graph=None, min_subarray_size=None, max_subarray_size=None, output='minimal', margin=1):
     seq, score = extract_sequence_and_score(graph)
-    for subarray in compute_max_subarrays_sequence(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size):
+    for subarray in compute_max_subarrays_sequence(seq=seq, score=score, min_subarray_size=min_subarray_size, max_subarray_size=max_subarray_size, output=output, margin=margin):
         yield subarray

@@ -27,18 +27,16 @@ def apply_async(pool, fun, args, callback=None):
 
 
 def fast_hash_2(dat_1, dat_2, bitmask):
-    d = (~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999)
-    return int(d & bitmask) + 1
+    return int(hash((dat_1, dat_2)) & bitmask) + 1
 
 
 def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
-    d = ((~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999))
-    d ^= (~((d << 11 + dat_3) ^ (d >> 5))) ^ ((d << 7) ^ (dat_4 >> 3) * d)
-    return int(d & bitmask) + 1
+    return int(hash((dat_1, dat_2, dat_3, dat_4)) & bitmask) + 1
 
 
 def calc_running_hash(running_hash, list_item, counter):
-    return ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))), ((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((counter & 1) == 0)]
+    return hash((running_hash, list_item, counter))
+#    return ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))), ((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((counter & 1) == 0)]
 
 
 def fast_hash(vec, bitmask):
