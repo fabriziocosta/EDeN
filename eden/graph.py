@@ -31,29 +31,29 @@ class Vectorizer(object):
                  normalization=True,
                  inner_normalization=True):
         """
-        Arguments:
+        Args:
+            complexity: the complexity of the features extracted (default 3).
+            This is equivalent to setting r = complexity, d = complexity.
 
-        complexity -- the complexity of the features extracted (default 3). This is equivalent to setting r = complexity, d = complexity.
+            r: the maximal radius size.
 
-        r -- the maximal radius size.
+            d: the maximal distance size.
 
-        d -- the maximal distance size.
+            n: the maximal number of clusters used to discretize real label vectors.
 
-        n -- the maximal number of clusters used to discretize real label vectors.
+            min_r: the minimal radius size.
 
-        min_r -- the minimal radius size.
+            min_d: the minimal distance size.
 
-        min_d -- the minimal distance size.
+            min_n: the minimal number of clusters used to discretize real label vectors (default 2).
 
-        min_n -- the minimal number of clusters used to discretize real label vectors (default 2).
+            nbits: the number of bits that defines the feature space size: |feature space|=2^nbits (default 20).
 
-        nbits -- the number of bits that defines the feature space size: |feature space|=2^nbits (default 20).
+            normalization: flag to set the resulting feature vector to have unit euclidean norm (default True)
 
-        normalization -- flag to set the resulting feature vector to have unit euclidean norm (default True)
-
-        inner_normalization -- flag to set the feature vector for a specific combination of the radius and
-        distance size to have unit euclidean norm (default True). When used together with the 'normalization'
-        flag it will be applied first and then the resulting feature vector will be normalized.
+            inner_normalization: flag to set the feature vector for a specific combination of the radius and
+            distance size to have unit euclidean norm (default True). When used together with the 'normalization'
+            flag it will be applied first and then the resulting feature vector will be normalized.
         """
 
         self.complexity = complexity
@@ -124,9 +124,8 @@ class Vectorizer(object):
     def fit(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs.
 
-        Arguments:
-
-        graphs -- the list of networkx graphs.
+        Args:
+            graphs: the list of networkx graphs.
         """
 
         if self.n == 1:
@@ -145,9 +144,8 @@ class Vectorizer(object):
     def partial_fit(self, graphs):
         """Update the discretizer of the real valued vector data stored in the nodes of the graphs.
 
-        Arguments:
-
-        graphs -- the list of networkx graphs.
+        Args:
+            graphs: the list of networkx graphs.
         """
 
         # if partial_fit is invoked prior to a fit invocation then run fit instead
@@ -166,9 +164,8 @@ class Vectorizer(object):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs and then
         transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Arguments:
-
-        graphs -- the list of networkx graphs.
+        Args:
+            graphs: the list of networkx graphs.
         """
 
         graphs, graphs_ = itertools.tee(graphs)
@@ -178,9 +175,8 @@ class Vectorizer(object):
     def transform(self, graphs):
         """Transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Arguments:
-
-        graphs -- the list of networkx graphs.
+        Args:
+            graphs: the list of networkx graphs.
         """
 
         instance_id = None
@@ -674,21 +670,20 @@ class Vectorizer(object):
         to the neighborhood of radius r+d of the vertex.
         It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
 
-        Arguments:
+        Args:
+            estimator: scikit-learn predictor trained on data sampled from the same distribution.
+            If None the vertex weigths are by default 1.
 
-        estimator -- scikit-learn predictor trained on data sampled from the same distribution.
-          If None the vertex weigths are by default 1.
+            reweight: the  coefficient used to weight the linear combination of the current weight and
+            the absolute value of the score computed by the estimator.
+            If reweight = 0 then do not update.
+            If reweight = 1 then discard the current weight information and use only abs( score )
+            If reweight = 0.5 then update with the aritmetic mean of the current weight information and the abs( score )
 
-        reweight -- the  coefficient used to weight the linear combination of the current weight and
-          the absolute value of the score computed by the estimator.
-          If reweight = 0 then do not update.
-          If reweight = 1 then discard the current weight information and use only abs( score )
-          If reweight = 0.5 then update with the aritmetic mean of the current weight information and the abs( score )
-
-        relabel -- flag to replace the label attribute of each vertex with the sparse vector encoding of all
-          features that have that vertex as root. Create a new attribute 'original_label' to store the previous
-          label. If the 'original_label' attribute is already present then it is left untouched: this allows
-          an iterative application of the relabeling procedure while preserving the original information.
+            relabel: flag to replace the label attribute of each vertex with the sparse vector encoding of all
+            features that have that vertex as root. Create a new attribute 'original_label' to store the previous
+            label. If the 'original_label' attribute is already present then it is left untouched: this allows
+            an iterative application of the relabeling procedure while preserving the original information.
         """
 
         self.estimator = estimator

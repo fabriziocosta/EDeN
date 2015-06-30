@@ -92,8 +92,6 @@ def eden_to_gspan(graphs, filename):
     Args:
         graphs: list of NetworkX graphs
         filename: name for the gSpan file
-    Returns:
-        None
     Raises:
         Exception: if a graph is empty
     """
