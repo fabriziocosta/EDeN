@@ -1,14 +1,21 @@
 import json
 import networkx as nx
 from eden import util
+import logging
+logger = logging.getLogger(__name__)
 
 
 def gspan_to_eden(input, options=dict()):
     """Take a string list in the extended gSpan format and yields NetworkX graphs.
 
-    Keyword arguments:
-    input -- string with data source
+    Args:
+        input: data source, can be a list of strings, a file name or a url
+    Returns:
+        NetworkX graph generator
+    Raises:
+        Exception: if a graph is empty
     """
+
     header = ''
     string_list = []
     for line in util.read(input):
@@ -27,10 +34,15 @@ def gspan_to_eden(input, options=dict()):
 def gspan_to_networkx(header, lines):
     """Take a string list in the extended gSpan format and returns a NetworkX graph.
 
-    Keyword arguments:
-    header -- string to be used as id for the graph
-    lines  -- string list in extended gSpan format
+    Args:
+        header: string to be used as id for the graph
+        lines: string list in extended gSpan format
+    Returns:
+        NetworkX graph
+    Raises:
+        Exception: if a graph is empty
     """
+
     # remove empty lines
     lines = [line for line in lines if line.strip()]
 
@@ -58,7 +70,7 @@ def gspan_to_networkx(header, lines):
                 graph.node[id].update(attribute_dict)
 
         # process edges
-        if fc == 'e':
+        elif fc == 'e':
             src = int(tokens[1])
             dst = int(tokens[2])
             label = tokens[3]
@@ -67,24 +79,31 @@ def gspan_to_networkx(header, lines):
             if attribute_str.strip():
                 attribute_dict = json.loads(attribute_str)
                 graph.edge[src][dst].update(attribute_dict)
-
-    assert(len(graph) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
+        else:
+            logger.debug('line begins with unrecognized code: %s' % fc)
+    if len(graph) == 0:
+        raise Exception('ERROR: generated empty graph. Perhaps wrong format?')
     return graph
 
 
 def eden_to_gspan(graphs, filename):
-    """Write list of graphs to gSpan file..
+    """Write list of graphs to gSpan file.
 
-    Keyword arguments:
-    graphs    -- list of NetworkX graphs
-    filename  -- name for the gSpan file
+    Args:
+        graphs: list of NetworkX graphs
+        filename: name for the gSpan file
+    Returns:
+        None
+    Raises:
+        Exception: if a graph is empty
     """
-    f = open(filename, 'w')
-    for i, graph in enumerate(graphs):
-        f.write('t # ' + str(i) + '\n')
 
-        for node, data in graph.nodes_iter(data=True):
-            f.write('v ' + str(node) + ' ' + data['label'] + '\n')
+    with open(filename, 'w') as f:
+        for i, graph in enumerate(graphs):
+            f.write('t #  %s\n' % i)
 
-        for src, dst, data in graph.edges_iter(data=True):
-            f.write('e ' + str(src) + ' ' + str(dst) + ' ' + data['label'] + '\n')
+            for node, data in graph.nodes_iter(data=True):
+                f.write('v %s %s\n' % (node, data['label']))
+
+            for src, dst, data in graph.edges_iter(data=True):
+                f.write('e %s %s %s\n' % (src, dst, data['label']))
