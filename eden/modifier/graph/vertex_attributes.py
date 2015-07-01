@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import izip
 
 
 def incident_edge_label(graph_list=None, output_attribute='type', separator='', level=1):
@@ -166,4 +167,19 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                         |
                 """
                 g.node[n]["weight"] = low_weight
+        yield g
+
+
+def reweight(graph_list, weight_vector_list):
+    """Assigns a value to the weight attribute of each node in each graph according to the information supplied in the list of vectors."""
+
+    for g, w in izip(graph_list, weight_vector_list):
+        # iterate over nodes
+        for n, d in g.nodes_iter(data=True):
+            if 'position' not in d:
+                # assert nodes must have position attribute
+                raise Exception('Nodes must have "position" attribute')
+            # given the 'position' attribute of node assign the weight accordingly
+            pos = d['position']
+            g.node[n]["weight"] = w[pos]
         yield g
