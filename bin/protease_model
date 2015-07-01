@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-DESCRIPTION = """
+description = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
-Protease modelling driver. 
+Protease modelling driver.
 """
 
-EPILOG = """
+epilog = """
 Author: Fabrizio Costa
 Copyright: 2015
 License: GPL
@@ -17,7 +17,12 @@ Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
 distance kernel', Proceedings of the 26th International Conference on Machine
 Learning. 2010. """
 
-from eden.model_base import *
+import os
+import logging
+
+from eden.graph import Vectorizer
+from eden.model_base import ModelInitializerBase, main_script
+
 
 class ModelInitializer(ModelInitializerBase):
 
@@ -34,7 +39,7 @@ class ModelInitializer(ModelInitializerBase):
         from eden.modifier.seq import seq_to_seq, shuffle_modifier
         return seq_to_seq(seqs, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
 
-    def pre_processor_init(self, n_iter):
+    def pre_processor_init(self, args):
         def pre_processor(seqs, **args):
             # insert landmark in the cleavage site after pos 4, in our case this means always in the middle position
             from eden.modifier.seq import seq_to_seq, mark_modifier
@@ -49,7 +54,7 @@ class ModelInitializer(ModelInitializerBase):
         pre_processor_parameters = {}
         return pre_processor, pre_processor_parameters
 
-    def vectorizer_init(self, n_iter):
+    def vectorizer_init(self, args):
         vectorizer = Vectorizer()
         vectorizer_parameters = {'complexity': [2, 3, 4, 5, 6]}
         return vectorizer, vectorizer_parameters
@@ -82,7 +87,7 @@ class ModelInitializer(ModelInitializerBase):
 if __name__ == "__main__":
     model_initializer = ModelInitializer()
     main_script(model_initializer=model_initializer,
-                description=DESCRIPTION,
-                epilog=EPILOG,
+                description=description,
+                epilog=epilog,
                 prog_name=os.path.basename(__file__),
                 logger=logging.getLogger('root'))

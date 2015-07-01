@@ -142,10 +142,10 @@ def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_bloc
 
 def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
     if fit_flag:
-        X = vectorizer.fit_transform(graphs)
+        data_matrix = vectorizer.fit_transform(graphs)
     else:
-        X = vectorizer.transform(graphs)
-    return X
+        data_matrix = vectorizer.transform(graphs)
+    return data_matrix
 
 
 def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
@@ -161,8 +161,8 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
     output = [p.get() for p in results]
     pool.close()
     pool.join()
-    X = vstack(output, format="csr")
-    return X
+    data_matrix = vstack(output, format="csr")
+    return data_matrix
 
 
 def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
@@ -174,8 +174,8 @@ def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=No
         return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
 
 
-def describe(X):
-    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (X.shape[0], X.shape[1], X.getnnz() / X.shape[0])
+def describe(data_matrix):
+    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (data_matrix.shape[0], data_matrix.shape[1], data_matrix.getnnz() / data_matrix.shape[0])
 
 
 def iterator_size(iterable):
@@ -229,11 +229,11 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
         y = np.array(yp + yn)
-        X = vstack([positive_data_matrix, negative_data_matrix], format="csr")
+        data_matrix = vstack([positive_data_matrix, negative_data_matrix], format="csr")
     if target is not None:
-        X = positive_data_matrix
+        data_matrix = positive_data_matrix
         y = target
-    return X, y
+    return data_matrix, y
 
 
 def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
@@ -270,21 +270,21 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=20, random_state=1, n_blocks=5, block_size=None):
+def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=1, random_state=1, n_blocks=5, block_size=None):
     start = time()
     estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, fit_flag=fit_flag, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, fit_flag=False, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    logger.debug('Positive data: %s' % describe(X_pos))
-    logger.debug('Negative data: %s' % describe(X_neg))
+    positive_data_matrix = vectorize(iterable_pos, vectorizer=vectorizer, fit_flag=fit_flag, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    negative_data_matrix = vectorize(iterable_neg, vectorizer=vectorizer, fit_flag=False, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    logger.debug('Positive data: %s' % describe(positive_data_matrix))
+    logger.debug('Negative data: %s' % describe(negative_data_matrix))
     if n_iter_search <= 1:
-        X, y = make_data_matrix(positive_data_matrix=X_pos, negative_data_matrix=X_neg)
+        X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix)
         estimator.fit(X, y)
     else:
-        # optimize hyperparameters classifier
+        # optimize hyper parameters classifier
         estimator = fit_estimator(estimator,
-                                  positive_data_matrix=X_pos,
-                                  negative_data_matrix=X_neg,
+                                  positive_data_matrix=positive_data_matrix,
+                                  negative_data_matrix=negative_data_matrix,
                                   cv=cv,
                                   n_jobs=n_jobs,
                                   n_iter_search=n_iter_search,
@@ -310,9 +310,9 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
 
 
 def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, block_size=None, n_jobs=4):
-    X_pos = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    X_neg = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    return estimate_estimator(positive_data_matrix=X_pos, negative_data_matrix=X_neg, estimator=estimator)
+    positive_data_matrix = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    negative_data_matrix = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    return estimate_estimator(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, estimator=estimator)
 
 
 def load_target(name):
@@ -326,8 +326,8 @@ def load_target(name):
 
     """
 
-    Y = [y.strip() for y in read(name) if y]
-    return np.array(Y).astype(int)
+    target = [y.strip() for y in read(name) if y]
+    return np.array(target).astype(int)
 
 
 def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=''):

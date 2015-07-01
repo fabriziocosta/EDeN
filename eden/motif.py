@@ -167,12 +167,14 @@ class SequenceMotif(object):
         iterable = sequence_to_eden(seqs)
         # use node importance and 'position' attribute to identify max_subarrays of a specific size
         graphs = self.vectorizer.annotate(iterable, estimator=self.estimator)
+
         # use compute_max_subarrays to return an iterator over motives
         motives = []
         for graph in graphs:
             subarrays = compute_max_subarrays(graph=graph, min_subarray_size=self.min_subarray_size, max_subarray_size=self.max_subarray_size)
-            for subarray in subarrays:
-                motives.append(subarray['subarray_string'])
+            if subarrays:
+                for subarray in subarrays:
+                    motives.append(subarray['subarray_string'])
         return motives
 
     def _multiprocess_graph_motif(self, seqs):
@@ -216,8 +218,8 @@ class SequenceMotif(object):
                              random_state=self.random_state)
 
     def _cluster(self, seqs, clustering_algorithm=None):
-        X = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
-        predictions = clustering_algorithm.fit_predict(X)
+        data_matrix = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
+        predictions = clustering_algorithm.fit_predict(data_matrix)
         # collect instance ids per cluster id
         for i in range(len(predictions)):
             self.clusters[predictions[i]] += [i]
