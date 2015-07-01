@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-DESCRIPTION = """
+description = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
-Motif finder driver. 
+Motif finder driver.
 
 A binary class estimator is fit to discriminate between the sequences in the
 input data set against a proportional number of sequences obtained via random
@@ -15,7 +15,7 @@ individual 'motif'.
 Note: the current implementation uses as estimator a regularized linear model
 with stochastic  gradient descent (SGD) learning scheme: the gradient of the
 loss is estimated each sample at  a time and the model is updated along the way
-with a decreasing strength schedule (aka learning rate). 
+with a decreasing strength schedule (aka learning rate).
 
 
 Input: file in FASTA format
@@ -31,23 +31,23 @@ In the output directory the following files with fixed name are created:
 
 The format and content of each file is as follows:
 1. motifs.txt
-Format: a list of lines, each can be one of: 
+Format: a list of lines, each can be one of:
 a) "#" sign followed by an integer representing the cluster id.
 b) two columns, tab separated: maximal subarray sequence , number of
 occurrences.
 
 2. sequences_cluster_id_hit.txt
-Format: two columns, tab separated: sequence progressive counter 0 based, 
-list of numerical cluster ids space separated. 
+Format: two columns, tab separated: sequence progressive counter 0 based,
+list of numerical cluster ids space separated.
 
 3. sequences_cluster_match_position.txt
-Format: two columns, tab separated: sequence progressive counter 0 based, 
+Format: two columns, tab separated: sequence progressive counter 0 based,
 list of numerical cluster ids, ":", list of pairs of start,end positions
-of maximal subarray match. 
+of maximal subarray match.
 Ex: 47  2:[(28, 37),(15,25)] 3:[(45, 54)]
 
 4. sequences_cluster_match_position.bed
-Format: BED format: four columns, tab separated: header identifier of 
+Format: BED format: four columns, tab separated: header identifier of
 sequence, match start position, match end position, cluster id.
 
 5. directory containing individual fasta files, one for each cluster
@@ -59,11 +59,11 @@ motif -vv fit --input-file artificial_motif_search_dataset.fa --model-filename m
 
 
 - to use a fit model for predictions:
-motif -vv predict --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot 
+motif -vv predict --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot
 
 """
 
-EPILOG = """
+epilog = """
 Author: Fabrizio Costa
 Copyright: 2015
 License: GPL
@@ -76,15 +76,9 @@ Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
 distance kernel', Proceedings of the 26th International Conference on Machine
 Learning. 2010. """
 
-import sys
 import os
-import random
-import re
-from time import time, clock
-import multiprocessing as mp
-import numpy as np
-from itertools import tee, chain, izip
-from collections import defaultdict
+from time import time
+from itertools import izip
 
 import argparse
 import logging
@@ -243,12 +237,12 @@ def main(args):
         raise Exception('Unknown mode: %s' % args.which)
 
 
-def argparse_setup(DESCRIPTION, EPILOG):
+def argparse_setup(description, epilog):
     class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version='0.1')
     parser.add_argument("-v", "--verbosity",
                         action="count",
@@ -375,39 +369,39 @@ def argparse_setup(DESCRIPTION, EPILOG):
                             action="store_true")
 
     subsubparsers = fit_parser.add_subparsers(help='Clustering algorithm. For deatils see: http://scikit-learn.org/stable/modules/clustering.html.')
-    MiniBatchKMeans_algorithm_parser = subsubparsers.add_parser('MiniBatchKMeans', formatter_class=DefaultsRawDescriptionHelpFormatter,
-                                                                help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
-    MiniBatchKMeans_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
-    MiniBatchKMeans_algorithm_parser.add_argument("-u", "--n-clusters",
-                                                  dest="n_clusters",
-                                                  type=int,
-                                                  help="Number of clusters.",
-                                                  default=4)
-    DBSCAN_algorithm_parser = subsubparsers.add_parser('DBSCAN', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    mini_batch_k_means_algorithm_parser = subsubparsers.add_parser('K', formatter_class=DefaultsRawDescriptionHelpFormatter,
+                                                                   help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
+    mini_batch_k_means_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
+    mini_batch_k_means_algorithm_parser.add_argument("-u", "--n-clusters",
+                                                     dest="n_clusters",
+                                                     type=int,
+                                                     help="Number of clusters.",
+                                                     default=4)
+    dbscan_algorithm_parser = subsubparsers.add_parser('D', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                        help="DBSCAN - Density-Based Spatial Clustering of Applications with Noise finds core samples of high density and expands clusters from them. Good for data which contains clusters of similar density.")
-    DBSCAN_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
-    DBSCAN_algorithm_parser.add_argument("-E", "--eps",
+    dbscan_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
+    dbscan_algorithm_parser.add_argument("-E", "--eps",
                                          type=float,
                                          help="The maximum distance between two samples for them to be considered as in the same neighborhood.",
                                          default=0.2)
-    DBSCAN_algorithm_parser.add_argument("-S", "--min-samples",
+    dbscan_algorithm_parser.add_argument("-S", "--min-samples",
                                          dest="min_samples",
                                          type=int,
                                          help="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself.",
                                          default=3)
-    Birch_algorithm_parser = subsubparsers.add_parser('Birch', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    birch_algorithm_parser = subsubparsers.add_parser('B', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                       help="In the Birch clustering algorithm every new sample is inserted into the root of the Clustering Feature Tree. It is then clubbed together with the subcluster that has the centroid closest to the new sample. This is done recursively till it ends up at the subcluster of the leaf of the tree has the closest centroid.")
-    Birch_algorithm_parser.set_defaults(which_algorithm='Birch')
-    Birch_algorithm_parser.add_argument("-u", "--n-clusters",
+    birch_algorithm_parser.set_defaults(which_algorithm='Birch')
+    birch_algorithm_parser.add_argument("-u", "--n-clusters",
                                         dest="n_clusters",
                                         type=int,
                                         help="Number of clusters.",
                                         default=4)
-    Birch_algorithm_parser.add_argument("-T", "--threshold",
+    birch_algorithm_parser.add_argument("-T", "--threshold",
                                         type=float,
                                         help="The radius of the subcluster obtained by merging a new sample and the closest subcluster should be lesser than the threshold. Otherwise a new subcluster is started.",
                                         default=0.1)
-    Birch_algorithm_parser.add_argument("-f", "--branching-factor",
+    birch_algorithm_parser.add_argument("-f", "--branching-factor",
                                         dest="branching_factor",
                                         type=int,
                                         help="Maximum number of CF subclusters in each node. If a new samples enters such that the number of subclusters exceed the branching_factor then the node has to be split. The corresponding parent also has to be split and if the number of subclusters in the parent is greater than the branching factor, then it has to be split recursively.",
@@ -431,7 +425,7 @@ def argparse_setup(DESCRIPTION, EPILOG):
 
 
 if __name__ == "__main__":
-    parser = argparse_setup(DESCRIPTION, EPILOG)
+    parser = argparse_setup(description, epilog)
     args = parser.parse_args()
 
     prog_name = os.path.basename(__file__)

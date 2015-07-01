@@ -62,40 +62,40 @@ def string_to_networkx(header, sequence, **options):
     seq_info, seq_struct_list = rnashapes_wrapper(sequence, shape_type=shape_type, energy_range=energy_range, max_num=max_num)
     if split_components:
         for shape_str, energy_str, dotbracket_str in seq_struct_list:
-            G = nx.Graph()
+            graph = nx.Graph()
             if shape:
-                G_shape = seq_to_networkx('', shape_str)
-                G = nx.disjoint_union(G, G_shape)
+                graph_shape = seq_to_networkx('', shape_str)
+                graph = nx.disjoint_union(graph, graph_shape)
             if energy:
-                G_energy = seq_to_networkx('', energy_str)
-                G = nx.disjoint_union(G, G_energy)
+                graph_energy = seq_to_networkx('', energy_str)
+                graph = nx.disjoint_union(graph, graph_energy)
             if dotbracket:
-                G_dotbracket = seq_to_networkx('', dotbracket_str)
-                G = nx.disjoint_union(G, G_dotbracket)
-            G.graph['id'] = header + '_' + shape_str
-            G.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s shape=%s energy=%s dotbracket=%s' % (
+                graph_dotbracket = seq_to_networkx('', dotbracket_str)
+                graph = nx.disjoint_union(graph, graph_dotbracket)
+            graph.graph['id'] = header + '_' + shape_str
+            graph.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s shape=%s energy=%s dotbracket=%s' % (
                 shape_type, energy_range, max_num, shape, energy, dotbracket)
-            G.graph['sequence'] = sequence
-            yield G
+            graph.graph['sequence'] = sequence
+            yield graph
     else:
-        G_global = nx.Graph()
+        graph_global = nx.Graph()
         for shape_str, energy_str, dotbracket_str in seq_struct_list:
-            G = nx.Graph()
+            graph = nx.Graph()
             if shape:
-                G_shape = seq_to_networkx('', shape_str)
-                G = nx.disjoint_union(G, G_shape)
+                graph_shape = seq_to_networkx('', shape_str)
+                graph = nx.disjoint_union(graph, graph_shape)
             if energy:
-                G_energy = seq_to_networkx('', energy_str)
-                G = nx.disjoint_union(G, G_energy)
+                graph_energy = seq_to_networkx('', energy_str)
+                graph = nx.disjoint_union(graph, graph_energy)
             if dotbracket:
-                G_dotbracket = seq_to_networkx('', dotbracket_str)
-                G = nx.disjoint_union(G, G_dotbracket)
-            G_global = nx.disjoint_union(G_global, G)
-        G_global.graph['id'] = header
-        G_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s shape=%s energy=%s dotbracket=%s' % (
+                graph_dotbracket = seq_to_networkx('', dotbracket_str)
+                graph = nx.disjoint_union(graph, graph_dotbracket)
+            graph_global = nx.disjoint_union(graph_global, graph)
+        graph_global.graph['id'] = header
+        graph_global.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s max_num=%s shape=%s energy=%s dotbracket=%s' % (
             shape_type, energy_range, max_num, shape, energy, dotbracket)
-        G_global.graph['sequence'] = sequence
-        yield G_global
+        graph_global.graph['sequence'] = sequence
+        yield graph_global
 
 
 def rnashapes_struct_to_eden(iterable, **options):
@@ -108,5 +108,5 @@ def rnashapes_struct_to_eden(iterable, **options):
             print e.__doc__
             print e.message
             print 'Error in: %s %s' % (header, seq)
-            G = seq_to_networkx(header, seq, **options)
-            yield G
+            graph = seq_to_networkx(header, seq, **options)
+            yield graph

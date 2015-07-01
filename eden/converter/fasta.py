@@ -6,15 +6,15 @@ from eden.util import is_iterable
 def seq_to_networkx(header, seq, **options):
     """Convert sequence tuples to networkx graphs."""
 
-    G = nx.Graph()
-    G.graph['id'] = header
+    graph = nx.Graph()
+    graph.graph['id'] = header
     for id, character in enumerate(seq):
-        G.add_node(id, label=character, position=id)
+        graph.add_node(id, label=character, position=id)
         if id > 0:
-            G.add_edge(id - 1, id, label='-')
-    assert(len(G) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
-    G.graph['sequence'] = seq
-    return G
+            graph.add_edge(id - 1, id, label='-')
+    assert(len(graph) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
+    graph.graph['sequence'] = seq
+    return graph
 
 
 def sequence_to_eden(iterable, **options):
