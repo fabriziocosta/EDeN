@@ -49,9 +49,8 @@ class Vectorizer():
 
     def transform(self, seq_list):
         """
-        Arguments:
-
-        seq_list -- list of strings
+        Args:
+            seq_list: list of strings
         """
 
         feature_dict = {}
@@ -129,6 +128,7 @@ class Vectorizer():
         Given the seq and the pos, extract all kmers up to size r in a vector
         at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc
         """
+
         subseq = seq[pos:pos + self.r]
         return fast_hash_vec_char(subseq, self.bitmask)
 
@@ -136,6 +136,7 @@ class Vectorizer():
         """
         Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
         """
+
         for seq in seqs:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
@@ -164,30 +165,26 @@ class Vectorizer():
         corresponds to the part of the score that is imputable  to the features
         that involve the specific char.
 
-        Arguments
+        Args:
+            sequences: iterable lists of strings
 
-        sequences: iterable lists of strings
-          The input.
+            estimator: scikit-learn predictor trained on data sampled from the same distribution.
+            If None only relabeling is used.
 
-        estimator : scikit-learn predictor trained on data sampled from the same distribution.
-          If None only relabeling is used.
+            relabel: bool. If True replace the label attribute of each vertex with the
+            sparse vector encoding of all features that have that vertex as root.
 
-        relabel : bool
-          If True replace the label attribute of each vertex with the sparse vector encoding of
-          all features that have that vertex as root.
-
-        Returns
-        ----------
-          If relabel is False: for each input sequence a pair: 1) the input
-          string, 2) a list of real  numbers with size equal to the number of
-          characters in each input sequence.
+        Returns:
+            If relabel is False: for each input sequence a pair: 1) the input
+            string, 2) a list of real  numbers with size equal to the number of
+            characters in each input sequence.
 
 
-          If relabel is True: for each input sequence a triplet: 1) the input
-          string, 2) a list of real  numbers with size equal to the number of
-          characters in each input sequence, 3) a list with  size equal to the
-          number of characters in each input sequence, of sparse vectors each
-          corresponding to the vertex induced features.
+            If relabel is True: for each input sequence a triplet: 1) the input
+            string, 2) a list of real  numbers with size equal to the number of
+            characters in each input sequence, 3) a list with  size equal to the
+            number of characters in each input sequence, of sparse vectors each
+            corresponding to the vertex induced features.
         """
 
         self.estimator = estimator
