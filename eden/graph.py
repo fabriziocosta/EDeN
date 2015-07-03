@@ -6,7 +6,7 @@ from scipy import stats
 from scipy.sparse import csr_matrix
 from numpy.linalg import norm
 from sklearn.cluster import MiniBatchKMeans
-from collections import defaultdict, deque
+from collections import defaultdict, deque, namedtuple
 import itertools
 import networkx as nx
 from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
@@ -47,13 +47,15 @@ class Vectorizer(object):
 
             min_n: the minimal number of clusters used to discretize real label vectors (default 2).
 
-            nbits: the number of bits that defines the feature space size: |feature space|=2^nbits (default 20).
+            nbits: the number of bits that defines the feature space size:
+            |feature space|=2^nbits (default 20).
 
             normalization: flag to set the resulting feature vector to have unit euclidean norm (default True)
 
             inner_normalization: flag to set the feature vector for a specific combination of the radius and
-            distance size to have unit euclidean norm (default True). When used together with the 'normalization'
-            flag it will be applied first and then the resulting feature vector will be normalized.
+            distance size to have unit euclidean norm (default True). When used together with the
+            'normalization' flag it will be applied first and then the resulting feature vector
+            will be normalized.
         """
 
         self.complexity = complexity
@@ -108,7 +110,8 @@ class Vectorizer(object):
             self.min_n = args['min_n']
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
+        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
+                         nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
             self.r / 2,
             self.d / 2,
             self.n,
@@ -136,7 +139,11 @@ class Vectorizer(object):
         for node_entity in label_data_matrix_dict:
             self.discretization_model_dict[node_entity] = []
             for m in range(self.min_n, self.n):
-                discretization_model = MiniBatchKMeans(n_clusters=m, init='k-means++', max_iter=5, n_init=3, random_state=m)
+                discretization_model = MiniBatchKMeans(n_clusters=m,
+                                                       init='k-means++',
+                                                       max_iter=5,
+                                                       n_init=3,
+                                                       random_state=m)
                 discretization_model.fit(label_data_matrix_dict[node_entity])
                 self.discretization_model_dict[node_entity] += [discretization_model]
         self.fit_status = 'fit'
@@ -508,24 +515,24 @@ class Vectorizer(object):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(graph.graph['label_size']):
-                if radius < len(graph.node[vertex_v]['neighborhood_graph_hash'][label_index]) and radius < len(graph.node[vertex_u]['neighborhood_graph_hash'][label_index]):
+                if radius < len(graph.node[vertex_v]['neighborhood_graph_hash'][label_index]) and \
+                        radius < len(graph.node[vertex_u]['neighborhood_graph_hash'][label_index]):
                     # feature as a pair of neighbourhoods at a radius,distance
                     # canonicazation of pair of neighborhoods
                     vertex_v_hash = graph.node[vertex_v]['neighborhood_graph_hash'][label_index][radius]
                     vertex_u_hash = graph.node[vertex_u]['neighborhood_graph_hash'][label_index][radius]
                     if vertex_v_hash < vertex_u_hash:
-                        first_hash = vertex_v_hash
-                        second_hash = vertex_u_hash
+                        first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
                     else:
-                        first_hash = vertex_u_hash
-                        second_hash = vertex_v_hash
+                        first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
                     feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
                     key = fast_hash_2(radius, distance, self.bitmask)
                     # if self.weighted == False :
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
                     else:
-                        feature_list[key][feature] += graph.node[vertex_v]['neighborhood_graph_weight'][radius] + graph.node[vertex_u]['neighborhood_graph_weight'][radius]
+                        feature_list[key][feature] += graph.node[vertex_v]['neighborhood_graph_weight'][radius] + \
+                            graph.node[vertex_u]['neighborhood_graph_weight'][radius]
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance

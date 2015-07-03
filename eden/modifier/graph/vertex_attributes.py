@@ -54,7 +54,11 @@ def incident_node_label(graph_list=None, output_attribute='type', separator='', 
         yield g
 
 
-def translate(graph_list=None, input_attribute='label', output_attribute='label', label_map=dict(), default=' '):
+def translate(graph_list=None,
+              input_attribute='label',
+              output_attribute='label',
+              label_map=dict(),
+              default=' '):
     original_attribute = input_attribute + '_original'
     for g in graph_list:
         # iterate over nodes
@@ -98,7 +102,13 @@ def discretize(graph_list=None, output_attribute='value', input_attribute='weigh
         yield g
 
 
-def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, high_weight_window_start=0, high_weight_window_end=1, low_weight_window_start=0, low_weight_window_end=1):
+def trapezoidal_reweighting(graph_list=None,
+                            high_weight=1.0,
+                            low_weight=0.1,
+                            high_weight_window_start=0,
+                            high_weight_window_end=1,
+                            low_weight_window_start=0,
+                            low_weight_window_end=1):
     """
     Piece wise linear weight function between two levels with specified start end positions.
     high   ___
@@ -128,7 +138,8 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
             if 'position' not in d:
                 # assert nodes must have position attribute
                 raise Exception('Nodes must have "position" attribute')
-            # given the 'position' attribute of node assign weight according to piece wise linear weight function between two levels
+            # given the 'position' attribute of node assign weight according to
+            # piece wise linear weight function between two levels
             pos = d['position']
             if pos < low_weight_window_start:
                 """
@@ -159,7 +170,8 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
                       |
                 """
                 g.node[n]["weight"] = high_weight - \
-                    (high_weight - low_weight) / (low_weight_window_end - high_weight_window_end) * (pos - high_weight_window_end)
+                    (high_weight - low_weight) / (low_weight_window_end - high_weight_window_end) * \
+                    (pos - high_weight_window_end)
             else:
                 """
                    ___
@@ -171,7 +183,8 @@ def trapezoidal_reweighting(graph_list=None, high_weight=1.0, low_weight=0.1, hi
 
 
 def reweight(graph_list, weight_vector_list):
-    """Assigns a value to the weight attribute of each node in each graph according to the information supplied in the list of vectors."""
+    """Assigns a value to the weight attribute of each node in each graph according to
+    the information supplied in the list of vectors."""
 
     for g, w in izip(graph_list, weight_vector_list):
         # iterate over nodes
