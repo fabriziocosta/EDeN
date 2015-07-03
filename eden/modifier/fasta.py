@@ -38,6 +38,7 @@ def _fasta_to_fasta(input):
     for line in util.read(input):
         if line:
             if line[0] == '>':
+                line = line[1:]
                 if seq:
                     yield seq
                     seq = ""
