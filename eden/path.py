@@ -76,7 +76,7 @@ class Vectorizer():
 
     def _transform(self, instance_id, seq):
         if seq is None or len(seq) == 0:
-            raise Exception('ERROR: something went wrong, empty instance at position %d.' % instance_id)
+            raise Exception('ERROR: something went wrong, empty instance # %d.' % instance_id)
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
         neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
@@ -86,11 +86,12 @@ class Vectorizer():
             for radius in range(self.min_r, self.r + 1):
                 if radius < len(neighborhood_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 1):
-                        if pos + distance + radius < seq_len:
+                        second_endpoint = pos + distance
+                        if second_endpoint + radius < seq_len:
                             feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
                                                        radius,
                                                        distance,
-                                                       neighborhood_hash_cache[pos + distance][radius],
+                                                       neighborhood_hash_cache[second_endpoint][radius],
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
