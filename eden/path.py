@@ -2,7 +2,7 @@ from collections import defaultdict
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
-from eden import fast_hash, fast_hash_vec_char, fast_hash_2, fast_hash_4
+from eden import fast_hash_vec_char, fast_hash_2, fast_hash_4
 
 import logging
 logger = logging.getLogger(__name__)
@@ -36,7 +36,8 @@ class Vectorizer():
         self.feature_size = self.bitmask + 2
 
     def __repr__(self):
-        representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, normalization = %s, inner_normalization = %s)""" % (
+        representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, \
+            normalization = %s, inner_normalization = %s)""" % (
             self.r - 1,
             self.d - 1,
             self.min_r,
@@ -86,7 +87,11 @@ class Vectorizer():
                 if radius < len(neighborhood_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
-                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius], radius, distance, neighborhood_hash_cache[pos + distance][radius], self.bitmask)
+                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
+                                                       radius,
+                                                       distance,
+                                                       neighborhood_hash_cache[pos + distance][radius],
+                                                       self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
         return self._normalization(feature_list, instance_id)
@@ -139,9 +144,9 @@ class Vectorizer():
             yield margins[0]
 
     def similarity(self, seqs, ref_instance=None):
-        """
-        Takes an iterator over graphs and a reference graph, and returns an iterator over similarity evaluations.
-        """
+        """Takes an iterator over graphs and a reference graph, and returns an iterator
+        over similarity evaluations."""
+
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for seq in seqs:
             if len(seq) == 0:
@@ -231,8 +236,12 @@ class Vectorizer():
                 if radius < len(neighborhood_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 1):
                         if pos + distance + radius < seq_len:
-                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius], radius, distance, neighborhood_hash_cache[pos + distance][radius], self.bitmask)
-                            key = fast_hash([radius, distance], self.bitmask)
+                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
+                                                       radius,
+                                                       distance,
+                                                       neighborhood_hash_cache[pos + distance][radius],
+                                                       self.bitmask)
+                            key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
             feature_dict.update(self._normalization(feature_list, pos))
         data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
