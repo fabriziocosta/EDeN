@@ -38,7 +38,8 @@ def draw_graph(graph,
 
     if vertex_label is not None:
         if secondary_vertex_label:
-            vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'), d.get(secondary_vertex_label, 'N/A')))
+            vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'),
+                                                  d.get(secondary_vertex_label, 'N/A')))
                                   for u, d in graph.nodes(data=True)])
         else:
             vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
@@ -48,7 +49,8 @@ def draw_graph(graph,
 
     if edge_label is not None:
         if secondary_edge_label:
-            edge_labels = dict([((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'), d.get(secondary_edge_label, 'N/A')))
+            edge_labels = dict([((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'),
+                                                       d.get(secondary_edge_label, 'N/A')))
                                 for u, v, d in graph.edges(data=True)])
         else:
             edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
@@ -173,6 +175,53 @@ def serialize_graph(graph):
     return serial_data
 
 
+def matrix_factorization(data_matrix, n=10):
+    import pymf
+    mf = pymf.SIVM(data_matrix.T, num_bases=n)
+    mf.factorize()
+    return mf.W.T, mf.H.T
+
+
+def low_dimensional_embedding(data_matrix, low_dim=None):
+    from sklearn import random_projection
+    n_rows, n_cols = data_matrix.shape
+    # perform data dimension reduction inly if #features > #data points
+    if n_cols <= n_rows:
+        return_data_matrix = data_matrix
+    else:
+        if n_rows < 5000:
+            n_components = n_rows
+        else:
+            n_components = 'auto'
+        transformer = random_projection.SparseRandomProjection(n_components=n_components, dense_output=True)
+        data_matrix_new = transformer.fit_transform(data_matrix)
+        basis_data_matrix, coordinates_data_matrix = matrix_factorization(data_matrix_new, n=low_dim)
+        return_data_matrix = coordinates_data_matrix
+    return return_data_matrix
+
+
+def embedding_quality(data_matrix, y, opts, low_dim=None):
+    if low_dim is not None:
+        data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
+    # compute embedding quality
+    from eden.util.display import quick_shift_tree_embedding
+    data_matrix_emb = quick_shift_tree_embedding(data_matrix, **opts)
+
+    from sklearn.cluster import KMeans
+    km = KMeans(init='k-means++', n_clusters=len(set(y)), n_init=50)
+    yp = km.fit_predict(data_matrix_emb)
+
+    from sklearn.metrics import adjusted_rand_score
+    return adjusted_rand_score(y, yp)
+
+
+def embed(data_matrix, y, opts, low_dim=None):
+    if low_dim is not None:
+        data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
+    from eden.util.display import plot_embeddings
+    plot_embeddings(data_matrix, y, size=25, **opts)
+
+
 def embed_two_dimensions(data, vectorizer, size=10, n_components=5, colormap='YlOrRd'):
     if hasattr(data, '__iter__'):
         iterable = data
@@ -206,7 +255,11 @@ def embed_two_dimensions(data, vectorizer, size=10, n_components=5, colormap='Yl
     plt.show()
 
 
-def embed_dat_matrix_two_dimensions(low_dimension_data_matrix, y=None, labels=None, density_colormap='Blues', instance_colormap='YlOrRd'):
+def embed_dat_matrix_two_dimensions(low_dimension_data_matrix,
+                                    y=None,
+                                    labels=None,
+                                    density_colormap='Blues',
+                                    instance_colormap='YlOrRd'):
     from sklearn.preprocessing import scale
     low_dimension_data_matrix = scale(low_dimension_data_matrix)
     # make mesh
@@ -288,7 +341,12 @@ def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, file
         plt.show()
 
 
-def quick_shift_tree_embedding(data_matrix, knn=10, knn_density=None, k_threshold=0.9, metric='linear', **args):
+def quick_shift_tree_embedding(data_matrix,
+                               knn=10,
+                               knn_density=None,
+                               k_threshold=0.9,
+                               metric='linear',
+                               **args):
     if knn_density is None:
         knn_density = knn
     n_instances = data_matrix.shape[0]
@@ -350,7 +408,12 @@ def quick_shift_tree_embedding(data_matrix, knn=10, knn_density=None, k_threshol
     return scale(embedding_data_matrix)
 
 
-def plot_embedding(data_matrix, y, labels=None, image_file_name=None, title=None, cmap='gnuplot', density=False):
+def plot_embedding(data_matrix, y,
+                   labels=None,
+                   image_file_name=None,
+                   title=None,
+                   cmap='gnuplot',
+                   density=False):
     import matplotlib.pyplot as plt
     from matplotlib import offsetbox
     from PIL import Image
@@ -368,7 +431,10 @@ def plot_embedding(data_matrix, y, labels=None, image_file_name=None, title=None
         ax = plt.subplot(111)
         for i in range(num_instances):
             img = Image.open(image_file_name + str(i) + '.png')
-            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1), data_matrix[i], pad=0, frameon=False)
+            imagebox = offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1),
+                                                data_matrix[i],
+                                                pad=0,
+                                                frameon=False)
             ax.add_artist(imagebox)
     if labels is not None:
         for id in range(data_matrix.shape[0]):
@@ -378,7 +444,18 @@ def plot_embedding(data_matrix, y, labels=None, image_file_name=None, title=None
             plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
 
 
-def plot_embeddings(data_matrix, y, labels=None, save_image_file_name=None, image_file_name=None, size=25, cmap='gnuplot', density=False, knn=16, knn_density=16, k_threshold=0.9, metric='rbf', **args):
+def plot_embeddings(data_matrix, y,
+                    labels=None,
+                    save_image_file_name=None,
+                    image_file_name=None,
+                    size=25,
+                    cmap='gnuplot',
+                    density=False,
+                    knn=16,
+                    knn_density=16,
+                    k_threshold=0.9,
+                    metric='rbf',
+                    **args):
     import matplotlib.pyplot as plt
     import time
 
@@ -388,51 +465,57 @@ def plot_embeddings(data_matrix, y, labels=None, save_image_file_name=None, imag
     from sklearn import decomposition
     data_matrix_ = decomposition.TruncatedSVD(n_components=2).fit_transform(data_matrix)
     duration = time.time() - start
-    plt.subplot(321)
-    plot_embedding(data_matrix_, y, labels=labels, title="SVD (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
+    plt.subplot(221)
+    plot_embedding(data_matrix_, y,
+                   labels=labels,
+                   title="SVD (%.1f sec)" % duration,
+                   cmap=cmap,
+                   density=density,
+                   image_file_name=image_file_name)
 
     start = time.time()
     from sklearn import manifold
     from sklearn.metrics.pairwise import pairwise_distances
     distance_matrix = pairwise_distances(data_matrix)
-    data_matrix_ = manifold.MDS(n_components=2, n_init=1, max_iter=100, dissimilarity='precomputed').fit_transform(distance_matrix)
+    data_matrix_ = manifold.MDS(n_components=2,
+                                n_init=1,
+                                max_iter=100,
+                                dissimilarity='precomputed').fit_transform(distance_matrix)
     duration = time.time() - start
-    plt.subplot(322)
-    plot_embedding(data_matrix_, y, labels=labels, title="MDS (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
+    plt.subplot(222)
+    plot_embedding(data_matrix_, y,
+                   labels=labels,
+                   title="MDS (%.1f sec)" % duration,
+                   cmap=cmap,
+                   density=density,
+                   image_file_name=image_file_name)
 
     start = time.time()
     from sklearn import manifold
     data_matrix_ = manifold.TSNE(n_components=2, init='random', random_state=0).fit_transform(data_matrix)
     duration = time.time() - start
-    plt.subplot(323)
-    plot_embedding(data_matrix_, y, labels=labels, title="t-SNE (%.1f sec)" % duration, cmap=cmap, density=density, image_file_name=image_file_name)
-
-    start = time.time()
-    from eden.util.display import quick_shift_tree_embedding
-    tree_embedding_knn = knn / 4
-    data_matrix_ = quick_shift_tree_embedding(data_matrix, knn=tree_embedding_knn, knn_density=knn_density / 4, k_threshold=k_threshold, metric=metric, **args)
-    duration = time.time() - start
-    plt.subplot(324)
-    plot_embedding(data_matrix_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (tree_embedding_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+    plt.subplot(223)
+    plot_embedding(data_matrix_, y,
+                   labels=labels,
+                   title="t-SNE (%.1f sec)" % duration,
+                   cmap=cmap,
+                   density=density,
+                   image_file_name=image_file_name)
 
     start = time.time()
     from eden.util.display import quick_shift_tree_embedding
     tree_embedding_knn = knn
-    data_matrix_ = quick_shift_tree_embedding(data_matrix, knn=tree_embedding_knn, knn_density=knn_density, k_threshold=k_threshold, metric=metric, **args)
+    data_matrix_ = quick_shift_tree_embedding(data_matrix,
+                                              knn=tree_embedding_knn,
+                                              knn_density=knn_density,
+                                              k_threshold=k_threshold,
+                                              metric=metric,
+                                              **args)
     duration = time.time() - start
-    plt.subplot(325)
+    plt.subplot(224)
     plot_embedding(data_matrix_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
                    (knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
 
-    start = time.time()
-    from eden.util.display import quick_shift_tree_embedding
-    tree_embedding_knn = knn * 2
-    data_matrix_ = quick_shift_tree_embedding(data_matrix, knn=tree_embedding_knn, knn_density=knn_density * 2, k_threshold=k_threshold, metric=metric, **args)
-    duration = time.time() - start
-    plt.subplot(326)
-    plot_embedding(data_matrix_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (tree_embedding_knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
     if save_image_file_name:
         plt.savefig(save_image_file_name)
     else:
@@ -443,7 +526,10 @@ def plot_embeddings(data_matrix, y, labels=None, save_image_file_name=None, imag
 def draw_graph_set(graphs, n_graphs_per_line=5, size=4, edge_label=None, **args):
     graphs = list(graphs)
     while graphs:
-        draw_graph_row(graphs[:n_graphs_per_line], n_graphs_per_line=n_graphs_per_line, edge_label=edge_label, size=size, **args)
+        draw_graph_row(graphs[:n_graphs_per_line],
+                       n_graphs_per_line=n_graphs_per_line,
+                       edge_label=edge_label,
+                       size=size, **args)
         graphs = graphs[n_graphs_per_line:]
 
 
