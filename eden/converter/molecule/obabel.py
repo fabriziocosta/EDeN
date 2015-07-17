@@ -27,7 +27,8 @@ def obabel_to_eden(input, format = 'sdf', **options):
     #do openbabel with cache[smi]
     #else do 3dobabel and store mol in cache[smi]=mol
     if format == 'sdf':
-        for mol in pybel.readfile("sdf", input):
+        for x in read(input):
+            mol = pybel.readstring("sdf", x)
             #remove hydrogens
             mol.removeh()
             G = obabel_to_networkx(mol)
