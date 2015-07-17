@@ -89,16 +89,16 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
     n_conf = kwargs.get('n_conf', 0)
     
     if split_components: # yield every graph separately
-        for mol in pybel.readfile("sdf", input):
+        for mol in pybel.readstring("sdf", input):
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
                 molecule.removeh()
-                G = obabel_to_networkx3d(molecule, **kwargs)
+                G = obabel_to_networkx3d(molecule, **kwargs)    
                 if len(G):
                     yield G
     else: # construct a global graph and accumulate everything there
         G_global = nx.Graph()
-        for mol in pybel.readfile("sdf", input):
+        for mol in pybel.readstring("sdf", input):
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
                 molecule.removeh()
@@ -194,8 +194,10 @@ def obabel_to_networkx3d(input_mol, **kwargs):
         node_id = atom.idx - 1
         g.add_node(node_id)
         g.node[node_id][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
+        #g.node[node_id][vector_label] = 'TEST_STRING'
+
         if vector_label == 'label':
-            g.node[node_id]['atom_type'] = atomic_no
+            g.node[node_id]['text_label'] = atomic_no
         else:
             g.node[node_id]['label'] = atomic_no
         g.node[node_id]['ID'] = node_id
@@ -223,7 +225,7 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
     # 12 Magnesium
     # 16 Sulfur
     atom_types = kwargs.get('atom_types', [1,2,8,6,10,26,7,14,12,16])
-    similarity_fn = kwargs.get('similarity_fn', lambda x: 1./(1e-10 + x))
+    similarity_fn = kwargs.get('similarity_fn', lambda x: 1./(x + 1))
     k = kwargs.get('k', 3)
     threshold = kwargs.get('threshold', 0)
     # print "Value of threshold parameter: %s" % threshold
@@ -241,15 +243,23 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
         else:
             nearest_atoms.append([id for id in sorted_indices if id+1 in atom_idx] + [None]*(k-len(atom_idx)))
 
+    #print "***** Current atom id: ", current_idx
     # The following expression flattens the list
     nearest_atoms = [x for sublist in nearest_atoms for x in sublist]
-    # Replace idx for distances
-    nearest_atoms = [distances[current_idx-1, i] if not i is None else 0 for i in nearest_atoms]
+    # print "** Atom id of nearest neighbors"
+    # print nearest_atoms
+    # Replace idx for distances, assign an arbitrarily large distance for None
+    #nearest_atoms = [distances[current_idx-1, i] if not i is None else 0 for i in nearest_atoms]
+    nearest_atoms = [distances[current_idx-1, i] if not i is None else 1e10 for i in nearest_atoms]
+    # print "** Distance values for nearest neighbors: "
+    # print nearest_atoms
     # If a threshold value is entered, filter the list of distances
     if threshold > 0:
-        nearest_atoms = [x if x <= threshold else 0 for x in nearest_atoms]
+        nearest_atoms = [x if x <= threshold else 1e10 for x in nearest_atoms]
     # Finally apply the similarity function to the resulting list and return
     nearest_atoms = [similarity_fn(x) for x in nearest_atoms]
+    # print "** Similarity values from distances: "
+    # print nearest_atoms
 
     return nearest_atoms
 
