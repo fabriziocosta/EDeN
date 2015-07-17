@@ -25,8 +25,8 @@ def gspan_to_eden(input, options=dict()):
                     yield gspan_to_networkx(header, string_list)
                 string_list = []
                 header = line
-            string_list += [line]
-
+            else:
+                string_list += [line]
     if string_list:
         yield gspan_to_networkx(header, string_list)
 
