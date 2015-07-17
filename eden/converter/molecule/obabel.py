@@ -89,7 +89,8 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
     n_conf = kwargs.get('n_conf', 0)
     
     if split_components: # yield every graph separately
-        for mol in pybel.readstring("sdf", input):
+        for x in input:
+            mol = pybel.readstring("sdf", x)
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
                 molecule.removeh()
@@ -98,7 +99,8 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
                     yield G
     else: # construct a global graph and accumulate everything there
         G_global = nx.Graph()
-        for mol in pybel.readstring("sdf", input):
+        for x in input:
+            mol = pybel.readstring("sdf", x)
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
                 molecule.removeh()
