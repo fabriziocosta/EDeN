@@ -47,13 +47,15 @@ class Vectorizer(object):
 
             min_n: the minimal number of clusters used to discretize real label vectors (default 2).
 
-            nbits: the number of bits that defines the feature space size: |feature space|=2^nbits (default 20).
+            nbits: the number of bits that defines the feature space size:
+            |feature space|=2^nbits (default 20).
 
             normalization: flag to set the resulting feature vector to have unit euclidean norm (default True)
 
             inner_normalization: flag to set the feature vector for a specific combination of the radius and
-            distance size to have unit euclidean norm (default True). When used together with the 'normalization'
-            flag it will be applied first and then the resulting feature vector will be normalized.
+            distance size to have unit euclidean norm (default True). When used together with the
+            'normalization' flag it will be applied first and then the resulting feature vector
+            will be normalized.
         """
 
         self.complexity = complexity
@@ -76,7 +78,7 @@ class Vectorizer(object):
         self.inner_normalization = inner_normalization
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
-        self.discretization_model_dict = dict()
+        self.discretization_models = dict()
         self.fit_status = None
 
     def set_params(self, **args):
@@ -108,7 +110,8 @@ class Vectorizer(object):
             self.min_n = args['min_n']
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
+        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
+                         nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
             self.r / 2,
             self.d / 2,
             self.n,
@@ -130,15 +133,19 @@ class Vectorizer(object):
 
         if self.n == 1:
             raise Exception('ERROR: fitting is not compatible with n=1.')
-        label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
-        label_data_matrix_dict.update(
+        label_data_matrixs = self._assemble_dense_data_matrices(graphs)
+        label_data_matrixs.update(
             self._assemble_sparse_data_matrices(graphs))
-        for node_entity in label_data_matrix_dict:
-            self.discretization_model_dict[node_entity] = []
+        for node_entity in label_data_matrixs:
+            self.discretization_models[node_entity] = []
             for m in range(self.min_n, self.n):
-                discretization_model = MiniBatchKMeans(n_clusters=m, init='k-means++', max_iter=5, n_init=3, random_state=m)
-                discretization_model.fit(label_data_matrix_dict[node_entity])
-                self.discretization_model_dict[node_entity] += [discretization_model]
+                discretization_model = MiniBatchKMeans(n_clusters=m,
+                                                       init='k-means++',
+                                                       max_iter=5,
+                                                       n_init=3,
+                                                       random_state=m)
+                discretization_model.fit(label_data_matrixs[node_entity])
+                self.discretization_models[node_entity] += [discretization_model]
         self.fit_status = 'fit'
 
     def partial_fit(self, graphs):
@@ -152,13 +159,13 @@ class Vectorizer(object):
         if self.fit_status != 'fit':
             self.fit(graphs)
         else:
-            label_data_matrix_dict = self._assemble_dense_data_matrices(graphs)
-            label_data_matrix_dict.update(
+            label_data_matrixs = self._assemble_dense_data_matrices(graphs)
+            label_data_matrixs.update(
                 self._assemble_sparse_data_matrices(graphs))
-            for node_entity in label_data_matrix_dict:
-                self.discretization_model_dict[node_entity] = []
+            for node_entity in label_data_matrixs:
+                self.discretization_models[node_entity] = []
                 for i in range(self.label_size):
-                    self.discretization_model_dict[node_entity][i].partial_fit(label_data_matrix_dict[node_entity])
+                    self.discretization_models[node_entity][i].partial_fit(label_data_matrixs[node_entity])
 
     def fit_transform(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs and then
@@ -195,7 +202,8 @@ class Vectorizer(object):
         return self._convert_dict_to_sparse_matrix(self._transform(0, graph))
 
     def predict(self, graphs, estimator):
-        """Return an iterator over the decision function output of the estimator applied to the graphs in input."""
+        """Return an iterator over the decision function output of the estimator
+        applied to the graphs in input."""
 
         for G in graphs:
             self._test_goodness(G)
@@ -218,7 +226,8 @@ class Vectorizer(object):
             yield prediction
 
     def distance(self, graphs, ref_instance=None):
-        """Return an iterator over the euclidean distance between the ref_instance graph and the graphs in input."""
+        """Return an iterator over the euclidean distance between
+        the ref_instance graph and the graphs in input."""
 
         reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
         for G in graphs:
@@ -322,7 +331,9 @@ class Vectorizer(object):
         return vec
 
     def _convert_dict_to_sparse_matrix(self, feature_dict):
-        """Takes a dictionary with pairs as key and counts as values and returns a compressed sparse row matrix"""
+        """Takes a dictionary with pairs as key and counts as values and
+        returns a compressed sparse row matrix"""
+
         if len(feature_dict) == 0:
             raise Exception('ERROR: something went wrong, empty feature_dict.')
         data = feature_dict.values()
@@ -369,16 +380,18 @@ class Vectorizer(object):
                         data = self._convert_dict_to_sparse_vector(data)
                     # create a list of integer codes of size: label_size
                     # each integer code is determined as follows:
-                    # for each entity, use the correspondent discretization_model_dict[node_entity] to extract the id of the
-                    # nearest cluster centroid, return the centroid id as the integer code
+                    # for each entity, use the correspondent discretization_models[node_entity] to extract
+                    # the id of the nearest cluster centroid, return the centroid id as the integer code
                     hlabel = []
                     for i in range(self.label_size):
-                        if len(self.discretization_model_dict[node_entity]) < i:
-                            raise Exception('Error: discretization_model_dict for node entity: %s has length: %d but component %d was required' % (
-                                node_entity, len(self.discretization_model_dict[node_entity]), i))
-                        predictions = self.discretization_model_dict[node_entity][i].predict(data)
+                        if len(self.discretization_models[node_entity]) < i:
+                            raise Exception('Error: discretization_models for node entity: %s \
+                                has length: %d but component %d was required' % (
+                                node_entity, len(self.discretization_models[node_entity]), i))
+                        predictions = self.discretization_models[node_entity][i].predict(data)
                         if len(predictions) != 1:
-                            raise Exception('Error: discretizer has not returned an individual prediction but %d predictions' % len(predictions))
+                            raise Exception('Error: discretizer has not returned an individual prediction but\
+                                %d predictions' % len(predictions))
                         discretization_code = predictions[0] + 1
                         code = fast_hash_2(hash(node_entity), discretization_code, self.bitmask)
                         hlabel.append(code)
@@ -389,7 +402,8 @@ class Vectorizer(object):
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
                     graph.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
-                    raise Exception('ERROR: something went wrong, type of node label is unknown: %s' % d['label'])
+                    raise Exception('ERROR: something went wrong, type of node label is unknown: \
+                        %s' % d['label'])
         except Exception as e:
             import datetime
             curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
@@ -508,24 +522,24 @@ class Vectorizer(object):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(graph.graph['label_size']):
-                if radius < len(graph.node[vertex_v]['neighborhood_graph_hash'][label_index]) and radius < len(graph.node[vertex_u]['neighborhood_graph_hash'][label_index]):
+                if radius < len(graph.node[vertex_v]['neighborhood_graph_hash'][label_index]) and \
+                        radius < len(graph.node[vertex_u]['neighborhood_graph_hash'][label_index]):
                     # feature as a pair of neighbourhoods at a radius,distance
                     # canonicazation of pair of neighborhoods
                     vertex_v_hash = graph.node[vertex_v]['neighborhood_graph_hash'][label_index][radius]
                     vertex_u_hash = graph.node[vertex_u]['neighborhood_graph_hash'][label_index][radius]
                     if vertex_v_hash < vertex_u_hash:
-                        first_hash = vertex_v_hash
-                        second_hash = vertex_u_hash
+                        first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
                     else:
-                        first_hash = vertex_u_hash
-                        second_hash = vertex_v_hash
+                        first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
                     feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
                     key = fast_hash_2(radius, distance, self.bitmask)
                     # if self.weighted == False :
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
                     else:
-                        feature_list[key][feature] += graph.node[vertex_v]['neighborhood_graph_weight'][radius] + graph.node[vertex_u]['neighborhood_graph_weight'][radius]
+                        feature_list[key][feature] += graph.node[vertex_v]['neighborhood_graph_weight'][radius] + \
+                            graph.node[vertex_u]['neighborhood_graph_weight'][radius]
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance
@@ -668,7 +682,8 @@ class Vectorizer(object):
         graphs where each vertex has an additional attribute with key 'importance'.
         The importance value of a vertex corresponds to the part of the score that is imputable
         to the neighborhood of radius r+d of the vertex.
-        It can overwrite the label attribute with the sparse vector corresponding to the vertex induced features.
+        It can overwrite the label attribute with the sparse vector corresponding to the
+        vertex induced features.
 
         Args:
             estimator: scikit-learn predictor trained on data sampled from the same distribution.
@@ -678,12 +693,14 @@ class Vectorizer(object):
             the absolute value of the score computed by the estimator.
             If reweight = 0 then do not update.
             If reweight = 1 then discard the current weight information and use only abs( score )
-            If reweight = 0.5 then update with the aritmetic mean of the current weight information and the abs( score )
+            If reweight = 0.5 then update with the arithmetic mean of the current weight information and
+            the abs( score )
 
             relabel: flag to replace the label attribute of each vertex with the sparse vector encoding of all
-            features that have that vertex as root. Create a new attribute 'original_label' to store the previous
-            label. If the 'original_label' attribute is already present then it is left untouched: this allows
-            an iterative application of the relabeling procedure while preserving the original information.
+            features that have that vertex as root. Create a new attribute 'original_label' to store the
+            previous label. If the 'original_label' attribute is already present then it is left untouched:
+            this allows an iterative application of the relabeling procedure while preserving the original
+            information.
         """
 
         self.estimator = estimator
@@ -737,7 +754,8 @@ class Vectorizer(object):
             # 1/float(len(graph)) for all vertices
             margins = np.array([1 / float(len(graph))] * data_matrix.shape[0])
         else:
-            margins = self.estimator.decision_function(data_matrix) - self.estimator.intercept_ + self.estimator.intercept_ / float(len(graph))
+            margins = self.estimator.decision_function(data_matrix) - self.estimator.intercept_ + \
+                self.estimator.intercept_ / float(len(graph))
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in graph.nodes_iter(data=True):
@@ -747,7 +765,8 @@ class Vectorizer(object):
                 # update the 'weight' information as a linear combination of
                 # the previuous weight and the absolute margin
                 if "weight" in graph.node[v] and self.reweight != 0:
-                    graph.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * graph.node[v]["weight"]
+                    graph.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * \
+                        graph.node[v]["weight"]
                 # in case the original graph was not weighted then instantiate
                 # the 'weight' with the absolute margin
                 else:
