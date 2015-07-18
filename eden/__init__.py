@@ -12,9 +12,8 @@ from itertools import izip_longest
 
 
 def run_dill_encoded(what):
-    """
-    Use dill as replacement for pickle to enable multiprocessing on instance methods
-    """
+    """Use dill as replacement for pickle to enable multiprocessing on instance methods"""
+
     fun, args = dill.loads(what)
     return fun(*args)
 
@@ -25,6 +24,17 @@ def apply_async(pool, fun, args, callback=None):
     This is a workaround to enable multiprocessing of classes.
     """
     return pool.apply_async(run_dill_encoded, (dill.dumps((fun, args)),), callback=callback)
+
+
+def fast_hash_2(dat_1, dat_2, bitmask):
+    d = (~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999)
+    return int(d & bitmask) + 1
+
+
+def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
+    d = ((~((7919 + dat_1) ^ 7919)) ^ (2999 ^ dat_2 * 2999))
+    d ^= (~((d << 11 + dat_3) ^ (d >> 5))) ^ ((d << 7) ^ (dat_4 >> 3) * d)
+    return int(d & bitmask) + 1
 
 
 def calc_running_hash(running_hash, list_item, counter):
@@ -43,7 +53,7 @@ def fast_hash_vec(vec, bitmask):
     running_hash = 0xAAAAAAAA
     for i, list_item in enumerate(vec):
         running_hash ^= calc_running_hash(running_hash, list_item, i)
-        hash_vec += [int(running_hash & bitmask) + 1]
+        hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
 
 
@@ -53,7 +63,7 @@ def fast_hash_vec_char(vec, bitmask):
     for i, list_item_char in enumerate(vec):
         list_item = ord(list_item_char)
         running_hash ^= calc_running_hash(running_hash, list_item, i)
-        hash_vec += [int(running_hash & bitmask) + 1]
+        hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
 
 

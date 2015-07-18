@@ -1,7 +1,7 @@
 import openbabel as ob
 import pybel
-import json
 import networkx as nx
+<<<<<<< HEAD
 from networkx.readwrite import json_graph
 import tempfile
 import scipy.spatial.distance
@@ -13,6 +13,11 @@ from eden.util import read
 
 
 def obabel_to_eden(input, format = 'sdf', **options):
+=======
+
+
+def obabel_to_eden(input, file_type='sdf', **options):
+>>>>>>> upstream/master
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
@@ -21,6 +26,7 @@ def obabel_to_eden(input, format = 'sdf', **options):
     input : SMILES strings containing molecular structures.
 
     """
+<<<<<<< HEAD
     #cache={}
     #for smi in read(input):
     #if smi in cache:
@@ -54,22 +60,34 @@ def obabel_to_eden(input, format = 'sdf', **options):
             # TODO: change back to yield (below too!)
             if len(G):
                 yield G
+=======
+    for mol in pybel.readfile(file_type, input):
+        # remove hydrogens
+        mol.removeh()
+        graph = obabel_to_networkx(mol)
+        if len(graph):
+            yield graph
+
+
+>>>>>>> upstream/master
 def obabel_to_networkx(mol):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
     """
     g = nx.Graph()
+<<<<<<< HEAD
 
     #atoms
+=======
+    # atoms
+>>>>>>> upstream/master
     for atom in mol:
         label = str(atom.type)
         g.add_node(atom.idx, label=label)
-    #bonds
-        edges = []
-    bondorders = []
+    # bonds
     for bond in ob.OBMolBondIter(mol.OBMol):
         label = str(bond.GetBO())
-        g.add_edge( bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label = label )
+        g.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label=label)
     return g
 
 

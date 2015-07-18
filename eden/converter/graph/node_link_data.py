@@ -1,9 +1,9 @@
 import json
-import networkx as nx
 from networkx.readwrite import json_graph
 from eden import util
 
-def node_link_data_to_eden(input = None, options = dict()):
+
+def node_link_data_to_eden(input=None, options=dict()):
     """
     Takes a string list in the serialised node_link_data JSON format and yields networkx graphs.
 
@@ -14,7 +14,7 @@ def node_link_data_to_eden(input = None, options = dict()):
 
     """
 
-    return _node_link_data_to_eden( util.read( input ) )
+    return _node_link_data_to_eden(util.read(input))
 
 
 def _node_link_data_to_eden(serialized_list):
@@ -31,4 +31,3 @@ def eden_to_node_link_data(graph_list):
         json_data = json_graph.node_link_data(G)
         serial_data = json.dumps(json_data)
         yield serial_data
-

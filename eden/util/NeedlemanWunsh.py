@@ -1,48 +1,49 @@
 import numpy as np
 
-def needleman_wunsh(A,B,S,d):
-    #initialization
-    n = len(A)+1
-    m = len(B)+1
-    F=np.zeros((n,m))
+
+def needleman_wunsh(sequence_a, sequence_b, score_matrix, gap_penalty):
+    # initialization
+    n = len(sequence_a) + 1
+    m = len(sequence_b) + 1
+    needleman_wunsh_matrix = np.zeros((n, m))
     for i in range(n):
-        F[i,0] = d*i
+        needleman_wunsh_matrix[i, 0] = gap_penalty * i
     for j in range(m):
-        F[0,j] = d*j
-    #dynamic programming
-    for i in range(1,n):
-        for j in range(1,m):
-            match = F[i-1,j-1] + S[i-1,j-1]
-            delete = F[i-1, j] + d
-            insert = F[i, j-1] + d
-            F[i,j] = max([match, insert, delete])
-    return F
+        needleman_wunsh_matrix[0, j] = gap_penalty * j
+    # dynamic programming
+    for i in range(1, n):
+        for j in range(1, m):
+            match = needleman_wunsh_matrix[i - 1, j - 1] + score_matrix[i - 1, j - 1]
+            delete = needleman_wunsh_matrix[i - 1, j] + gap_penalty
+            insert = needleman_wunsh_matrix[i, j - 1] + gap_penalty
+            needleman_wunsh_matrix[i, j] = max([match, insert, delete])
+    return needleman_wunsh_matrix
 
 
-def is_approx(first, second, tolerance = 0.0001):
-    if ( first + tolerance ) > second and ( first - tolerance ) < second:
+def is_approx(first, second, tolerance=0.0001):
+    if (first + tolerance) > second and (first - tolerance) < second:
         return True
-    else :
+    else:
         return False
 
 
-def trace_back(A,B,S,d,F):
-    AlignmentA = ""
-    AlignmentB = ""
-    i = len(A)
-    j = len(B)
+def trace_back(sequence_a, sequence_b, score_matrix, gap_penalty, needleman_wunsh_matrix):
+    alignment_a = ""
+    alignment_b = ""
+    i = len(sequence_a)
+    j = len(sequence_b)
     while i > 0 or j > 0:
-        if i > 0 and j > 0 and is_approx(F[i,j] , F[i-1,j-1] + S[i-1, j-1]) :
-            AlignmentA = A[i-1] + AlignmentA
-            AlignmentB = B[j-1] + AlignmentB
+        if i > 0 and j > 0 and is_approx(needleman_wunsh_matrix[i, j], needleman_wunsh_matrix[i - 1, j - 1] + score_matrix[i - 1, j - 1]):
+            alignment_a = sequence_a[i - 1] + alignment_a
+            alignment_b = sequence_b[j - 1] + alignment_b
             i = i - 1
             j = j - 1
-        elif i > 0 and is_approx(F[i,j] , F[i-1,j] + d):
-            AlignmentA = A[i-1] + AlignmentA
-            AlignmentB = "-" + AlignmentB
+        elif i > 0 and is_approx(needleman_wunsh_matrix[i, j], needleman_wunsh_matrix[i - 1, j] + gap_penalty):
+            alignment_a = sequence_a[i - 1] + alignment_a
+            alignment_b = "-" + alignment_b
             i = i - 1
-        elif j > 0 and is_approx(F[i,j] , F[i,j-1] + d):
-            AlignmentA = "-" + AlignmentA
-            AlignmentB = B[j-1] + AlignmentB
+        elif j > 0 and is_approx(needleman_wunsh_matrix[i, j], needleman_wunsh_matrix[i, j - 1] + gap_penalty):
+            alignment_a = "-" + alignment_a
+            alignment_b = sequence_b[j - 1] + alignment_b
             j = j - 1
-    return AlignmentA,AlignmentB
+    return alignment_a, alignment_b

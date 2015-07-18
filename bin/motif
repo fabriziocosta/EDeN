@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-DESCRIPTION = """
+description = """
 Explicit Decomposition with Neighborhood (EDeN) utility program.
-Motif finder driver. 
+Motif finder driver.
 
 A binary class estimator is fit to discriminate between the sequences in the
 input data set against a proportional number of sequences obtained via random
@@ -15,7 +15,7 @@ individual 'motif'.
 Note: the current implementation uses as estimator a regularized linear model
 with stochastic  gradient descent (SGD) learning scheme: the gradient of the
 loss is estimated each sample at  a time and the model is updated along the way
-with a decreasing strength schedule (aka learning rate). 
+with a decreasing strength schedule (aka learning rate).
 
 
 Input: file in FASTA format
@@ -27,27 +27,30 @@ In the output directory the following files with fixed name are created:
 2. sequences_cluster_id_hit.txt
 3. sequences_cluster_match_position.txt
 4. sequences_cluster_match_position.bed
+5. motives_dir with motif_n.fa
 
 The format and content of each file is as follows:
 1. motifs.txt
-Format: a list of lines, each can be one of: 
+Format: a list of lines, each can be one of:
 a) "#" sign followed by an integer representing the cluster id.
 b) two columns, tab separated: maximal subarray sequence , number of
 occurrences.
 
 2. sequences_cluster_id_hit.txt
-Format: two columns, tab separated: sequence progressive counter 0 based, 
-list of numerical cluster ids space separated. 
+Format: two columns, tab separated: sequence progressive counter 0 based,
+list of numerical cluster ids space separated.
 
 3. sequences_cluster_match_position.txt
-Format: two columns, tab separated: sequence progressive counter 0 based, 
+Format: two columns, tab separated: sequence progressive counter 0 based,
 list of numerical cluster ids, ":", list of pairs of start,end positions
-of maximal subarray match. 
+of maximal subarray match.
 Ex: 47  2:[(28, 37),(15,25)] 3:[(45, 54)]
 
 4. sequences_cluster_match_position.bed
-Format: BED format: four columns, tab separated: header identifier of 
+Format: BED format: four columns, tab separated: header identifier of
 sequence, match start position, match end position, cluster id.
+
+5. directory containing individual fasta files, one for each cluster
 
 Example usage:
 
@@ -56,11 +59,11 @@ motif -vv fit --input-file artificial_motif_search_dataset.fa --model-filename m
 
 
 - to use a fit model for predictions:
-motif -vv predict --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot 
+motif -vv predict --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot
 
 """
 
-EPILOG = """
+epilog = """
 Author: Fabrizio Costa
 Copyright: 2015
 License: GPL
@@ -73,15 +76,9 @@ Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
 distance kernel', Proceedings of the 26th International Conference on Machine
 Learning. 2010. """
 
-import sys
 import os
-import random
-import re
-from time import time, clock
-import multiprocessing as mp
-import numpy as np
-from itertools import tee, chain, izip
-from collections import defaultdict
+from time import time
+from itertools import izip
 
 import argparse
 import logging
@@ -140,6 +137,34 @@ def main_predict(args):
     predict(seqs, sequence_motif, args)
 
 
+def _save_motives_multiple_fasta_files(sequence_motif, args):
+    from eden.util import save_output
+    output_dir_path = os.path.join(args.output_dir_path, 'motives_dir')
+    for cluster_id in sequence_motif.motives_db:
+        out_file_name = 'motif_%d.fa' % cluster_id
+        text = []
+        for i, (count, motif) in enumerate(sequence_motif.motives_db[cluster_id]):
+            text.append(">cl:%d|id:%d" % (cluster_id, i))
+            text.append("%s" % motif)
+        save_output(text=text, output_dir_path=output_dir_path, out_file_name=out_file_name)
+
+
+def _save_motives_single_file(sequence_motif, args):
+    from eden.util import save_output
+    text = []
+    for cluster_id in sequence_motif.motives_db:
+        text.append("cluster: %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
+        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
+            text.append("%s\t%d" % (motif, count))
+        text.append("")
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+
+
+def _save_motives(sequence_motif, args):
+    _save_motives_single_file(sequence_motif, args)
+    _save_motives_multiple_fasta_files(sequence_motif, args)
+
+
 def main_fit(args):
     # read in sequences in FASTA format
     from eden.converter.fasta import fasta_to_sequence
@@ -176,21 +201,20 @@ def main_fit(args):
                                    block_size=args.block_size,
                                    n_jobs=args.n_jobs,
                                    random_state=args.random_state)
+    if args.negative_input_file is not None:
+        neg_seqs = fasta_to_sequence(args.negative_input_file)
+        neg_seqs = list(neg_seqs)
+        logger.info("Using %d sequences as explicit negatives" % len(neg_seqs))
+    else:
+        neg_seqs = None
     # find motives
-    sequence_motif.fit(seqs)
+    sequence_motif.fit(seqs, neg_seqs)
     # save
     sequence_motif.save(args.model_filename)
     logger.info('Saved motif model in %s' % args.model_filename)
 
     # output motives
-    from eden.util import save_output
-    text = []
-    for cluster_id in sequence_motif.motives_db:
-        text.append("ID %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
-        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
-            text.append("%s\t%d" % (motif, count))
-        text.append("")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+    _save_motives(sequence_motif, args)
 
     # output hits
     predict(seqs, sequence_motif, args)
@@ -213,13 +237,12 @@ def main(args):
         raise Exception('Unknown mode: %s' % args.which)
 
 
-if __name__ == "__main__":
+def argparse_setup(description, epilog):
     class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    start_time = time()
-    parser = argparse.ArgumentParser(description=DESCRIPTION, epilog=EPILOG, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version='0.1')
     parser.add_argument("-v", "--verbosity",
                         action="count",
@@ -237,6 +260,11 @@ if __name__ == "__main__":
                             dest="input_file",
                             help="Path to a FASTA file.",
                             required=True)
+    fit_parser.add_argument("-t", "--training-size",
+                            dest="training_size",
+                            type=int,
+                            help="Size of the random sequence sample to use for fitting the discriminative model. If None then all instances are used.",
+                            default=None)
     fit_parser.add_argument("-d", "--model-filename",
                             dest="model_filename",
                             help="File name for serialized model object.",
@@ -245,34 +273,38 @@ if __name__ == "__main__":
                             dest="output_dir_path",
                             help="Path to output directory.",
                             default="out")
-    fit_parser.add_argument("-B", "--nbits",
-                            type=int,
-                            help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
-                            default=20)
-    fit_parser.add_argument("-C", "--complexity",
-                            type=int,
-                            help="Size of the generalization of k-mers for graphs.",
-                            default=4)
-    fit_parser.add_argument("-t", "--training-size",
-                            dest="training_size",
-                            type=int,
-                            help="Size of the random sequence sample to use for fitting the discriminative model. If None then all instances are used.",
-                            default=None)
-    fit_parser.add_argument("-n", "--negative-ratio",
-                            dest="negative_ratio",
-                            type=int,
-                            help="Factor multiplying the training-size to obtain the number of negative instances generated by random permutation.",
-                            default=2)
-    fit_parser.add_argument("-O", "--shuffle-order",
-                            dest="shuffle_order",
-                            type=int,
-                            help="When shuffling sequences to create negative instances, consider k-mers of specified order.",
-                            default=2)
-    fit_parser.add_argument("-e", "--n-iter-search",
-                            dest="n_iter_search",
-                            type=int,
-                            help="Number of randomly generated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
-                            default=1)
+    negative_group = fit_parser.add_argument_group(
+        'Negative management', 'These options define how to deal with negative instances.')
+    negative_group.add_argument("--negative-input-file",
+                                dest="negative_input_file",
+                                help="Path to a FASTA file.",
+                                default=None)
+    negative_group.add_argument("-n", "--negative-ratio",
+                                dest="negative_ratio",
+                                type=int,
+                                help="Factor multiplying the training-size to obtain the number of negative instances generated by random permutation.",
+                                default=2)
+    negative_group.add_argument("-O", "--shuffle-order",
+                                dest="shuffle_order",
+                                type=int,
+                                help="When shuffling sequences to create negative instances, consider k-mers of specified order.",
+                                default=2)
+    complexity_group = fit_parser.add_argument_group(
+        'Complexity management', 'These options define the complexity of the model and of the optimization phase.')
+    complexity_group.add_argument("-B", "--nbits",
+                                  type=int,
+                                  help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
+                                  default=20)
+    complexity_group.add_argument("-C", "--complexity",
+                                  type=int,
+                                  help="Size of the generalization of k-mers for graphs.",
+                                  default=4)
+    complexity_group.add_argument("-e", "--n-iter-search",
+                                  dest="n_iter_search",
+                                  type=int,
+                                  help="Number of randomly generated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
+                                  default=1)
+
     fit_parser.add_argument("-m", "--min-subarray-size",
                             dest="min_subarray_size",
                             type=int,
@@ -293,21 +325,39 @@ if __name__ == "__main__":
                             type=int,
                             help="Minimal number of motif sequences in a cluster to accept the cluster.",
                             default=1)
-    fit_parser.add_argument("-j", "--n-jobs",
-                            dest="n_jobs",
-                            type=int,
-                            help="Number of cores to use in multiprocessing.",
-                            default=2)
-    fit_parser.add_argument("-b", "--n-blocks",
-                            dest="n_blocks",
-                            type=int,
-                            help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
-                            default=8)
-    fit_parser.add_argument("-k", "-block-size",
-                            dest="block_size",
-                            type=int,
-                            help="Number of instances per block for the multiprocessing elaboration.",
-                            default=None)
+    parallelization_group = fit_parser.add_argument_group(
+        'Parallelization', 'These options define the granularity of the multicore parallelization.')
+    parallelization_group.add_argument("-j", "--n-jobs",
+                                       dest="n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=2)
+    parallelization_group.add_argument("-b", "--n-blocks",
+                                       dest="n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=8)
+    parallelization_group.add_argument("-k", "-block-size",
+                                       dest="block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
+    parallelization_group.add_argument("--pre-processor-n-jobs",
+                                       dest="pre_processor_n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=4)
+    parallelization_group.add_argument("--pre-processor-n-blocks",
+                                       dest="pre_processor_n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=10)
+    parallelization_group.add_argument("--pre-processor-block-size",
+                                       dest="pre_processor_block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
+
     fit_parser.add_argument("-r", "--random-state",
                             dest="random_state",
                             type=int,
@@ -319,39 +369,39 @@ if __name__ == "__main__":
                             action="store_true")
 
     subsubparsers = fit_parser.add_subparsers(help='Clustering algorithm. For deatils see: http://scikit-learn.org/stable/modules/clustering.html.')
-    MiniBatchKMeans_algorithm_parser = subsubparsers.add_parser('MiniBatchKMeans', formatter_class=DefaultsRawDescriptionHelpFormatter,
-                                                                help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
-    MiniBatchKMeans_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
-    MiniBatchKMeans_algorithm_parser.add_argument("-u", "--n-clusters",
-                                                  dest="n_clusters",
-                                                  type=int,
-                                                  help="Number of clusters.",
-                                                  default=4)
-    DBSCAN_algorithm_parser = subsubparsers.add_parser('DBSCAN', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    mini_batch_k_means_algorithm_parser = subsubparsers.add_parser('K', formatter_class=DefaultsRawDescriptionHelpFormatter,
+                                                                   help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
+    mini_batch_k_means_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
+    mini_batch_k_means_algorithm_parser.add_argument("-u", "--n-clusters",
+                                                     dest="n_clusters",
+                                                     type=int,
+                                                     help="Number of clusters.",
+                                                     default=4)
+    dbscan_algorithm_parser = subsubparsers.add_parser('D', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                        help="DBSCAN - Density-Based Spatial Clustering of Applications with Noise finds core samples of high density and expands clusters from them. Good for data which contains clusters of similar density.")
-    DBSCAN_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
-    DBSCAN_algorithm_parser.add_argument("-E", "--eps",
+    dbscan_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
+    dbscan_algorithm_parser.add_argument("-E", "--eps",
                                          type=float,
                                          help="The maximum distance between two samples for them to be considered as in the same neighborhood.",
                                          default=0.2)
-    DBSCAN_algorithm_parser.add_argument("-S", "--min-samples",
+    dbscan_algorithm_parser.add_argument("-S", "--min-samples",
                                          dest="min_samples",
                                          type=int,
                                          help="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself.",
                                          default=3)
-    Birch_algorithm_parser = subsubparsers.add_parser('Birch', formatter_class=DefaultsRawDescriptionHelpFormatter,
+    birch_algorithm_parser = subsubparsers.add_parser('B', formatter_class=DefaultsRawDescriptionHelpFormatter,
                                                       help="In the Birch clustering algorithm every new sample is inserted into the root of the Clustering Feature Tree. It is then clubbed together with the subcluster that has the centroid closest to the new sample. This is done recursively till it ends up at the subcluster of the leaf of the tree has the closest centroid.")
-    Birch_algorithm_parser.set_defaults(which_algorithm='Birch')
-    Birch_algorithm_parser.add_argument("-u", "--n-clusters",
+    birch_algorithm_parser.set_defaults(which_algorithm='Birch')
+    birch_algorithm_parser.add_argument("-u", "--n-clusters",
                                         dest="n_clusters",
                                         type=int,
                                         help="Number of clusters.",
                                         default=4)
-    Birch_algorithm_parser.add_argument("-T", "--threshold",
+    birch_algorithm_parser.add_argument("-T", "--threshold",
                                         type=float,
                                         help="The radius of the subcluster obtained by merging a new sample and the closest subcluster should be lesser than the threshold. Otherwise a new subcluster is started.",
                                         default=0.1)
-    Birch_algorithm_parser.add_argument("-f", "--branching-factor",
+    birch_algorithm_parser.add_argument("-f", "--branching-factor",
                                         dest="branching_factor",
                                         type=int,
                                         help="Maximum number of CF subclusters in each node. If a new samples enters such that the number of subclusters exceed the branching_factor then the node has to be split. The corresponding parent also has to be split and if the number of subclusters in the parent is greater than the branching factor, then it has to be split recursively.",
@@ -371,16 +421,26 @@ if __name__ == "__main__":
                                 dest="output_dir_path",
                                 help="Path to output directory.",
                                 default="out")
+    return parser
 
+
+if __name__ == "__main__":
+    parser = argparse_setup(description, epilog)
     args = parser.parse_args()
 
+    prog_name = os.path.basename(__file__)
+
+    logger = logging.getLogger()
     if args.no_logging:
-        logger = configure_logging(verbosity=args.verbosity)
+        configure_logging(logger, verbosity=args.verbosity)
     else:
-        logger = configure_logging(verbosity=args.verbosity, filename='%s.log' % (os.path.basename(__file__)))
+        configure_logging(logger, verbosity=args.verbosity, filename=prog_name + '.log')
+
     logger.debug('-' * 80)
-    logger.debug('Program: %s' % os.path.basename(__file__))
+    logger.debug('Program: %s' % prog_name)
     logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
+
+    start_time = time()
     try:
         main(args)
     except Exception:
