@@ -18,8 +18,8 @@ from eden.util import serialize_dict
 from eden.graph import Vectorizer
 
 import logging
-
 logger = logging.getLogger(__name__)
+
 
 class ActiveLearningBinaryClassificationModel(object):
 

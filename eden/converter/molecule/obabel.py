@@ -1,7 +1,7 @@
 import openbabel as ob
 import pybel
+import json
 import networkx as nx
-<<<<<<< HEAD
 from networkx.readwrite import json_graph
 import tempfile
 import scipy.spatial.distance
@@ -13,11 +13,6 @@ from eden.util import read
 
 
 def obabel_to_eden(input, format = 'sdf', **options):
-=======
-
-
-def obabel_to_eden(input, file_type='sdf', **options):
->>>>>>> upstream/master
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
@@ -26,14 +21,14 @@ def obabel_to_eden(input, file_type='sdf', **options):
     input : SMILES strings containing molecular structures.
 
     """
-<<<<<<< HEAD
     #cache={}
     #for smi in read(input):
     #if smi in cache:
     #do openbabel with cache[smi]
     #else do 3dobabel and store mol in cache[smi]=mol
     if format == 'sdf':
-        for mol in pybel.readfile("sdf", input):
+        for x in read(input):
+            mol = pybel.readstring("sdf", x)
             #remove hydrogens
             mol.removeh()
             G = obabel_to_networkx(mol)
@@ -60,34 +55,25 @@ def obabel_to_eden(input, file_type='sdf', **options):
             # TODO: change back to yield (below too!)
             if len(G):
                 yield G
-=======
-    for mol in pybel.readfile(file_type, input):
-        # remove hydrogens
-        mol.removeh()
-        graph = obabel_to_networkx(mol)
-        if len(graph):
-            yield graph
 
-
->>>>>>> upstream/master
 def obabel_to_networkx(mol):
     """
     Takes a pybel molecule object and converts it into a networkx graph.
     """
     g = nx.Graph()
-<<<<<<< HEAD
 
     #atoms
-=======
-    # atoms
->>>>>>> upstream/master
+
     for atom in mol:
+        node_id = atom.idx - 1
         label = str(atom.type)
-        g.add_node(atom.idx, label=label)
-    # bonds
+        g.add_node(node_id, label=label)
+    #bonds
+        edges = []
+    bondorders = []
     for bond in ob.OBMolBondIter(mol.OBMol):
         label = str(bond.GetBO())
-        g.add_edge(bond.GetBeginAtomIdx(), bond.GetEndAtomIdx(), label=label)
+        g.add_edge( bond.GetBeginAtomIdx()-1, bond.GetEndAtomIdx()-1, label = label )
     return g
 
 
@@ -104,17 +90,21 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
     n_conf = kwargs.get('n_conf', 0)
     
     if split_components: # yield every graph separately
-        for x in read(input):
-            mols = generate_conformers(x, n_conf)
+        for x in input:
+            mol = pybel.readstring("sdf", x)
+            mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
-                G = obabel_to_networkx3d(molecule, **kwargs)
+                molecule.removeh()
+                G = obabel_to_networkx3d(molecule, **kwargs)    
                 if len(G):
                     yield G
     else: # construct a global graph and accumulate everything there
         G_global = nx.Graph()
-        for x in read(input):
-            mols = generate_conformers(x, n_conf)
+        for x in input:
+            mol = pybel.readstring("sdf", x)
+            mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
+                molecule.removeh()
                 G = obabel_to_networkx3d(molecule, **kwargs)
                 if len(G):
                     G_global = nx.disjoint_union(G_global, G)
@@ -173,7 +163,7 @@ def obabel_smiles_to_eden3d(input, cache={}, split_components=True, **kwargs):
         yield G_global
 
 
-
+####
 def obabel_to_networkx3d(input_mol, **kwargs):
     # similarity_fn, atom_types=None, k=3, threshold=0):
 
@@ -204,14 +194,21 @@ def obabel_to_networkx3d(input_mol, **kwargs):
     # atoms
     for atom in input_mol:
         atomic_no = str(atom.type)
-        g.add_node(atom.idx)
-        g.node[atom.idx][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
-        g.node[atom.idx]['atom_type'] = atomic_no
+        node_id = atom.idx - 1
+        g.add_node(node_id)
+        g.node[node_id][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
+        #g.node[node_id][vector_label] = 'TEST_STRING'
+
+        if vector_label == 'label':
+            g.node[node_id]['text_label'] = atomic_no
+        else:
+            g.node[node_id]['label'] = atomic_no
+        g.node[node_id]['ID'] = node_id
 
     for bond in ob.OBMolBondIter(input_mol.OBMol):
         label = str(bond.GetBO())
-        g.add_edge(bond.GetBeginAtomIdx(),
-                   bond.GetEndAtomIdx(),
+        g.add_edge(bond.GetBeginAtomIdx() - 1,
+                   bond.GetEndAtomIdx() - 1,
                    label = label)
     # print "current graph edges: "
     # print g.edges()
@@ -231,7 +228,7 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
     # 12 Magnesium
     # 16 Sulfur
     atom_types = kwargs.get('atom_types', [1,2,8,6,10,26,7,14,12,16])
-    similarity_fn = kwargs.get('similarity_fn', lambda x: 1./(1e-10 + x))
+    similarity_fn = kwargs.get('similarity_fn', lambda x: 1./(x + 1))
     k = kwargs.get('k', 3)
     threshold = kwargs.get('threshold', 0)
     # print "Value of threshold parameter: %s" % threshold
@@ -249,15 +246,23 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
         else:
             nearest_atoms.append([id for id in sorted_indices if id+1 in atom_idx] + [None]*(k-len(atom_idx)))
 
+    #print "***** Current atom id: ", current_idx
     # The following expression flattens the list
     nearest_atoms = [x for sublist in nearest_atoms for x in sublist]
-    # Replace idx for distances
-    nearest_atoms = [distances[current_idx-1, i] if not i is None else 0 for i in nearest_atoms]
+    # print "** Atom id of nearest neighbors"
+    # print nearest_atoms
+    # Replace idx for distances, assign an arbitrarily large distance for None
+    #nearest_atoms = [distances[current_idx-1, i] if not i is None else 0 for i in nearest_atoms]
+    nearest_atoms = [distances[current_idx-1, i] if not i is None else 1e10 for i in nearest_atoms]
+    # print "** Distance values for nearest neighbors: "
+    # print nearest_atoms
     # If a threshold value is entered, filter the list of distances
     if threshold > 0:
-        nearest_atoms = [x if x <= threshold else 0 for x in nearest_atoms]
+        nearest_atoms = [x if x <= threshold else 1e10 for x in nearest_atoms]
     # Finally apply the similarity function to the resulting list and return
     nearest_atoms = [similarity_fn(x) for x in nearest_atoms]
+    # print "** Similarity values from distances: "
+    # print nearest_atoms
 
     return nearest_atoms
 

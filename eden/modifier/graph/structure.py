@@ -4,10 +4,6 @@ from collections import Counter, namedtuple
 
 def edge_contraction(graph=None, node_attribute=None):
     g = graph.copy()
-<<<<<<< HEAD
-    for n, d in g.nodes_iter(data=True):
-        g.node[n]['contracted'] = set()
-=======
     # add a 'contracted' attribute in each node
     for n, d in g.nodes_iter(data=True):
         g.node[n]['contracted'] = set()
@@ -15,43 +11,10 @@ def edge_contraction(graph=None, node_attribute=None):
         g.node[n]['contracted'].add(n)
     # iterate until contractions are possible, marked by flag: change_has_occured
     # Note: the order of the contraction operations is irrelevant
->>>>>>> upstream/master
     while True:
         change_has_occured = False
         for n, d in g.nodes_iter(data=True):
             g.node[n]['label'] = g.node[n][node_attribute]
-<<<<<<< HEAD
-            if d.get(node_attribute, False) != False and (
-                            d.get('position', False) == 0 or d.get('position', False) != False):
-                if d.get('contracted', False) == False:
-                    g.node[n]['contracted'] = set()
-                g.node[n]['contracted'].add(n)
-                neighbors = g.neighbors(n)
-                if len(neighbors) > 0:
-                    # identify neighbors that have a greater 'position' attribute and that have the same node_attribute
-                    greater_position_neighbors = [v for v in neighbors if
-                                                  g.node[v].get('position', False) and g.node[v].get(node_attribute,
-                                                                                                     False) and
-                                                  g.node[v][node_attribute] == d[node_attribute] and g.node[v][
-                                                      'position'] > d['position']]
-                    if len(greater_position_neighbors) > 0:
-                        #contract all neighbors
-                        #replicate all edges with n as endpoint instead of v
-                        cntr_edge_set = g.edges(greater_position_neighbors, data=True)
-                        new_edges = map(lambda x: (n, x[1], x[2]), cntr_edge_set)
-                        #remove nodes
-                        g.remove_nodes_from(greater_position_neighbors)
-                        #remode edges
-                        g.remove_edges_from(cntr_edge_set)
-                        #add edges if endpoint nodes still exist and they are not self loops
-                        new_valid_edges = [e for e in new_edges if e[1] in g.nodes() and e[1] != n]
-                        g.add_edges_from(new_valid_edges)
-                        #store neighbor ids in a list attribute
-                        g.node[n]['contracted'].update(set(greater_position_neighbors))
-                        change_has_occured = True
-                        break
-        if change_has_occured == False:
-=======
             if node_attribute in d and 'position' in d:
                 neighbors = g.neighbors(n)
                 if len(neighbors) > 0:
@@ -81,7 +44,6 @@ def edge_contraction(graph=None, node_attribute=None):
                         change_has_occured = True
                         break
         if change_has_occured is False:
->>>>>>> upstream/master
             break
     return g
 
@@ -127,34 +89,13 @@ modifiers = [label_modifier, weight_modifier]
 def serialize_modifiers(modifiers):
     lines = ""
     for modifier in modifiers:
-<<<<<<< HEAD
-        line = "attribute_in:%s attribute_out:%s reduction:%s" % (
-            modifier.attribute_in, modifier.attribute_out, modifier.reduction)
-=======
         line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in, modifier.attribute_out, modifier.reduction)
->>>>>>> upstream/master
         lines += line + "\n"
     return lines
 
 
 def contraction(graphs=None, contraction_attribute='label', nesting=False, modifiers=modifiers, **options):
     '''
-<<<<<<< HEAD
-	modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
-	"attribute_in" identifies the node attribute that is extracted from all contracted nodes.
-	"attribute_out" identifies the node attribute that is written in the resulting graph.
-	"reduction" is one of the following reduction operations: 
-	1. histogram, 
-	2. sum, 
-	3. average, 
-	4. categorical, 
-	5. set_categorical.
-	"histogram" returns a sparse vector with numerical hased keys, 
-	"sum" and "average" cast the values into floats before computing the sum and average respectively, 
-	"categorical" returns the concatenation string of the lexicographically sorted list of input attributes, 
-	"set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.  
-	'''
-=======
     modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
     "attribute_in" identifies the node attribute that is extracted from all contracted nodes.
     "attribute_out" identifies the node attribute that is written in the resulting graph.
@@ -169,43 +110,26 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
     "categorical" returns the concatenation string of the lexicographically sorted list of input attributes,
     "set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.
     '''
->>>>>>> upstream/master
     for g in graphs:
         # check for 'position' attribute and add it if not present
         for i, (n, d) in enumerate(g.nodes_iter(data=True)):
             if d.get('position', None) is None:
                 g.node[n]['position'] = i
-<<<<<<< HEAD
-        #compute contraction
-=======
         # compute contraction
->>>>>>> upstream/master
         g_contracted = edge_contraction(graph=g, node_attribute=contraction_attribute)
         info = g_contracted.graph.get('info', '')
         g_contracted.graph['info'] = info + '\n' + serialize_modifiers(modifiers)
         for n, d in g_contracted.nodes_iter(data=True):
-<<<<<<< HEAD
-            #get list of contracted node ids
-=======
             # get list of contracted node ids
->>>>>>> upstream/master
             contracted = d.get('contracted', None)
             if contracted is None:
                 raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
             for modifier in modifiers:
                 modifier_func = contraction_modifer_map[modifier.reduction]
-<<<<<<< HEAD
-                g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute=modifier.attribute_in,
-                                                                             graph=g, id_nodes=contracted)
-        if nesting:  #add nesting edges between the constraction graph and the original graph
-            g_nested = nx.disjoint_union(g, g_contracted)
-            #rewire contracted graph to the original graph
-=======
                 g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
         if nesting:  # add nesting edges between the constraction graph and the original graph
             g_nested = nx.disjoint_union(g, g_contracted)
             # rewire contracted graph to the original graph
->>>>>>> upstream/master
             for n, d in g_nested.nodes_iter(data=True):
                 contracted = d.get('contracted', None)
                 if contracted:
@@ -213,8 +137,4 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
                         g_nested.add_edge(n, m, label='.', nesting=True)
             yield g_nested
         else:
-<<<<<<< HEAD
             yield g_contracted
-=======
-            yield g_contracted
->>>>>>> upstream/master
