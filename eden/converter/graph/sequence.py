@@ -18,11 +18,11 @@ def sequence_to_eden(input=None, options=dict()):
 
 
 def sequence_to_networkx(line):
-    G = nx.Graph()
-    G.graph['id'] = line
+    graph = nx.Graph()
+    graph.graph['id'] = line
     for id, token in enumerate(line):
-        G.add_node(id, label=token)
+        graph.add_node(id, label=token)
         if id > 0:
-            G.add_edge(id - 1, id, label='-')
-    assert(len(G) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
-    return G
+            graph.add_edge(id - 1, id, label='-')
+    assert(len(graph) > 0), 'ERROR: generated empty graph. Perhaps wrong format?'
+    return graph

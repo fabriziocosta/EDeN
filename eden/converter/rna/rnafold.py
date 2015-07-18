@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-import networkx as nx
 import subprocess as sp
-from eden.modifier.fasta import fasta_to_fasta
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.util import is_iterable
@@ -22,22 +20,22 @@ def RNAfold_wrapper(sequence, **options):
 
 def string_to_networkx(header, sequence, **options):
     seq_info, seq_struct = RNAfold_wrapper(sequence, **options)
-    G = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
-    G.graph['info'] = 'RNAfold'
-    G.graph['sequence'] = sequence
-    G.graph['structure'] = seq_struct
-    G.graph['id'] = header
-    return G
+    graph = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+    graph.graph['info'] = 'RNAfold'
+    graph.graph['sequence'] = sequence
+    graph.graph['structure'] = seq_struct
+    graph.graph['id'] = header
+    return graph
 
 
 def rnafold_to_eden(iterable=None, **options):
     assert(is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         try:
-            G = string_to_networkx(header, seq, **options)
+            graph = string_to_networkx(header, seq, **options)
         except Exception as e:
             print e.__doc__
             print e.message
             print 'Error in: %s' % seq
-            G = seq_to_networkx(header, seq, **options)
-        yield G
+            graph = seq_to_networkx(header, seq, **options)
+        yield graph
