@@ -180,7 +180,6 @@ def obabel_to_networkx3d(input_mol, **kwargs):
     :type label_name: string
     """
 
-    vector_label = kwargs.get('vector_label', 'label')
     g = nx.Graph()
 
     # Calculate pairwise distances between all atoms:
@@ -196,13 +195,8 @@ def obabel_to_networkx3d(input_mol, **kwargs):
         atomic_no = str(atom.type)
         node_id = atom.idx - 1
         g.add_node(node_id)
-        g.node[node_id][vector_label] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
-        #g.node[node_id][vector_label] = 'TEST_STRING'
-
-        if vector_label == 'label':
-            g.node[node_id]['text_label'] = atomic_no
-        else:
-            g.node[node_id]['label'] = atomic_no
+        g.node[node_id]['label'] = find_nearest_neighbors(input_mol, distances, atom.idx, **kwargs)
+        g.node[node_id]['discrete_label'] = atomic_no
         g.node[node_id]['ID'] = node_id
 
     for bond in ob.OBMolBondIter(input_mol.OBMol):
@@ -321,3 +315,27 @@ def smiles_to_sdf(infile, outfile):
     command_string = "obabel -ismi %s -O %s " % (infile, outfile)
     p = subprocess.call(command_string.split())
 
+def flip_node_labels(graph, new_label_name, old_label_name):
+    import networkx as nx
+    # If the specified new label name doesn't exist, assume
+    # that it is already the main label - do nothing
+    if not new_label_name in graph.node[0].keys():
+        return graph
+    else:
+        # Extract data from old label
+        old_label_data = dict([(n, d['label']) for n, d in graph.nodes_iter(data = True)])
+        # Extract data from new label
+        new_label_data = dict([(n, d[new_label_name]) for n, d in graph.nodes_iter(data = True)])
+        # Swap the information
+        nx.set_node_attributes(graph, 'label', new_label_data)
+        nx.set_node_attributes(graph, old_label_name, old_label_data)
+        # Delete the information corresponding to the old label name,
+        # as it will be redundant.
+        for id, node in graph.nodes(data=True):
+            del node[new_label_name]
+        
+        return graph
+    
+    
+    
+    
