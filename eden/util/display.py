@@ -331,7 +331,7 @@ def plot_embeddings(data_matrix, y,
                    image_file_name=image_file_name)
 
     start = time.time()
-    from eden.util.display import quick_shift_tree_embedding
+    from eden.embedding import quick_shift_tree_embedding
     tree_embedding_knn = knn
     data_matrix_ = quick_shift_tree_embedding(data_matrix,
                                               knn=tree_embedding_knn,
