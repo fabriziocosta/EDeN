@@ -4,6 +4,20 @@ import json
 from networkx.readwrite import json_graph
 
 
+class SetEncoder(json.JSONEncoder):
+
+    def default(self, obj):
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def serialize_graph(graph):
+    json_data = json_graph.node_link_data(graph)
+    serial_data = json.dumps(json_data, separators=(',', ':'), indent = 4, cls = SetEncoder)
+    return serial_data
+
+
 def draw_graph(graph,
                vertex_label='label',
                secondary_vertex_label=None,
@@ -185,20 +199,6 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlineh
         g = graphs[i]
         draw_graph(g, size=None, **args)
     plt.show()
-
-
-class SetEncoder(json.JSONEncoder):
-
-    def default(self, obj):
-        if isinstance(obj, set):
-            return list(obj)
-        return json.JSONEncoder.default(self, obj)
-
-
-def serialize_graph(graph):
-    json_data = json_graph.node_link_data(graph)
-    serial_data = json.dumps(json_data, separators=(',', ':'), indent = 4, cls = SetEncoder)
-    return serial_data
 
 
 def dendrogram(data, vectorizer, method="ward", color_threshold=1, size=10, filename=None):

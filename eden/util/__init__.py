@@ -309,7 +309,13 @@ def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, tar
     return apr, roc
 
 
-def estimate(iterable_pos, iterable_neg, estimator, vectorizer, n_blocks=5, block_size=None, n_jobs=4):
+def estimate(iterable_pos=None,
+             iterable_neg=None,
+             estimator=None,
+             vectorizer=None,
+             n_blocks=5,
+             block_size=None,
+             n_jobs=4):
     positive_data_matrix = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     negative_data_matrix = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
     return estimate_estimator(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, estimator=estimator)
