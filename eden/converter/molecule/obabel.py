@@ -329,7 +329,7 @@ def flip_node_labels(graph, new_label_name, old_label_name):
         # Swap the information
         nx.set_node_attributes(graph, 'label', new_label_data)
         nx.set_node_attributes(graph, old_label_name, old_label_data)
-        # Delete the information corresponding to the old label name,
+        # Delete information corresponding to the old label name,
         # as it will be redundant.
         for id, node in graph.nodes(data=True):
             del node[new_label_name]
