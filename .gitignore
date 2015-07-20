@@ -56,5 +56,19 @@ docs/_build/
 # PyBuilder
 target/
 
-.ipynb_checkpoints
+*.sdf
+*.smi
+*.tmproj
+*.ipynb_checkpoints
+*.model
 
+examples/plot/*
+data
+
+*RData
+*Rhistory
+.Rproj.user/
+EDeN.Rproj
+.Rproj.user
+*.swp
+examples/model_comparison/models/
