@@ -94,30 +94,74 @@ class SequenceMotif(object):
             training_seqs = random.sample(seqs, self.training_size)
         self._fit_predictive_model(training_seqs, neg_seqs=neg_seqs)
         end = time()
-        logger.info('model induction: %d positive instances %d secs' % (len(training_seqs), (end - start)))
+        logger.info('model induction: %d positive instances %d s' % (len(training_seqs), (end - start)))
 
         start = time()
         self.motives = self._motif_finder(seqs)
         end = time()
-        logger.info('motives extraction: %d motives %d secs' % (len(self.motives), end - start))
+        logger.info('motives extraction: %d motives in %ds' % (len(self.motives), end - start))
 
         start = time()
         self._cluster(self.motives, clustering_algorithm=self.clustering_algorithm)
         end = time()
-        logger.info('motives clustering: %d clusters %d secs' % (len(self.clusters), end - start))
+        logger.info('motives clustering: %d clusters in %ds' % (len(self.clusters), end - start))
 
         start = time()
         self._filter()
         end = time()
         n_motives = sum(len(self.motives_db[cid]) for cid in self.motives_db)
         n_clusters = len(self.motives_db)
-        logger.info('after filtering: %d motives %d clusters %d secs' % (n_motives, n_clusters, (end - start)))
+        logger.info('after filtering: %d motives %d clusters in %ds' % (n_motives, n_clusters, (end - start)))
 
         start = time()
         # create models
         self._build_cluster_models()
         end = time()
-        logger.info('motif model construction: %d secs' % (end - start))
+        logger.info('motif model construction in %ds' % (end - start))
+
+        start = time()
+        # update motives counts
+        self._update_counts(seqs)
+        end = time()
+        logger.info('updated motif counts in %ds' % (end - start))
+
+    def info(self):
+        text = []
+        for cluster_id in self.motives_db:
+            num_hits = len(self.cluster_hits[cluster_id])
+            frac_num_hits = num_hits / float(self.dataset_size)
+            text.append('Cluster: %s #%d (%.3f)' % (cluster_id, num_hits, frac_num_hits))
+            for count, motif in sorted(self.motives_db[cluster_id], reverse=True):
+                text.append('%s #%d' % (motif, count))
+            text.append('')
+        return text
+
+    def _update_counts(self, seqs):
+        self.dataset_size = len(seqs)
+        cluster_hits = defaultdict(set)
+        motives_db = defaultdict(list)
+        for cluster_id in self.motives_db:
+            motives = [motif for count, motif in self.motives_db[cluster_id]]
+            motif_dict = {}
+            for motif in motives:
+                counter = 0
+                for header, seq in seqs:
+                    if motif in seq:
+                        counter += 1
+                        cluster_hits[cluster_id].add(header)
+                motif_dict[motif] = counter
+            # remove implied motives
+            motif_dict_copy = motif_dict.copy()
+            for motif_i in motif_dict:
+                for motif_j in motif_dict:
+                    if motif_dict[motif_i] == motif_dict[motif_j] and \
+                            len(motif_j) < len(motif_i) and motif_j in motif_i:
+                        if motif_j in motif_dict_copy:
+                            motif_dict_copy.pop(motif_j)
+            for motif in motif_dict_copy:
+                motives_db[cluster_id].append((motif_dict[motif], motif))
+        self.motives_db = motives_db
+        self.cluster_hits = cluster_hits
 
     def fit_predict(self, seqs, return_list=False):
         self.fit(seqs)
@@ -135,20 +179,22 @@ class SequenceMotif(object):
         for header, seq in seqs:
             cluster_hits = []
             for cluster_id in self.motives_db:
-                hits = self._cluster_hit(seq, cluster_id)
-                if len(list(hits)):
-                    cluster_hits.append(cluster_id)
+                hits = list(self._cluster_hit(seq, cluster_id))
+                if len(hits):
+                    begin, end = min(hits)
+                    cluster_hits.append((begin, cluster_id))
             if return_list is False:
                 if len(cluster_hits):
-                    yield 1
+                    yield len(cluster_hits)
                 else:
                     yield 0
             else:
-                yield cluster_hits
+                yield [cluster_id for pos, cluster_id in sorted(cluster_hits)]
 
     def transform(self, seqs, return_match=False):
         """Transform an instance to a dense vector with features as cluster ID and entries 0/1 if a motif is found,
-        if 'return_match' argument is True, then write a pair with (start position,end position)  in the entry instead of 0/1"""
+        if 'return_match' argument is True, then write a pair with (start position,end position)  in the entry
+        instead of 0/1"""
         num = len(self.motives_db)
         for header, seq in seqs:
             cluster_hits = [0] * num
@@ -171,7 +217,9 @@ class SequenceMotif(object):
         # use compute_max_subarrays to return an iterator over motives
         motives = []
         for graph in graphs:
-            subarrays = compute_max_subarrays(graph=graph, min_subarray_size=self.min_subarray_size, max_subarray_size=self.max_subarray_size)
+            subarrays = compute_max_subarrays(graph=graph,
+                                              min_subarray_size=self.min_subarray_size,
+                                              max_subarray_size=self.max_subarray_size)
             if subarrays:
                 for subarray in subarrays:
                     motives.append(subarray['subarray_string'])
@@ -184,7 +232,8 @@ class SequenceMotif(object):
             pool = mp.Pool()
         else:
             pool = mp.Pool(processes=self.n_jobs)
-        results = [apply_async(pool, self._serial_graph_motif, args=(seqs[start:end], True)) for start, end in intervals]
+        results = [apply_async(pool, self._serial_graph_motif, args=(seqs[start:end], True))
+                   for start, end in intervals]
         output = [p.get() for p in results]
         return list(chain(*output))
 
@@ -203,7 +252,10 @@ class SequenceMotif(object):
                                     n_jobs=self.pre_processor_n_jobs)
         if neg_seqs is None:
             # shuffle seqs to obtain negatives
-            neg_seqs = seq_to_seq(pos_seqs_, modifier=shuffle_modifier, times=self.negative_ratio, order=self.shuffle_order)
+            neg_seqs = seq_to_seq(pos_seqs_,
+                                  modifier=shuffle_modifier,
+                                  times=self.negative_ratio,
+                                  order=self.shuffle_order)
         neg_graphs = mp_pre_process(neg_seqs, pre_processor=sequence_to_eden,
                                     n_blocks=self.pre_processor_n_blocks,
                                     block_size=self.pre_processor_block_size,
@@ -218,7 +270,11 @@ class SequenceMotif(object):
                              random_state=self.random_state)
 
     def _cluster(self, seqs, clustering_algorithm=None):
-        data_matrix = vectorize(seqs, vectorizer=self.seq_vectorizer, n_blocks=self.n_blocks, block_size=self.block_size, n_jobs=self.n_jobs)
+        data_matrix = vectorize(seqs,
+                                vectorizer=self.seq_vectorizer,
+                                n_blocks=self.n_blocks,
+                                block_size=self.block_size,
+                                n_jobs=self.n_jobs)
         predictions = clustering_algorithm.fit_predict(data_matrix)
         # collect instance ids per cluster id
         for i in range(len(predictions)):

@@ -89,6 +89,14 @@ from eden.util import configure_logging, serialize_dict
 def predict(seqs, sequence_motif, args):
     from eden.util import save_output
 
+    # output num occurrences of cluster hit in sequences
+    predictions = sequence_motif.predict(seqs, return_list=True)
+    text = []
+    for j, p in enumerate(predictions):
+        line = str(j) + "\t" + str(len(p))
+        text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_num_hits.txt')
+
     # output occurrences of cluster hit in sequences
     predictions = sequence_motif.predict(seqs, return_list=True)
     text = []
@@ -151,12 +159,7 @@ def _save_motives_multiple_fasta_files(sequence_motif, args):
 
 def _save_motives_single_file(sequence_motif, args):
     from eden.util import save_output
-    text = []
-    for cluster_id in sequence_motif.motives_db:
-        text.append("cluster: %d (# %d)" % (cluster_id, sum(count for count, motif in sequence_motif.motives_db[cluster_id])))
-        for count, motif in sorted(sequence_motif.motives_db[cluster_id], reverse=True):
-            text.append("%s\t%d" % (motif, count))
-        text.append("")
+    text = sequence_motif.info()
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
 
 
