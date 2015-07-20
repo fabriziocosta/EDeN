@@ -359,7 +359,7 @@ class ActiveLearningBinaryClassificationModel(object):
         self.vectorizer.set_params(**self.vectorizer_args)
         data_matrix = vectorize(graphs,
                                 vectorizer=self.vectorizer,
-                                fit_vectorizer=fit_vectorizer,
+                                fit_flag=fit_vectorizer,
                                 n_jobs=self.n_jobs,
                                 n_blocks=self.n_blocks)
         return data_matrix
