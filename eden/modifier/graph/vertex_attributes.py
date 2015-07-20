@@ -70,13 +70,16 @@ def translate(graph_list=None,
         yield g
 
 
-def colorize(graph_list=None, output_attribute='level', labels=['A', 'U', 'C', 'G']):
+def colorize(graph_list=None, output_attribute='level', labels=['A', 'U', 'C', 'G'], mode=None):
     values = np.linspace(0.0, 1.0, num=len(labels))
     color_dict = dict(zip(labels, values))
     for g in graph_list:
         # iterate over nodes
         for n, d in g.nodes_iter(data=True):
-            g.node[n][output_attribute] = color_dict.get(d['label'], 0)
+            if mode == "3D":
+                g.node[n][output_attribute] = color_dict.get(d['text_label'], 0)
+            else:
+                g.node[n][output_attribute] = color_dict.get(d['label'], 0)
         yield g
 
 
