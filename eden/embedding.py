@@ -1,5 +1,6 @@
 import pylab as plt
 import numpy as np
+from eden.util.display import plot_embeddings
 
 
 def matrix_factorization(data_matrix, n=10):
@@ -31,7 +32,6 @@ def embedding_quality(data_matrix, y, opts, low_dim=None):
     if low_dim is not None:
         data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
     # compute embedding quality
-    from eden.util.display import quick_shift_tree_embedding
     data_matrix_emb = quick_shift_tree_embedding(data_matrix, **opts)
 
     from sklearn.cluster import KMeans
@@ -42,10 +42,9 @@ def embedding_quality(data_matrix, y, opts, low_dim=None):
     return adjusted_rand_score(y, yp)
 
 
-def embed(data_matrix, y, opts, low_dim=None):
+def display_embedding(data_matrix, y, opts, low_dim=None):
     if low_dim is not None:
         data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
-    from eden.util.display import plot_embeddings
     plot_embeddings(data_matrix, y, size=25, **opts)
 
 
@@ -140,6 +139,51 @@ def quick_shift_tree_embedding(data_matrix,
                                k_threshold=0.9,
                                metric='linear',
                                **args):
+    def parents(density_matrix=None, knn_density=None, kernel_matrix_sorted=None):
+        parent_dict = {}
+        # for all instances determine parent link
+        for i, row in enumerate(density_matrix):
+            i_density = row[0]
+            # if a densed neighbor cannot be found then assign parent to the instance itself
+            parent_dict[i] = i
+            # for all neighbors from the closest to the furthest
+            for jj, d in enumerate(row):
+                # proceed until k neighbors have been explored
+                if jj > knn_density:
+                    break
+                j = kernel_matrix_sorted[i, jj]
+                if jj > 0:
+                    j_density = d
+                    # if the density of the neighbor is higher than the density of the instance assign parent
+                    if j_density > i_density:
+                        parent_dict[i] = j
+                        break
+        return parent_dict
+
+    def knns(kernel_matrix=None, kernel_matrix_sorted=None, knn=None, k_threshold=None):
+        knn_dict = {}
+        for i in range(n_instances):
+            # id of k-th nearest neighbor
+            jd = kernel_matrix_sorted[i, knn]
+            knn_dict[i] = jd
+        return knn_dict
+
+    def knns_old(kernel_matrix=None, kernel_matrix_sorted=None, knn=None, k_threshold=None):
+        knn_dict = {}
+        # determine threshold as k-th quantile on pairwise similarity on the knn similarity
+        knn_similarities = kernel_matrix[kernel_matrix_sorted[:, knn]]
+        # vectorized_pairwise_similarity = np.ravel(kernel_matrix)
+        k_quantile = np.percentile(knn_similarities, k_threshold * 100)
+        # add edge between instance and k-th nearest neighbor if similarity > threshold
+        for i in range(n_instances):
+            # id of k-th nearest neighbor
+            jd = kernel_matrix_sorted[i, knn]
+            # similarity of k-th nearest neighbor
+            kd = kernel_matrix[i, jd]
+            if kd > k_quantile:
+                knn_dict[i] = jd
+        return knn_dict
+
     if knn_density is None:
         knn_density = knn
     n_instances = data_matrix.shape[0]
@@ -153,24 +197,11 @@ def quick_shift_tree_embedding(data_matrix,
     kernel_matrix_sorted = np.argsort(-kernel_matrix)
     # make matrix of densities ordered by nearest neighbor
     density_matrix = density[kernel_matrix_sorted]
-    parent_dict = {}
-    # for all instances determine parent link
-    for i, row in enumerate(density_matrix):
-        i_density = row[0]
-        # if a densed neighbor cannot be found then assign parent to the instance itself
-        parent_dict[i] = i
-        # for all neighbors from the closest to the furthest
-        for jj, d in enumerate(row):
-            # proceed until k neighbors have been explored
-            if jj > knn_density:
-                break
-            j = kernel_matrix_sorted[i, jj]
-            if jj > 0:
-                j_density = d
-                # if the density of the neighbor is higher than the density of the instance assign parent
-                if j_density > i_density:
-                    parent_dict[i] = j
-                    break
+
+    # compute edges
+    parent_dict = parents(density_matrix, knn_density, kernel_matrix_sorted)
+    knn_dict = knns(kernel_matrix, kernel_matrix_sorted, knn, k_threshold)
+
     # make a graph with instances as nodes
     import networkx as nx
     graph = nx.Graph()
@@ -179,18 +210,10 @@ def quick_shift_tree_embedding(data_matrix,
     for i in range(n_instances):
         j = parent_dict[i]
         graph.add_edge(i, j, weight=1)
-    # determine threshold as k-th quantile on pairwise similarity on the knn similarity
-    knn_similarities = kernel_matrix[kernel_matrix_sorted[:, knn]]
-    # vectorized_pairwise_similarity = np.ravel(kernel_matrix)
-    k_quantile = np.percentile(knn_similarities, k_threshold * 100)
-    # add edge between instance and k-th nearest neighbor if similarity > threshold
-    for i in range(n_instances):
-        # id of k-th nearest neighbor
-        jd = kernel_matrix_sorted[i, knn]
-        # similarity of k-th nearest neighbor
-        kd = kernel_matrix[i, jd]
-        if kd > k_quantile:
+        if i in knn_dict:
+            jd = knn_dict[i]
             graph.add_edge(i, jd, weight=1)
+
     # use graph layout algorithm to determine coordinates
     two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
     two_dimensional_data_list = []
