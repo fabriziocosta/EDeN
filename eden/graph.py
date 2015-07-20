@@ -73,7 +73,7 @@ class Vectorizer(object):
             self.label_size = 1
         else:
             self.label_size = n - min_n
-            if label_size < 1:
+            if self.label_size < 1:
                 raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time'%(n,min_n))
         self.nbits = nbits
         self.normalization = normalization
