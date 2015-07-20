@@ -30,3 +30,16 @@ def shuffle_modifier(header=None, seq=None, **options):
         random.shuffle(kmers)
         seq_out = ''.join(kmers)
         yield header, seq_out
+
+
+def split_modifier(header=None, seq=None, **options):
+    step = options.get('step', 10)
+    window = options.get('window', 100)
+    seq_len = len(seq)
+    if seq_len >= window:
+        for start in range(0, seq_len, step):
+            seq_out = seq[start: start + window]
+            if len(seq_out) == window:
+                end = int(start + len(seq_out))
+                header_out = '%s %d %d' % (header, start, end)
+                yield (header_out, seq_out)
