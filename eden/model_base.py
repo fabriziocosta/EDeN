@@ -231,7 +231,7 @@ def main_predict(model_initializer, args):
     from itertools import izip
     info_iterator = model.get_info(iterator_)
     for p, info in izip(predictions, info_iterator):
-        text.append("%.4f\t%s\n" % (p, info))
+        text.append("%s\t%s\n" % (p, info))
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='info.txt')
 
 
@@ -244,7 +244,10 @@ def main_matrix(model_initializer, args):
     logger.info(model.get_parameters())
     data_matrix = model._data_matrix(iterator)
     kernel_matrix = metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
-    store_matrix(matrix=kernel_matrix, output_dir_path=args.output_dir_path, out_file_name='Gram_matrix', output_format=args.output_format)
+    store_matrix(matrix=kernel_matrix,
+                 output_dir_path=args.output_dir_path,
+                 out_file_name='Gram_matrix',
+                 output_format=args.output_format)
 
 
 def main_feature(model_initializer, args):
@@ -255,7 +258,10 @@ def main_feature(model_initializer, args):
     model.load(args.model_file)
     logger.info(model.get_parameters())
     data_matrix = model._data_matrix(iterator)
-    store_matrix(matrix=data_matrix, output_dir_path=args.output_dir_path, out_file_name='data_matrix', output_format=args.output_format)
+    store_matrix(matrix=data_matrix,
+                 output_dir_path=args.output_dir_path,
+                 out_file_name='data_matrix',
+                 output_format=args.output_format)
 
 
 def main(model_initializer, args):
@@ -274,11 +280,14 @@ def main(model_initializer, args):
 
 
 def argparse_setup(model_initializer, description, epilog):
-    class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+    class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter,
+                                              argparse.RawDescriptionHelpFormatter):
         # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
         pass
 
-    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=description,
+                                     epilog=epilog,
+                                     formatter_class=DefaultsRawDescriptionHelpFormatter)
     parser = model_initializer.add_arguments(parser)
     parser.add_argument("-v", "--verbosity",
                         action="count",
@@ -290,7 +299,8 @@ def argparse_setup(model_initializer, description, epilog):
 
     subparsers = parser.add_subparsers(help='commands')
     # fit commands
-    fit_parser = subparsers.add_parser('fit', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    fit_parser = subparsers.add_parser('fit', help='Fit commands',
+                                       formatter_class=DefaultsRawDescriptionHelpFormatter)
     fit_parser.set_defaults(which='fit')
     # add domain specific arguments
     fit_parser = model_initializer.add_arguments_fit(fit_parser)
@@ -305,63 +315,86 @@ def argparse_setup(model_initializer, description, epilog):
     fit_parser.add_argument("-e", "--n-iter",
                             dest="n_iter",
                             type=int,
-                            help="Number of randomly generated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
+                            help="Number of randomly generated hyper parameter configurations \
+                            tried during the discriminative model optimization. A value of 1 implies using \
+                            the estimator default values.",
                             default=20)
     fit_parser.add_argument("--n-inner-iter-estimator",
                             dest="n_inner_iter_estimator",
                             type=int,
-                            help="Number of randomly generated hyper parameter configurations tried for the estimator for each parameter configuration of the pre-processor and vectorizer during optimization.",
+                            help="Number of randomly generated hyper parameter configurations tried for \
+                            the estimator for each parameter configuration of the pre-processor and \
+                            vectorizer during optimization.",
                             default=5)
     fit_parser.add_argument("--n-active-learning-iterations",
                             dest="n_active_learning_iterations",
                             type=int,
-                            help="Number of iterations in the active lerning cycle. A value of 0 means to avoid active learning.",
+                            help="Number of iterations in the active learning cycle. A value of 0 means to \
+                            avoid active learning.",
                             default=0)
     fit_parser.add_argument("--size-positive",
                             dest="size_positive",
                             type=int,
-                            help="Number of positive instances that have to be sampled in the active lerning cycle. A value of -1 means to use all instances, i.e. not to use active learning for the positive instances.",
+                            help="Number of positive instances that have to be sampled in the active learning \
+                            cycle. A value of -1 means to use all instances, i.e. not to use active learning \
+                            for the positive instances.",
                             default=-1)
     fit_parser.add_argument("--size-negative",
                             dest="size_negative",
                             type=int,
-                            help="Number of negative instances that have to be sampled in the active lerning cycle. A value of -1 means to use all instances, i.e. not to use active learning for the negative instances.",
+                            help="Number of negative instances that have to be sampled in the active learning \
+                            cycle. A value of -1 means to use all instances, i.e. not to use active learning \
+                            for the negative instances.",
                             default=-1)
     fit_parser.add_argument("--lower-bound-threshold-positive",
                             dest="lower_bound_threshold_positive",
                             type=int,
-                            help="Value of the score threshold to determine when to accept positive instances: positive instances with a score higher than the specified value will be accepted as candidates.",
+                            help="Value of the score threshold to determine when to accept positive instances: \
+                            positive instances with a score higher than the specified value will be accepted \
+                            as candidates.",
                             default=-1)
     fit_parser.add_argument("--lower-bound-threshold-negative",
                             dest="lower_bound_threshold_negative",
                             type=int,
-                            help="Value of the score threshold to determine when to accept negative instances: negative instances with a score higher than the specified value will be accepted as candidates.",
+                            help="Value of the score threshold to determine when to accept negative instances: \
+                            negative instances with a score higher than the specified value will be accepted \
+                            as candidates.",
                             default=-1)
     fit_parser.add_argument("--upper-bound-threshold-positive",
                             dest="upper_bound_threshold_positive",
                             type=int,
-                            help="Value of the score threshold to determine when to accept positive instances: positive instances with a score lower than the specified value will be accepted as candidates.",
+                            help="Value of the score threshold to determine when to accept positive instances: \
+                            positive instances with a score lower than the specified value will be accepted \
+                            as candidates.",
                             default=1)
     fit_parser.add_argument("--upper-bound-threshold-negative",
                             dest="upper_bound_threshold_negative",
                             type=int,
-                            help="Value of the score threshold to determine when to accept negative instances: negative instances with a score lower than the specified value will be accepted as candidates.",
+                            help="Value of the score threshold to determine when to accept negative instances:\
+                             negative instances with a score lower than the specified value will be accepted\
+                             as candidates.",
                             default=1)
     fit_parser.add_argument("--fit-vectorizer",
                             dest="fit_vectorizer",
-                            help="If set, activate the fitting procedure for the vectorizer on positive instances only.",
+                            help="If set, activate the fitting procedure for the vectorizer on positive \
+                            instances only.",
                             action="store_true")
     fit_parser.add_argument("--max-total-time",
                             dest="max_total_time",
                             type=int,
-                            help="Maximal number of seconds for the duration of the optimization phase. After that the procedure is forcefully stopped. A value of -1 means no time limit.",
+                            help="Maximal number of seconds for the duration of the optimization phase. After \
+                            that the procedure is forcefully stopped. A value of -1 means no time limit.",
                             default=-1)
     fit_parser.add_argument("--two-steps-optimization",
                             dest="two_steps_optimization",
-                            help="If set, activate a refinement procedure anfter n_iter/2 steps that samples only among the parameters that have previously improved the results.",
+                            help="If set, activate a refinement procedure anfter n_iter/2 steps that samples \
+                            only among the parameters that have previously improved the results.",
                             action="store_true")
-    fit_parser.add_argument("--scoring", choices=['accuracy', 'roc_auc', 'average_precision', 'f1', 'f1_micro', 'f1_macro', 'f1_weighted', 'f1_samples', 'log_loss', 'precision', 'recall'],
-                            help="The scoring strategy for evaluating in cross validation the quality of a hyper parameter combination.",
+    fit_parser.add_argument("--scoring", choices=['accuracy', 'roc_auc', 'average_precision', 'f1',
+                                                  'f1_micro', 'f1_macro', 'f1_weighted', 'f1_samples',
+                                                  'log_loss', 'precision', 'recall'],
+                            help="The scoring strategy for evaluating in cross validation the quality of \
+                            a hyper parameter combination.",
                             default='roc_auc')
     fit_parser.add_argument("--cv",
                             type=int,
@@ -369,7 +402,8 @@ def argparse_setup(model_initializer, description, epilog):
                             default=10)
     fit_parser.add_argument("-B", "--nbits",
                             type=int,
-                            help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
+                            help="Number of bits used to express the graph kernel features. A value of 20 \
+                            corresponds to 2**20=1 million possible features.",
                             default=20)
     parallelization_group = fit_parser.add_argument_group(
         'Parallelization', 'These options define the granularity of the multicore parallelization.')
@@ -381,12 +415,14 @@ def argparse_setup(model_initializer, description, epilog):
     parallelization_group.add_argument("-b", "--n-blocks",
                                        dest="n_blocks",
                                        type=int,
-                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       help="Number of blocks in which to divide the input for the \
+                                       multiprocessing elaboration.",
                                        default=8)
     parallelization_group.add_argument("-k", "-block-size",
                                        dest="block_size",
                                        type=int,
-                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       help="Number of instances per block for the multiprocessing \
+                                       elaboration.",
                                        default=None)
     parallelization_group.add_argument("--pre-processor-n-jobs",
                                        dest="pre_processor_n_jobs",
@@ -396,12 +432,14 @@ def argparse_setup(model_initializer, description, epilog):
     parallelization_group.add_argument("--pre-processor-n-blocks",
                                        dest="pre_processor_n_blocks",
                                        type=int,
-                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       help="Number of blocks in which to divide the input for the \
+                                       multiprocessing elaboration.",
                                        default=10)
     parallelization_group.add_argument("--pre-processor-block-size",
                                        dest="pre_processor_block_size",
                                        type=int,
-                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       help="Number of instances per block for the multiprocessing \
+                                       elaboration.",
                                        default=None)
     fit_parser.add_argument("-r", "--random-state",
                             dest="random_state",
@@ -410,7 +448,8 @@ def argparse_setup(model_initializer, description, epilog):
                             default=1)
 
     # estimate commands
-    estimate_parser = subparsers.add_parser('estimate', help='Estimate commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    estimate_parser = subparsers.add_parser('estimate', help='Estimate commands',
+                                            formatter_class=DefaultsRawDescriptionHelpFormatter)
     estimate_parser.set_defaults(which='estimate')
     estimate_parser = model_initializer.add_arguments_estimate(estimate_parser)
     estimate_parser.add_argument("-m", "--model-file",

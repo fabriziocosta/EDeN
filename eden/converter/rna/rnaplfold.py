@@ -5,6 +5,7 @@ import networkx as nx
 import subprocess as sp
 from eden.converter.fasta import seq_to_networkx
 from eden.util import is_iterable
+from math import sqrt
 
 
 def RNAplfold_wrapper(sequence,
@@ -17,7 +18,11 @@ def RNAplfold_wrapper(sequence,
     if no_lonely_bps:
         no_lonely_bps_str = "--noLP"
     # Call RNAplfold on command line.
-    cmd = 'echo "%s" | RNAplfold -W %d -L %d -c %.2f %s' % (sequence, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps_str)
+    cmd = 'echo "%s" | RNAplfold -W %d -L %d -c %.2f %s' % (sequence,
+                                                            window_size,
+                                                            max_bp_span,
+                                                            avg_bp_prob_cutoff,
+                                                            no_lonely_bps_str)
     sp.check_output(cmd, shell=True)
     # Extract base pair information.
     start_flag = False
@@ -27,10 +32,12 @@ def RNAplfold_wrapper(sequence,
             if start_flag:
                 values = line.split()
                 if len(values) == 4:
-                    plfold_bp_list += [(values[2], values[0], values[1])]
-            if '%start of base pair probability data' in line:
+                    avg_prob = values[2]
+                    source_id = values[0]
+                    dest_id = values[1]
+                    plfold_bp_list.append((avg_prob, source_id, dest_id))
+            if 'start of base pair probability data' in line:
                 start_flag = True
-    f.closed
     # Delete RNAplfold output file.
     os.remove("plfold_dp.ps")
     # Return list with base pair information.
@@ -54,7 +61,8 @@ def string_to_networkx(header, sequence, **options):
                                               no_lonely_bps=no_lonely_bps), reverse=True)
     graph = nx.Graph()
     graph.graph['id'] = header
-    graph.graph['info'] = 'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (
+    graph.graph['info'] = \
+        'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s avg_bp_prob_cutoff=%s no_lonely_bps=%s' % (
         max_num_edges, window_size, max_bp_span, avg_bp_prob_cutoff, no_lonely_bps)
     graph.graph['sequence'] = sequence
     # Add nucleotide vertices.
@@ -64,7 +72,7 @@ def string_to_networkx(header, sequence, **options):
     for avg_prob_str, source_str, dest_str in plfold_bp_list:
         source = int(source_str) - 1
         dest = int(dest_str) - 1
-        avg_prob = float(avg_prob_str)
+        avg_prob = sqrt(float(avg_prob_str))
         # Check if either source or dest already have more than max_num_edges edges.
         if len(graph.edges(source)) >= max_num_edges or len(graph.edges(dest)) >= max_num_edges:
             pass
@@ -83,8 +91,11 @@ def rnaplfold_to_eden(iterable, **options):
         try:
             graph = string_to_networkx(header, seq, **options)
         except Exception as e:
+            print
+            print '-' * 80
             print e.__doc__
             print e.message
-            print 'Error in: %s' % seq
+            print 'Error in: %s %s' % (header, seq)
+            print 'Reverting to path graph from sequence'
             graph = seq_to_networkx(header, seq, **options)
         yield graph
