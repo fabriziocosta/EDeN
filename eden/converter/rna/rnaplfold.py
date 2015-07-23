@@ -93,7 +93,7 @@ def rnaplfold_to_eden(iterable, **options):
         except Exception as e:
             print
             print '-' * 80
-            print e.__doc__
+            # print e.__doc__
             print e.message
             print 'Error in: %s %s' % (header, seq)
             print 'Reverting to path graph from sequence'
