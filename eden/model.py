@@ -97,7 +97,7 @@ class ActiveLearningBinaryClassificationModel(object):
         for graph in iterable_graph:
             yield graph.graph.get(key, 'N/A')
 
-    def info(self, iterable, key='id'):
+    def decision_function_info(self, iterable, key='id'):
         iterable, iterable_ = tee(iterable)
         data_matrix = self._data_matrix(iterable)
         info_iterable = self.get_info(iterable_, key=key)
@@ -249,14 +249,15 @@ class ActiveLearningBinaryClassificationModel(object):
                                                        iterable_neg_,
                                                        fit_vectorizer=self.fit_vectorizer)
                         else:  # otherwise use the active learning strategy
-                            X, y = self._select_data_matrices(iterable_pos_, iterable_neg_,
-                                                              n_active_learning_iterations=n_active_learning_iterations,
-                                                              size_positive=size_positive,
-                                                              size_negative=size_negative,
-                                                              lower_bound_threshold_positive=lower_bound_threshold_positive,
-                                                              upper_bound_threshold_positive=upper_bound_threshold_positive,
-                                                              lower_bound_threshold_negative=lower_bound_threshold_negative,
-                                                              upper_bound_threshold_negative=upper_bound_threshold_negative)
+                            X, y = self._select_data_matrices(
+                                iterable_pos_, iterable_neg_,
+                                n_active_learning_iterations=n_active_learning_iterations,
+                                size_positive=size_positive,
+                                size_negative=size_negative,
+                                lower_bound_threshold_positive=lower_bound_threshold_positive,
+                                upper_bound_threshold_positive=upper_bound_threshold_positive,
+                                lower_bound_threshold_negative=lower_bound_threshold_negative,
+                                upper_bound_threshold_negative=upper_bound_threshold_negative)
                     except Exception as e:
                         delta_time = datetime.timedelta(seconds=(time.time() - start))
                         text = []

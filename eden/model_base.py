@@ -212,27 +212,14 @@ def main_predict(model_initializer, args):
     model.load(args.model_file)
     logger.info(model.get_parameters())
 
-    predictions = model.decision_function(iterator)
     text = []
-    for p in predictions:
-        text.append(str(p) + "\n")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt')
-
-    text = []
-    for p in predictions:
-        if p > 0:
+    for margin, graph_info in model.decision_function_info(iterator, key='id'):
+        if margin > 0:
             prediction = 1
         else:
             prediction = -1
-        text.append(str(prediction) + "\n")
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='classifications.txt')
-
-    text = []
-    from itertools import izip
-    info_iterator = model.get_info(iterator_)
-    for p, info in izip(predictions, info_iterator):
-        text.append("%s\t%s\n" % (p, info))
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='info.txt')
+        text.append("%d\t%s\t%s\n" % (prediction, margin, graph_info))
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt')
 
 
 def main_matrix(model_initializer, args):
