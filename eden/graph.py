@@ -74,7 +74,7 @@ class Vectorizer(object):
         else:
             self.label_size = n - min_n
             if self.label_size < 1:
-                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time'%(n,min_n))
+                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time' % (n, min_n))
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -115,7 +115,8 @@ class Vectorizer(object):
         else:
             self.label_size = self.n - self.min_n
             if self.label_size < 1:
-                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time'%(self.n,self.min_n))
+                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time' %
+                                (self.n, self.min_n))
 
     def __repr__(self):
         representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
