@@ -10,6 +10,11 @@ def matrix_factorization(data_matrix, n=10):
     return mf.W.T, mf.H.T
 
 
+def reduce_dimensionality(data_matrix, n=10):
+    W, H = matrix_factorization(data_matrix, n=n)
+    return H
+
+
 def low_dimensional_embedding(data_matrix, low_dim=None):
     from sklearn import random_projection
     n_rows, n_cols = data_matrix.shape
