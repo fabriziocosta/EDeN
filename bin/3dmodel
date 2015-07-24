@@ -82,8 +82,8 @@ class ModelInitializer(ModelInitializerBase):
         pre_processor function and a set of matching parameter choices.
         """
         vectorizer = Vectorizer()
-        vectorizer_parameters = {'complexity': [2, 3, 4],
-                                 'n': [3, 4, 5]}
+        vectorizer_parameters = {'complexity': [4],
+                                 'n': [4]}
         return vectorizer, vectorizer_parameters
 
     def add_arguments(self, parser):
@@ -103,10 +103,12 @@ class ModelInitializer(ModelInitializerBase):
                             required=True)
         parser.add_argument("--n-neighbors",
                             default=3,
+                            type=int,
                             help="Number of nearest graph elements to be \
                                   considered.")
         parser.add_argument("--threshold",
                             default=10,
+                            type=int,
                             help="Distance beyond which the graph elements are \
                                   not considered any more.")
         parser.add_argument("--mode",
@@ -114,6 +116,7 @@ class ModelInitializer(ModelInitializerBase):
                             help="Default or 3D model.")
         parser.add_argument("--n-conf",
                             default=10,
+                            type=int,
                             help="Number of conformers to be calculated for \
                                   each molecule.")
         parser.add_argument("--format",
