@@ -39,4 +39,6 @@ def fasta_to_sequence(input, **options):
     for line in lines:
         header = line
         seq = lines.next()
+        if len(seq) == 0:
+            raise Exception('ERROR: empty sequence')
         yield header, seq
