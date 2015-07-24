@@ -263,7 +263,6 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
 
     command_string = 'echo "%s" | obabel -i sdf -o sdf --conformer --nconf %d\
     --score rmsd --writeconformers 2>&-' % (input_sdf, n_conf)
-    # TODO: change this to use the piping method in subprocess (?)
     sdf = subprocess.check_output(command_string, shell=True)
     # Clean the resulting output
     first_match = re.search('OpenBabel', sdf)
