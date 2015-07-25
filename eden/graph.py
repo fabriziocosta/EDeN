@@ -46,7 +46,7 @@ class Vectorizer(object):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 triangular_decomposition=False):
+                 triangular_decomposition=True):
         """
         Args:
             complexity: the complexity of the features extracted (default 3).
@@ -141,7 +141,7 @@ class Vectorizer(object):
         if args.get('triangular_decomposition', None) is not None:
             self.triangular_decomposition = args['triangular_decomposition']
         else:
-            self.triangular_decomposition = False
+            self.triangular_decomposition = True
 
     def __repr__(self):
         representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
