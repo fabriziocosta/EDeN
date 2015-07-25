@@ -15,6 +15,22 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def extract_triangles(graph):
+    triangles = set()
+    for u in graph.nodes():
+        n_u = graph.neighbors(u)
+        for v in n_u:
+            n_v = graph.neighbors(v)
+            for w in n_v:
+                if w in n_u:
+                    triangles.add(tuple(sorted([u, v, w])))
+
+    out_graph = graph.copy()
+    for u, v, w in triangles:
+        out_graph = nx.disjoint_union(out_graph, nx.Graph(graph.subgraph([u, v, w])))
+    return out_graph
+
+
 class Vectorizer(object):
 
     """Transform real vector labeled, weighted, nested graphs in sparse vectors."""
@@ -29,7 +45,8 @@ class Vectorizer(object):
                  min_n=2,
                  nbits=20,
                  normalization=True,
-                 inner_normalization=True):
+                 inner_normalization=True,
+                 triangular_decomposition=False):
         """
         Args:
             complexity: the complexity of the features extracted (default 3).
@@ -56,6 +73,9 @@ class Vectorizer(object):
             distance size to have unit euclidean norm (default True). When used together with the
             'normalization' flag it will be applied first and then the resulting feature vector
             will be normalized.
+
+            triangular_decomposition: flag to add to each graph the disjoint set of triangles. This
+            allows also dense graphs to be processed. Note that runtimes can significantly increase.
         """
 
         self.complexity = complexity
@@ -82,6 +102,7 @@ class Vectorizer(object):
         self.feature_size = self.bitmask + 2
         self.discretization_models = dict()
         self.fit_status = None
+        self.triangular_decomposition = triangular_decomposition
 
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
@@ -117,10 +138,15 @@ class Vectorizer(object):
             if self.label_size < 1:
                 raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time' %
                                 (self.n, self.min_n))
+        if args.get('triangular_decomposition', None) is not None:
+            self.triangular_decomposition = args['triangular_decomposition']
+        else:
+            self.triangular_decomposition = False
 
     def __repr__(self):
         representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
-                         nbits = %d, status = %s, normalization = %s, inner_normalization = %s )""" % (
+                         nbits = %d, status = %s, normalization = %s, inner_normalization = %s,\
+                         triangular_decomposition = %s )""" % (
             self.r / 2,
             self.d / 2,
             self.n,
@@ -130,7 +156,8 @@ class Vectorizer(object):
             self.nbits,
             self.fit_status,
             self.normalization,
-            self. inner_normalization)
+            self. inner_normalization,
+            self.triangular_decomposition)
         return representation
 
     def fit(self, graphs):
@@ -485,7 +512,11 @@ class Vectorizer(object):
             return original_graph
 
     def _graph_preprocessing(self, original_graph):
-        graph = self._edge_to_vertex_transform(original_graph)
+        if self.triangular_decomposition:
+            graph = extract_triangles(original_graph)
+        else:
+            graph = original_graph
+        graph = self._edge_to_vertex_transform(graph)
         self._weight_preprocessing(graph)
         self._label_preprocessing(graph)
         self._compute_distant_neighbours(graph, max(self.r, self.d))
