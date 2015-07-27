@@ -44,7 +44,8 @@ def configure_logging(logger, verbosity=0, filename=None):
         fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=100000, backupCount=10)
         fh.setLevel(logging.DEBUG)
         # create formatter
-        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s | %(lineno)4s | %(message)s')
+        fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s |\
+         %(lineno)4s | %(message)s')
         # add formatter to fh
         fh.setFormatter(fformatter)
         # add handlers to logger
@@ -90,7 +91,8 @@ def is_iterable(test):
 def compute_intervals(size=None, n_blocks=None, block_size=None):
     if block_size is not None:
         n_blocks = int(size / block_size)
-    # if n_blocks is the same or larger than size then decrease n_blocks so to have at least 10 instances per block
+    # if n_blocks is the same or larger than size then decrease n_blocks so to have at least
+    # 10 instances per block
     if n_blocks >= size:
         n_blocks = size / 10
     if n_blocks < 1:
@@ -113,7 +115,12 @@ def serial_pre_process(iterable, pre_processor=None, pre_processor_args=None):
         return list(pre_processor(iterable))
 
 
-def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None, n_jobs=8):
+def multiprocess_pre_process(iterable,
+                             pre_processor=None,
+                             pre_processor_args=None,
+                             n_blocks=5,
+                             block_size=None,
+                             n_jobs=8):
     iterable = list(iterable)
     import multiprocessing as mp
     size = len(iterable)
@@ -122,7 +129,9 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_pre_process, args=(iterable[start:end], pre_processor, pre_processor_args)) for start, end in intervals]
+    results = [apply_async(pool, serial_pre_process,
+                           args=(iterable[start:end], pre_processor, pre_processor_args))
+               for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
     pool.join()
@@ -133,11 +142,21 @@ def multiprocess_pre_process(iterable, pre_processor=None, pre_processor_args=No
     return return_list
 
 
-def mp_pre_process(iterable, pre_processor=None, pre_processor_args=None, n_blocks=5, block_size=None, n_jobs=8):
+def mp_pre_process(iterable,
+                   pre_processor=None,
+                   pre_processor_args=None,
+                   n_blocks=5,
+                   block_size=None,
+                   n_jobs=8):
     if n_jobs == 1:
         return pre_processor(iterable, **pre_processor_args)
     else:
-        return multiprocess_pre_process(iterable, pre_processor=pre_processor, pre_processor_args=pre_processor_args, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+        return multiprocess_pre_process(iterable,
+                                        pre_processor=pre_processor,
+                                        pre_processor_args=pre_processor_args,
+                                        n_blocks=n_blocks,
+                                        block_size=block_size,
+                                        n_jobs=n_jobs)
 
 
 def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
@@ -157,7 +176,8 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, fit_flag)) for start, end in intervals]
+    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, fit_flag))
+               for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
     pool.join()
@@ -171,11 +191,16 @@ def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=No
     if n_jobs == 1:
         return serial_vectorize(graphs, vectorizer=vectorizer, fit_flag=fit_flag)
     else:
-        return multiprocess_vectorize(graphs, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+        return multiprocess_vectorize(graphs,
+                                      vectorizer=vectorizer,
+                                      n_blocks=n_blocks,
+                                      block_size=block_size,
+                                      n_jobs=n_jobs)
 
 
 def describe(data_matrix):
-    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % (data_matrix.shape[0], data_matrix.shape[1], data_matrix.getnnz() / data_matrix.shape[0])
+    return 'Instances: %d ; Features: %d with an avg of %d features per instance' % \
+        (data_matrix.shape[0], data_matrix.shape[1], data_matrix.getnnz() / data_matrix.shape[0])
 
 
 def iterator_size(iterable):
@@ -236,7 +261,14 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
     return data_matrix, y
 
 
-def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=None, target=None, cv=10, n_jobs=-1, n_iter_search=40, random_state=1):
+def fit_estimator(estimator,
+                  positive_data_matrix=None,
+                  negative_data_matrix=None,
+                  target=None,
+                  cv=10,
+                  n_jobs=-1,
+                  n_iter_search=40,
+                  random_state=1):
     # hyperparameter optimization
     param_dist = {"n_iter": randint(5, 100),
                   "power_t": uniform(0.1),
@@ -264,21 +296,41 @@ def fit_estimator(estimator, positive_data_matrix=None, negative_data_matrix=Non
     logger.debug('\nPredictive performance:')
     # assess the generalization capacity of the model via a 10-fold cross validation
     for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
-        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv, scoring=scoring, n_jobs=n_jobs)
+        scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv,
+                                                  scoring=scoring, n_jobs=n_jobs)
         logger.debug('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
 
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10, n_iter_search=1, random_state=1, n_blocks=5, block_size=None):
+def fit(iterable_pos, iterable_neg,
+        vectorizer=None,
+        estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True),
+        fit_flag=False,
+        n_jobs=-1,
+        cv=10,
+        n_iter_search=1,
+        random_state=1,
+        n_blocks=5,
+        block_size=None):
     start = time()
-    estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=n_jobs)
-    positive_data_matrix = vectorize(iterable_pos, vectorizer=vectorizer, fit_flag=fit_flag, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    negative_data_matrix = vectorize(iterable_neg, vectorizer=vectorizer, fit_flag=False, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
+    positive_data_matrix = vectorize(iterable_pos,
+                                     vectorizer=vectorizer,
+                                     fit_flag=fit_flag,
+                                     n_blocks=n_blocks,
+                                     block_size=block_size,
+                                     n_jobs=n_jobs)
+    negative_data_matrix = vectorize(iterable_neg,
+                                     vectorizer=vectorizer,
+                                     fit_flag=False,
+                                     n_blocks=n_blocks,
+                                     block_size=block_size,
+                                     n_jobs=n_jobs)
     logger.debug('Positive data: %s' % describe(positive_data_matrix))
     logger.debug('Negative data: %s' % describe(negative_data_matrix))
     if n_iter_search <= 1:
-        X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix)
+        X, y = make_data_matrix(positive_data_matrix=positive_data_matrix,
+                                negative_data_matrix=negative_data_matrix)
         estimator.fit(X, y)
     else:
         # optimize hyper parameters classifier
@@ -293,8 +345,10 @@ def fit(iterable_pos, iterable_neg, vectorizer, fit_flag=False, n_jobs=-1, cv=10
     return estimator
 
 
-def estimate_estimator(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
-    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, target=target)
+def estimate_model(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
+    X, y = make_data_matrix(positive_data_matrix=positive_data_matrix,
+                            negative_data_matrix=negative_data_matrix,
+                            target=target)
     logger.info('Test set')
     logger.info(describe(X))
     logger.info('-' * 80)
@@ -316,9 +370,40 @@ def estimate(iterable_pos=None,
              n_blocks=5,
              block_size=None,
              n_jobs=4):
-    positive_data_matrix = vectorize(iterable_pos, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    negative_data_matrix = vectorize(iterable_neg, vectorizer=vectorizer, n_blocks=n_blocks, block_size=block_size, n_jobs=n_jobs)
-    return estimate_estimator(positive_data_matrix=positive_data_matrix, negative_data_matrix=negative_data_matrix, estimator=estimator)
+    positive_data_matrix = vectorize(iterable_pos,
+                                     vectorizer=vectorizer,
+                                     n_blocks=n_blocks,
+                                     block_size=block_size,
+                                     n_jobs=n_jobs)
+    negative_data_matrix = vectorize(iterable_neg,
+                                     vectorizer=vectorizer,
+                                     n_blocks=n_blocks,
+                                     block_size=block_size,
+                                     n_jobs=n_jobs)
+    return estimate_model(positive_data_matrix=positive_data_matrix,
+                          negative_data_matrix=negative_data_matrix,
+                          estimator=estimator)
+
+
+def predict(iterable=None,
+            estimator=None,
+            vectorizer=None,
+            mode='decision_function',
+            n_blocks=5,
+            block_size=None,
+            n_jobs=4):
+    data_matrix = vectorize(iterable,
+                            vectorizer=vectorizer,
+                            n_blocks=n_blocks,
+                            block_size=block_size,
+                            n_jobs=n_jobs)
+    if mode == 'decision_function':
+        out = estimator.decision_function(data_matrix)
+    elif mode == 'predict_proba':
+        out = estimator.predict_proba(data_matrix)
+    else:
+        raise Exception('Unknown mode: %s' % mode)
+    return out
 
 
 def load_target(name):
