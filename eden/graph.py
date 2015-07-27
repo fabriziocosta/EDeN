@@ -166,9 +166,14 @@ class Vectorizer(object):
 
         if self.n == 1:
             raise Exception('ERROR: fitting is not compatible with n=1.')
+        # compute a log spaced sequence (label_size elements) of number of clusters
+        # in this way when asked for max 1000 clusters and min 4 clusters and 5 levels
+        # we produce the sequence of cluster sizes: 4,16,64,256,1024
         c_start = math.log10(self.min_n)
         c_end = math.log10(self.n)
         n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
+        # remove repeated values; this manages very large values of label_size
+        n_clusters_list = sorted(list(set(n_clusters_list)))
         label_data_matrixs = self._assemble_dense_data_matrices(graphs)
         label_data_matrixs.update(
             self._assemble_sparse_data_matrices(graphs))
@@ -177,8 +182,8 @@ class Vectorizer(object):
             for m in n_clusters_list:
                 discretization_model = MiniBatchKMeans(n_clusters=m,
                                                        init='k-means++',
-                                                       max_iter=5,
-                                                       n_init=3,
+                                                       max_iter=10,
+                                                       n_init=10,
                                                        random_state=m)
                 discretization_model.fit(label_data_matrixs[node_entity])
                 self.discretization_models[node_entity] += [discretization_model]
