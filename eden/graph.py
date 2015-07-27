@@ -43,6 +43,7 @@ class Vectorizer(object):
                  min_r=0,
                  min_d=0,
                  min_n=2,
+                 label_size=1,
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
@@ -63,6 +64,9 @@ class Vectorizer(object):
             min_d: the minimal distance size.
 
             min_n: the minimal number of clusters used to discretize real label vectors (default 2).
+
+            label_size: the number of discretization steps used in the conversion from real valued labels
+            to discrete labels.
 
             nbits: the number of bits that defines the feature space size:
             |feature space|=2^nbits (default 20).
@@ -89,12 +93,7 @@ class Vectorizer(object):
         self.min_d = min_d * 2
         self.n = n
         self.min_n = min_n
-        if self.n == 1:
-            self.label_size = 1
-        else:
-            self.label_size = n - min_n
-            if self.label_size < 1:
-                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time' % (n, min_n))
+        self.label_size = label_size
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -131,13 +130,10 @@ class Vectorizer(object):
             self.n = args['n']
         if args.get('min_n', None) is not None:
             self.min_n = args['min_n']
-        if self.n == 1:
-            self.label_size = 1
+        if args.get('label_size', None) is not None:
+            self.label_size = args['label_size']
         else:
-            self.label_size = self.n - self.min_n
-            if self.label_size < 1:
-                raise Exception('ERROR: cannot have n=%d and min_n=%d at the same time' %
-                                (self.n, self.min_n))
+            self.label_size = 1
         if args.get('triangular_decomposition', None) is not None:
             self.triangular_decomposition = args['triangular_decomposition']
         else:
@@ -145,18 +141,19 @@ class Vectorizer(object):
 
     def __repr__(self):
         representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
-                         nbits = %d, status = %s, normalization = %s, inner_normalization = %s,\
-                         triangular_decomposition = %s )""" % (
+                         label_size = %d, nbits = %d, status = %s, normalization = %s, \
+                         inner_normalization = %s, triangular_decomposition = %s )""" % (
             self.r / 2,
             self.d / 2,
             self.n,
             self.min_r / 2,
             self.min_d / 2,
             self.min_n,
+            self.label_size,
             self.nbits,
             self.fit_status,
             self.normalization,
-            self. inner_normalization,
+            self.inner_normalization,
             self.triangular_decomposition)
         return representation
 
@@ -169,12 +166,15 @@ class Vectorizer(object):
 
         if self.n == 1:
             raise Exception('ERROR: fitting is not compatible with n=1.')
+        c_start = math.log10(self.min_n)
+        c_end = math.log10(self.n)
+        n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
         label_data_matrixs = self._assemble_dense_data_matrices(graphs)
         label_data_matrixs.update(
             self._assemble_sparse_data_matrices(graphs))
         for node_entity in label_data_matrixs:
             self.discretization_models[node_entity] = []
-            for m in range(self.min_n, self.n):
+            for m in n_clusters_list:
                 discretization_model = MiniBatchKMeans(n_clusters=m,
                                                        init='k-means++',
                                                        max_iter=5,
