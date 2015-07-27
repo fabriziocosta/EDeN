@@ -5,7 +5,7 @@ import networkx as nx
 import subprocess as sp
 from eden.converter.fasta import seq_to_networkx
 from eden.util import is_iterable
-from math import sqrt
+import math
 
 
 def RNAplfold_wrapper(sequence,
@@ -72,7 +72,7 @@ def string_to_networkx(header, sequence, **options):
     for avg_prob_str, source_str, dest_str in plfold_bp_list:
         source = int(source_str) - 1
         dest = int(dest_str) - 1
-        avg_prob = sqrt(float(avg_prob_str))
+        avg_prob = math.pow(float(avg_prob_str), 2)
         # Check if either source or dest already have more than max_num_edges edges.
         if len(graph.edges(source)) >= max_num_edges or len(graph.edges(dest)) >= max_num_edges:
             pass
