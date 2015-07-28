@@ -118,6 +118,7 @@ setup(
         "numpy >= 1.8.0",
         "scipy >= 0.14.0",
         "scikit-learn >= 0.16.0",
+        "joblib",
         "dill",
         "networkx",
         "matplotlib",
