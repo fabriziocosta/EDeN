@@ -101,7 +101,6 @@ setup(
               'eden.modifier.graph',
               ],
     scripts=['bin/alignment',
-             'bin/convert',
              'bin/model',
              'bin/motif',
              ],
@@ -109,7 +108,11 @@ setup(
     package_data={},
     url='http://pypi.python.org/pypi/eden/',
     license='LICENSE',
-    description='The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce an explicit feature representation for graphs. This in turn allows the adoption of machine learning algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast stochastic gradient descent methods in classification).',
+    description='The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel \
+    based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce \
+    an explicit feature representation for graphs. This in turn allows the adoption of machine learning\
+    algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast\
+    stochastic gradient descent methods in classification).',
     long_description=open('README.md').read(),
     install_requires=[
         "numpy >= 1.8.0",
@@ -119,6 +122,7 @@ setup(
         "networkx",
         "matplotlib",
         "requests",
+        "esmre >= 0.3.1",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
