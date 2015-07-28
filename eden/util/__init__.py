@@ -250,6 +250,8 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
 
 def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, target=None):
     assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
+    if negative_data_matrix is None:
+        negative_data_matrix = positive_data_matrix * -1
     if target is None and negative_data_matrix is not None:
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
@@ -303,7 +305,7 @@ def fit_estimator(estimator,
     return random_search.best_estimator_
 
 
-def fit(iterable_pos, iterable_neg,
+def fit(iterable_pos, iterable_neg=None,
         vectorizer=None,
         estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True),
         fit_flag=False,
@@ -320,14 +322,17 @@ def fit(iterable_pos, iterable_neg,
                                      n_blocks=n_blocks,
                                      block_size=block_size,
                                      n_jobs=n_jobs)
-    negative_data_matrix = vectorize(iterable_neg,
-                                     vectorizer=vectorizer,
-                                     fit_flag=False,
-                                     n_blocks=n_blocks,
-                                     block_size=block_size,
-                                     n_jobs=n_jobs)
     logger.debug('Positive data: %s' % describe(positive_data_matrix))
-    logger.debug('Negative data: %s' % describe(negative_data_matrix))
+    if iterable_neg:
+        negative_data_matrix = vectorize(iterable_neg,
+                                         vectorizer=vectorizer,
+                                         fit_flag=False,
+                                         n_blocks=n_blocks,
+                                         block_size=block_size,
+                                         n_jobs=n_jobs)
+        logger.debug('Negative data: %s' % describe(negative_data_matrix))
+    else:
+        negative_data_matrix = None
     if n_iter_search <= 1:
         X, y = make_data_matrix(positive_data_matrix=positive_data_matrix,
                                 negative_data_matrix=negative_data_matrix)
@@ -345,7 +350,11 @@ def fit(iterable_pos, iterable_neg,
     return estimator
 
 
-def estimate_model(positive_data_matrix=None, negative_data_matrix=None, target=None, estimator=None):
+def estimate_model(positive_data_matrix=None,
+                   negative_data_matrix=None,
+                   target=None,
+                   estimator=None,
+                   n_jobs=4):
     X, y = make_data_matrix(positive_data_matrix=positive_data_matrix,
                             negative_data_matrix=negative_data_matrix,
                             target=target)
@@ -360,6 +369,13 @@ def estimate_model(positive_data_matrix=None, negative_data_matrix=None, target=
     logger.info('APR: %.3f' % apr)
     roc = roc_auc_score(y, margins)
     logger.info('ROC: %.3f' % roc)
+
+    logger.info('Cross-validated estimate')
+    for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+        scores = cross_validation.cross_val_score(estimator, X, y, cv=5,
+                                                  scoring=scoring, n_jobs=n_jobs)
+        logger.info('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+
     return apr, roc
 
 
@@ -382,7 +398,8 @@ def estimate(iterable_pos=None,
                                      n_jobs=n_jobs)
     return estimate_model(positive_data_matrix=positive_data_matrix,
                           negative_data_matrix=negative_data_matrix,
-                          estimator=estimator)
+                          estimator=estimator,
+                          n_jobs=n_jobs)
 
 
 def predict(iterable=None,
