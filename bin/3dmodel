@@ -82,8 +82,9 @@ class ModelInitializer(ModelInitializerBase):
         pre_processor function and a set of matching parameter choices.
         """
         vectorizer = Vectorizer()
-        vectorizer_parameters = {'complexity': [4],
-                                 'n': [4]}
+        vectorizer_parameters = {'complexity': [2, 4],
+                                 'n': [4],
+                                 'label_size': [5, 10]}
         return vectorizer, vectorizer_parameters
 
     def add_arguments(self, parser):
