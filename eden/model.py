@@ -104,7 +104,7 @@ class ActiveLearningBinaryClassificationModel(object):
         for margin, graph_info in izip(self.estimator.decision_function(data_matrix), info_iterable):
             yield margin, graph_info
 
-    def estimate(self, iterable_pos, iterable_neg):
+    def estimate(self, iterable_pos, iterable_neg, report_cross_validation=False):
         data_matrix, y = self._data_matrices(iterable_pos, iterable_neg, fit_vectorizer=False)
         margins = self.estimator.decision_function(data_matrix)
         predictions = self.estimator.predict(data_matrix)
@@ -122,6 +122,14 @@ class ActiveLearningBinaryClassificationModel(object):
         text.append('%s' % classification_report(y, predictions))
         text.append('APR: %.3f' % apr)
         text.append('ROC: %.3f' % roc)
+
+        if report_cross_validation:
+            text.append('\nCross-validated estimate:')
+            for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
+                scores = cross_validation.cross_val_score(self.estimator, data_matrix, y, cv=10,
+                                                          scoring=scoring, n_jobs=self.n_jobs)
+                text.append('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+
         logger.info('\n'.join(text))
         return apr, roc
 

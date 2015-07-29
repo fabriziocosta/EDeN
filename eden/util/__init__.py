@@ -169,6 +169,9 @@ def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
 
 def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
     graphs = list(graphs)
+    # fitting happens in a serial fashion
+    if fit_flag:
+        vectorizer.fit(graphs)
     import multiprocessing as mp
     size = len(graphs)
     intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
@@ -176,7 +179,7 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, fit_flag))
+    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, False))
                for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
@@ -186,13 +189,12 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
 
 
 def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
-    if fit_flag and n_jobs != 1:
-        raise Exception("Cannot perform fit in parallel: set n_jobs to 1")
     if n_jobs == 1:
         return serial_vectorize(graphs, vectorizer=vectorizer, fit_flag=fit_flag)
     else:
         return multiprocess_vectorize(graphs,
                                       vectorizer=vectorizer,
+                                      fit_flag=fit_flag,
                                       n_blocks=n_blocks,
                                       block_size=block_size,
                                       n_jobs=n_jobs)
@@ -251,7 +253,7 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
 def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, target=None):
     assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
     if negative_data_matrix is None:
-        negative_data_matrix = positive_data_matrix * -1
+        negative_data_matrix = positive_data_matrix.multiply(-1)
     if target is None and negative_data_matrix is not None:
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
