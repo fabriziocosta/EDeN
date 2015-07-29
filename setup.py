@@ -118,14 +118,12 @@ setup(
         "numpy >= 1.8.0",
         "scipy >= 0.14.0",
         "scikit-learn >= 0.16.0",
-        "joblib >= 0.8.4",
+        "joblib",
         "dill",
-        "networkx >= 1.9.1",
+        "networkx",
         "matplotlib",
         "requests",
-        "esmre >= 0.3.1",
-        "openbabel >= 1.8.2",
-        "pygraphviz >= 1.2"
+        "esmre",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
