@@ -96,7 +96,10 @@ class Vectorizer(object):
         # Note: if the discretization is active then the default label_size should be 5
         self.label_size = label_size
         if self.n > 1 and self.label_size == 1:
-            self.label_size = 5
+            self.label_size = min(self.n, 5)
+        # Note: if the discretization is active then label_size cannot be larger than n-min_n
+        if self.n > 1:
+            self.label_size = min(self.n - self.min_n, self.label_size)
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -138,7 +141,10 @@ class Vectorizer(object):
         else:
             self.label_size = 1
         if self.n > 1 and self.label_size == 1:
-            self.label_size = 5
+            self.label_size = min(self.n, 5)
+        # Note: if the discretization is active then label_size cannot be larger than n-min_n
+        if self.n > 1:
+            self.label_size = min(self.n - self.min_n, self.label_size)
         if args.get('triangular_decomposition', None) is not None:
             self.triangular_decomposition = args['triangular_decomposition']
         else:
