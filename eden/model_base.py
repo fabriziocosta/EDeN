@@ -199,7 +199,8 @@ def main_estimate(model_initializer, args):
     model = ActiveLearningBinaryClassificationModel()
     model.load(args.model_file)
     logger.info(model.get_parameters())
-    apr, rocauc = model.estimate(pos_test_iterator, neg_test_iterator)
+    apr, rocauc = model.estimate(pos_test_iterator, neg_test_iterator,
+                                 report_cross_validation=args.cross_validation)
 
 
 def main_predict(model_initializer, args):
@@ -447,6 +448,12 @@ def argparse_setup(model_initializer, description, epilog):
                                  dest="output_dir_path",
                                  help="Path to output directory.",
                                  default="out")
+    estimate_parser.add_argument("--cross-validation",
+                                 dest="cross_validation",
+                                 help="If set, report cross validated performance measures.\
+                                The model's parameters are re-trained in each fold keeping the\
+                                hyper-parameters of the given model.",
+                                 action="store_true")
 
     # base parser
     base_parser = argparse.ArgumentParser(add_help=False)

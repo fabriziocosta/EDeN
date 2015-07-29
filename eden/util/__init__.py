@@ -174,6 +174,7 @@ def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
 
 def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
     graphs = list(graphs)
+    # fitting happens in a serial fashion
     if fit_flag:
         vectorizer.fit(graphs)
     import multiprocessing as mp
@@ -184,7 +185,7 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, fit_flag))
+    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, False))
                for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
@@ -260,7 +261,7 @@ def join_pre_processes(iterable, pre_processes=None, weights=None):
 def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, target=None):
     assert(positive_data_matrix is not None), 'ERROR: expecting non null positive_data_matrix'
     if negative_data_matrix is None:
-        negative_data_matrix = positive_data_matrix * -1
+        negative_data_matrix = positive_data_matrix.multiply(-1)
     if target is None and negative_data_matrix is not None:
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
