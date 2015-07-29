@@ -11,6 +11,7 @@
 #   * use my own temporary sequence files, properly clean up afterwards
 #   * check if seq length and core length arguments match or handle properly
 #   * handle input/output error gracefully
+#   * check if input bed coordinates are stranded
 
 from __future__ import print_function
 import argparse
@@ -229,6 +230,9 @@ if args.negative_site_candidate_regions_fn:
             chrom=True,
             incl=processed_negative_site_candidate_regions.fn,
             noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
+        print("derived negative cores: " + str(neg_cores.count()))
+        neg_fup, neg_fdown = get_flanks(neg_cores)
+        get_seqs(neg_cores, neg_fup, neg_fdown, neg_seq_fa_fn)
     else:
         neg_cores = cores.shuffle(
             genome=args.genome_id,
