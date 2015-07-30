@@ -75,11 +75,18 @@ class ModelInitializer(ModelInitializerBase):
                 iterable = obabel.obabel_to_eden3d(data, **kwargs)
                 return iterable
 
-            pre_processor_parameters = \
-                {'k': [args.n_neighbors],
-                 'threshold': [args.threshold],
-                 'model_type': [model_type],
-                 'n_conf': [args.n_conf]}
+            if args.hyper_opt:
+                pre_processor_parameters = \
+                    {'k': range(1, 11),
+                     'threshold': range(1, 11),
+                     'model_type': [model_type],
+                     'n_conf': [args.n_conf]}
+            else:
+                pre_processor_parameters = \
+                    {'k': [args.n_neighbors],
+                     'threshold': [args.threshold],
+                     'model_type': [model_type],
+                     'n_conf': [args.n_conf]}
 
         return pre_processor, pre_processor_parameters
 
@@ -101,7 +108,7 @@ class ModelInitializer(ModelInitializerBase):
         vectorizer = Vectorizer()
         vectorizer_parameters = {'complexity': [2, 4],
                                  'n': [max_n],
-                                 'label_size': [5]}
+                                 'label_size': [5, 10]}
         return vectorizer, vectorizer_parameters
 
     def add_arguments(self, parser):
@@ -140,6 +147,12 @@ class ModelInitializer(ModelInitializerBase):
         parser.add_argument("--format",
                             default="sdf",
                             help="Format of the input files.")
+        parser.add_argument("--hyper-opt",
+                            dest='hyper_opt',
+                            action='store_true',
+                            default=False,
+                            help="Whether to perform hyper-parameter optimization \
+                            in the pre-processor")
 
         return parser
 
