@@ -41,7 +41,7 @@ def configure_logging(logger, verbosity=0, filename=None):
 
     if filename is not None:
         # create a file handler
-        fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=100000, backupCount=10)
+        fh = logging.handlers.RotatingFileHandler(filename=filename, maxBytes=10000000, backupCount=10)
         fh.setLevel(logging.DEBUG)
         # create formatter
         fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s |\
