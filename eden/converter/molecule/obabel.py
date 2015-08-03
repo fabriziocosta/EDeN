@@ -8,41 +8,52 @@ import shlex
 from eden.util import read
 
 
-def obabel_to_eden(input, cache={}, format='sdf', **options):
+def mol_file_to_iterable(filename=None, file_format=None):
+    if file_format == 'sdf':
+        with open(filename) as f:
+            s = ''
+            for line in f:
+                if line.strip() != '$$$$':
+                    s = s + line
+                else:
+                    return_value = s + line
+                    s = ''
+                    yield return_value
+    elif file_format == 'smi':
+        with open(filename) as f:
+            for line in f:
+                yield line
+    else:
+        raise Exception('ERROR: unrecognized file format: %s' % file_format)
+
+
+def obabel_to_eden(iterable, file_format='sdf', **options):
     """
     Takes a string list in sdf format format and yields networkx graphs.
 
     Parameters
     ----------
-    input : SMILES strings containing molecular structures.
+    iterable : SMILES strings containing molecular structures.
 
     """
-    if format == 'sdf':
-        for x in read(input):
-            mol = pybel.readstring("sdf", x)
+    if file_format == 'sdf':
+        for mol_sdf in read(iterable):
+            mol = pybel.readstring("sdf", mol_sdf)
             # remove hydrogens
             mol.removeh()
             graph = obabel_to_networkx(mol)
             if len(graph):
                 yield graph
-    elif format == 'smi':
-        for x in read(input):
-            # First check if the molecule has appeared before and thus is
-            # already converted
-            if x not in cache:
-                # convert from SMILES to SDF and store in cache
-                # TODO: do we assume that the input is "clean", i.e.
-                # only the SMILES strings?
-                command_string = 'obabel -:"' + x + '" -osdf --gen3d'
-                args = shlex.split(command_string)
-                sdf = subprocess.check_output(args)
-                # Add the MOL object, not sdf to cache
-                cache[x] = sdf
-            # Convert to networkx
-            graph = obabel_to_networkx(pybel.readstring('sdf', cache[x]))
-            # TODO: change back to yield (below too!)
+    elif file_format == 'smi':
+        for mol_smi in read(iterable):
+            mol = pybel.readstring("smi", mol_smi)
+            # remove hydrogens
+            mol.removeh()
+            graph = obabel_to_networkx(mol)
             if len(graph):
                 yield graph
+    else:
+        raise Exception('ERROR: unrecognized file format: %s' % file_format)
 
 
 def obabel_to_networkx(mol):
@@ -65,10 +76,46 @@ def obabel_to_networkx(mol):
 
 ##########################################################################
 
-
-def obabel_to_eden3d(input, split_components=True, **kwargs):
+def obabel_to_eden_old(iterable, cache={}, format='sdf', **options):
     """
-    Takes an input file and yields the corresponding networkx graphs.
+    Takes a string list in sdf format format and yields networkx graphs.
+
+    Parameters
+    ----------
+    iterable : SMILES strings containing molecular structures.
+
+    """
+    if format == 'sdf':
+        for mol_sdf in read(iterable):
+            mol = pybel.readstring("sdf", mol_sdf)
+            # remove hydrogens
+            mol.removeh()
+            graph = obabel_to_networkx(mol)
+            if len(graph):
+                yield graph
+    elif format == 'smi':
+        for mol_smi in read(iterable):
+            # First check if the molecule has appeared before and thus is
+            # already converted
+            if mol_smi not in cache:
+                # convert from SMILES to SDF and store in cache
+                # TODO: do we assume that the input is "clean", i.e.
+                # only the SMILES strings?
+                command_string = 'obabel -:"' + mol_smi + '" -osdf --gen3d'
+                args = shlex.split(command_string)
+                sdf = subprocess.check_output(args)
+                # Add the MOL object, not sdf to cache
+                cache[mol_smi] = sdf
+            # Convert to networkx
+            graph = obabel_to_networkx(pybel.readstring('sdf', cache[mol_smi]))
+            # TODO: change back to yield (below too!)
+            if len(graph):
+                yield graph
+
+
+def obabel_to_eden3d(iterable, split_components=True, **kwargs):
+    """
+    Takes an iterable file and yields the corresponding networkx graphs.
 
     **kwargs: arguments to be passed to other methods.
     """
@@ -76,7 +123,7 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
     n_conf = kwargs.get('n_conf', 0)
 
     if split_components:  # yield every graph separately
-        for x in read(input):
+        for x in read(iterable):
             mol = pybel.readstring("sdf", x)
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
@@ -86,7 +133,7 @@ def obabel_to_eden3d(input, split_components=True, **kwargs):
                     yield graph
     else:  # construct a global graph and accumulate everything there
         global_graph = nx.Graph()
-        for x in read(input):
+        for x in read(iterable):
             mol = pybel.readstring("sdf", x)
             mols = generate_conformers(mol.write("sdf"), n_conf)
             for molecule in mols:
@@ -281,23 +328,6 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
 
     mols.append(pb.readstring("sdf", '\n' + clean_sdf[matches[-1].start():]))
     return mols
-
-
-def make_iterable(filename, file_format):
-    if file_format == 'sdf':
-        with open(filename) as f:
-            s = ''
-            for line in f:
-                if line.strip() != '$$$$':
-                    s = s + line
-                else:
-                    return_value = s + line
-                    s = ''
-                    yield return_value
-    elif file_format == 'smi':
-        with open(filename) as f:
-            for line in f:
-                yield line
 
 
 def flip_node_labels(graph, new_label_name, old_label_name):
