@@ -46,7 +46,7 @@ class ModelInitializer(ModelInitializerBase):
 
     def load_data(self, args, data):
         file_format = args.format
-        iterator = obabel.make_iterable(data, file_format)
+        iterator = obabel.mol_file_to_iterable(data, file_format)
         return iterator
 
     def load_positive_data(self, args):
