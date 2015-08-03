@@ -1,10 +1,64 @@
 import pylab as plt
 import numpy as np
 from eden.util.display import plot_embeddings
+import pymf
+from sklearn import random_projection
+from sklearn.cluster import MiniBatchKMeans
+
+
+class Embedder(object):
+
+    """Transform a set of sparse high dimensional vectors to a set of low dimensional dense vectors.
+
+    Under the hood sparse random projection and simplex volume maximization factorization is used.
+    """
+
+    def __init__(self, complexity=3, n_kmeans=None, random_state=1):
+        self.complexity = complexity
+        self.n_kmeans = n_kmeans
+        self.transformer = None
+        self.matrix_factorizer = None
+        self.kmeans = None
+        self.random_state = random_state
+
+    def fit(self, data_matrix):
+        n_rows, n_cols = data_matrix.shape
+        if n_rows <= n_cols:
+            n_components = n_rows
+        elif n_cols < 5000:
+            n_components = n_cols
+        else:
+            n_components = 'auto'
+        self.transformer = random_projection.SparseRandomProjection(n_components=n_components,
+                                                                    dense_output=True,
+                                                                    random_state=self.random_state)
+        data_matrix_new = self.transformer.fit_transform(data_matrix)
+        self.matrix_factorizer = pymf.SIVM(data_matrix_new.T, num_bases=self.complexity)
+        self.matrix_factorizer.factorize()
+        if self.n_kmeans:
+            self.kmeans = MiniBatchKMeans(n_clusters=self.n_kmeans)
+            self.kmeans.fit(self.matrix_factorizer.H.T)
+
+    def fit_transform(self, data_matrix):
+        self.fit(data_matrix)
+        if self.n_kmeans:
+            return self.kmeans.transform(self.matrix_factorizer.H.T)
+        else:
+            return self.matrix_factorizer.H.T
+
+    def transform(self, data_matrix):
+        basis_data_matrix = self.matrix_factorizer.W
+        data_matrix_new = self.transformer.transform(data_matrix)
+        self.matrix_factorizer = pymf.SIVM(data_matrix_new.T, num_bases=self.complexity)
+        self.matrix_factorizer.W = basis_data_matrix
+        self.matrix_factorizer.factorize(compute_w=False)
+        if self.n_kmeans:
+            return self.kmeans.transform(self.matrix_factorizer.H.T)
+        else:
+            return self.matrix_factorizer.H.T
 
 
 def matrix_factorization(data_matrix, n=10):
-    import pymf
     mf = pymf.SIVM(data_matrix.T, num_bases=n)
     mf.factorize()
     return mf.W.T, mf.H.T
@@ -16,9 +70,8 @@ def reduce_dimensionality(data_matrix, n=10):
 
 
 def low_dimensional_embedding(data_matrix, low_dim=None):
-    from sklearn import random_projection
     n_rows, n_cols = data_matrix.shape
-    # perform data dimension reduction inly if #features > #data points
+    # perform data dimension reduction only if #features > #data points
     if n_cols <= n_rows:
         return_data_matrix = data_matrix
     else:
