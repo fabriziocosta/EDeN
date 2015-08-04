@@ -113,6 +113,8 @@ class ActiveLearningBinaryClassificationModel(object):
 
         # output results
         text = []
+        text.append('\nParameters:')
+        text.append(self.get_parameters())
         text.append('\nClassifier:')
         text.append('%s' % self.estimator)
         text.append('\nData:')
