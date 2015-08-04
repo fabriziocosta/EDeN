@@ -51,6 +51,7 @@ def obabel_to_eden(iterable, file_format='sdf', **options):
             mol.removeh()
             graph = obabel_to_networkx(mol)
             if len(graph):
+                graph.graph['info'] = mol_smi
                 yield graph
     else:
         raise Exception('ERROR: unrecognized file format: %s' % file_format)
