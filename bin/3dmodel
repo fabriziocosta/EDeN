@@ -46,7 +46,7 @@ class ModelInitializer(ModelInitializerBase):
 
     def load_data(self, args, data):
         file_format = args.format
-        iterator = obabel.make_iterable(data, file_format)
+        iterator = obabel.mol_file_to_iterable(data, file_format)
         return iterator
 
     def load_positive_data(self, args):
@@ -58,18 +58,35 @@ class ModelInitializer(ModelInitializerBase):
         return iterator
 
     def pre_processor_init(self, args):
-        def pre_processor(data, model_type="3d", **kwargs):
-            if model_type == "default":
-                iterable = obabel.obabel_to_eden(data, **kwargs)
-            elif model_type == "3d":
-                iterable = obabel.obabel_to_eden3d(data, **kwargs)
-            return iterable
 
-        pre_processor_parameters = \
-            {'k': [args.n_neighbors],
-             'threshold': [args.threshold],
-             'model_type': [args.mode],
-             'n_conf': [args.n_conf]}
+        model_type = args.mode
+
+        if model_type == "default":
+
+            def pre_processor(data, model_type="default", **kwargs):
+                iterable = obabel.obabel_to_eden(data, **kwargs)
+                return iterable
+
+            pre_processor_parameters = {}
+
+        elif model_type == "3d":
+
+            def pre_processor(data, model_type="3d", **kwargs):
+                iterable = obabel.obabel_to_eden3d(data, **kwargs)
+                return iterable
+
+            if args.hyper_opt:
+                pre_processor_parameters = \
+                    {'k': range(1, 11),
+                     'threshold': range(1, 11),
+                     'model_type': [model_type],
+                     'n_conf': [args.n_conf]}
+            else:
+                pre_processor_parameters = \
+                    {'k': [args.n_neighbors],
+                     'threshold': [args.threshold],
+                     'model_type': [model_type],
+                     'n_conf': [args.n_conf]}
 
         return pre_processor, pre_processor_parameters
 
@@ -81,9 +98,17 @@ class ModelInitializer(ModelInitializerBase):
         prepared by the
         pre_processor function and a set of matching parameter choices.
         """
+        from math import sqrt
+
+        # Get the number of positive data points to use in calculating the max
+        # value of n
+
+        pos_size = len(list(self.load_positive_data(args)))
+        max_n = int(round(sqrt(pos_size)))
         vectorizer = Vectorizer()
-        vectorizer_parameters = {'complexity': [4],
-                                 'n': [4]}
+        vectorizer_parameters = {'complexity': [2, 4],
+                                 'n': [max_n],
+                                 'label_size': [5, 10]}
         return vectorizer, vectorizer_parameters
 
     def add_arguments(self, parser):
@@ -122,6 +147,12 @@ class ModelInitializer(ModelInitializerBase):
         parser.add_argument("--format",
                             default="sdf",
                             help="Format of the input files.")
+        parser.add_argument("--hyper-opt",
+                            dest='hyper_opt',
+                            action='store_true',
+                            default=False,
+                            help="Whether to perform hyper-parameter optimization \
+                            in the pre-processor")
 
         return parser
 
