@@ -97,14 +97,17 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
         n_blocks = size / 10
     if n_blocks < 1:
         n_blocks = 1
-    # if one block will end up containing a single instance reduce the number of blocks to avoid the case
+    # if one block will end up containing a single instance reduce the number
+    # of blocks to avoid the case
     if size % n_blocks == 1:
         n_blocks = max(1, n_blocks - 1)
     block_size = size / n_blocks
     reminder = size % n_blocks
-    intervals = [(s * block_size, (s + 1) * block_size) for s in range(n_blocks)]
+    intervals = [(s * block_size, (s + 1) * block_size)
+                 for s in range(n_blocks)]
     if reminder > 1:
-        intervals += [(n_blocks * block_size, n_blocks * block_size + reminder)]
+        intervals += [(n_blocks * block_size,
+                       n_blocks * block_size + reminder)]
     return intervals
 
 
@@ -124,7 +127,8 @@ def multiprocess_pre_process(iterable,
     iterable = list(iterable)
     import multiprocessing as mp
     size = len(iterable)
-    intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
+    intervals = compute_intervals(
+        size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
@@ -174,7 +178,8 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
         vectorizer.fit(graphs)
     import multiprocessing as mp
     size = len(graphs)
-    intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
+    intervals = compute_intervals(
+        size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
@@ -202,7 +207,8 @@ def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=No
 
 def describe(data_matrix):
     return 'Instances: %d ; Features: %d with an avg of %d features per instance' % \
-        (data_matrix.shape[0], data_matrix.shape[1], data_matrix.getnnz() / data_matrix.shape[0])
+        (data_matrix.shape[0], data_matrix.shape[1],
+         data_matrix.getnnz() / data_matrix.shape[0])
 
 
 def iterator_size(iterable):
@@ -233,7 +239,8 @@ def selection_iterator(iterable, ids):
 def random_bipartition_iter(iterable, relative_size=.5, random_state=1):
     size_iterable, iterable1, iterable2 = tee(iterable, 3)
     size = iterator_size(size_iterable)
-    part1_ids, part2_ids = random_bipartition(size, relative_size=relative_size, random_state=random_state)
+    part1_ids, part2_ids = random_bipartition(
+        size, relative_size=relative_size, random_state=random_state)
     part1_iterable = selection_iterator(iterable1, part1_ids)
     part2_iterable = selection_iterator(iterable2, part2_ids)
     return part1_iterable, part2_iterable
@@ -258,7 +265,8 @@ def make_data_matrix(positive_data_matrix=None, negative_data_matrix=None, targe
         yp = [1] * positive_data_matrix.shape[0]
         yn = [-1] * negative_data_matrix.shape[0]
         y = np.array(yp + yn)
-        data_matrix = vstack([positive_data_matrix, negative_data_matrix], format="csr")
+        data_matrix = vstack(
+            [positive_data_matrix, negative_data_matrix], format="csr")
     if target is not None:
         data_matrix = positive_data_matrix
         y = target
@@ -298,18 +306,21 @@ def fit_estimator(estimator,
     logger.debug('\nClassifier:')
     logger.debug('%s' % random_search.best_estimator_)
     logger.debug('\nPredictive performance:')
-    # assess the generalization capacity of the model via a 10-fold cross validation
+    # assess the generalization capacity of the model via a 10-fold cross
+    # validation
     for scoring in ['accuracy', 'precision', 'recall', 'f1', 'average_precision', 'roc_auc']:
         scores = cross_validation.cross_val_score(random_search.best_estimator_, X, y, cv=cv,
                                                   scoring=scoring, n_jobs=n_jobs)
-        logger.debug('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
+        logger.debug('%20s: %.3f +- %.3f' %
+                     (scoring, np.mean(scores), np.std(scores)))
 
     return random_search.best_estimator_
 
 
 def fit(iterable_pos, iterable_neg=None,
         vectorizer=None,
-        estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True),
+        estimator=SGDClassifier(
+            average=True, class_weight='auto', shuffle=True),
         fit_flag=False,
         n_jobs=-1,
         cv=10,
@@ -446,7 +457,8 @@ def store_matrix(matrix='', output_dir_path='', out_file_name='', output_format=
     full_out_file_name = os.path.join(output_dir_path, out_file_name)
     if output_format == "MatrixMarket":
         if len(matrix.shape) == 1:
-            raise Exception("'MatrixMarket' format supports only 2D dimensional array and not vectors")
+            raise Exception(
+                "'MatrixMarket' format supports only 2D dimensional array and not vectors")
         else:
             io.mmwrite(full_out_file_name, matrix, precision=None)
     elif output_format == "numpy":
@@ -482,7 +494,8 @@ def report_base_statistics(vec):
     c = Counter(vec)
     msg = ''
     for k in c:
-        msg += "class: %s count:%d (%0.2f)\t" % (k, c[k], c[k] / float(len(vec)))
+        msg += "class: %s count:%d (%0.2f)\t" % (k,
+                                                 c[k], c[k] / float(len(vec)))
     return msg
 
 
@@ -493,4 +506,5 @@ def save_output(text=None, output_dir_path=None, out_file_name=None):
     with open(full_out_file_name, 'w') as f:
         for line in text:
             f.write("%s\n" % str(line).strip())
-    logger.info("Written file: %s (%d lines)" % (full_out_file_name, len(text)))
+    logger.info("Written file: %s (%d lines)" %
+                (full_out_file_name, len(text)))
