@@ -36,9 +36,18 @@ def obabel_to_eden(iterable, file_format='sdf', **options):
     iterable : SMILES strings containing molecular structures.
 
     """
+    def smi_has_error(smi):
+        smi = smi.strip()
+        n_open_parenthesis = sum(1 for c in smi if c == '(')
+        n_close_parenthesis = sum(1 for c in smi if c == ')')
+        n_open_parenthesis_square = sum(1 for c in smi if c == '[')
+        n_close_parenthesis_square = sum(1 for c in smi if c == ']')
+        return (n_open_parenthesis != n_close_parenthesis) or \
+            (n_open_parenthesis_square != n_close_parenthesis_square)
+
     if file_format == 'sdf':
         for mol_sdf in read(iterable):
-            mol = pybel.readstring("sdf", mol_sdf)
+            mol = pybel.readstring("sdf", mol_sdf.strip())
             # remove hydrogens
             mol.removeh()
             graph = obabel_to_networkx(mol)
@@ -46,13 +55,14 @@ def obabel_to_eden(iterable, file_format='sdf', **options):
                 yield graph
     elif file_format == 'smi':
         for mol_smi in read(iterable):
-            mol = pybel.readstring("smi", mol_smi)
-            # remove hydrogens
-            mol.removeh()
-            graph = obabel_to_networkx(mol)
-            if len(graph):
-                graph.graph['info'] = mol_smi
-                yield graph
+            if smi_has_error(mol_smi) is False:
+                mol = pybel.readstring("smi", mol_smi.strip())
+                # remove hydrogens
+                mol.removeh()
+                graph = obabel_to_networkx(mol)
+                if len(graph):
+                    graph.graph['info'] = mol_smi.strip()
+                    yield graph
     else:
         raise Exception('ERROR: unrecognized file format: %s' % file_format)
 
