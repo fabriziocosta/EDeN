@@ -185,6 +185,9 @@ class Vectorizer(object):
         n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
         # remove repeated values; this manages very large values of label_size
         n_clusters_list = sorted(list(set(n_clusters_list)))
+        n_trailing = self.label_size - len(n_clusters_list)
+        if n_trailing > 0:
+            n_clusters_list += [n_clusters_list[-1]] * n_trailing
         label_data_matrixs = self._assemble_dense_data_matrices(graphs)
         label_data_matrixs.update(
             self._assemble_sparse_data_matrices(graphs))

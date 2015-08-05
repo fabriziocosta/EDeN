@@ -76,43 +76,6 @@ def obabel_to_networkx(mol):
 
 ##########################################################################
 
-def obabel_to_eden_old(iterable, cache={}, format='sdf', **options):
-    """
-    Takes a string list in sdf format format and yields networkx graphs.
-
-    Parameters
-    ----------
-    iterable : SMILES strings containing molecular structures.
-
-    """
-    if format == 'sdf':
-        for mol_sdf in read(iterable):
-            mol = pybel.readstring("sdf", mol_sdf)
-            # remove hydrogens
-            mol.removeh()
-            graph = obabel_to_networkx(mol)
-            if len(graph):
-                yield graph
-    elif format == 'smi':
-        for mol_smi in read(iterable):
-            # First check if the molecule has appeared before and thus is
-            # already converted
-            if mol_smi not in cache:
-                # convert from SMILES to SDF and store in cache
-                # TODO: do we assume that the input is "clean", i.e.
-                # only the SMILES strings?
-                command_string = 'obabel -:"' + mol_smi + '" -osdf --gen3d'
-                args = shlex.split(command_string)
-                sdf = subprocess.check_output(args)
-                # Add the MOL object, not sdf to cache
-                cache[mol_smi] = sdf
-            # Convert to networkx
-            graph = obabel_to_networkx(pybel.readstring('sdf', cache[mol_smi]))
-            # TODO: change back to yield (below too!)
-            if len(graph):
-                yield graph
-
-
 def obabel_to_eden3d(iterable, file_format='sdf', cache={}, split_components=True, **kwargs):
     """
     Takes an iterable file and yields the corresponding networkx graphs.
@@ -208,6 +171,7 @@ def obabel_to_networkx3d(input_mol, **kwargs):
     """
 
     graph = nx.Graph()
+    graph.graph['info'] = str(input_mol).strip()
 
     # Calculate pairwise distances between all atoms:
     coords = []
