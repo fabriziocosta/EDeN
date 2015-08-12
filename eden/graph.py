@@ -559,11 +559,17 @@ class Vectorizer(object):
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
         # extract endpoints
         nesting_endpoints = [u for u in graph.neighbors(nesting_vertex)]
+        if 'weight' in graph.node[nesting_vertex]:
+            connection_weight = graph.node[nesting_vertex]['weight']
+        else:
+            connection_weight = 1
         if len(nesting_endpoints) == 2:
             u = nesting_endpoints[0]
             v = nesting_endpoints[1]
             distance = 1
-            self._transform_vertex_pair(graph, v, u, distance, feature_list)
+            self._transform_vertex_pair(graph, v, u,
+                                        distance, feature_list,
+                                        connection_weight=connection_weight)
 
     def _transform_vertex(self, graph, vertex_v, feature_list):
         # for all distances
@@ -572,12 +578,16 @@ class Vectorizer(object):
             if distance in root_dist_dict:
                 node_set = root_dist_dict[distance]
                 for vertex_u in node_set:
-                    self._transform_vertex_pair(graph, vertex_v, vertex_u, distance, feature_list)
+                    self._transform_vertex_pair(graph, vertex_v, vertex_u,
+                                                distance, feature_list)
 
-    def _transform_vertex_pair(self, graph, vertex_v, vertex_u, distance, feature_list):
-        self._transform_vertex_pair_base(graph, vertex_v, vertex_u, distance, feature_list)
+    def _transform_vertex_pair(self, graph, vertex_v, vertex_u, distance, feature_list, connection_weight=1):
+        self._transform_vertex_pair_base(graph, vertex_v, vertex_u, distance, feature_list, connection_weight)
 
-    def _transform_vertex_pair_base(self, graph, vertex_v, vertex_u, distance, feature_list):
+    def _transform_vertex_pair_base(self, graph,
+                                    vertex_v, vertex_u,
+                                    distance, feature_list,
+                                    connection_weight=1):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(graph.graph['label_size']):
@@ -597,8 +607,9 @@ class Vectorizer(object):
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
                     else:
-                        feature_list[key][feature] += graph.node[vertex_v]['neighborhood_graph_weight'][radius] + \
-                            graph.node[vertex_u]['neighborhood_graph_weight'][radius]
+                        feature_list[key][feature] += connection_weight * \
+                            (graph.node[vertex_v]['neighborhood_graph_weight'][radius] +
+                             graph.node[vertex_u]['neighborhood_graph_weight'][radius])
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance

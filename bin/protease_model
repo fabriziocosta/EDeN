@@ -37,16 +37,17 @@ class ModelInitializer(ModelInitializerBase):
     def load_negative_data(self, args):
         seqs = self.load_data(args)
         from eden.modifier.seq import seq_to_seq, shuffle_modifier
-        return seq_to_seq(seqs, modifier=shuffle_modifier, times=args.negative_ratio, order=args.shuffle_order)
+        return seq_to_seq(seqs,
+                          modifier=shuffle_modifier,
+                          times=args.negative_ratio,
+                          order=args.shuffle_order)
 
     def pre_processor_init(self, args):
         def pre_processor(seqs, **args):
-            # insert landmark in the cleavage site after pos 4, in our case this means always in the middle position
             from eden.modifier.seq import seq_to_seq, mark_modifier
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.5, mark='%')
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.0, mark='@')
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=1.0, mark='*')
-            # convert to graph
             from eden.converter.fasta import sequence_to_eden
             graphs = sequence_to_eden(seqs)
             return graphs
@@ -71,7 +72,8 @@ class ModelInitializer(ModelInitializerBase):
         parser.add_argument("--negative-ratio",
                             dest="negative_ratio",
                             type=int,
-                            help="Relative size ration for the randomly permuted negative instances w.r.t. the positive instances.",
+                            help="Relative size ration for the randomly permuted negative instances w.r.t.\
+                            the positive instances.",
                             default=2)
         parser.add_argument("--shuffle-order",
                             dest="shuffle_order",
@@ -83,11 +85,10 @@ class ModelInitializer(ModelInitializerBase):
     def add_arguments_estimate(self, parser):
         return self.add_arguments_fit(parser)
 
-
 if __name__ == "__main__":
     model_initializer = ModelInitializer()
     main_script(model_initializer=model_initializer,
                 description=description,
                 epilog=epilog,
                 prog_name=os.path.basename(__file__),
-                logger=logging.getLogger('root'))
+                logger=logging.getLogger())
