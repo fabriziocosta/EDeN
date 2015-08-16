@@ -2,7 +2,13 @@ import forgi_bulge_graph as fbg
 
 '''
 
-for testing you want to do something like this:
+localeden is eden. i just put a symlink to the git folder..
+so that i dont have to update my real eden :) 
+
+import localeden.modifier.rna.structureannotation as san
+from localeden.converter.fasta import fasta_to_sequence
+from localeden.util.display import draw_graph
+from localeden.converter.rna.rnafold import rnafold_to_eden
 
 def rfam_uri(family_id):
     return 'http://rfam.xfam.org/family/%s/alignment?acc=%s&format=fastau&download=0'%(family_id,family_id)
@@ -12,9 +18,9 @@ def get_graphs(rfam_id = 'RF00005'):
     graphs = rnafold_to_eden(seqs, shape_type=5, energy_range=30, max_num=3)
     return graphs
 
-g=annotate_single(get_graphs().next())
-draw(g)
-
+g = get_graphs().next()
+san.annotate_single(g)
+draw_graph(g,vertex_label='entity_short')
 '''
 
 
