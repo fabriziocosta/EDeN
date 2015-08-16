@@ -12,13 +12,13 @@ def get_graphs(rfam_id = 'RF00005'):
     graphs = rnafold_to_eden(seqs, shape_type=5, energy_range=30, max_num=3)
     return graphs
 
-g=annotate(get_graphs().next())
+g=annotate_single(get_graphs().next())
 draw(g)
 
 '''
 
 
-def annotate(graph):
+def annotate_single(graph):
     '''
     input is a graph that has a 'structure' attribute and the first node has id 0.
     when done all the node have an 'entity' attribute that indicates the structural element it is part of.
@@ -32,7 +32,8 @@ def annotate(graph):
                      'm': 'multi loop',
                      's': 'stem'
                      }
-    # forgi gives me the node ids as (start,end) pairs... 
+    # forgi gives me the node ids as (start,end) pairs...
+
     def make_node_set(numbers):
         numbers = map(int, numbers)
         ans = set()
@@ -53,10 +54,16 @@ def annotate(graph):
         # if the line starts with 'define' we know that annotation follows...
         if line[0] == 'd':
             l = line.split()
-            # first we see the type 
+            # first we see the type
             entity = l[1][0]
             # then we see a list of nodes of that type.
             for n in make_node_set(l[2:]):
-                #we mark those nodes
+                # we mark those nodes
                 graph.node[n]['entity'] = entity_lookup[entity]
                 graph.node[n]['entity_short'] = entity
+
+
+def annotate(graphiter):
+    for graph in graphiter:
+        annotate_single(graph)
+        yield graph
