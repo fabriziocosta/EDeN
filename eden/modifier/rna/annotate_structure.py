@@ -35,7 +35,7 @@ def annotate_single(graph, position_attribute=None):
     '''
 
     positions = {}
-    if not position_attribute is None:
+    if position_attribute is not None:
         for n, d in graph.nodes(data=True):
             positions[d[position_attribute]] = n
 
