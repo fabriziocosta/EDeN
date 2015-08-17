@@ -5,7 +5,7 @@ import forgi_bulge_graph as fbg
 localeden is eden. i just put a symlink to the git folder..
 so that i dont have to update my real eden :)
 
-import localeden.modifier.rna.structureannotation as san
+import localeden.modifier.rna.annotate_structure as san
 from localeden.converter.fasta import fasta_to_sequence
 from localeden.util.display import draw_graph
 from localeden.converter.rna.rnafold import rnafold_to_eden
@@ -24,20 +24,20 @@ draw_graph(g,vertex_label='entity_short')
 '''
 
 
-def annotate_single(graph, possition_attribute=None):
+def annotate_single(graph, position_attribute=None):
     '''
     input is a graph that has a 'structure' attribute and the first node has id 0.
     when done all the node have an 'entity' attribute that indicates the structural element it is part of.
     there is also entity_short which cuts the entity down to a single letter for prettier printing.
 
     if the ids of the node are not an indicator for the position of a nucleotide,
-    you can supply an alternative possition_attribute
+    you can supply an alternative position_attribute
     '''
 
     positions = {}
-    if possition_attribute:
+    if position_attribute:
         for n, d in graph.nodes(data=True):
-            positions[d[possition_attribute]] = n
+            positions[d[position_attribute]] = n
 
     # forgi can also output directly to a ssshhhhsss like string.. oh well...
     entity_lookup = {'t': 'dangling start',
@@ -75,7 +75,7 @@ def annotate_single(graph, possition_attribute=None):
             for n in make_node_set(l[2:]):
                 # we mark those nodes
 
-                if possition_attribute:
+                if position_attribute:
                     n = positions[n]
 
                 graph.node[n]['entity'] = entity_lookup[entity]
