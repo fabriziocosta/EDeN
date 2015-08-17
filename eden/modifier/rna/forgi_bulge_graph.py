@@ -2525,7 +2525,7 @@ class BulgeGraph(object):
 
         for key, group in it.groupby(
             enumerate(self.define_residue_num_iterator(e1, adjacent=True)),
-                                  lambda(index, item): index - item):
+                lambda(index, item): index - item):
             group = map(oper.itemgetter(1), group)
             d1_corners += group
 
