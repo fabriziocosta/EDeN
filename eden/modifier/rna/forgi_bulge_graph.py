@@ -19,7 +19,7 @@ __email__ = "pkerp@tbi.univie.ac.at"
 
 import sys
 import collections as col
-import re
+
 import itertools as it
 import os
 import operator as oper
@@ -2228,7 +2228,7 @@ class BulgeGraph(object):
 
         :return: A list containing a the nodes comprising a random subgraph
         """
-        if subgraph_length == None:
+        if subgraph_length is None:
             subgraph_length = random.randint(1, len(self.defines.keys()))
 
         start_node = random.choice(self.defines.keys())
@@ -2531,7 +2531,7 @@ class BulgeGraph(object):
 
         for key, group in it.groupby(
             enumerate(self.define_residue_num_iterator(e2, adjacent=True)),
-                                  lambda(index, item): index - item):
+                lambda(index, item): index - item):
             group = map(oper.itemgetter(1), group)
             d2_corners += group
 
