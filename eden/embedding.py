@@ -4,6 +4,12 @@ from eden.util.display import plot_embeddings
 import pymf
 from sklearn import random_projection
 from sklearn.cluster import MiniBatchKMeans
+from numpy.random import randint
+from numpy.random import uniform
+from collections import defaultdict
+import random
+import logging
+logger = logging.getLogger(__name__)
 
 
 class Embedder(object):
@@ -13,7 +19,7 @@ class Embedder(object):
     Under the hood sparse random projection and simplex volume maximization factorization is used.
     """
 
-    def __init__(self, complexity=3, n_kmeans=None, random_state=1):
+    def __init__(self, complexity=10, n_kmeans=None, random_state=1):
         self.complexity = complexity
         self.n_kmeans = n_kmeans
         self.transformer = None
@@ -56,6 +62,108 @@ class Embedder(object):
             return self.kmeans.transform(self.matrix_factorizer.H.T)
         else:
             return self.matrix_factorizer.H.T
+
+# -------------------------------------------------------------------------------------------------
+
+
+class Embedder2D(object):
+
+    """
+    Transform a set of sparse high dimensional vectors to a set of two dimensional vectors.
+    """
+
+    def __init__(self,
+                 knn=10,
+                 knn_density=None,
+                 k_threshold=0.7,
+                 gamma=None,
+                 low_dim=None,
+                 post_process_pca=False,
+                 random_state=1):
+        self.knn = knn
+        self.knn_density = knn_density
+        self.k_threshold = k_threshold
+        self.gamma = gamma
+        self.low_dim = low_dim
+        self.post_process_pca = post_process_pca
+        self.random_state = random_state
+
+    def fit(self, data_matrix, targets, n_iter=10):
+        params = {'knn': randint(3, 20, size=n_iter),
+                  'knn_density': randint(3, 20, size=n_iter),
+                  'k_threshold': uniform(0.2, 0.99, size=n_iter),
+                  'gamma': [None] * n_iter + [10 ** x for x in range(-4, -1)],
+                  'low_dim': [None] * n_iter + list(randint(10, 50, size=n_iter))}
+        results = []
+        max_score = 0
+        for i in range(n_iter):
+            opts = self._sample(params)
+            score = embedding_quality(data_matrix, targets, opts)
+            results.append((score, opts))
+            if max_score < score:
+                max_score = score
+                mark = '*'
+                logger.info('%3d/%3d %s %+.4f %s' % (i + 1, n_iter, mark, score, opts))
+            else:
+                mark = ' '
+                logger.debug('%3d/%3d %s %+.4f %s' % (i + 1, n_iter, mark, score, opts))
+        best_opts = max(results)[1]
+
+        self._rank_paramters(results)
+
+        self.knn = best_opts['knn']
+        self.knn_density = best_opts['knn_density']
+        self.k_threshold = best_opts['k_threshold']
+        self.gamma = best_opts['gamma']
+        self.low_dim = best_opts['low_dim']
+
+    def _rank_paramters(self, score_paramters):
+        logger.info('Parameters rank (1-5):')
+        sorted_score_parameters = sorted(score_paramters, reverse=True)
+        rank_paramters = defaultdict(lambda: defaultdict(list))
+        for i, (score, parameters) in enumerate(sorted_score_parameters):
+            for key in parameters:
+                rank_paramters[key][parameters[key]].append(i)
+        for key_i in rank_paramters:
+            results = []
+            for key_j in rank_paramters[key_i]:
+                results.append((np.mean(rank_paramters[key_i][key_j]), key_j))
+            results = sorted(results)
+            result_string = '%s:' % key_i
+            for rank, value in results[:5]:
+                result_string = '%s %s ' % (result_string, value)
+            logger.debug(result_string)
+
+    def get_parameters(self):
+        parameters = {'knn': self.knn,
+                      'knn_density': self.knn_density,
+                      'k_threshold': self.k_threshold,
+                      'gamma': self.gamma,
+                      'low_dim': self.low_dim}
+        return parameters
+
+    def transform(self, data_matrix):
+        return quick_shift_tree_embedding(data_matrix,
+                                          knn=self.knn,
+                                          knn_density=self.knn_density,
+                                          k_threshold=self.k_threshold,
+                                          gamma=self.gamma,
+                                          post_process_pca=self.post_process_pca,
+                                          low_dim=self.low_dim)
+
+    def fit_transform(self, data_matrix, targets, n_iter=10):
+        self.fit(data_matrix, targets, n_iter)
+        return self.transform(data_matrix)
+
+    def _sample(self, parameters):
+        parameters_sample = dict()
+        for parameter in parameters:
+            values = parameters[parameter]
+            value = random.choice(values)
+            parameters_sample[parameter] = value
+        return parameters_sample
+
+# -------------------------------------------------------------------------------------------------
 
 
 def matrix_factorization(data_matrix, n=10):
@@ -100,9 +208,7 @@ def embedding_quality(data_matrix, y, opts, low_dim=None):
     return adjusted_rand_score(y, yp)
 
 
-def display_embedding(data_matrix, y, opts, low_dim=None):
-    if low_dim is not None:
-        data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
+def display_embedding(data_matrix, y, opts):
     plot_embeddings(data_matrix, y, size=25, **opts)
 
 
@@ -195,8 +301,9 @@ def quick_shift_tree_embedding(data_matrix,
                                knn=10,
                                knn_density=None,
                                k_threshold=0.9,
-                               metric='linear',
-                               **args):
+                               gamma=None,
+                               post_process_pca=False,
+                               low_dim=None):
     def parents(density_matrix=None, knn_density=None, kernel_matrix_sorted=None):
         parent_dict = {}
         # for all instances determine parent link
@@ -220,14 +327,6 @@ def quick_shift_tree_embedding(data_matrix,
 
     def knns(kernel_matrix=None, kernel_matrix_sorted=None, knn=None, k_threshold=None):
         knn_dict = {}
-        for i in range(n_instances):
-            # id of k-th nearest neighbor
-            jd = kernel_matrix_sorted[i, knn]
-            knn_dict[i] = jd
-        return knn_dict
-
-    def knns_old(kernel_matrix=None, kernel_matrix_sorted=None, knn=None, k_threshold=None):
-        knn_dict = {}
         # determine threshold as k-th quantile on pairwise similarity on the knn similarity
         knn_similarities = kernel_matrix[kernel_matrix_sorted[:, knn]]
         # vectorized_pairwise_similarity = np.ravel(kernel_matrix)
@@ -242,12 +341,18 @@ def quick_shift_tree_embedding(data_matrix,
                 knn_dict[i] = jd
         return knn_dict
 
+    if low_dim is not None:
+        data_matrix = low_dimensional_embedding(data_matrix, low_dim=low_dim)
+
     if knn_density is None:
         knn_density = knn
     n_instances = data_matrix.shape[0]
     # extract pairwise similarity matrix with desired kernel
     from sklearn import metrics
-    kernel_matrix = metrics.pairwise.pairwise_kernels(data_matrix, metric=metric, **args)
+    if gamma is None:
+        kernel_matrix = metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
+    else:
+        kernel_matrix = metrics.pairwise.pairwise_kernels(data_matrix, metric='rbf', gamma=gamma)
     # compute instance density as average pairwise similarity
     import numpy as np
     density = np.sum(kernel_matrix, 0) / n_instances
@@ -278,5 +383,13 @@ def quick_shift_tree_embedding(data_matrix,
     for i in range(kernel_matrix.shape[0]):
         two_dimensional_data_list.append(list(two_dimensional_data_matrix[i]))
     embedding_data_matrix = np.array(two_dimensional_data_list)
-    from sklearn.preprocessing import scale
-    return scale(embedding_data_matrix)
+    if post_process_pca is True:
+        from sklearn.decomposition import PCA
+        pca = PCA(n_components=2)
+        low_dimension_data_matrix = pca.fit_transform(embedding_data_matrix)
+
+        from sklearn.preprocessing import scale
+        return scale(low_dimension_data_matrix)
+    else:
+        from sklearn.preprocessing import scale
+        return scale(embedding_data_matrix)

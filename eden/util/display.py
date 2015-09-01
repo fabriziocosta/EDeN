@@ -337,7 +337,6 @@ def plot_embeddings(data_matrix, y,
                                               knn=tree_embedding_knn,
                                               knn_density=knn_density,
                                               k_threshold=k_threshold,
-                                              metric=metric,
                                               **args)
     duration = time.time() - start
     plt.subplot(224)

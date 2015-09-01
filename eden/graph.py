@@ -15,22 +15,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def extract_triangles(graph):
-    triangles = set()
-    for u in graph.nodes():
-        n_u = graph.neighbors(u)
-        for v in n_u:
-            n_v = graph.neighbors(v)
-            for w in n_v:
-                if w in n_u:
-                    triangles.add(tuple(sorted([u, v, w])))
-
-    out_graph = graph.copy()
-    for u, v, w in triangles:
-        out_graph = nx.disjoint_union(out_graph, nx.Graph(graph.subgraph([u, v, w])))
-    return out_graph
-
-
 class Vectorizer(object):
 
     """Transform real vector labeled, weighted, nested graphs in sparse vectors."""
@@ -532,9 +516,24 @@ class Vectorizer(object):
         else:
             return original_graph
 
+    def _extract_and_add_triangles(self, graph):
+        triangles = set()
+        for u in graph.nodes():
+            u_neighbors = graph.neighbors(u)
+            for v in u_neighbors:
+                v_neighbors = graph.neighbors(v)
+                for w in v_neighbors:
+                    if w in u_neighbors:
+                        triangles.add(tuple(sorted([u, v, w])))
+
+        out_graph = graph.copy()
+        for u, v, w in triangles:
+            out_graph = nx.disjoint_union(out_graph, nx.Graph(graph.subgraph([u, v, w])))
+        return out_graph
+
     def _graph_preprocessing(self, original_graph):
         if self.triangular_decomposition:
-            graph = extract_triangles(original_graph)
+            graph = self._extract_and_add_triangles(original_graph)
         else:
             graph = original_graph
         graph = self._edge_to_vertex_transform(graph)
