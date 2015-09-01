@@ -53,9 +53,9 @@ Examples
 ========
 
 
-A few examples can be found as IPython Notebook inside of the examples folder.
+A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
 
- * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/Sequence_example.ipynb)
- * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/graph_format.ipynb)
- * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/annotation.ipynb)
- * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN/blob/master/examples/classification.ipynb)
+ * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
+ * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
+ * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
+ * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
