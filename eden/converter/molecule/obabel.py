@@ -264,7 +264,8 @@ def find_nearest_neighbors(mol, distances, current_idx, **kwargs):
     if threshold > 0:
         nearest_atoms = [x if x <= threshold else 1e10 for x in nearest_atoms]
     # Finally apply the similarity function to the resulting list and return
-    nearest_atoms = [similarity_fn(x) if similarity_fn(x) > np.spacing(1e10) else 0 for x in nearest_atoms]
+    nearest_atoms = [similarity_fn(x) if similarity_fn(
+        x) > np.spacing(1e10) else 0 for x in nearest_atoms]
 
     return nearest_atoms
 
@@ -276,7 +277,8 @@ def calculate_local_density(mol, distances, current_idx, **kwargs):
 
     current_distances = distances[current_idx - 1, ]
     for t in thresholds:
-        density_values.append(len([x for x in current_distances if x <= t]) / float(mol_size))
+        density_values.append(
+            len([x for x in current_distances if x <= t]) / float(mol_size))
     # Append the current atom's atomic number at the beginning of the list:
     # density_values.insert(0, mol.atoms[current_idx - 1].atomicnum)
 
@@ -316,133 +318,134 @@ def generate_conformers(input_sdf, n_conf=10, method="rmsd"):
     mols.append(pb.readstring("sdf", '\n' + clean_sdf[matches[-1].start():]))
     return mols
 
-def graph_to_molfile(graph):
-    ### Atom symbols listed by atomic number - will be needed below:
-    symbols = {'1': 'H',
-    '2': 'He',
-    '3': 'Li',
-    '4': 'Be',
-    '5': 'B',
-    '6': 'C',
-    '7': 'N',
-    '8': 'O',
-    '9': 'F',
-    '10': 'Ne',
-    '11': 'Na',
-    '12': 'Mg',
-    '13': 'Al',
-    '14': 'Si',
-    '15': 'P',
-    '16': 'S',
-    '17': 'Cl',
-    '18': 'Ar',
-    '19': 'K',
-    '20': 'Ca',
-    '21': 'Sc',
-    '22': 'Ti',
-    '23': 'V',
-    '24': 'Cr',
-    '25': 'Mn',
-    '26': 'Fe',
-    '27': 'Co',
-    '28': 'Ni',
-    '29': 'Cu',
-    '30': 'Zn',
-    '31': 'Ga',
-    '32': 'Ge',
-    '33': 'As',
-    '34': 'Se',
-    '35': 'Br',
-    '36': 'Kr',
-    '37': 'Rb',
-    '38': 'Sr',
-    '39': 'Y',
-    '40': 'Zr',
-    '41': 'Nb',
-    '42': 'Mo',
-    '43': 'Tc',
-    '44': 'Ru',
-    '45': 'Rh',
-    '46': 'Pd',
-    '47': 'Ag',
-    '48': 'Cd',
-    '49': 'In',
-    '50': 'Sn',
-    '51': 'Sb',
-    '52': 'Te',
-    '53': 'I',
-    '54': 'Xe',
-    '55': 'Cs',
-    '56': 'Ba',
-    '57': 'La',
-    '58': 'Ce',
-    '59': 'Pr',
-    '60': 'Nd',
-    '61': 'Pm',
-    '62': 'Sm',
-    '63': 'Eu',
-    '64': 'Gd',
-    '65': 'Tb',
-    '66': 'Dy',
-    '67': 'Ho',
-    '68': 'Er',
-    '69': 'Tm',
-    '70': 'Yb',
-    '71': 'Lu',
-    '72': 'Hf',
-    '73': 'Ta',
-    '74': 'W',
-    '75': 'Re',
-    '76': 'Os',
-    '77': 'Ir',
-    '78': 'Pt',
-    '79': 'Au',
-    '80': 'Hg',
-    '81': 'Tl',
-    '82': 'Pb',
-    '83': 'Bi',
-    '84': 'Po',
-    '85': 'At',
-    '86': 'Rn',
-    '87': 'Fr',
-    '88': 'Ra',
-    '89': 'Ac',
-    '90': 'Th',
-    '91': 'Pa',
-    '92': 'U',
-    '93': 'Np',
-    '94': 'Pu',
-    '95': 'Am',
-    '96': 'Cm',
-    '97': 'Bk',
-    '98': 'Cf',
-    '99': 'Es',
-    '100': 'Fm',
-    '101': 'Md',
-    '102': 'No',
-    '103': 'Lr',
-    '104': 'Rf',
-    '105': 'Db',
-    '106': 'Sg',
-    '107': 'Bh',
-    '108': 'Hs',
-    '109': 'Mt',
-    '110': 'Ds',
-    '111': 'Rg',
-    '112': 'Uub',
-    '113': 'Uut',
-    '114': 'Uuq',
-    '115': 'Uup',
-    '116': 'Uuh',
-    '117': 'Uus',
-    '118': 'Uuo'}
 
-    ### creating an SDF file from graph:
-    ### The header block, i.e. the first three lines, may be empty:
+def graph_to_molfile(graph):
+    # Atom symbols listed by atomic number - will be needed below:
+    symbols = {'1': 'H',
+               '2': 'He',
+               '3': 'Li',
+               '4': 'Be',
+               '5': 'B',
+               '6': 'C',
+               '7': 'N',
+               '8': 'O',
+               '9': 'F',
+               '10': 'Ne',
+               '11': 'Na',
+               '12': 'Mg',
+               '13': 'Al',
+               '14': 'Si',
+               '15': 'P',
+               '16': 'S',
+               '17': 'Cl',
+               '18': 'Ar',
+               '19': 'K',
+               '20': 'Ca',
+               '21': 'Sc',
+               '22': 'Ti',
+               '23': 'V',
+               '24': 'Cr',
+               '25': 'Mn',
+               '26': 'Fe',
+               '27': 'Co',
+               '28': 'Ni',
+               '29': 'Cu',
+               '30': 'Zn',
+               '31': 'Ga',
+               '32': 'Ge',
+               '33': 'As',
+               '34': 'Se',
+               '35': 'Br',
+               '36': 'Kr',
+               '37': 'Rb',
+               '38': 'Sr',
+               '39': 'Y',
+               '40': 'Zr',
+               '41': 'Nb',
+               '42': 'Mo',
+               '43': 'Tc',
+               '44': 'Ru',
+               '45': 'Rh',
+               '46': 'Pd',
+               '47': 'Ag',
+               '48': 'Cd',
+               '49': 'In',
+               '50': 'Sn',
+               '51': 'Sb',
+               '52': 'Te',
+               '53': 'I',
+               '54': 'Xe',
+               '55': 'Cs',
+               '56': 'Ba',
+               '57': 'La',
+               '58': 'Ce',
+               '59': 'Pr',
+               '60': 'Nd',
+               '61': 'Pm',
+               '62': 'Sm',
+               '63': 'Eu',
+               '64': 'Gd',
+               '65': 'Tb',
+               '66': 'Dy',
+               '67': 'Ho',
+               '68': 'Er',
+               '69': 'Tm',
+               '70': 'Yb',
+               '71': 'Lu',
+               '72': 'Hf',
+               '73': 'Ta',
+               '74': 'W',
+               '75': 'Re',
+               '76': 'Os',
+               '77': 'Ir',
+               '78': 'Pt',
+               '79': 'Au',
+               '80': 'Hg',
+               '81': 'Tl',
+               '82': 'Pb',
+               '83': 'Bi',
+               '84': 'Po',
+               '85': 'At',
+               '86': 'Rn',
+               '87': 'Fr',
+               '88': 'Ra',
+               '89': 'Ac',
+               '90': 'Th',
+               '91': 'Pa',
+               '92': 'U',
+               '93': 'Np',
+               '94': 'Pu',
+               '95': 'Am',
+               '96': 'Cm',
+               '97': 'Bk',
+               '98': 'Cf',
+               '99': 'Es',
+               '100': 'Fm',
+               '101': 'Md',
+               '102': 'No',
+               '103': 'Lr',
+               '104': 'Rf',
+               '105': 'Db',
+               '106': 'Sg',
+               '107': 'Bh',
+               '108': 'Hs',
+               '109': 'Mt',
+               '110': 'Ds',
+               '111': 'Rg',
+               '112': 'Uub',
+               '113': 'Uut',
+               '114': 'Uuq',
+               '115': 'Uup',
+               '116': 'Uuh',
+               '117': 'Uus',
+               '118': 'Uuo'}
+
+    # creating an SDF file from graph:
+    # The header block, i.e. the first three lines, may be empty:
     sdf_string = "Networkx graph to molfile\n\n\n"
 
-    ### After the header block comes the connection table:
-    ### First the counts line - step by step
+    # After the header block comes the connection table:
+    # First the counts line - step by step
     counts_line = ""
     # Number of atoms
     counts_line += str(len(graph.nodes())).rjust(3)
@@ -453,27 +456,29 @@ def graph_to_molfile(graph):
     # Three blank spaces, then the chirality flag
     counts_line += '     1'
     # Five identical blocks
-    counts_line += '  0'*5
+    counts_line += '  0' * 5
     # Finish with 0999 V2000
     counts_line += '999 V2000\n'
     sdf_string += counts_line
 
-    ### Atom block - this contains one atom line per atom in the molecule
+    # Atom block - this contains one atom line per atom in the molecule
     for n, d in graph.nodes_iter(data=True):
         atom_line = ''
         # Set all coordinates to 0
         atom_line += '    0.0000    0.0000    0.0000 '
-        # Atom symbol: it should be the entry from the periodic table, using atom type for now
+        # Atom symbol: it should be the entry from the periodic table, using
+        # atom type for now
         atom_line += symbols.get(d['discrete_label']).ljust(3)
         # Lots of unnecessary atomic information:
         atom_line += ' 0  0  0  0  0  0  0  0  0  0  0  0\n'
         sdf_string += atom_line
 
-    ### Bond block
+    # Bond block
     for i, j, k in graph.edges_iter(data=True):
         edge_line = ''
         # Use the stored atom ids for the bonds, plus one
-        edge_line += str(i+1).rjust(3) + str(j+1).rjust(3) + k['label'].rjust(3)
+        edge_line += str(i + 1).rjust(3) + \
+            str(j + 1).rjust(3) + k['label'].rjust(3)
         # More information
         edge_line += '  0  0  0  0\n'
         sdf_string += edge_line
@@ -481,6 +486,7 @@ def graph_to_molfile(graph):
     sdf_string += 'M END\n\n$$$$'
 
     return sdf_string
+
 
 def flip_node_labels(orig_graph, new_label_name, old_label_name):
     '''
