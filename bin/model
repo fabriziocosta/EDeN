@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+
+description = """
+Explicit Decomposition with Neighborhood (EDeN) utility program.
+Model driver.
+
+Example usage:
+- for fitting a predictive model:
+model -vv fit --cv 5 --scoring 'f1'  --n-active-learning-iterations 3 --size-negative 50 -p pos_train.nx -n neg_train.nx -j 8 -e 20 --model-file mod --output-dir out
+
+-for predicting using a fit model:
+model -vv predict -i test.nx --model-file out/mod
+
+
+
+Note: the current implementation uses as estimator a regularized linear model
+with stochastic  gradient descent (SGD) learning scheme: the gradient of the
+loss is estimated each sample at  a time and the model is updated along the way
+with a decreasing strength schedule (aka learning rate). """
+
+epilog = """
+Author: Fabrizio Costa
+Copyright: 2015
+License: GPL
+Maintainer: Fabrizio Costa
+Email: costa@informatik.uni-freiburg.de
+Status: Production
+
+Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
+distance kernel', Proceedings of the 26th International Conference on Machine
+Learning. 2010. """
+
+import os
+import logging
+
+from eden.model_base import ModelInitializerBase, main_script
+from eden.converter.graph.node_link_data import node_link_data_to_eden
+
+
+class ModelInitializer(ModelInitializerBase):
+
+    def __init__(self):
+        pass
+
+    def load_data(self, args):
+        iterator = node_link_data_to_eden(args.input_file)
+        return iterator
+
+    def load_positive_data(self, args):
+        iterator = node_link_data_to_eden(args.positive_input_file)
+        return iterator
+
+    def load_negative_data(self, args):
+        iterator = node_link_data_to_eden(args.negative_input_file)
+        return iterator
+
+    def pre_processor_init(self, args):
+        def pre_processor(graphs, **args):
+            return graphs
+        pre_processor_parameters = {}
+        return pre_processor, pre_processor_parameters
+
+    def add_arguments(self, parser):
+        parser.add_argument('--version', action='version', version='0.1')
+        return parser
+
+    def add_arguments_fit(self, parser):
+        parser.add_argument("-p", "--positive-input-file",
+                            dest="positive_input_file",
+                            help="Path tofile containing input for the positive class.",
+                            required=True)
+        parser.add_argument("-n", "--negative-input-file",
+                            dest="negative_input_file",
+                            help="Path to file containing input for the negative class.",
+                            required=True)
+        return parser
+
+    def add_arguments_estimate(self, parser):
+        return self.add_arguments_fit(parser)
+
+    def add_arguments_base(self, parser):
+        parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to file containing input.",
+                            required=True)
+        return parser
+
+if __name__ == "__main__":
+    model_initializer = ModelInitializer()
+    main_script(model_initializer=model_initializer,
+                description=description,
+                epilog=epilog,
+                prog_name=os.path.basename(__file__),
+                logger=logging.getLogger())

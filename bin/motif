@@ -1,0 +1,455 @@
+#!/usr/bin/env python
+
+description = """
+Explicit Decomposition with Neighborhood (EDeN) utility program.
+Motif finder driver.
+
+A binary class estimator is fit to discriminate between the sequences in the
+input data set against a proportional number of sequences obtained via random
+shuffling. The importance of  each element in each sequence is then evaluated
+and iteratively maximal subarrays are extracted.  The pool of all the subarrays
+is then clustered using one of several available clustering schemes.  The
+clustered subarrays are finally returned and have to be considered each as an
+individual 'motif'.
+
+Note: the current implementation uses as estimator a regularized linear model
+with stochastic  gradient descent (SGD) learning scheme: the gradient of the
+loss is estimated each sample at  a time and the model is updated along the way
+with a decreasing strength schedule (aka learning rate).
+
+
+Input: file in FASTA format
+
+Output: A directory is created as specified by "-o" | "--output-dir", with
+default "out".
+In the output directory the following files with fixed name are created:
+1. motifs.txt
+2. sequences_cluster_id_hit.txt
+3. sequences_cluster_match_position.txt
+4. sequences_cluster_match_position.bed
+5. motives_dir with motif_n.fa
+
+The format and content of each file is as follows:
+1. motifs.txt
+Format: a list of lines, each can be one of:
+a) "#" sign followed by an integer representing the cluster id.
+b) two columns, tab separated: maximal subarray sequence , number of
+occurrences.
+
+2. sequences_cluster_id_hit.txt
+Format: two columns, tab separated: sequence progressive counter 0 based,
+list of numerical cluster ids space separated.
+
+3. sequences_cluster_match_position.txt
+Format: two columns, tab separated: sequence progressive counter 0 based,
+list of numerical cluster ids, ":", list of pairs of start,end positions
+of maximal subarray match.
+Ex: 47  2:[(28, 37),(15,25)] 3:[(45, 54)]
+
+4. sequences_cluster_match_position.bed
+Format: BED format: four columns, tab separated: header identifier of
+sequence, match start position, match end position, cluster id.
+
+5. directory containing individual fasta files, one for each cluster
+
+Example usage:
+
+- to fit a motif model:
+motif -vv fit --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot --nbits 14 --complexity 2 --training-size 100  --n-iter-search 20 --n-jobs 8 -block-size 20 --min-motif-count 3 Birch --threshold 0.1
+
+
+- to use a fit model for predictions:
+motif -vv predict --input-file artificial_motif_search_dataset.fa --model-filename mot.mod --output-dir out_mot
+
+"""
+
+epilog = """
+Author: Fabrizio Costa
+Copyright: 2015
+License: GPL
+Maintainer: Fabrizio Costa
+Email: costa@informatik.uni-freiburg.de
+Status: Production
+Source: https://github.com/fabriziocosta/EDeN
+
+Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
+distance kernel', Proceedings of the 26th International Conference on Machine
+Learning. 2010. """
+
+import os
+from time import time
+from itertools import izip
+
+import argparse
+import logging
+import logging.handlers
+from eden.util import configure_logging, serialize_dict
+
+
+def predict(seqs, sequence_motif, args):
+    from eden.util import save_output
+
+    # output num occurrences of cluster hit in sequences
+    predictions = sequence_motif.predict(seqs, return_list=True)
+    text = []
+    for j, p in enumerate(predictions):
+        line = str(j) + "\t" + str(len(p))
+        text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_num_hits.txt')
+
+    # output occurrences of cluster hit in sequences
+    predictions = sequence_motif.predict(seqs, return_list=True)
+    text = []
+    for j, p in enumerate(predictions):
+        line = ""
+        for i in range(len(p)):
+            line += "%d " % p[i]
+        if line:
+            line = str(j) + "\t" + line
+            text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_id_hit.txt')
+
+    # output occurrences of motives in sequences
+    predictions = sequence_motif.transform(seqs, return_match=True)
+    text = []
+    for j, p in enumerate(predictions):
+        line = ""
+        for i in range(len(p)):
+            if len(p[i]):
+                line += "%d:%s " % (i, p[i])
+        if line:
+            line = str(j) + "\t" + line
+            text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.txt')
+
+    # output occurrences of motives in sequences in BED format
+    predictions = sequence_motif.transform(seqs, return_match=True)
+    text = []
+    for (header, seq), p in izip(seqs, predictions):
+        line = ""
+        for i in range(len(p)):
+            for start, end in p[i]:
+                line = header + '\t' + str(start) + '\t' + str(end) + '\t' + str(i)
+                text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='sequences_cluster_match_position.bed')
+
+
+def main_predict(args):
+    # read in sequences in FASTA format
+    from eden.converter.fasta import fasta_to_sequence
+    seqs = fasta_to_sequence(args.input_file)
+    seqs = list(seqs)
+    from eden.motif import SequenceMotif
+    sequence_motif = SequenceMotif()
+    sequence_motif.load(args.model_filename)
+    predict(seqs, sequence_motif, args)
+
+
+def _save_motives_multiple_fasta_files(sequence_motif, args):
+    from eden.util import save_output
+    output_dir_path = os.path.join(args.output_dir_path, 'motives_dir')
+    for cluster_id in sequence_motif.motives_db:
+        out_file_name = 'motif_%d.fa' % cluster_id
+        text = []
+        for i, (count, motif) in enumerate(sequence_motif.motives_db[cluster_id]):
+            text.append(">cl:%d|id:%d" % (cluster_id, i))
+            text.append("%s" % motif)
+        save_output(text=text, output_dir_path=output_dir_path, out_file_name=out_file_name)
+
+
+def _save_motives_single_file(sequence_motif, args):
+    from eden.util import save_output
+    text = sequence_motif.info()
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
+
+
+def _save_motives(sequence_motif, args):
+    _save_motives_single_file(sequence_motif, args)
+    _save_motives_multiple_fasta_files(sequence_motif, args)
+
+
+def main_fit(args):
+    # read in sequences in FASTA format
+    from eden.converter.fasta import fasta_to_sequence
+    seqs = fasta_to_sequence(args.input_file)
+    seqs = list(seqs)
+    logger.info("Extracting motives from %d sequences" % len(seqs))
+
+    if args.which_algorithm == 'MiniBatchKMeans':
+        from sklearn.cluster import MiniBatchKMeans
+        clustering_algorithm = MiniBatchKMeans(n_clusters=args.n_clusters)
+
+    if args.which_algorithm == 'DBSCAN':
+        from sklearn.cluster import DBSCAN
+        clustering_algorithm = DBSCAN(eps=args.eps, min_samples=args.min_samples)
+
+    if args.which_algorithm == 'Birch':
+        from sklearn.cluster import Birch
+        clustering_algorithm = Birch(threshold=args.threshold, n_clusters=args.n_clusters, branching_factor=args.branching_factor)
+
+    # setup
+    from eden.motif import SequenceMotif
+    sequence_motif = SequenceMotif(training_size=args.training_size,
+                                   clustering_algorithm=clustering_algorithm,
+                                   min_subarray_size=args.min_subarray_size,
+                                   max_subarray_size=args.max_subarray_size,
+                                   min_motif_count=args.min_motif_count,
+                                   min_cluster_size=args.min_cluster_size,
+                                   negative_ratio=args.negative_ratio,
+                                   shuffle_order=args.shuffle_order,
+                                   n_iter_search=args.n_iter_search,
+                                   nbits=args.nbits,
+                                   complexity=args.complexity,
+                                   n_blocks=args.n_blocks,
+                                   block_size=args.block_size,
+                                   n_jobs=args.n_jobs,
+                                   random_state=args.random_state)
+    if args.negative_input_file is not None:
+        neg_seqs = fasta_to_sequence(args.negative_input_file)
+        neg_seqs = list(neg_seqs)
+        logger.info("Using %d sequences as explicit negatives" % len(neg_seqs))
+    else:
+        neg_seqs = None
+    # find motives
+    sequence_motif.fit(seqs, neg_seqs)
+    # save
+    sequence_motif.save(args.model_filename)
+    logger.info('Saved motif model in %s' % args.model_filename)
+
+    # output motives
+    _save_motives(sequence_motif, args)
+
+    # output hits
+    predict(seqs, sequence_motif, args)
+
+    # save state of motif finder
+    if args.log_full_state:
+        logging.debug(sequence_motif.__dict__)
+    else:
+        logging.debug(sequence_motif.estimator)
+        logging.debug(sequence_motif.vectorizer)
+        logging.debug(sequence_motif.seq_vectorizer)
+
+
+def main(args):
+    if args.which == 'fit':
+        main_fit(args)
+    elif args.which == 'predict':
+        main_predict(args)
+    else:
+        raise Exception('Unknown mode: %s' % args.which)
+
+
+def argparse_setup(description, epilog):
+    class DefaultsRawDescriptionHelpFormatter(argparse.ArgumentDefaultsHelpFormatter, argparse.RawDescriptionHelpFormatter):
+        # To join the behaviour of RawDescriptionHelpFormatter with that of ArgumentDefaultsHelpFormatter
+        pass
+
+    parser = argparse.ArgumentParser(description=description, epilog=epilog, formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser.add_argument('--version', action='version', version='0.1')
+    parser.add_argument("-v", "--verbosity",
+                        action="count",
+                        help="Increase output verbosity")
+    parser.add_argument("-x", "--no-logging",
+                        dest="no_logging",
+                        help="If set, do not log on file.",
+                        action="store_true")
+
+    subparsers = parser.add_subparsers(help='commands')
+    # fit commands
+    fit_parser = subparsers.add_parser('fit', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    fit_parser.set_defaults(which='fit')
+    fit_parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to a FASTA file.",
+                            required=True)
+    fit_parser.add_argument("-t", "--training-size",
+                            dest="training_size",
+                            type=int,
+                            help="Size of the random sequence sample to use for fitting the discriminative model. If None then all instances are used.",
+                            default=None)
+    fit_parser.add_argument("-d", "--model-filename",
+                            dest="model_filename",
+                            help="File name for serialized model object.",
+                            default="motif.model")
+    fit_parser.add_argument("-o", "--output-dir",
+                            dest="output_dir_path",
+                            help="Path to output directory.",
+                            default="out")
+    negative_group = fit_parser.add_argument_group(
+        'Negative management', 'These options define how to deal with negative instances.')
+    negative_group.add_argument("--negative-input-file",
+                                dest="negative_input_file",
+                                help="Path to a FASTA file.",
+                                default=None)
+    negative_group.add_argument("-n", "--negative-ratio",
+                                dest="negative_ratio",
+                                type=int,
+                                help="Factor multiplying the training-size to obtain the number of negative instances generated by random permutation.",
+                                default=2)
+    negative_group.add_argument("-O", "--shuffle-order",
+                                dest="shuffle_order",
+                                type=int,
+                                help="When shuffling sequences to create negative instances, consider k-mers of specified order.",
+                                default=2)
+    complexity_group = fit_parser.add_argument_group(
+        'Complexity management', 'These options define the complexity of the model and of the optimization phase.')
+    complexity_group.add_argument("-B", "--nbits",
+                                  type=int,
+                                  help="Number of bits used to express the graph kernel features. A value of 20 corresponds to 2**20=1 million possible features.",
+                                  default=20)
+    complexity_group.add_argument("-C", "--complexity",
+                                  type=int,
+                                  help="Size of the generalization of k-mers for graphs.",
+                                  default=4)
+    complexity_group.add_argument("-e", "--n-iter-search",
+                                  dest="n_iter_search",
+                                  type=int,
+                                  help="Number of randomly generated hyper parameter configurations tried during the discriminative model optimization. A value of 1 implies using the estimator default values.",
+                                  default=1)
+
+    fit_parser.add_argument("-m", "--min-subarray-size",
+                            dest="min_subarray_size",
+                            type=int,
+                            help="Minimal size in number of nucleotides of the motives to search.",
+                            default=7)
+    fit_parser.add_argument("-M", "--max-subarray-size",
+                            dest="max_subarray_size",
+                            type=int,
+                            help="Maximal size in number of nucleotides of the motives to search.",
+                            default=10)
+    fit_parser.add_argument("-c", "--min-motif-count",
+                            dest="min_motif_count",
+                            type=int,
+                            help="Minimal number of occurrences for a motif sequence to be accepted.",
+                            default=1)
+    fit_parser.add_argument("-s", "--min-cluster-size",
+                            dest="min_cluster_size",
+                            type=int,
+                            help="Minimal number of motif sequences in a cluster to accept the cluster.",
+                            default=1)
+    parallelization_group = fit_parser.add_argument_group(
+        'Parallelization', 'These options define the granularity of the multicore parallelization.')
+    parallelization_group.add_argument("-j", "--n-jobs",
+                                       dest="n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=2)
+    parallelization_group.add_argument("-b", "--n-blocks",
+                                       dest="n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=8)
+    parallelization_group.add_argument("-k", "-block-size",
+                                       dest="block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
+    parallelization_group.add_argument("--pre-processor-n-jobs",
+                                       dest="pre_processor_n_jobs",
+                                       type=int,
+                                       help="Number of cores to use in multiprocessing.",
+                                       default=4)
+    parallelization_group.add_argument("--pre-processor-n-blocks",
+                                       dest="pre_processor_n_blocks",
+                                       type=int,
+                                       help="Number of blocks in which to divide the input for the multiprocessing elaboration.",
+                                       default=10)
+    parallelization_group.add_argument("--pre-processor-block-size",
+                                       dest="pre_processor_block_size",
+                                       type=int,
+                                       help="Number of instances per block for the multiprocessing elaboration.",
+                                       default=None)
+
+    fit_parser.add_argument("-r", "--random-state",
+                            dest="random_state",
+                            type=int,
+                            help="Random seed.",
+                            default=1)
+    fit_parser.add_argument("-l", "--log-full-state",
+                            dest="log_full_state",
+                            help="If set, log all the internal parameters values and motif database of the motif finder. Warning: it can generate large logging files.",
+                            action="store_true")
+
+    subsubparsers = fit_parser.add_subparsers(help='Clustering algorithm. For deatils see: http://scikit-learn.org/stable/modules/clustering.html.')
+    mini_batch_k_means_algorithm_parser = subsubparsers.add_parser('K', formatter_class=DefaultsRawDescriptionHelpFormatter,
+                                                                   help="MiniBatchKMeans is an alternative online implementation on KMeans that does incremental updates of the centers positions using mini-batches. For large scale learning (say n_samples > 10k) MiniBatchKMeans is probably much faster to than the default batch implementation.")
+    mini_batch_k_means_algorithm_parser.set_defaults(which_algorithm='MiniBatchKMeans')
+    mini_batch_k_means_algorithm_parser.add_argument("-u", "--n-clusters",
+                                                     dest="n_clusters",
+                                                     type=int,
+                                                     help="Number of clusters.",
+                                                     default=4)
+    dbscan_algorithm_parser = subsubparsers.add_parser('D', formatter_class=DefaultsRawDescriptionHelpFormatter,
+                                                       help="DBSCAN - Density-Based Spatial Clustering of Applications with Noise finds core samples of high density and expands clusters from them. Good for data which contains clusters of similar density.")
+    dbscan_algorithm_parser.set_defaults(which_algorithm='DBSCAN')
+    dbscan_algorithm_parser.add_argument("-E", "--eps",
+                                         type=float,
+                                         help="The maximum distance between two samples for them to be considered as in the same neighborhood.",
+                                         default=0.2)
+    dbscan_algorithm_parser.add_argument("-S", "--min-samples",
+                                         dest="min_samples",
+                                         type=int,
+                                         help="The number of samples (or total weight) in a neighborhood for a point to be considered as a core point. This includes the point itself.",
+                                         default=3)
+    birch_algorithm_parser = subsubparsers.add_parser('B', formatter_class=DefaultsRawDescriptionHelpFormatter,
+                                                      help="In the Birch clustering algorithm every new sample is inserted into the root of the Clustering Feature Tree. It is then clubbed together with the subcluster that has the centroid closest to the new sample. This is done recursively till it ends up at the subcluster of the leaf of the tree has the closest centroid.")
+    birch_algorithm_parser.set_defaults(which_algorithm='Birch')
+    birch_algorithm_parser.add_argument("-u", "--n-clusters",
+                                        dest="n_clusters",
+                                        type=int,
+                                        help="Number of clusters.",
+                                        default=4)
+    birch_algorithm_parser.add_argument("-T", "--threshold",
+                                        type=float,
+                                        help="The radius of the subcluster obtained by merging a new sample and the closest subcluster should be lesser than the threshold. Otherwise a new subcluster is started.",
+                                        default=0.1)
+    birch_algorithm_parser.add_argument("-f", "--branching-factor",
+                                        dest="branching_factor",
+                                        type=int,
+                                        help="Maximum number of CF subclusters in each node. If a new samples enters such that the number of subclusters exceed the branching_factor then the node has to be split. The corresponding parent also has to be split and if the number of subclusters in the parent is greater than the branching factor, then it has to be split recursively.",
+                                        default=50)
+
+    predict_parser = subparsers.add_parser('predict', help='Fit commands', formatter_class=DefaultsRawDescriptionHelpFormatter)
+    predict_parser.set_defaults(which='predict')
+    predict_parser.add_argument("-i", "--input-file",
+                                dest="input_file",
+                                help="Path to a FASTA file.",
+                                required=True)
+    predict_parser.add_argument("-d", "--model-filename",
+                                dest="model_filename",
+                                help="File name for serialized model object.",
+                                default="motif.model")
+    predict_parser.add_argument("-o", "--output-dir",
+                                dest="output_dir_path",
+                                help="Path to output directory.",
+                                default="out")
+    return parser
+
+
+if __name__ == "__main__":
+    parser = argparse_setup(description, epilog)
+    args = parser.parse_args()
+
+    prog_name = os.path.basename(__file__)
+
+    logger = logging.getLogger()
+    if args.no_logging:
+        configure_logging(logger, verbosity=args.verbosity)
+    else:
+        configure_logging(logger, verbosity=args.verbosity, filename=prog_name + '.log')
+
+    logger.debug('-' * 80)
+    logger.debug('Program: %s' % prog_name)
+    logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
+
+    start_time = time()
+    try:
+        main(args)
+    except Exception:
+        import datetime
+        curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
+        logger.exception("Program run failed on %s" % curr_time)
+    finally:
+        end_time = time()
+        logger.info('Elapsed time: %.1f sec', end_time - start_time)

@@ -1,0 +1,8 @@
+language: python
+python:
+  - "2.7"
+install:
+  - virtualenv .venv
+  - . .venv/bin/activate
+  - pip install flake8
+script:  flake8 . --exclude=.venv --ignore=E501
