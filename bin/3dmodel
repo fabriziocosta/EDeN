@@ -60,6 +60,7 @@ class ModelInitializer(ModelInitializerBase):
     def pre_processor_init(self, args):
 
         model_type = args.mode
+        model_method = args.method
 
         if model_type == "default":
 
@@ -72,21 +73,24 @@ class ModelInitializer(ModelInitializerBase):
         elif model_type == "3d":
 
             def pre_processor(data, model_type="3d", **kwargs):
-                iterable = obabel.obabel_to_eden3d(data, **kwargs)
+                iterable = obabel.obabel_to_eden3d(data, method=model_method, **kwargs)
                 return iterable
 
-            if args.hyper_opt:
-                pre_processor_parameters = \
-                    {'k': range(1, 11),
-                     'threshold': range(1, 11),
-                     'model_type': [model_type],
-                     'n_conf': [args.n_conf]}
-            else:
-                pre_processor_parameters = \
-                    {'k': [args.n_neighbors],
-                     'threshold': [args.threshold],
-                     'model_type': [model_type],
-                     'n_conf': [args.n_conf]}
+            if model_method == "metric":
+                if args.hyper_opt:
+                    pre_processor_parameters = \
+                        {'k': range(1, 11),
+                         'threshold': range(1, 11),
+                         'model_type': [model_type],
+                         'n_conf': [args.n_conf]}
+                else:
+                    pre_processor_parameters = \
+                        {'k': [args.n_neighbors],
+                         'threshold': [args.threshold],
+                         'model_type': [model_type],
+                         'n_conf': [args.n_conf]}
+            elif model_method == "topological":
+                pre_processor_parameters = {'n_conf': [args.n_conf]}
 
         return pre_processor, pre_processor_parameters
 
@@ -139,6 +143,9 @@ class ModelInitializer(ModelInitializerBase):
         parser.add_argument("--mode",
                             default="3d",
                             help="Default or 3D model.")
+        parser.add_argument("--method",
+                            default="metric",
+                            help="Method to calculate the vector labels - metric or topological.")
         parser.add_argument("--n-conf",
                             default=10,
                             type=int,

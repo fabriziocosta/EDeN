@@ -1,6 +1,6 @@
 
 
-[![DOI](https://zenodo.org/badge/10054/fabriziocosta/EDeN.svg)](http://dx.doi.org/10.5281/zenodo.15094)
+[![DOI](https://zenodo.org/badge/10054/fabriziocosta/EDeN.svg)](https://zenodo.org/badge/latestdoi/10054/fabriziocosta/EDeN)
 [![Build Status](https://travis-ci.org/fabriziocosta/EDeN.svg?branch=master)](https://travis-ci.org/fabriziocosta/EDeN)
 
 
