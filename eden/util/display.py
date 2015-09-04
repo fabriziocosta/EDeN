@@ -239,7 +239,7 @@ def plot_embedding(data_matrix, y,
                    labels=None,
                    image_file_name=None,
                    title=None,
-                   cmap='gnuplot',
+                   cmap='rainbow',
                    density=False):
     import matplotlib.pyplot as plt
     from matplotlib import offsetbox
@@ -251,9 +251,10 @@ def plot_embedding(data_matrix, y,
     if density:
         embed_dat_matrix_two_dimensions(data_matrix, y=y, instance_colormap=cmap)
     else:
-        plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=y, cmap=cmap, alpha=.7, s=30, edgecolors='gray')
+        plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=y, cmap=cmap, alpha=.7, s=30, edgecolors='black')
         plt.xticks([])
         plt.yticks([])
+        plt.axis('off')
     if image_file_name is not None:
         num_instances = data_matrix.shape[0]
         ax = plt.subplot(111)
@@ -277,7 +278,7 @@ def plot_embeddings(data_matrix, y,
                     save_image_file_name=None,
                     image_file_name=None,
                     size=25,
-                    cmap='gnuplot',
+                    cmap='rainbow',
                     density=False,
                     knn=16,
                     knn_density=16,

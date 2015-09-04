@@ -1,15 +1,398 @@
-import pylab as plt
-import numpy as np
-from eden.util.display import plot_embeddings
-import pymf
-from sklearn import random_projection
-from sklearn.cluster import MiniBatchKMeans
-from numpy.random import randint
-from numpy.random import uniform
 from collections import defaultdict
 import random
 import logging
+import pylab as plt
+import numpy as np
+
+import networkx as nx
+from sklearn import random_projection
+from sklearn.preprocessing import scale
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics.pairwise import pairwise_kernels
+import pymf
+
+from eden.util.display import plot_embeddings
+
 logger = logging.getLogger(__name__)
+
+
+def embedding_quality_score(data_matrix_high_dim, data_matrix_low_dim, n_neighbors=8, return_scores=False):
+    """Find k nearest neighbors in high and low dimensional case and return average
+    neighborhood intersection size."""
+
+    neigh_high = NearestNeighbors(n_neighbors=n_neighbors)
+    neigh_high.fit(data_matrix_high_dim)
+    ns_high = neigh_high.kneighbors(data_matrix_high_dim, return_distance=False)
+
+    neigh_low = NearestNeighbors(n_neighbors=n_neighbors)
+    neigh_low.fit(data_matrix_low_dim)
+    ns_low = neigh_low.kneighbors(data_matrix_low_dim, return_distance=False)
+    # for each row get intersection and return average intersection size over n_neighbors
+    scores = []
+    for row_high, row_low in zip(ns_high, ns_low):
+        intersection = np.intersect1d(row_high, row_low, assume_unique=False)
+        scores.append(len(intersection) / float(n_neighbors))
+    average_score = np.mean(scores)
+    if return_scores:
+        return average_score, scores
+    else:
+        return average_score
+
+
+def averaged_embedding_quality_score(data_matrix_high_dim,
+                                     data_matrix_low_dim,
+                                     n_neighbor_list=[2, 4, 8],
+                                     return_scores=False):
+    average_score_list = []
+    scores_list = []
+    for n_neighbors in n_neighbor_list:
+        average_score, scores = embedding_quality_score(data_matrix_high_dim,
+                                                        data_matrix_low_dim,
+                                                        n_neighbors=n_neighbors,
+                                                        return_scores=True)
+        average_score_list.append(average_score)
+        scores_list.append(scores)
+    # compute average embedding_quality_score
+    average_average_score = np.mean(average_score_list)
+    # compute average_scores for each instance
+    n_istances = len(scores_list[0])
+    n_scores = len(scores_list)
+    average_scores = []
+    for i in range(n_istances):
+        scores = [scores_list[j][i] for j in range(n_scores)]
+        average_score = np.average(scores)
+        average_scores.append(average_score)
+
+    if return_scores:
+        return average_average_score, average_scores
+    else:
+        return average_average_score
+
+
+class SelectorEmbedder2D(object):
+
+    """
+    Transform a set of high dimensional vectors to a set of two dimensional vectors.
+
+    Take in input list of selectors, then for each point find the closest selected instance and materialize
+    an edge between the two. Finally output 2D coordinates of the corresponding graph embedding using the sfdp
+    Graphviz algorithm.
+
+    """
+
+    def __init__(self, selectors, n_nearest_neighbors=None, metric='cosine', **kwds):
+        self.selectors = selectors
+        self.n_nearest_neighbors = n_nearest_neighbors
+        self.metric = metric
+        self.kwds = kwds
+        self.selected_instances_list = []
+        self.selected_instances_ids_list = []
+
+    def fit(self, data_matrix):
+        # find selected instances
+        targets = list(range(data_matrix.shape[0]))
+        for selector in self.selectors:
+            selected_instances, selected_instances_ids = selector.fit_transform(data_matrix, targets=targets)
+            self.selected_instances_list.append(selected_instances)
+            self.selected_instances_ids_list.append(selected_instances_ids)
+
+    def fit_transform(self, data_matrix, return_links=False):
+        self.fit(data_matrix)
+        return self.transform(data_matrix, return_links=return_links)
+
+    def transform(self, data_matrix, return_links=False):
+        # make a graph with instances as nodes
+        graph = self._init_graph(data_matrix)
+        # find the closest selected instance and instantiate an edge
+        for selected_instances, selected_instances_ids in \
+                zip(self.selected_instances_list, self.selected_instances_ids_list):
+            graph = self._update_graph(graph, data_matrix, selected_instances, selected_instances_ids)
+        if return_links:
+            if self.n_nearest_neighbors is not None:
+                return self._graph_embedding(graph), self.parent_ids
+            else:
+                return self._graph_embedding(graph), None
+        else:
+            return self._graph_embedding(graph)
+
+    def _init_graph(self, data_matrix):
+        graph = nx.Graph()
+        graph.add_nodes_from(range(data_matrix.shape[0]))
+        if self.n_nearest_neighbors is not None:
+            self.parent_ids = self.parents(data_matrix)
+            for i, parent in enumerate(self.parent_ids):
+                graph.add_edge(i, parent, weight=1)
+        return graph
+
+    def _update_graph(self, graph, data_matrix, selected_instances, selected_instances_ids):
+        nn = NearestNeighbors(n_neighbors=1)
+        nn.fit(selected_instances)
+        knns = nn.kneighbors(data_matrix, return_distance=False)
+        for i, knn in enumerate(knns):
+            id = knn[0]
+            original_id = selected_instances_ids[id]
+            # add edge
+            graph.add_edge(i, original_id, weight=1)
+        return graph
+
+    def _graph_embedding(self, graph):
+        two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+        two_dimensional_data_list = [list(two_dimensional_data_matrix[i]) for i in range(len(graph))]
+        embedded_data_matrix = scale(np.array(two_dimensional_data_list))
+        return embedded_data_matrix
+
+    def parents(self, data_matrix):
+        data_size = data_matrix.shape[0]
+        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
+        # compute instance density as average pairwise similarity
+        density = np.sum(kernel_matrix, 0) / data_size
+        # compute list of nearest neighbors
+        kernel_matrix_sorted = np.argsort(-kernel_matrix)
+        # make matrix of densities ordered by nearest neighbor
+        density_matrix = density[kernel_matrix_sorted]
+        # if a denser neighbor cannot be found then assign parent to the instance itself
+        parent_ids = list(range(density_matrix.shape[0]))
+        # for all instances determine parent link
+        for i, row in enumerate(density_matrix):
+            i_density = row[0]
+            # for all neighbors from the closest to the furthest
+            for jj, d in enumerate(row):
+                # proceed until n_nearest_neighbors have been explored
+                if self.n_nearest_neighbors is not None and jj > self.n_nearest_neighbors:
+                    break
+                j = kernel_matrix_sorted[i, jj]
+                if jj > 0:
+                    j_density = d
+                    # if the density of the neighbor is higher than the density of the instance assign parent
+                    if j_density > i_density:
+                        parent_ids[i] = j
+                        break
+        return parent_ids
+
+
+# ------------------------------------------------------------------------------------------------------
+
+
+def plot(data_matrix, y=None, alpha=None, links=None, size=10, reliability=True):
+    cmap = 'rainbow'
+    if alpha is None:
+        plt.figure(figsize=(size, size))
+        plt.xticks([])
+        plt.yticks([])
+        plt.axis('off')
+        plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=y, cmap=cmap, alpha=.7, s=60, edgecolors='black')
+    else:
+        if reliability:
+            plt.figure(figsize=(2 * size, size))
+            plt.subplot(121)
+            plt.xticks([])
+            plt.yticks([])
+            plt.axis('off')
+            if links is not None:
+                # make xlist and ylist with Nones
+                parent_data_matrix = data_matrix[links]
+                x_list = []
+                for x_start, x_end in zip(data_matrix[:, 0], parent_data_matrix[:, 0]):
+                    x_list.append(x_start)
+                    x_list.append(x_end)
+                    x_list.append(None)
+                y_list = []
+                for y_start, y_end in zip(data_matrix[:, 1], parent_data_matrix[:, 1]):
+                    y_list.append(y_start)
+                    y_list.append(y_end)
+                    y_list.append(None)
+                plt.plot(x_list, y_list, '-', color='cornflowerblue', alpha=0.3)
+            plt.scatter(data_matrix[:, 0], data_matrix[:, 1],
+                        c=alpha, cmap='Greys', s=95, edgecolors='none')
+            plt.scatter(data_matrix[:, 0], data_matrix[:, 1],
+                        alpha=0.55, c=y, cmap=cmap, s=30, edgecolors='none')
+
+            plt.subplot(122)
+            plt.xticks([])
+            plt.yticks([])
+            plt.axis('off')
+            plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=alpha, cmap='Greys', s=95, edgecolors='none')
+        else:
+            plt.xticks([])
+            plt.yticks([])
+            plt.axis('off')
+            plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=alpha, cmap='Greys', s=140, edgecolors='none')
+            plt.scatter(data_matrix[:, 0], data_matrix[:, 1], c=y, cmap=cmap, s=30, edgecolors='none')
+    plt.show()
+
+
+def feature_construction(data_matrix_original, selectors):
+    from eden.selector import CompositeSelector
+    selector = CompositeSelector(selectors)
+    from eden.selector import Projector
+    projector = Projector(selector, metric='cosine')
+    data_matrix = projector.fit_transform(data_matrix_original)
+    return data_matrix
+
+
+def make_selectors(opts):
+    # compose selector list
+    selectors = []
+    if 'QuickShiftSelector' in opts and opts['QuickShiftSelector'] is not None:
+        from eden.selector import QuickShiftSelector
+        selectors.append(QuickShiftSelector(n_instances=opts['QuickShiftSelector']))
+
+    if 'MaxVolSelector' in opts and opts['MaxVolSelector'] is not None:
+        from eden.selector import MaxVolSelector
+        selectors.append(MaxVolSelector(n_instances=opts['MaxVolSelector']))
+
+    if 'DensitySelector' in opts and opts['DensitySelector'] is not None:
+        from eden.selector import DensitySelector
+        selectors.append(DensitySelector(n_instances=opts['DensitySelector']))
+
+    if 'SparseSelector' in opts and opts['SparseSelector'] is not None:
+        from eden.selector import SparseSelector
+        selectors.append(SparseSelector(n_instances=opts['SparseSelector']))
+
+    if 'EqualizingSelector' in opts and opts['EqualizingSelector'] is not None:
+        from sklearn.cluster import MiniBatchKMeans
+        from eden.selector import EqualizingSelector
+        n_clusters = opts['EqualizingSelector'] / 10
+        selectors.append(EqualizingSelector(n_instances=opts['EqualizingSelector'],
+                                            clustering_algo=MiniBatchKMeans(n_clusters)))
+
+    return selectors
+
+
+def embed_(data_matrix, y,
+           embed_opts=None, basis_opts=None,
+           sparse=False, change_of_basis=False, display=True):
+    # case for sparse data matrix: use random projection to transform to dense
+    if sparse:
+        from sklearn.random_projection import SparseRandomProjection
+        data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
+
+    # case for cahnge of basis
+    if change_of_basis:
+        selectors = make_selectors(basis_opts)
+        data_matrix = feature_construction(data_matrix, selectors)
+
+    # embedding in 2D
+    from eden.embedding import SelectorEmbedder2D
+    selectors = make_selectors(embed_opts)
+    emb = SelectorEmbedder2D(selectors, n_nearest_neighbors=embed_opts['n_nearest_neighbors'])
+    data_matrix_low, parent_ids = emb.fit_transform(data_matrix, return_links=True)
+
+    # embedding quality score
+    score, scores = averaged_embedding_quality_score(data_matrix, data_matrix_low, return_scores=True)
+
+    # output management: display or just output embedding quality score
+    if display:
+        logger.info('Embedding quality [nearest neighbor fraction]: %.2f' % score)
+        plot(data_matrix_low, y, alpha=scores, links=parent_ids)
+        return data_matrix_low
+    else:
+        return score
+
+
+def embed_wo_bias(data_matrix, y, sparse=False, embed_opts=None, basis_opts=None):
+    data_matrix_low = embed_(data_matrix, y,
+                             embed_opts=embed_opts, basis_opts=basis_opts,
+                             change_of_basis=False, sparse=sparse)
+    data_matrix_low_basis = embed_(data_matrix, y,
+                                   embed_opts=embed_opts, basis_opts=basis_opts,
+                                   change_of_basis=True, sparse=sparse)
+    return data_matrix_low, data_matrix_low_basis
+
+
+def sample(parameters):
+    import random
+    parameters_sample = dict()
+    for parameter in parameters:
+        values = parameters[parameter]
+        value = random.choice(values)
+        parameters_sample[parameter] = value
+    return parameters_sample
+
+
+def is_all_none(opts):
+    n_nones = sum(1 for key in opts if opts[key] is None)
+    if n_nones == len(opts):
+        return True
+    else:
+        return False
+
+
+def make_opts_list(n_instances, n_iter):
+    min_n_instances = int(n_instances * .1)
+    max_n_instances = int(n_instances * .9)
+    max_vol_n_instances = int(n_instances * .33)
+    from numpy.random import randint
+    opts_list = {'QuickShiftSelector': [None] * (n_iter / 2) +
+                 list(randint(min_n_instances, max_n_instances, size=n_iter / 2)),
+                 'MaxVolSelector': [None] * (n_iter / 2) +
+                 list(randint(min_n_instances, max_vol_n_instances, size=n_iter / 2)),
+                 'DensitySelector': [None] * (n_iter / 2) +
+                 list(randint(min_n_instances, max_n_instances, size=n_iter / 2)),
+                 'SparseSelector': [None] * (n_iter / 2) +
+                 list(randint(min_n_instances, max_n_instances, size=n_iter / 2)),
+                 'EqualizingSelector': [None] * (n_iter / 2) +
+                 list(randint(min_n_instances, max_n_instances, size=n_iter / 2))
+                 }
+    return opts_list
+
+
+def make_opts(opts_list):
+    # select one element at random from each list
+    opts = sample(opts_list)
+    while is_all_none(opts):
+        opts = sample(opts_list)
+    return opts
+
+
+def embed(data_matrix, y, sparse=False, n_iter=20, n_repetitions=2,
+          return_low_dim_data_matrix=False, verbose=True):
+    opts_list = make_opts_list(data_matrix.shape[0], n_iter)
+
+    # iterate n_iter times to find best parameter configuration
+    max_score = 0
+    for i in range(n_iter):
+
+        # sample from the options
+        embed_opts = make_opts(opts_list)
+        if random.random() > 0.75:
+            embed_opts.update({'n_nearest_neighbors': None})
+        else:
+            embed_opts.update({'n_nearest_neighbors': random.randint(3, data_matrix.shape[0])})
+        basis_opts = make_opts(opts_list)
+
+        # find options with max quality score
+        scores = []
+        for it in range(n_repetitions):
+            score = embed_(data_matrix, y,
+                           embed_opts=embed_opts,
+                           basis_opts=basis_opts,
+                           change_of_basis=True,
+                           sparse=sparse,
+                           display=False)
+            scores.append(score)
+        score = np.mean(scores) - np.std(scores)
+        if score > max_score:
+            best_embed_opts = embed_opts
+            best_basis_opts = basis_opts
+            max_score = score
+            mark = '*'
+        else:
+            mark = ''
+        if verbose:
+            logger.info('%.2d/%d  score: %.3f +- %.3f  %s' %
+                        (i + 1, n_iter, np.mean(scores), np.std(scores), mark))
+
+    # plot the embedding
+    data_matrix_low, data_matrix_low_basis = embed_wo_bias(data_matrix, y,
+                                                           sparse=sparse,
+                                                           embed_opts=best_embed_opts,
+                                                           basis_opts=best_basis_opts)
+    if return_low_dim_data_matrix:
+        return data_matrix_low, data_matrix_low_basis
+
+# ------------------------------------------------------------------------------------------------------
 
 
 class Embedder(object):
@@ -89,11 +472,11 @@ class Embedder2D(object):
         self.random_state = random_state
 
     def fit(self, data_matrix, targets, n_iter=10):
-        params = {'knn': randint(3, 20, size=n_iter),
-                  'knn_density': randint(3, 20, size=n_iter),
-                  'k_threshold': uniform(0.2, 0.99, size=n_iter),
+        params = {'knn': random.randint(3, 20, size=n_iter),
+                  'knn_density': random.randint(3, 20, size=n_iter),
+                  'k_threshold': random.uniform(0.2, 0.99, size=n_iter),
                   'gamma': [None] * n_iter + [10 ** x for x in range(-4, -1)],
-                  'low_dim': [None] * n_iter + list(randint(10, 50, size=n_iter))}
+                  'low_dim': [None] * n_iter + list(random.randint(10, 50, size=n_iter))}
         results = []
         max_score = 0
         for i in range(n_iter):

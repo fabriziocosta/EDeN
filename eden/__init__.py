@@ -11,6 +11,41 @@ import dill
 from itertools import izip_longest
 
 
+class AbstractVectorizer(object):
+
+    """Interface declaration for the Vectorizer class """
+
+    def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
+        raise NotImplementedError("Should have implemented this")
+
+    def set_params(self, **args):
+        raise NotImplementedError("Should have implemented this")
+
+    def fit(self, graphs):
+        raise NotImplementedError("Should have implemented this")
+
+    def partial_fit(self, graphs):
+        raise NotImplementedError("Should have implemented this")
+
+    def fit_transform(self, graphs):
+        raise NotImplementedError("Should have implemented this")
+
+    def transform(self, graphs):
+        raise NotImplementedError("Should have implemented this")
+
+    def transform_single(self, graph):
+        raise NotImplementedError("Should have implemented this")
+
+    def predict(self, graphs, estimator):
+        raise NotImplementedError("Should have implemented this")
+
+    def similarity(self, graphs, ref_instance=None):
+        raise NotImplementedError("Should have implemented this")
+
+    def distance(self, graphs, ref_instance=None):
+        raise NotImplementedError("Should have implemented this")
+
+
 def run_dill_encoded(what):
     """Use dill as replacement for pickle to enable multiprocessing on instance methods"""
 
@@ -36,7 +71,9 @@ def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
 
 def calc_running_hash(running_hash, list_item, counter):
     return hash((running_hash, list_item, counter))
-#    return ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))), ((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((counter & 1) == 0)]
+# return ((~(((running_hash << 11) + list_item) ^ (running_hash >> 5))),
+# ((running_hash << 7) ^ list_item * (running_hash >> 3)))[bool((counter &
+# 1) == 0)]
 
 
 def fast_hash(vec, bitmask):

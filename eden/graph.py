@@ -10,29 +10,15 @@ from collections import defaultdict, deque
 import itertools
 import networkx as nx
 from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
-
+from eden import AbstractVectorizer
 import logging
 logger = logging.getLogger(__name__)
 
 
-class Vectorizer(object):
+class Vectorizer(AbstractVectorizer):
 
-    """Transform real vector labeled, weighted, nested graphs in sparse vectors."""
+    """Transform real vector labeled, weighted, nested graphs in sparse vectors.
 
-    def __init__(self,
-                 complexity=3,
-                 r=None,
-                 d=None,
-                 n=1,
-                 min_r=0,
-                 min_d=0,
-                 min_n=2,
-                 label_size=1,
-                 nbits=20,
-                 normalization=True,
-                 inner_normalization=True,
-                 triangular_decomposition=True):
-        """
         Args:
             complexity: the complexity of the features extracted (default 3).
             This is equivalent to setting r = complexity, d = complexity.
@@ -64,7 +50,28 @@ class Vectorizer(object):
 
             triangular_decomposition: flag to add to each graph the disjoint set of triangles. This
             allows also dense graphs to be processed. Note that runtimes can significantly increase.
-        """
+
+    """
+
+    def __init__(self,
+                 complexity=3,
+                 r=None,
+                 d=None,
+                 n=1,
+                 min_r=0,
+                 min_d=0,
+                 min_n=2,
+                 label_size=1,
+                 nbits=20,
+                 normalization=True,
+                 inner_normalization=True,
+                 triangular_decomposition=True,
+                 key_label='label',
+                 key_weight='weight',
+                 key_nesting='nesting',
+                 key_importance='importance',
+                 key_original_label='original_label',
+                 key_entity='entity'):
 
         self.complexity = complexity
         if r is None:
@@ -92,6 +99,12 @@ class Vectorizer(object):
         self.discretization_models = dict()
         self.fit_status = None
         self.triangular_decomposition = triangular_decomposition
+        self.key_label = key_label
+        self.key_weight = key_weight
+        self.key_nesting = key_nesting
+        self.key_importance = key_importance
+        self.key_original_label = key_original_label
+        self.key_entity = key_entity
 
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
@@ -289,7 +302,7 @@ class Vectorizer(object):
         graph = self._edge_to_vertex_transform(original_graph)
         # for all types in every node of every graph
         for n, d in graph.nodes_iter(data=True):
-            if isinstance(d['label'], list):
+            if isinstance(d[self.key_label], list):
                 node_entity, data = self._extract_entity_and_label(d)
                 label_data_dict[node_entity] += [data]
         return label_data_dict
@@ -325,7 +338,7 @@ class Vectorizer(object):
         label_data_dict = defaultdict(lambda: list(dict()))
         graph = self._edge_to_vertex_transform(original_graph)
         for n, d in graph.nodes_iter(data=True):
-            if isinstance(d['label'], dict):
+            if isinstance(d[self.key_label], dict):
                 node_entity, data = self._extract_entity_and_label(d)
                 label_data_dict[node_entity] += [data]
         return label_data_dict
@@ -391,22 +404,22 @@ class Vectorizer(object):
         if d.get('entity', False):
             node_entity = d['entity']
         else:
-            if isinstance(d['label'], list):
+            if isinstance(d[self.key_label], list):
                 node_entity = 'vector'
-            elif isinstance(d['label'], dict):
+            elif isinstance(d[self.key_label], dict):
                 node_entity = 'sparse_vector'
             else:
                 node_entity = 'default'
 
         # determine the label type
-        if isinstance(d['label'], list):
+        if isinstance(d[self.key_label], list):
             # transform python list into numpy array
-            data = np.array(d['label'])
-        elif isinstance(d['label'], dict):
+            data = np.array(d[self.key_label])
+        elif isinstance(d[self.key_label], dict):
             # return the dict rerpesentation
-            data = d['label']
+            data = d[self.key_label]
         else:
-            data = d['label']
+            data = d[self.key_label]
 
         return node_entity, data
 
@@ -415,9 +428,9 @@ class Vectorizer(object):
             graph.graph['label_size'] = self.label_size
             for n, d in graph.nodes_iter(data=True):
                 # for dense or sparse vectors
-                if isinstance(d['label'], list) or isinstance(d['label'], dict):
+                if isinstance(d[self.key_label], list) or isinstance(d[self.key_label], dict):
                     node_entity, data = self._extract_entity_and_label(d)
-                    if isinstance(d['label'], dict):
+                    if isinstance(d[self.key_label], dict):
                         data = self._convert_dict_to_sparse_vector(data)
                     # create a list of integer codes of size: label_size
                     # each integer code is determined as follows:
@@ -437,14 +450,14 @@ class Vectorizer(object):
                         code = fast_hash_2(hash(node_entity), discretization_code, self.bitmask)
                         hlabel.append(code)
                     graph.node[n]['hlabel'] = hlabel
-                elif isinstance(d['label'], basestring):
+                elif isinstance(d[self.key_label], basestring):
                     # copy a hashed version of the string for a number of times equal to self.label_size
                     # in this way qualitative ( i.e. string ) labels can be compared to the discretized labels
                     hlabel = int(hash(d['label']) & self.bitmask) + 1
                     graph.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
                     raise Exception('ERROR: something went wrong, type of node label is unknown: \
-                        %s' % d['label'])
+                        %s' % d[self.key_label])
         except Exception as e:
             import datetime
             curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
@@ -809,12 +822,12 @@ class Vectorizer(object):
                 # if an original label does not exist then save it, else do
                 # nothing and preserve the information in original label
                 if graph.node[v].get('original_label', False) is False:
-                    graph.node[v]["original_label"] = graph.node[v]["label"]
-                graph.node[v]["label"] = vec_dict
+                    graph.node[v]['original_label'] = graph.node[v]['label']
+                graph.node[v]['label'] = vec_dict
                 # if a node does not have a 'entity' attribute then assign one
                 # called 'vactor' by default
-                if graph.node[v].get("entity", False) is False:
-                    graph.node[v]["entity"] = 'vector'
+                if graph.node[v].get('entity', False) is False:
+                    graph.node[v]['entity'] = 'vector'
                 vertex_id += 1
         return graph
 
@@ -832,21 +845,21 @@ class Vectorizer(object):
         for v, d in graph.nodes_iter(data=True):
             if d.get('node', False):
                 # annotate the 'importance' attribute with the margin
-                graph.node[v]["importance"] = margins[vertex_id]
+                graph.node[v]['importance'] = margins[vertex_id]
                 # update the 'weight' information as a linear combination of
                 # the previuous weight and the absolute margin
-                if "weight" in graph.node[v] and self.reweight != 0:
-                    graph.node[v]["weight"] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * \
-                        graph.node[v]["weight"]
+                if 'weight' in graph.node[v] and self.reweight != 0:
+                    graph.node[v]['weight'] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * \
+                        graph.node[v]['weight']
                 # in case the original graph was not weighted then instantiate
                 # the 'weight' with the absolute margin
                 else:
-                    graph.node[v]["weight"] = abs(margins[vertex_id])
+                    graph.node[v]['weight'] = abs(margins[vertex_id])
                 vertex_id += 1
             if d.get('edge', False):  # keep the weight of edges
                 # ..unless they were unweighted, in this case add unit weight
-                if "weight" not in graph.node[v]:
-                    graph.node[v]["weight"] = 1
+                if 'weight' not in graph.node[v]:
+                    graph.node[v]['weight'] = 1
         return graph
 
     def _compute_vertex_based_features(self, graph):

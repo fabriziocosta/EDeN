@@ -1,4 +1,5 @@
 import numpy as np
+import math as mt
 import pymf
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.metrics.pairwise import pairwise_distances
@@ -19,6 +20,10 @@ def get_ids(data_matrix, selected):
     selected_instances_ids = [i for i, diff in enumerate(diffs) if 0 in diff]
     return selected_instances_ids
 
+
+def default_n_instances(data_size):
+    return 2 * int(mt.sqrt(data_size))
+
 # -------------------------------------------------------------------------------------------------
 
 
@@ -34,7 +39,7 @@ class Projector(object):
         self.kwds = kwds
 
     def fit(self, data_matrix, targets=None):
-        self.selected_instances = self.selector.transform(data_matrix)
+        self.selected_instances = self.selector.fit_transform(data_matrix)
 
     def fit_transform(self, data_matrix, targets=None):
         self.fit(data_matrix, targets)
@@ -62,9 +67,11 @@ class CompositeSelector(object):
         self.selectors = selectors
 
     def fit(self, data_matrix, targets=None):
-        pass
+        for selector in self.selectors:
+            selector.fit(data_matrix, targets)
 
     def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
         return self.transform(data_matrix, targets)
 
     def transform(self, data_matrix, targets=None):
@@ -93,9 +100,9 @@ class IdentitySelector(object):
     Selection is performed returning the same instances.
     """
 
-    def __init__(self, n_instances=None, random_state=None):
+    def __init__(self, n_instances='auto', random_state=None):
         # Note: n_instances is just a placeholder
-        self.n_instances = None
+        self.n_instances = n_instances
         self.random_state = None
 
     def fit(self, data_matrix, targets=None):
@@ -120,9 +127,9 @@ class NullSelector(object):
     Selection returns no instances.
     """
 
-    def __init__(self, n_instances=None, random_state=None):
+    def __init__(self, n_instances='auto', random_state=None):
         # Note: n_instances is just a placeholder
-        self.n_instances = None
+        self.n_instances = n_instances
         self.random_state = None
 
     def fit(self, data_matrix, targets=None):
@@ -147,15 +154,17 @@ class RandomSelector(object):
     Selection is performed uniformly at random.
     """
 
-    def __init__(self, n_instances=10, random_state=1):
+    def __init__(self, n_instances='auto', random_state=1):
         self.n_instances = n_instances
         self.random_state = random_state
         random.seed(random_state)
 
     def fit(self, data_matrix, targets=None):
-        pass
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
         return self.transform(data_matrix, targets)
 
     def transform(self, data_matrix, targets=None):
@@ -163,7 +172,7 @@ class RandomSelector(object):
         if targets is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], targets[selected_instances_ids]
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
 
     def select(self, data_matrix, targets=None):
         n_instances = data_matrix.shape[0]
@@ -182,16 +191,18 @@ class SparseSelector(object):
     Selection is performed choosing instances that maximizes instances pairwise difference.
     """
 
-    def __init__(self, n_instances=10, metric='euclidean', random_state=1):
+    def __init__(self, n_instances='auto', metric='euclidean', random_state=1):
         self.n_instances = n_instances
         self.metric = metric
         self.random_state = random_state
         random.seed(random_state)
 
     def fit(self, data_matrix, targets=None):
-        pass
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
         return self.transform(data_matrix, targets)
 
     def transform(self, data_matrix, targets=None):
@@ -199,7 +210,7 @@ class SparseSelector(object):
         if targets is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], targets[selected_instances_ids]
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
 
     def select(self, data_matrix, targets=None):
         # extract difference matrix
@@ -232,15 +243,17 @@ class MaxVolSelector(object):
     Selection is performed choosing instances that maximizes the volume of the convex hull.
     """
 
-    def __init__(self, n_instances=10, random_state=1):
+    def __init__(self, n_instances='auto', random_state=1):
         self.n_instances = n_instances
         self.random_state = random_state
         random.seed(random_state)
 
     def fit(self, data_matrix, targets=None):
-        pass
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
         return self.transform(data_matrix, targets)
 
     def transform(self, data_matrix, targets=None):
@@ -248,7 +261,7 @@ class MaxVolSelector(object):
         if targets is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], targets[selected_instances_ids]
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
 
     def select(self, data_matrix, targets=None):
         mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
@@ -267,16 +280,18 @@ class EqualizingSelector(object):
     choosing instances uniformly at random from each cluster.
     """
 
-    def __init__(self, n_instances=10, clustering_algo=None, random_state=1):
+    def __init__(self, n_instances='auto', clustering_algo=None, random_state=1):
         self.n_instances = n_instances
         self.clustering_algo = clustering_algo
         self.random_state = random_state
         random.seed(random_state)
 
     def fit(self, data_matrix, targets=None):
-        pass
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
         return self.transform(data_matrix, targets)
 
     def transform(self, data_matrix, targets=None):
@@ -284,7 +299,7 @@ class EqualizingSelector(object):
         if targets is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], targets[selected_instances_ids]
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
 
     def select(self, data_matrix, targets=None):
         # extract clusters
@@ -314,13 +329,14 @@ class QuickShiftSelector(object):
     The n_instances with highest parent-instance norm are returned.
     """
 
-    def __init__(self, n_instances=10, metric='cosine', **kwds):
+    def __init__(self, n_instances='auto', metric='cosine', **kwds):
         self.n_instances = n_instances
         self.metric = metric
         self.kwds = kwds
 
     def fit(self, data_matrix, targets=None):
-        pass
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, targets=None):
         self.fit(data_matrix, targets)
@@ -331,19 +347,11 @@ class QuickShiftSelector(object):
         if targets is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], targets[selected_instances_ids]
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
 
     def select(self, data_matrix, targets=None):
-        n_instances = data_matrix.shape[0]
-        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
-        # compute instance density as average pairwise similarity
-        density = np.sum(kernel_matrix, 0) / n_instances
-        # compute list of nearest neighbors
-        kernel_matrix_sorted = np.argsort(-kernel_matrix)
-        # make matrix of densities ordered by nearest neighbor
-        density_matrix = density[kernel_matrix_sorted]
         # compute parent relationship
-        parent_ids = self.parents(density_matrix, kernel_matrix_sorted)
+        parent_ids = self.parents(data_matrix, targets=targets)
         # compute norm of parent-instance vector
         # compute parent vectors
         parents = data_matrix[parent_ids]
@@ -357,7 +365,15 @@ class QuickShiftSelector(object):
             parent_distance_sorted_ids[:self.n_instances - 1]
         return selected_instances_ids
 
-    def parents(self, density_matrix=None, kernel_matrix_sorted=None):
+    def parents(self, data_matrix, targets=None):
+        data_size = data_matrix.shape[0]
+        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
+        # compute instance density as average pairwise similarity
+        density = np.sum(kernel_matrix, 0) / data_size
+        # compute list of nearest neighbors
+        kernel_matrix_sorted = np.argsort(-kernel_matrix)
+        # make matrix of densities ordered by nearest neighbor
+        density_matrix = density[kernel_matrix_sorted]
         # if a denser neighbor cannot be found then assign parent to the instance itself
         parent_ids = list(range(density_matrix.shape[0]))
         # for all instances determine parent link
@@ -373,5 +389,56 @@ class QuickShiftSelector(object):
                         parent_ids[i] = j
                         break
         return parent_ids
+
+# -------------------------------------------------------------------------------------------------
+
+
+class DensitySelector(object):
+
+    """
+    Transform a set of sparse high dimensional vectors to a smaller set.
+    Selection is performed sampling according to the instance density.
+    The density is computed as the average kernel.
+    """
+
+    def __init__(self, n_instances='auto', metric='cosine', **kwds):
+        self.n_instances = n_instances
+        self.metric = metric
+        self.kwds = kwds
+
+    def fit(self, data_matrix, targets=None):
+        if self.n_instances == 'auto':
+            self.n_instances = default_n_instances(data_matrix.shape[0])
+
+    def fit_transform(self, data_matrix, targets=None):
+        self.fit(data_matrix, targets)
+        return self.transform(data_matrix, targets)
+
+    def transform(self, data_matrix, targets=None):
+        selected_instances_ids = self.select(data_matrix, targets)
+        if targets is None:
+            return data_matrix[selected_instances_ids]
+        else:
+            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+
+    def select(self, data_matrix, targets=None):
+        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
+        # compute instance density as average pairwise similarity
+        densities = np.sum(kernel_matrix, 0)
+        # normalize to obtain probabilities
+        probabilities = densities / np.sum(densities)
+        # select instances according to their probability
+        selected_instances_ids = [self.sample(probabilities) for i in range(self.n_instances)]
+        return selected_instances_ids
+
+    def sample(self, probabilities):
+        target_prob = random.random()
+        prob_accumulator = 0
+        for i, p in enumerate(probabilities):
+            prob_accumulator += p
+            if target_prob < prob_accumulator:
+                return i
+        # at last return the id of last element
+        return len(probabilities) - 1
 
 # -------------------------------------------------------------------------------------------------
