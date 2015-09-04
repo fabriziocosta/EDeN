@@ -28,11 +28,13 @@ install:
   - pip install nose
   # manual package installations, should eventually handled by
   # "pip install ."
-  - pip install dill
-  - pip install requests
-  - pip install esmre
-  - pip install joblib
-  - pip install networkx
+  # - pip install dill
+  # - pip install requests
+  # - pip install esmre
+  # - pip install joblib
+  # - pip install networkx
+  # install EDeN requirements as specified in setup.py
+  - pip install .
 script:
   - flake8 . --exclude=.venv --ignore=E501
   - nosetests
