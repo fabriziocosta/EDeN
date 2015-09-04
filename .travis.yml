@@ -19,6 +19,7 @@ install:
   - pip install setuptools
   - pip install flake8
   # install EDeN requirements as specified in setup.py
+  - pip install esmre
   - pip install .
 script:
   - flake8 . --exclude=.venv --ignore=E501
