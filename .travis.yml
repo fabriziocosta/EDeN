@@ -1,12 +1,8 @@
 language: python
 python:
   - "2.7"
-  - "3.4"
+  # - "3.4"
 sudo: false
-addons:
-  apt:
-    packages:
-      - python-matplotlib
 before_install:
   # setup miniconda distribution
   - travis_retry wget http://repo.continuum.io/miniconda/Miniconda-3.8.3-Linux-x86_64.sh -O miniconda.sh
@@ -19,9 +15,9 @@ install:
   - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
   - source activate condaenv
   - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.16"
+  - conda install --yes matplotlib
   - pip install setuptools
   - pip install flake8
-  - pip install nose
   # install EDeN requirements as specified in setup.py
   - pip install .
 script:
