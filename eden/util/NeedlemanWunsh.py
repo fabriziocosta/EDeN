@@ -21,6 +21,18 @@ def needleman_wunsh(sequence_a, sequence_b, score_matrix, gap_penalty):
 
 
 def is_approx(first, second, tolerance=0.0001):
+    """
+    Test if two values are approximately the same.
+
+    Keyword arguments:
+    tolerance -- cutoff for allowed difference (default 0.0001)
+
+    >>> is_approx(0.0000, 0.0001)
+    False
+
+    >>> is_approx(0.0000, 0.00009)
+    True
+    """
     if (first + tolerance) > second and (first - tolerance) < second:
         return True
     else:

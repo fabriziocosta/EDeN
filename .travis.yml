@@ -24,4 +24,6 @@ install:
   - pip install .
 script:
   - flake8 . --exclude=.venv --ignore=E501
-  - nosetests
+  # run nose with doctests
+  # excludes files with missing or broken dependencies
+  - nosetests --with-doctest -I selector.py -I embedding.py -I obabel.py
