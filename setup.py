@@ -126,6 +126,7 @@ setup(
         "matplotlib",
         "requests",
         "esmre",
+        "cvxopt",
         "pymf",
     ],
     cmdclass={'sdist': sdist, 'install': install}
