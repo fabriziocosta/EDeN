@@ -1,11 +1,14 @@
-import numpy as np
-import math as mt
-import pymf
-from sklearn.metrics.pairwise import pairwise_kernels
-from sklearn.metrics.pairwise import pairwise_distances
 from collections import defaultdict
 import random
 import logging
+import math
+from copy import deepcopy
+import numpy as np
+
+import pymf
+from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.metrics.pairwise import pairwise_distances
+
 logger = logging.getLogger(__name__)
 
 # TODO: make a onion selector, where one specifies the n_instances and the n_peels
@@ -13,48 +16,7 @@ logger = logging.getLogger(__name__)
 # that are outermost
 
 
-# -------------------------------------------------------------------------------------------------
-
-def get_ids(data_matrix, selected):
-    diffs = pairwise_distances(data_matrix, selected)
-    selected_instances_ids = [i for i, diff in enumerate(diffs) if 0 in diff]
-    return selected_instances_ids
-
-
-def default_n_instances(data_size):
-    return 2 * int(mt.sqrt(data_size))
-
-# -------------------------------------------------------------------------------------------------
-
-
-class Projector(object):
-
-    """
-    Takes a selector and returns the distance from each selected instance as a transformation.
-    """
-
-    def __init__(self, selector, metric='cosine', **kwds):
-        self.selector = selector
-        self.metric = metric
-        self.kwds = kwds
-
-    def fit(self, data_matrix, targets=None):
-        self.selected_instances = self.selector.fit_transform(data_matrix)
-
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
-
-    def transform(self, data_matrix, targets=None):
-        if self.selected_instances is None:
-            raise Exception('transform must be used after fit')
-        data_matrix_out = pairwise_kernels(data_matrix,
-                                           Y=self.selected_instances,
-                                           metric=self.metric,
-                                           **self.kwds)
-        return data_matrix_out
-
-# -------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 
 
 class CompositeSelector(object):
@@ -66,23 +28,24 @@ class CompositeSelector(object):
     def __init__(self, selectors):
         self.selectors = selectors
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         for selector in self.selectors:
-            selector.fit(data_matrix, targets)
+            selector.fit(data_matrix, target)
+        return self
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        if targets:
+    def transform(self, data_matrix, target=None):
+        if target:
             data_matrix_out_list = []
-            targets_out_list = []
+            target_out_list = []
             for selector in self.selectors:
-                data_matrix_out, targets_out = selector.transform(data_matrix, targets)
+                data_matrix_out, target_out = selector.transform(data_matrix, target)
                 data_matrix_out_list.append(data_matrix_out)
-                targets_out_list.append(targets_out)
-            return np.vstack(data_matrix_out_list), np.hstack(targets_out_list)
+                target_out_list.append(target_out)
+            return np.vstack(data_matrix_out_list), np.hstack(target_out_list)
         else:
             data_matrix_out_list = []
             for selector in self.selectors:
@@ -90,10 +53,49 @@ class CompositeSelector(object):
                 data_matrix_out_list.append(data_matrix_out)
             return np.vstack(data_matrix_out_list)
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        for selector in self.selectors:
+            selector.randomize(data_matrix)
+        return self
+
+    def optimize(self, data_matrix, target=None, score_func=None, n_iter=20):
+        score, obj_dict = max(self._optimize(self, data_matrix, target, score_func, n_iter))
+        self.__dict__.update(obj_dict)
+        self.score = score
+
+    def _optimize(self, data_matrix, target=None, score_func=None, n_iter=None):
+        for i in range(n_iter):
+            self.randomize(data_matrix)
+            data_matrix_out = self.fit_transform(data_matrix, target)
+            score = score_func(data_matrix, data_matrix_out)
+            yield (score, deepcopy(self.__dict__))
+
+# -----------------------------------------------------------------------------
 
 
-class IdentitySelector(object):
+class AbstractSelector(object):
+
+    """Interface declaration for the Selector classes."""
+
+    def _default_n_instances(self, data_size):
+        return 2 * int(math.sqrt(data_size))
+
+    def fit(self, data_matrix, target=None):
+        raise NotImplementedError("Should have implemented this")
+
+    def fit_transform(self, data_matrix, target=None):
+        raise NotImplementedError("Should have implemented this")
+
+    def transform(self, data_matrix, target=None):
+        raise NotImplementedError("Should have implemented this")
+
+    def randomize(self, data_matrix, amount=1):
+        raise NotImplementedError("Should have implemented this")
+
+# -----------------------------------------------------------------------------
+
+
+class IdentitySelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -105,22 +107,25 @@ class IdentitySelector(object):
         self.n_instances = n_instances
         self.random_state = None
 
-    def fit(self, data_matrix, targets=None):
-        pass
+    def fit(self, data_matrix, target=None):
+        return self
 
-    def fit_transform(self, data_matrix, targets=None):
+    def fit_transform(self, data_matrix, target=None):
         return data_matrix
 
-    def transform(self, data_matrix, targets=None):
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        if target is None:
             return data_matrix
         else:
-            return data_matrix, targets
+            return data_matrix, target
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        return self
+
+# -----------------------------------------------------------------------------
 
 
-class NullSelector(object):
+class NullSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -132,22 +137,26 @@ class NullSelector(object):
         self.n_instances = n_instances
         self.random_state = None
 
-    def fit(self, data_matrix, targets=None):
-        pass
+    def fit(self, data_matrix, target=None):
+        return self
 
-    def fit_transform(self, data_matrix, targets=None):
+    def fit_transform(self, data_matrix, target=None):
         return None
 
-    def transform(self, data_matrix, targets=None):
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        if target is None:
             return None
         else:
             return None, None
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        return self
 
 
-class RandomSelector(object):
+# -----------------------------------------------------------------------------
+
+
+class RandomSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -159,32 +168,39 @@ class RandomSelector(object):
         self.random_state = random_state
         random.seed(random_state)
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
+        return self
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         n_instances = data_matrix.shape[0]
         selected_instances_ids = list(range(n_instances))
         random.shuffle(selected_instances_ids)
         selected_instances_ids = sorted(selected_instances_ids[:self.n_instances])
         return selected_instances_ids
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        return self
+
+# -----------------------------------------------------------------------------
 
 
-class SparseSelector(object):
+class SparseSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -197,22 +213,23 @@ class SparseSelector(object):
         self.random_state = random_state
         random.seed(random_state)
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
+        return self
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         # extract difference matrix
         diff_matrix = pairwise_distances(data_matrix, metric=self.metric)
         size = data_matrix.shape[0]
@@ -233,10 +250,17 @@ class SparseSelector(object):
         selected_instances_ids = np.array([i for i, x in enumerate(np.diag(diff_matrix)) if x == 0])
         return selected_instances_ids
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        # TODO: randomize metric
+        return self
+
+# -----------------------------------------------------------------------------
 
 
-class MaxVolSelector(object):
+class MaxVolSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -248,31 +272,45 @@ class MaxVolSelector(object):
         self.random_state = random_state
         random.seed(random_state)
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
         mf.factorize()
         basis = mf.W.T
-        selected_instances_ids = get_ids(data_matrix, basis)
+        selected_instances_ids = self._get_ids(data_matrix, basis)
         return selected_instances_ids
-# -------------------------------------------------------------------------------------------------
+
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        min_sqrt_n_instances = min(min_n_instances / 2, int(math.sqrt(min_n_instances / 2)))
+        max_sqrt_n_instances = min(max_n_instances / 2, int(math.sqrt(max_n_instances / 2)))
+        self.n_instances = random.randint(min_sqrt_n_instances, max_sqrt_n_instances)
+        return self
+
+    def _get_ids(self, data_matrix, selected):
+        diffs = pairwise_distances(data_matrix, selected)
+        selected_instances_ids = [i for i, diff in enumerate(diffs) if 0 in diff]
+        return selected_instances_ids
+
+# -----------------------------------------------------------------------------
 
 
-class EqualizingSelector(object):
+class EqualizingSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -286,22 +324,22 @@ class EqualizingSelector(object):
         self.random_state = random_state
         random.seed(random_state)
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         # extract clusters
         class_ids = self.clustering_algo.fit_predict(data_matrix)
         # select same number per cluster uniformly at random with resampling if small size
@@ -317,10 +355,17 @@ class EqualizingSelector(object):
                 selected_instances_ids.append(i)
         return selected_instances_ids
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        # TODO: randomize clustering algorithm
+        return self
+
+# -----------------------------------------------------------------------------
 
 
-class QuickShiftSelector(object):
+class QuickShiftSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -334,24 +379,24 @@ class QuickShiftSelector(object):
         self.metric = metric
         self.kwds = kwds
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         # compute parent relationship
-        parent_ids = self.parents(data_matrix, targets=targets)
+        parent_ids = self.parents(data_matrix, target=target)
         # compute norm of parent-instance vector
         # compute parent vectors
         parents = data_matrix[parent_ids]
@@ -365,7 +410,7 @@ class QuickShiftSelector(object):
             parent_distance_sorted_ids[:self.n_instances - 1]
         return selected_instances_ids
 
-    def parents(self, data_matrix, targets=None):
+    def parents(self, data_matrix, target=None):
         data_size = data_matrix.shape[0]
         kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
         # compute instance density as average pairwise similarity
@@ -390,10 +435,17 @@ class QuickShiftSelector(object):
                         break
         return parent_ids
 
-# -------------------------------------------------------------------------------------------------
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        # TODO: randomize metric
+        return self
+
+# -----------------------------------------------------------------------------
 
 
-class DensitySelector(object):
+class DensitySelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
@@ -406,32 +458,39 @@ class DensitySelector(object):
         self.metric = metric
         self.kwds = kwds
 
-    def fit(self, data_matrix, targets=None):
+    def fit(self, data_matrix, target=None):
         if self.n_instances == 'auto':
-            self.n_instances = default_n_instances(data_matrix.shape[0])
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
 
-    def fit_transform(self, data_matrix, targets=None):
-        self.fit(data_matrix, targets)
-        return self.transform(data_matrix, targets)
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
-    def transform(self, data_matrix, targets=None):
-        selected_instances_ids = self.select(data_matrix, targets)
-        if targets is None:
+    def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is None:
             return data_matrix[selected_instances_ids]
         else:
-            return data_matrix[selected_instances_ids], list(np.array(targets)[selected_instances_ids])
+            return data_matrix[selected_instances_ids], list(np.array(target)[selected_instances_ids])
 
-    def select(self, data_matrix, targets=None):
+    def select(self, data_matrix, target=None):
         kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
         # compute instance density as average pairwise similarity
         densities = np.sum(kernel_matrix, 0)
         # normalize to obtain probabilities
         probabilities = densities / np.sum(densities)
         # select instances according to their probability
-        selected_instances_ids = [self.sample(probabilities) for i in range(self.n_instances)]
+        selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
         return selected_instances_ids
 
-    def sample(self, probabilities):
+    def randomize(self, data_matrix, amount=1):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        # TODO: randomize metric
+        return self
+
+    def _sample(self, probabilities):
         target_prob = random.random()
         prob_accumulator = 0
         for i, p in enumerate(probabilities):
@@ -441,4 +500,4 @@ class DensitySelector(object):
         # at last return the id of last element
         return len(probabilities) - 1
 
-# -------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------

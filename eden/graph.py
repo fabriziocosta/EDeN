@@ -401,8 +401,8 @@ class Vectorizer(AbstractVectorizer):
         # determine the entity attribute
         # if the vertex does not have a 'entity' attribute then provide a
         # default one
-        if d.get('entity', False):
-            node_entity = d['entity']
+        if d.get(self.key_entity, False):
+            node_entity = d[self.key_entity]
         else:
             if isinstance(d[self.key_label], list):
                 node_entity = 'vector'
@@ -453,7 +453,7 @@ class Vectorizer(AbstractVectorizer):
                 elif isinstance(d[self.key_label], basestring):
                     # copy a hashed version of the string for a number of times equal to self.label_size
                     # in this way qualitative ( i.e. string ) labels can be compared to the discretized labels
-                    hlabel = int(hash(d['label']) & self.bitmask) + 1
+                    hlabel = int(hash(d[self.key_label]) & self.bitmask) + 1
                     graph.node[n]['hlabel'] = [hlabel] * self.label_size
                 else:
                     raise Exception('ERROR: something went wrong, type of node label is unknown: \
@@ -466,15 +466,15 @@ class Vectorizer(AbstractVectorizer):
             print(e.message)
 
     def _weight_preprocessing(self, graph):
-        # it is expected that all vertices either have or do not have the attribute 'weight'
+        # it is expected that all vertices either have or do not have the attribute self.key_weight
         # we sniff the attributes of the first node to determine if graph is weighted
-        if 'weight' in graph.nodes(data=True)[0][1]:
+        if self.key_weight in graph.nodes(data=True)[0][1]:
             graph.graph['weighted'] = True
             # check that edges are weighted, if not assign unitary weight
             for n, d in graph.nodes_iter(data=True):
                 if d.get('edge', False) is True:
-                    if d.get('weight', False) is False:
-                        graph.node[n]['weight'] = 1
+                    if d.get(self.key_weight, False) is False:
+                        graph.node[n][self.key_weight] = 1
 
     def _edge_to_vertex_transform(self, original_graph):
         """Return a graph where the edges of the original_graph are converted to nodes."""
@@ -566,15 +566,15 @@ class Vectorizer(AbstractVectorizer):
             # only for vertices of type 'node', i.e. not for the 'edge' type
             if d.get('node', False):
                 self._transform_vertex(graph, v, feature_list)
-            if d.get('nesting', False):  # only for vertices of type 'nesting'
+            if d.get(self.key_nesting, False):  # only for vertices of type self.key_nesting
                 self._transform_nesting_vertex(graph, v, feature_list)
         return self._normalization(feature_list, instance_id)
 
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
         # extract endpoints
         nesting_endpoints = [u for u in graph.neighbors(nesting_vertex)]
-        if 'weight' in graph.node[nesting_vertex]:
-            connection_weight = graph.node[nesting_vertex]['weight']
+        if self.key_weight in graph.node[nesting_vertex]:
+            connection_weight = graph.node[nesting_vertex][self.key_weight]
         else:
             connection_weight = 1
         if len(nesting_endpoints) == 2:
@@ -697,7 +697,7 @@ class Vectorizer(AbstractVectorizer):
         # compute the pruduct of the two
         # make a list of the neighborhood_graph_weight at every distance
         neighborhood_graph_weight_list = []
-        w = graph.node[root]['weight']
+        w = graph.node[root][self.key_weight]
         node_weight_list = np.array([w])
         node_average = node_weight_list[0]
         edge_weight_list = np.array([1])
@@ -707,7 +707,7 @@ class Vectorizer(AbstractVectorizer):
         for distance, node_set in root_dist_dict.iteritems():
             # extract array of weights at given distance
             weight_array_at_d = np.array(
-                [graph.node[v]['weight'] for v in node_set])
+                [graph.node[v][self.key_weight] for v in node_set])
             if distance % 2 == 0:  # nodes
                 node_weight_list = np.concatenate(
                     (node_weight_list, weight_array_at_d))
@@ -744,7 +744,7 @@ class Vectorizer(AbstractVectorizer):
                 for v in graph.neighbors(u):
                     if v not in visited:
                         # skip nesting edge-nodes
-                        if graph.node[v].get('nesting', False) is False:
+                        if graph.node[v].get(self.key_nesting, False) is False:
                             dist[v] = d
                             visited.add(v)
                             q.append(v)
@@ -821,13 +821,13 @@ class Vectorizer(AbstractVectorizer):
                     str(index): value for index, value in zip(row.indices, row.data)}
                 # if an original label does not exist then save it, else do
                 # nothing and preserve the information in original label
-                if graph.node[v].get('original_label', False) is False:
-                    graph.node[v]['original_label'] = graph.node[v]['label']
-                graph.node[v]['label'] = vec_dict
+                if graph.node[v].get(self.key_original_label, False) is False:
+                    graph.node[v][self.key_original_label] = graph.node[v][self.key_label]
+                graph.node[v][self.key_label] = vec_dict
                 # if a node does not have a 'entity' attribute then assign one
                 # called 'vactor' by default
-                if graph.node[v].get('entity', False) is False:
-                    graph.node[v]['entity'] = 'vector'
+                if graph.node[v].get(self.key_entity, False) is False:
+                    graph.node[v][self.key_entity] = 'vector'
                 vertex_id += 1
         return graph
 
@@ -845,21 +845,21 @@ class Vectorizer(AbstractVectorizer):
         for v, d in graph.nodes_iter(data=True):
             if d.get('node', False):
                 # annotate the 'importance' attribute with the margin
-                graph.node[v]['importance'] = margins[vertex_id]
-                # update the 'weight' information as a linear combination of
+                graph.node[v][self.key_importance] = margins[vertex_id]
+                # update the self.key_weight information as a linear combination of
                 # the previuous weight and the absolute margin
-                if 'weight' in graph.node[v] and self.reweight != 0:
-                    graph.node[v]['weight'] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * \
-                        graph.node[v]['weight']
+                if self.key_weight in graph.node[v] and self.reweight != 0:
+                    graph.node[v][self.key_weight] = self.reweight * abs(margins[vertex_id]) + (1 - self.reweight) * \
+                        graph.node[v][self.key_weight]
                 # in case the original graph was not weighted then instantiate
-                # the 'weight' with the absolute margin
+                # the self.key_weight with the absolute margin
                 else:
-                    graph.node[v]['weight'] = abs(margins[vertex_id])
+                    graph.node[v][self.key_weight] = abs(margins[vertex_id])
                 vertex_id += 1
             if d.get('edge', False):  # keep the weight of edges
                 # ..unless they were unweighted, in this case add unit weight
-                if 'weight' not in graph.node[v]:
-                    graph.node[v]['weight'] = 1
+                if self.key_weight not in graph.node[v]:
+                    graph.node[v][self.key_weight] = 1
         return graph
 
     def _compute_vertex_based_features(self, graph):
