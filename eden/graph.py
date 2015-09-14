@@ -19,38 +19,68 @@ class Vectorizer(AbstractVectorizer):
 
     """Transform real vector labeled, weighted, nested graphs in sparse vectors.
 
-        Args:
-            complexity: the complexity of the features extracted (default 3).
-            This is equivalent to setting r = complexity, d = complexity.
+    Parameters
+    ----------
+    complexity : int (default 3)
+        The complexity of the features extracted.
+        This is equivalent to setting r = complexity, d = complexity.
 
-            r: the maximal radius size.
+    r : int
+        The maximal radius size.
 
-            d: the maximal distance size.
+    d : int
+        The maximal distance size.
 
-            n: the maximal number of clusters used to discretize real label vectors.
+    n : int (default 1)
+        The maximal number of clusters used to discretize real label vectors.
 
-            min_r: the minimal radius size.
+    min_r : int
+        The minimal radius size.
 
-            min_d: the minimal distance size.
+    min_d : int
+        The minimal distance size.
 
-            min_n: the minimal number of clusters used to discretize real label vectors (default 2).
+    min_n : int (default 2)
+        The minimal number of clusters used to discretize real label vectors (default 2).
 
-            label_size: the number of discretization steps used in the conversion from real valued labels
-            to discrete labels.
+    label_size : int (default 1)
+        the number of discretization steps used in the conversion from
+        real valued labels to discrete labels.
 
-            nbits: the number of bits that defines the feature space size:
-            |feature space|=2^nbits (default 20).
+    nbits : int (default 20)
+        The number of bits that defines the feature space size:
+        |feature space|=2^nbits.
 
-            normalization: flag to set the resulting feature vector to have unit euclidean norm (default True)
+    normalization : bool (default True)
+        Flag to set the resulting feature vector to have unit euclidean norm.
 
-            inner_normalization: flag to set the feature vector for a specific combination of the radius and
-            distance size to have unit euclidean norm (default True). When used together with the
-            'normalization' flag it will be applied first and then the resulting feature vector
-            will be normalized.
+    inner_normalization : bool (default True)
+        Flag to set the feature vector for a specific combination of the radius and
+        distance size to have unit euclidean norm (default True). When used together with the
+        'normalization' flag it will be applied first and then the resulting feature vector
+        will be normalized.
 
-            triangular_decomposition: flag to add to each graph the disjoint set of triangles. This
-            allows also dense graphs to be processed. Note that runtimes can significantly increase.
+    triangular_decomposition : bool (default True)
+        Flag to add to each graph the disjoint set of triangles. This
+        allows also dense graphs to be processed.
 
+    key_label : string (default 'label')
+        The key used to indicate the label information in nodes.
+
+    key_weight : string (default 'weight')
+        The key used to indicate the weight information in nodes.
+
+    key_nesting : string (default 'nesting')
+        The key used to indicate the nesting type in edges.
+
+    key_importance : string (default 'importance')
+        The key used to indicate the importance information in nodes.
+
+    key_original_label : string (default 'original_label')
+        The key used to indicate the original label information in nodes.
+
+    key_entity : string (default 'entity')
+        The key used to indicate the entity information in nodes.
     """
 
     def __init__(self,
@@ -168,8 +198,15 @@ class Vectorizer(AbstractVectorizer):
     def fit(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs.
 
-        Args:
-            graphs: the list of networkx graphs.
+        Parameters
+        ----------
+        graphs : list[graphs]
+            The input list of networkx graphs.
+
+        Returns
+        -------
+        self
+
         """
 
         if self.n == 1:
@@ -201,12 +238,19 @@ class Vectorizer(AbstractVectorizer):
                     discretization_model.fit(label_data_matrixs[node_entity])
                     self.discretization_models[node_entity] += [discretization_model]
             self.fit_status = 'fit'
+        return self
 
     def partial_fit(self, graphs):
         """Update the discretizer of the real valued vector data stored in the nodes of the graphs.
 
-        Args:
-            graphs: the list of networkx graphs.
+        Parameters
+        ----------
+        graphs : list[graphs]
+            The input list of networkx graphs.
+
+        Returns
+        -------
+        self
         """
 
         # if partial_fit is invoked prior to a fit invocation then run fit instead
@@ -220,13 +264,21 @@ class Vectorizer(AbstractVectorizer):
                 self.discretization_models[node_entity] = []
                 for i in range(self.label_size):
                     self.discretization_models[node_entity][i].partial_fit(label_data_matrixs[node_entity])
+        return self
 
     def fit_transform(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs and then
         transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Args:
-            graphs: the list of networkx graphs.
+        Parameters
+        ----------
+        graphs : list[graphs]
+            The input list of networkx graphs.
+
+        Returns
+        -------
+        data_matrix : array-like, shape = [n_samples, n_features]
+            Vector representation of input graphs.
         """
 
         graphs, graphs_ = itertools.tee(graphs)
@@ -236,8 +288,15 @@ class Vectorizer(AbstractVectorizer):
     def transform(self, graphs):
         """Transform a list of networkx graphs into a Numpy sparse matrix (Compressed Sparse Row matrix).
 
-        Args:
-            graphs: the list of networkx graphs.
+        Parameters
+        ----------
+        graphs : list[graphs]
+            The input list of networkx graphs.
+
+        Returns
+        -------
+        data_matrix : array-like, shape = [n_samples, n_features]
+            Vector representation of input graphs.
         """
 
         instance_id = None
@@ -769,18 +828,22 @@ class Vectorizer(AbstractVectorizer):
         It can overwrite the label attribute with the sparse vector corresponding to the
         vertex induced features.
 
-        Args:
-            estimator: scikit-learn predictor trained on data sampled from the same distribution.
-            If None the vertex weigths are by default 1.
+        Parameters
+        ----------
+        estimator : scikit-learn estimator
+            Scikit-learn predictor trained on data sampled from the same distribution.
+            If None the vertex weigths are set by default 1.
 
-            reweight: the  coefficient used to weight the linear combination of the current weight and
+        reweight : float (default 1.0)
+            The  coefficient used to weight the linear combination of the current weight and
             the absolute value of the score computed by the estimator.
             If reweight = 0 then do not update.
             If reweight = 1 then discard the current weight information and use only abs( score )
             If reweight = 0.5 then update with the arithmetic mean of the current weight information and
             the abs( score )
 
-            relabel: flag to replace the label attribute of each vertex with the sparse vector encoding of all
+        relabel : bool (default false)
+            Flag to replace the label attribute of each vertex with the sparse vector encoding of all
             features that have that vertex as root. Create a new attribute 'original_label' to store the
             previous label. If the 'original_label' attribute is already present then it is left untouched:
             this allows an iterative application of the relabeling procedure while preserving the original
