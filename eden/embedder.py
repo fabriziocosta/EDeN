@@ -58,7 +58,7 @@ class Projector(object):
         -------
         self
         """
-        self.selected_instances = self.selector.fit_transform(data_matrix)
+        self.selected_instances = self.selector.fit_transform(data_matrix, target=target)
         return self
 
     def fit_transform(self, data_matrix, target=None):
@@ -78,9 +78,9 @@ class Projector(object):
             Transformed array.
         """
         self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
+        return self.transform(data_matrix)
 
-    def transform(self, data_matrix, target=None):
+    def transform(self, data_matrix):
         """Transforms features as the instance similarity to a set of instances as
         defined by the selector.
 
@@ -88,8 +88,6 @@ class Projector(object):
         ----------
         data_matrix : array, shape = (n_samples, n_features)
           Samples.
-
-        target : TODO
 
         Returns
         -------
