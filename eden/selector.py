@@ -9,7 +9,9 @@ import pymf
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.metrics import roc_auc_score
+# from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import SGDClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -686,15 +688,19 @@ class KNNDecisionSurfaceSelector(AbstractSelector):
 # -----------------------------------------------------------------------------
 
 
-class ROCDecisionSurfaceSelector(AbstractSelector):
+class KernelDecisionSurfaceSelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed sampling according to the inverse of the ROC score.
+    Selection is performed sampling according to the inverse of a scoring function.
     """
 
-    def __init__(self, n_instances='auto', randomized=False, metric='cosine', **kwds):
+    def __init__(self, n_instances='auto',
+                 score_func=roc_auc_score,
+                 randomized=False,
+                 metric='cosine', **kwds):
         self.n_instances = n_instances
+        self.score_func = score_func
         self.randomized = randomized
         self.metric = metric
         self.kwds = kwds
@@ -731,16 +737,111 @@ class ROCDecisionSurfaceSelector(AbstractSelector):
         kernel_matrix_ids_sorted = np.argsort(-kernel_matrix)
         # compute the similarity of each instance in sorted order
         kernel_matrix_sorted = np.sort(-kernel_matrix)
+        target_vals = list(set(target))
         scores = []
         for i in range(data_matrix.shape[0]):
             # get list of targets sorted by the instance similarity
             y_true = target[kernel_matrix_ids_sorted[i]]
+            current_target = target[i]
+            # if current target is the 0 class, i.e. the negative class, then invert the target
+            if current_target == target_vals[0]:
+                y_true = self._flip_targets(y_true, target_vals)
             y_scores = kernel_matrix_sorted[i]
-            score = roc_auc_score(y_true, y_scores)
+            score = self.score_func(y_true, y_scores)
             scores.append(score)
         scores = np.array(scores)
         # normalize to obtain probabilities
         probabilities = scores / np.sum(scores)
+        return probabilities
+
+    def _flip_targets(self, target, target_vals):
+        target_out = []
+        for t in target:
+            if t == target_vals[0]:
+                target_out.append(target_vals[0])
+            else:
+                target_out.append(target_vals[1])
+        return target_out
+
+    def randomize(self, data_matrix, amount=1.0):
+        min_n_instances = int(data_matrix.shape[0] * 0.1)
+        max_n_instances = int(data_matrix.shape[0] * 0.5)
+        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        # TODO: randomize metric
+        return self
+
+    def _sample(self, probabilities):
+        target_prob = random.random()
+        prob_accumulator = 0
+        for i, p in enumerate(probabilities):
+            prob_accumulator += p
+            if target_prob < prob_accumulator:
+                return i
+        # at last return the id of last element
+        return len(probabilities) - 1
+
+
+# -----------------------------------------------------------------------------
+
+
+class DecisionSurfaceSelector(AbstractSelector):
+
+    """
+    Transform a set of sparse high dimensional vectors to a smaller set.
+    Selection is performed sampling according to the inverse of the ROC score.
+    """
+
+    def __init__(self, n_instances='auto',
+                 estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=-1),
+                 randomized=False):
+        self.n_instances = n_instances
+        self.estimator = estimator
+        self.randomized = randomized
+
+    def fit(self, data_matrix, target=None):
+        if self.n_instances == 'auto':
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
+
+    def fit_transform(self, data_matrix, target=None):
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
+
+    def transform(self, data_matrix, target=None):
+        assert(target is not None), 'target cannot be None'
+        selected_instances_ids = self.select(data_matrix, target)
+        self.selected_targets = list(np.array(target)[selected_instances_ids])
+        return data_matrix[selected_instances_ids]
+
+    def select(self, data_matrix, target=None):
+        # select maximally ambiguous or unpredictable instances
+        probabilities = self._probability_func(data_matrix, target)
+        if self.randomized:
+            # select instances according to their probability
+            selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
+        else:
+            # select the instances with highest probability
+            selected_instances_ids = sorted([(prob, i) for i, prob in enumerate(probabilities)], reverse=True)
+            selected_instances_ids = [i for prob, i in selected_instances_ids[:self.n_instances]]
+        return selected_instances_ids
+
+    def _logistic_func(self, x, l=1, k=1, x0=0):
+        return float(l) / (1 + math.exp(- k * (x - x0)))
+
+    def _probability_func(self, data_matrix, target=None):
+        _max_const = 100
+        self.estimator.fit(data_matrix, target)
+        confidence_lists = self.estimator.decision_function(data_matrix)
+        if target.ndim > 1:
+            # compute the max confidence value for each instance
+            max_confidences = [max(conf_list) for conf_list in confidence_lists]
+        else:
+            max_confidences = confidence_lists
+        # compute inverse of the logistic of the max confidence as density score
+        densities = [1 / self._logistic_func(x) if x != 0 else _max_const for x in max_confidences]
+        # upper bound values to _max_const
+        densities = [d if d < _max_const else _max_const for d in densities]
+        # normalize to obtain probabilities
+        probabilities = densities / np.sum(densities)
         return probabilities
 
     def randomize(self, data_matrix, amount=1.0):

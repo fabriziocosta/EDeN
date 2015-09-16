@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class AutoCluster(object):
 
-    """Clustering estimator that uses a list of estimators.
+    """Clustering estimator that selects the best option from a list of estimators.
 
     Cluster analysis or clustering is the task of grouping a set of objects in such a way
     that objects in the same group (called a cluster) are more similar (in some sense or another)
