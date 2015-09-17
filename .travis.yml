@@ -18,6 +18,7 @@ install:
   - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.16"
   - conda install --yes matplotlib
   - conda install --yes cvxopt
+  - pip install git+https://github.com/nils-werner/pymf.git
   # packages for running tests
   - pip install setuptools
   - pip install flake8

@@ -83,7 +83,7 @@ class IteratedSemiSupervisedFeatureSelection(object):
         self.estimator = estimator
         self.n_iter = n_iter
         self.min_feature_ratio = min_feature_ratio
-        self.selectors = []
+        self.feature_selectors = []
 
     def fit(self, data_matrix=None, target=None):
         """Fit the estimator on the samples.
@@ -104,8 +104,8 @@ class IteratedSemiSupervisedFeatureSelection(object):
             data_matrix = self._feature_selection(data_matrix, target)
             n_features_output = data_matrix.shape[1]
             if self._terminate(n_features_orig, n_features_input, n_features_output):
-                # remove last selector since it does not satisfy conditions
-                self.selectors.pop(-1)
+                # remove last feature_selector since it does not satisfy conditions
+                self.feature_selectors.pop(-1)
                 break
         return self
 
@@ -131,9 +131,10 @@ class IteratedSemiSupervisedFeatureSelection(object):
         data_matrix : array, shape = (n_samples, n_features_new)
             Transformed array.
         """
-        for selector in self.selectors:
-            data_matrix = selector.transform(data_matrix)
-        return data_matrix
+        data_matrix_new = data_matrix.copy()
+        for feature_selector in self.feature_selectors:
+            data_matrix_new = feature_selector.transform(data_matrix_new)
+        return data_matrix_new
 
     def fit_transform(self, data_matrix=None, target=None):
         """Fit the estimator on the samples and reduce the data matrix to
@@ -155,9 +156,9 @@ class IteratedSemiSupervisedFeatureSelection(object):
         data_matrix : array, shape = (n_samples, n_features_new)
             Transformed array.
         """
-        data_matrix_ = data_matrix.copy()
+        data_matrix_copy = data_matrix.copy()
         self.fit(data_matrix, target)
-        return self.transform(data_matrix_)
+        return self.transform(data_matrix_copy)
 
     def _semi_supervised_learning(self, data_matrix, target):
         semi_supervised_estimator = LabelSpreading(kernel='knn', n_neighbors=5)
@@ -176,7 +177,7 @@ class IteratedSemiSupervisedFeatureSelection(object):
 
     def _feature_selection(self, data_matrix, target):
         # perform recursive feature elimination
-        selector = RFECV(self.estimator, step=0.1, cv=10)
-        data_matrix = selector.fit_transform(data_matrix, target)
-        self.selectors.append(selector)
+        feature_selector = RFECV(self.estimator, step=0.1, cv=10)
+        data_matrix = feature_selector.fit_transform(data_matrix, target)
+        self.feature_selectors.append(feature_selector)
         return data_matrix
