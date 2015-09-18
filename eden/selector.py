@@ -171,75 +171,32 @@ class AbstractSelector(object):
     """Interface declaration for the Selector classes."""
 
     def _default_n_instances(self, data_size):
+        # TODO [fabrizio]: reconstruct Gram matrix using approximation
+        # find optimal num points for a reconstruction with small error
+        # trade off with a cost C (hyperparameter) to pay per point so not to choose all points
         return 2 * int(math.sqrt(data_size))
 
     def fit(self, data_matrix, target=None):
-        raise NotImplementedError("Should have implemented this")
+        if self.n_instances == 'auto':
+            self.n_instances = self._default_n_instances(data_matrix.shape[0])
 
     def fit_transform(self, data_matrix, target=None):
-        raise NotImplementedError("Should have implemented this")
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix, target)
 
     def transform(self, data_matrix, target=None):
+        selected_instances_ids = self.select(data_matrix, target)
+        if target is not None:
+            self.selected_targets = list(np.array(target)[selected_instances_ids])
+        else:
+            self.selected_targets = None
+        return data_matrix[selected_instances_ids]
+
+    def select(self, data_matrix, target=None):
         raise NotImplementedError("Should have implemented this")
 
     def randomize(self, data_matrix, amount=1.0):
         raise NotImplementedError("Should have implemented this")
-
-# -----------------------------------------------------------------------------
-
-
-class IdentitySelector(AbstractSelector):
-
-    """
-    Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed returning the same instances.
-    """
-
-    def __init__(self, n_instances='auto', random_state=None):
-        # Note: n_instances is just a placeholder
-        self.n_instances = n_instances
-        self.random_state = None
-
-    def fit(self, data_matrix, target=None):
-        return self
-
-    def fit_transform(self, data_matrix, target=None):
-        return data_matrix
-
-    def transform(self, data_matrix, target=None):
-        self.selected_targets = None
-        return None
-
-    def randomize(self, data_matrix, amount=1.0):
-        return self
-
-# -----------------------------------------------------------------------------
-
-
-class NullSelector(AbstractSelector):
-
-    """
-    Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection returns no instances.
-    """
-
-    def __init__(self, n_instances='auto', random_state=None):
-        # Note: n_instances is just a placeholder
-        self.n_instances = n_instances
-        self.random_state = None
-
-    def fit(self, data_matrix, target=None):
-        return self
-
-    def fit_transform(self, data_matrix, target=None):
-        return None
-
-    def transform(self, data_matrix, target=None):
-        self.selected_targets = None
-        return None
-
-    def randomize(self, data_matrix, amount=1.0):
-        return self
 
 
 # -----------------------------------------------------------------------------
@@ -256,23 +213,6 @@ class RandomSelector(AbstractSelector):
         self.n_instances = n_instances
         self.random_state = random_state
         random.seed(random_state)
-
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-        return self
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
 
     def select(self, data_matrix, target=None):
         n_instances = data_matrix.shape[0]
@@ -302,23 +242,6 @@ class SparseSelector(AbstractSelector):
         self.metric = metric
         self.random_state = random_state
         random.seed(random_state)
-
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-        return self
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
 
     def select(self, data_matrix, target=None):
         # extract difference matrix
@@ -363,22 +286,6 @@ class MaxVolSelector(AbstractSelector):
         self.random_state = random_state
         random.seed(random_state)
 
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
-
     def select(self, data_matrix, target=None):
         mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
         mf.factorize()
@@ -415,22 +322,6 @@ class EqualizingSelector(AbstractSelector):
         self.clustering_algo = clustering_algo
         self.random_state = random_state
         random.seed(random_state)
-
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
 
     def select(self, data_matrix, target=None):
         # extract clusters
@@ -471,22 +362,6 @@ class QuickShiftSelector(AbstractSelector):
         self.n_instances = n_instances
         self.metric = metric
         self.kwds = kwds
-
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
 
     def select(self, data_matrix, target=None):
         # compute parent relationship
@@ -552,22 +427,7 @@ class DensitySelector(AbstractSelector):
         self.randomized = randomized
         self.metric = metric
         self.kwds = kwds
-
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
-    def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
-        if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
-        else:
-            self.selected_targets = None
-        return data_matrix[selected_instances_ids]
+        self.selected_targets = None
 
     def select(self, data_matrix, target=None):
         # select most dense instances
@@ -626,19 +486,10 @@ class KNNDecisionSurfaceSelector(AbstractSelector):
         self.metric = metric
         self.kwds = kwds
 
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
     def transform(self, data_matrix, target=None):
-        assert(target is not None), 'target cannot be None'
-        selected_instances_ids = self.select(data_matrix, target)
-        self.selected_targets = list(np.array(target)[selected_instances_ids])
-        return data_matrix[selected_instances_ids]
+        if target is None:
+            raise Exception('target cannot be None')
+        return super(KNNDecisionSurfaceSelector, self).transform(data_matrix, target=target)
 
     def select(self, data_matrix, target=None):
         # select maximally ambiguous or unpredictable instances
@@ -705,19 +556,10 @@ class KernelDecisionSurfaceSelector(AbstractSelector):
         self.metric = metric
         self.kwds = kwds
 
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
     def transform(self, data_matrix, target=None):
-        assert(target is not None), 'target cannot be None'
-        selected_instances_ids = self.select(data_matrix, target)
-        self.selected_targets = list(np.array(target)[selected_instances_ids])
-        return data_matrix[selected_instances_ids]
+        if target is None:
+            raise Exception('target cannot be None')
+        return super(KernelDecisionSurfaceSelector, self).transform(data_matrix, target=target)
 
     def select(self, data_matrix, target=None):
         # select maximally ambiguous or unpredictable instances
@@ -798,19 +640,10 @@ class DecisionSurfaceSelector(AbstractSelector):
         self.estimator = estimator
         self.randomized = randomized
 
-    def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
-
-    def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
-
     def transform(self, data_matrix, target=None):
-        assert(target is not None), 'target cannot be None'
-        selected_instances_ids = self.select(data_matrix, target)
-        self.selected_targets = list(np.array(target)[selected_instances_ids])
-        return data_matrix[selected_instances_ids]
+        if target is None:
+            raise Exception('target cannot be None')
+        return super(DecisionSurfaceSelector, self).transform(data_matrix, target=target)
 
     def select(self, data_matrix, target=None):
         # select maximally ambiguous or unpredictable instances

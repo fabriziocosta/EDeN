@@ -55,23 +55,10 @@ class AutoCluster(object):
         return self
 
     def fit(self, data_matrix):
-        """Fit all clustering estimators on the same samples.
+        raise NotImplementedError("The class exposes only fit_predict.")
 
-        Parameters
-        ----------
-        data_matrix : array-like, shape = (n_samples, n_features)
-            Samples.
-
-        Returns
-        -------
-        self
-        """
-        for estimator in self.estimators:
-            estimator.fit(data_matrix)
-        return self
-
-    def predict(self, data_matrix):
-        """Predict cluster labels for samples in data_matrix using the best estimator.
+    def fit_predict(self, data_matrix):
+        """Fit to data, then predict cluster labels for samples in data_matrix using the best estimator.
 
         Parameters
         ----------
@@ -87,34 +74,20 @@ class AutoCluster(object):
         -----
         The predictions returned are from the estimator that obtains the maximum value for score_func.
         """
-        self.score, self.predictions, self.estimator = max(self._predict(data_matrix))
+        self.score,\
+            self.estimator_index,\
+            self.predictions,\
+            self.estimator = max(self._predict(data_matrix))
         return self.predictions
 
     def _predict(self, data_matrix):
-        for estimator in self.estimators:
-            predictions = estimator.predict(data_matrix)
-            score = self.score_func(data_matrix, predictions)
-            yield (score, predictions, estimator)
-
-    def fit_predict(self, data_matrix):
-        """Fit to data, then predict it.
-
-        Parameters
-        ----------
-        data_matrix : array, shape = (n_samples, n_features)
-            Samples.
-
-        Returns
-        -------
-        predictions : array, shape = (n_samples,)
-            Predicted cluster label per sample.
-
-        Notes
-        -----
-        The predictions returned are from the estimator that obtains the maximum value for score_func.
-        """
-        self.fit(data_matrix)
-        return self.predict(data_matrix)
+        for estimator_index, estimator in enumerate(self.estimators):
+            predictions = estimator.fit_predict(data_matrix)
+            if len(set(predictions)) < 2:
+                score = 0
+            else:
+                score = self.score_func(data_matrix, predictions)
+            yield (score, estimator_index, predictions, estimator)
 
     def optimize(self, data_matrix, max_n_clusters=20):
         """Select the optimal number of clusters according to score_func.
@@ -143,14 +116,15 @@ class AutoCluster(object):
 
             n_clusters: the optimal number of clusters according to the score_func
         """
-        self.score, \
-            self.predictions, \
-            self.estimator, \
+        self.score,\
+            self.estimator_index,\
+            self.predictions,\
+            self.estimator,\
             self.n_clusters = max(self._optimize(data_matrix, max_n_clusters))
         return self
 
     def _optimize(self, data_matrix, max_n_clusters=None):
-        for n_clusters in max_n_clusters:
+        for n_clusters in range(2, max_n_clusters):
             self.set_params(n_clusters=n_clusters)
-            predictions = self.predict(data_matrix)
-            yield (self.score, predictions, self.estimator, n_clusters)
+            predictions = self.fit_predict(data_matrix)
+            yield (self.score, self.estimator_index, predictions, self.estimator, n_clusters)

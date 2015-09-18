@@ -77,7 +77,8 @@ class IteratedSemiSupervisedFeatureSelection(object):
         of features after the selection.
     """
 
-    def __init__(self, estimator=SGDClassifier(average=True, shuffle=True, penalty='elasticnet'),
+    def __init__(self,
+                 estimator=SGDClassifier(average=True, shuffle=True, penalty='elasticnet'),
                  n_iter=30,
                  min_feature_ratio=0.1):
         self.estimator = estimator
