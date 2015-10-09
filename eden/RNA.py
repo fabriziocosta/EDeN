@@ -57,11 +57,16 @@ def make_seq_struct(seq, struct):
 class Vectorizer(AbstractVectorizer):
 
     def __init__(self,
+                 complexity=None,
                  sequence_vectorizer_complexity=3,
                  graph_vectorizer_complexity=2,
                  n_neighbors=5,
                  sampling_prob=.5,
                  n_iter=5):
+        if complexity is not None:
+            sequence_vectorizer_complexity = complexity
+            graph_vectorizer_complexity = complexity
+
         self.sequence_vectorizer = SeqVectorizer(complexity=sequence_vectorizer_complexity,
                                                  normalization=False,
                                                  inner_normalization=False)
