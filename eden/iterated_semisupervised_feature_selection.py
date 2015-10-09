@@ -28,7 +28,7 @@ def semisupervised_target(target=None,
     known_fraction : float
         Fraction of desired known labels.
 
-    random_state : int
+    random_state : int (default 1)
         Seed for the random number generator.
 
     Returns
@@ -36,6 +36,7 @@ def semisupervised_target(target=None,
     target : array-like, shape = (n_samples)
         Class labels using -1 for the unknown class.
     """
+    _max_n_attempts = 1000
     if unknown_fraction is not None and known_fraction is not None:
         if unknown_fraction != 1 - known_fraction:
             raise Exception('unknown_fraction and known_fraction are inconsistent. bailing out')
@@ -49,13 +50,28 @@ def semisupervised_target(target=None,
     elif unknown_fraction == 1:
         return None
     else:
-        label_ids = [1] * int(len(target) * unknown_fraction) + \
-            [0] * int(len(target) * (1 - unknown_fraction))
-        random.seed(random_state)
-        random.shuffle(label_ids)
-        random_unlabeled_points = np.where(label_ids)
-        labels = np.copy(target)
-        labels[random_unlabeled_points] = -1
+        do_iter = True
+        counter = 0
+        while do_iter is True:
+            counter += 1
+            label_ids = [1] * int(len(target) * unknown_fraction) + \
+                [0] * int(len(target) * (1 - unknown_fraction))
+            random.seed(random_state)
+            random.shuffle(label_ids)
+            random_unlabeled_points = np.where(label_ids)
+            labels = np.copy(target)
+            labels[random_unlabeled_points] = -1
+            n_classes_true = len(set(target))
+            n_classes = len(set(labels)) - 1
+            # if we have added an extra class to the num of original classes then stop
+            # if the numbers differ then we might have removed some classes with low counts
+            # then try again
+            if n_classes_true == n_classes:
+                do_iter = False
+            if counter > _max_n_attempts:
+                logger.info('Warning: reached max num attempts (n=%d) to balance class distribution,\
+                bailing out' % _max_n_attempts)
+                do_iter = False
         return labels
 
 
@@ -69,10 +85,10 @@ class IteratedSemiSupervisedFeatureSelection(object):
     estimator: scikit-learn estimator (default SGDClassifier)
         Estimator used in the recursive feature elimination algorithm.
 
-    n_iter : int
+    n_iter : int (default 30)
         The maximum number of iterations.
 
-    min_feature_ratio : float
+    min_feature_ratio : float (default 0.1)
         The ratio between the initial number of features and the number
         of features after the selection.
     """
@@ -80,10 +96,12 @@ class IteratedSemiSupervisedFeatureSelection(object):
     def __init__(self,
                  estimator=SGDClassifier(average=True, shuffle=True, penalty='elasticnet'),
                  n_iter=30,
-                 min_feature_ratio=0.1):
+                 min_feature_ratio=0.1,
+                 n_neighbors=5):
         self.estimator = estimator
         self.n_iter = n_iter
         self.min_feature_ratio = min_feature_ratio
+        self.n_neighbors = n_neighbors
         self.feature_selectors = []
 
     def fit(self, data_matrix=None, target=None):
@@ -94,6 +112,9 @@ class IteratedSemiSupervisedFeatureSelection(object):
         data_matrix : array-like, shape = (n_samples, n_features)
             Samples.
 
+        target : array-like, shape = (n_samples, )
+            Array containing partial class information (use -1 to indicate unknown class).
+
         Returns
         -------
         self
@@ -101,8 +122,12 @@ class IteratedSemiSupervisedFeatureSelection(object):
         n_features_orig = data_matrix.shape[1]
         for i in range(self.n_iter):
             n_features_input = data_matrix.shape[1]
-            target = self._semi_supervised_learning(data_matrix, target)
-            data_matrix = self._feature_selection(data_matrix, target)
+            target_new = self._semi_supervised_learning(data_matrix, target)
+            if len(set(target_new)) < 2:
+                # remove last feature_selector since it does not satisfy conditions
+                self.feature_selectors.pop(-1)
+                break
+            data_matrix = self._feature_selection(data_matrix, target_new)
             n_features_output = data_matrix.shape[1]
             if self._terminate(n_features_orig, n_features_input, n_features_output):
                 # remove last feature_selector since it does not satisfy conditions
@@ -150,7 +175,8 @@ class IteratedSemiSupervisedFeatureSelection(object):
         data_matrix : array-like, shape = (n_samples, n_features)
             Samples.
 
-        target : array-like, shape = (n_samples)
+        target : array-like, shape = (n_samples, )
+            Array containing class information.
 
         Returns
         -------
@@ -162,10 +188,18 @@ class IteratedSemiSupervisedFeatureSelection(object):
         return self.transform(data_matrix_copy)
 
     def _semi_supervised_learning(self, data_matrix, target):
-        semi_supervised_estimator = LabelSpreading(kernel='knn', n_neighbors=5)
-        semi_supervised_estimator.fit(data_matrix, target)
-        predicted_target = semi_supervised_estimator.predict(data_matrix)
-        return self._clamp(target, predicted_target)
+        n_classes = len(set(target))
+        # if there are too few classes (e.g. less than -1 and at least 2 other classes)
+        # then just bail out and return the original target
+        # otherwise one cannot meaningfully spread the information of only one class
+        if n_classes > 2:
+            semi_supervised_estimator = LabelSpreading(kernel='knn', n_neighbors=self.n_neighbors)
+            semi_supervised_estimator.fit(data_matrix, target)
+            predicted_target = semi_supervised_estimator.predict(data_matrix)
+            predicted_target = self._clamp(target, predicted_target)
+            return predicted_target
+        else:
+            return target
 
     def _clamp(self, target, predicted_target):
         extended_target = []
@@ -179,6 +213,6 @@ class IteratedSemiSupervisedFeatureSelection(object):
     def _feature_selection(self, data_matrix, target):
         # perform recursive feature elimination
         feature_selector = RFECV(self.estimator, step=0.1, cv=10)
-        data_matrix = feature_selector.fit_transform(data_matrix, target)
+        data_matrix_out = feature_selector.fit_transform(data_matrix, target)
         self.feature_selectors.append(feature_selector)
-        return data_matrix
+        return data_matrix_out

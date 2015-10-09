@@ -89,13 +89,16 @@ class AutoCluster(object):
                 score = self.score_func(data_matrix, predictions)
             yield (score, estimator_index, predictions, estimator)
 
-    def optimize(self, data_matrix, max_n_clusters=20):
+    def optimize(self, data_matrix, min_n_clusters=2, max_n_clusters=20):
         """Select the optimal number of clusters according to score_func.
 
         Parameters
         ----------
         data_matrix : array-like, shape = [n_samples, n_features]
             Samples.
+
+        min_n_clusters : int, default=2
+            Minimum number of clusters.
 
         max_n_clusters : int, default=20
             Maximum number of clusters.
@@ -120,11 +123,11 @@ class AutoCluster(object):
             self.estimator_index,\
             self.predictions,\
             self.estimator,\
-            self.n_clusters = max(self._optimize(data_matrix, max_n_clusters))
+            self.n_clusters = max(self._optimize(data_matrix, min_n_clusters, max_n_clusters))
         return self
 
-    def _optimize(self, data_matrix, max_n_clusters=None):
-        for n_clusters in range(2, max_n_clusters):
+    def _optimize(self, data_matrix, min_n_clusters=None, max_n_clusters=None):
+        for n_clusters in range(min_n_clusters, max_n_clusters):
             self.set_params(n_clusters=n_clusters)
             predictions = self.fit_predict(data_matrix)
             yield (self.score, self.estimator_index, predictions, self.estimator, n_clusters)

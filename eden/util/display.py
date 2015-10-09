@@ -84,9 +84,9 @@ def draw_graph(graph,
         edge_color = [hash(d.get('label', '.')) for u, v, d in graph.edges(data=True)]
     else:
         if invert_colormap:
-            edge_color = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
+            edge_color = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
         else:
-            edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True)]
+            edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog=prog)

@@ -6,18 +6,16 @@ from copy import deepcopy
 import numpy as np
 
 import pymf
+from sklearn.preprocessing import normalize
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.metrics import roc_auc_score
-# from sklearn.metrics import accuracy_score
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import SGDClassifier
+from scipy.stats import entropy
+
+from eden.util import serialize_dict
 
 logger = logging.getLogger(__name__)
-
-# TODO: make a onion selector, where one specifies the n_instances and the n_peels
-# one removes progressively the outermost n_instances for n_peel times and then returns the n_instances
-# that are outermost
 
 
 # -----------------------------------------------------------------------------
@@ -31,6 +29,16 @@ class CompositeSelector(object):
 
     def __init__(self, selectors):
         self.selectors = selectors
+
+    def __repr__(self):
+        serial = []
+        serial.append('CompositeSelector')
+        serial.append('selectors [%d]:' % len(self.selectors))
+        for i, selector in enumerate(self.selectors):
+            if len(self.selectors) > 1:
+                serial.append('%d/%d  ' % (i + 1, len(self.selectors)))
+            serial.append(str(selector))
+        return '\n'.join(serial)
 
     def fit(self, data_matrix, target=None):
         """Fit all selectors on the same samples.
@@ -103,14 +111,20 @@ class CompositeSelector(object):
         """
         data_matrix_out_list = []
         for selector in self.selectors:
-            data_matrix_out = selector.transform(data_matrix)
+            data_matrix_out = selector.transform(data_matrix, target=target)
             data_matrix_out_list.append(data_matrix_out)
         data_matrix_out = np.vstack(data_matrix_out_list)
 
-        if target is not None:
-            self.selected_targets = []
-            for selector in self.selectors:
-                self.selected_targets.append(selector.selected_targets)
+        selected_instances_ids = [np.array(selector.selected_instances_ids) for selector in self.selectors
+                                  if selector.selected_instances_ids is not None]
+        self.selected_instances_ids = np.hstack(selected_instances_ids)
+
+        selected_targets = [np.array(selector.selected_targets) for selector in self.selectors
+                            if selector.selected_targets is not None]
+        if selected_targets:
+            self.selected_targets = np.hstack(selected_targets)
+        else:
+            self.selected_targets = None
 
         return data_matrix_out
 
@@ -134,7 +148,7 @@ class CompositeSelector(object):
         self
         """
         for selector in self.selectors:
-            selector.randomize(data_matrix)
+            selector.randomize(data_matrix, amount=amount)
         return self
 
     def optimize(self, data_matrix, target=None, score_func=None, n_iter=20):
@@ -152,7 +166,7 @@ class CompositeSelector(object):
         score_func : callable
             Function to compute the score to maximize.
         """
-        score, obj_dict = max(self._optimize(self, data_matrix, target, score_func, n_iter))
+        score, index, obj_dict = max(self._optimize(self, data_matrix, target, score_func, n_iter))
         self.__dict__.update(obj_dict)
         self.score = score
 
@@ -161,7 +175,7 @@ class CompositeSelector(object):
             self.randomize(data_matrix)
             data_matrix_out = self.fit_transform(data_matrix, target)
             score = score_func(data_matrix, data_matrix_out)
-            yield (score, deepcopy(self.__dict__))
+            yield (score, i, deepcopy(self.__dict__))
 
 # -----------------------------------------------------------------------------
 
@@ -170,62 +184,41 @@ class AbstractSelector(object):
 
     """Interface declaration for the Selector classes."""
 
-    def _default_n_instances(self, data_size):
+    def _auto_n_instances(self, data_size):
         # TODO [fabrizio]: reconstruct Gram matrix using approximation
         # find optimal num points for a reconstruction with small error
         # trade off with a cost C (hyperparameter) to pay per point so not to choose all points
-        return 2 * int(math.sqrt(data_size))
+        min_n = 3
+        max_n = 2 * int(math.sqrt(data_size))
+        n_instances = random.randint(min_n, max_n)
+        return n_instances
+
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
 
     def fit(self, data_matrix, target=None):
-        if self.n_instances == 'auto':
-            self.n_instances = self._default_n_instances(data_matrix.shape[0])
+        return self
 
     def fit_transform(self, data_matrix, target=None):
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
+        return self.fit(data_matrix, target).transform(data_matrix, target)
 
     def transform(self, data_matrix, target=None):
-        selected_instances_ids = self.select(data_matrix, target)
+        self.selected_instances_ids = self.select(data_matrix, target)
         if target is not None:
-            self.selected_targets = list(np.array(target)[selected_instances_ids])
+            self.selected_targets = np.array(target)[self.selected_instances_ids]
         else:
             self.selected_targets = None
-        return data_matrix[selected_instances_ids]
+        return data_matrix[self.selected_instances_ids]
 
     def select(self, data_matrix, target=None):
         raise NotImplementedError("Should have implemented this")
 
     def randomize(self, data_matrix, amount=1.0):
         raise NotImplementedError("Should have implemented this")
-
-
-# -----------------------------------------------------------------------------
-
-
-class RandomSelector(AbstractSelector):
-
-    """
-    Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed uniformly at random.
-    """
-
-    def __init__(self, n_instances='auto', random_state=1):
-        self.n_instances = n_instances
-        self.random_state = random_state
-        random.seed(random_state)
-
-    def select(self, data_matrix, target=None):
-        n_instances = data_matrix.shape[0]
-        selected_instances_ids = list(range(n_instances))
-        random.shuffle(selected_instances_ids)
-        selected_instances_ids = sorted(selected_instances_ids[:self.n_instances])
-        return selected_instances_ids
-
-    def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        return self
 
 # -----------------------------------------------------------------------------
 
@@ -237,39 +230,55 @@ class SparseSelector(AbstractSelector):
     Selection is performed choosing instances that maximizes instances pairwise difference.
     """
 
-    def __init__(self, n_instances='auto', metric='euclidean', random_state=1):
+    def __init__(self, n_instances=20, random_state=1, metric='rbf', **kwds):
+        self.name = 'SparseSelector'
         self.n_instances = n_instances
         self.metric = metric
+        self.kwds = kwds
         self.random_state = random_state
-        random.seed(random_state)
+
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('metric: %s' % (self.metric))
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
 
     def select(self, data_matrix, target=None):
         # extract difference matrix
-        diff_matrix = pairwise_distances(data_matrix, metric=self.metric)
-        size = data_matrix.shape[0]
-        m = np.max(diff_matrix) + 1
+        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
+        # set minimum value
+        m = - 1
+        # set diagonal to 0 to remove self similarity
+        np.fill_diagonal(kernel_matrix, 0)
         # iterate size - k times, i.e. until only k instances are left
-        for t in range(size - self.n_instances):
-            # find pairs with smallest difference
-            (min_i, min_j) = np.unravel_index(np.argmin(diff_matrix), diff_matrix.shape)
+        for t in range(data_matrix.shape[0] - self.n_instances):
+            # find pairs with largest kernel
+            (max_i, max_j) = np.unravel_index(np.argmax(kernel_matrix), kernel_matrix.shape)
             # choose one instance at random
             if random.random() > 0.5:
-                id = min_i
+                id = max_i
             else:
-                id = min_j
-            # remove instance with highest score by setting all its pairwise differences to max value
-            diff_matrix[id, :] = m
-            diff_matrix[:, id] = m
+                id = max_j
+            # remove instance with highest score by setting all its pairwise similarity to min value
+            kernel_matrix[id, :] = m
+            kernel_matrix[:, id] = m
         # extract surviving elements, i.e. element that have 0 on the diagonal
-        selected_instances_ids = np.array([i for i, x in enumerate(np.diag(diff_matrix)) if x == 0])
+        selected_instances_ids = np.array([i for i, x in enumerate(np.diag(kernel_matrix)) if x == 0])
         return selected_instances_ids
 
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
 
@@ -281,10 +290,18 @@ class MaxVolSelector(AbstractSelector):
     Selection is performed choosing instances that maximizes the volume of the convex hull.
     """
 
-    def __init__(self, n_instances='auto', random_state=1):
+    def __init__(self, n_instances=20, random_state=1):
+        self.name = 'MaxVolSelector'
         self.n_instances = n_instances
         self.random_state = random_state
         random.seed(random_state)
+
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
 
     def select(self, data_matrix, target=None):
         mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
@@ -293,18 +310,84 @@ class MaxVolSelector(AbstractSelector):
         selected_instances_ids = self._get_ids(data_matrix, basis)
         return selected_instances_ids
 
+    def _get_ids(self, data_matrix, selected):
+        diffs = pairwise_distances(data_matrix, selected)
+        selected_instances_ids = [i for i, diff in enumerate(diffs) if 0 in diff]
+        return selected_instances_ids
+
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        min_sqrt_n_instances = min(min_n_instances / 2, int(math.sqrt(min_n_instances / 2)))
-        max_sqrt_n_instances = min(max_n_instances / 2, int(math.sqrt(max_n_instances / 2)))
-        self.n_instances = random.randint(min_sqrt_n_instances, max_sqrt_n_instances)
-        return self
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
+
+# -----------------------------------------------------------------------------
+
+
+class OnionSelector(AbstractSelector):
+
+    """
+    Transform a set of sparse high dimensional vectors to a smaller set.
+    Selection is performed choosing instances that maximizes the volume of the convex hull,
+    removing them from the set, iterating the procedure n_layers times and then returning
+    the instances forming the convex hull of the remaining dataset.
+    """
+
+    def __init__(self, n_instances=20, n_layers=1, random_state=1):
+        self.name = 'OnionSelector'
+        self.n_instances = n_instances
+        self.n_layers = n_layers
+        self.random_state = random_state
+        random.seed(random_state)
+
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('n_layers: %d' % (self.n_layers))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
+
+    def transform(self, data_matrix, target=None):
+        current_data_matrix = data_matrix
+        current_target = target
+        self.selected_instances_ids = np.array(range(data_matrix.shape[0]))
+        self.selected_targets = None
+        for i in range(self.n_layers):
+            selected_instances_ids = self.select_layer(current_data_matrix)
+            # remove selected instances from data matrix
+            ids = set(range(current_data_matrix.shape[0]))
+            remaining_ids = list(ids.difference(selected_instances_ids))
+            if len(remaining_ids) == 0:
+                break
+            remaining_ids = np.array(remaining_ids)
+            current_data_matrix = current_data_matrix[remaining_ids]
+            self.selected_instances_ids = self.selected_instances_ids[remaining_ids]
+            if current_target is not None:
+                current_target = current_target[remaining_ids]
+        selected_instances_ids = self.select_layer(current_data_matrix)
+        if current_target is not None:
+            self.selected_targets = current_target[selected_instances_ids]
+        self.selected_instances_ids = self.selected_instances_ids[selected_instances_ids]
+        return current_data_matrix[selected_instances_ids]
+
+    def select_layer(self, data_matrix):
+        mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
+        mf.factorize()
+        basis = mf.W.T
+        selected_instances_ids = self._get_ids(data_matrix, basis)
+        return selected_instances_ids
 
     def _get_ids(self, data_matrix, selected):
         diffs = pairwise_distances(data_matrix, selected)
         selected_instances_ids = [i for i, diff in enumerate(diffs) if 0 in diff]
         return selected_instances_ids
+
+    def randomize(self, data_matrix, amount=1.0):
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        max_n_layers = min(10, data_matrix.shape[0] / (self.n_instances + 1))
+        self.n_layers = random.randint(1, max_n_layers)
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
 
@@ -317,7 +400,8 @@ class EqualizingSelector(AbstractSelector):
     choosing instances uniformly at random from each cluster.
     """
 
-    def __init__(self, n_instances='auto', clustering_algo=None, random_state=1):
+    def __init__(self, n_instances=20, clustering_algo=None, random_state=1):
+        self.name = 'EqualizingSelector'
         self.n_instances = n_instances
         self.clustering_algo = clustering_algo
         self.random_state = random_state
@@ -340,11 +424,10 @@ class EqualizingSelector(AbstractSelector):
         return selected_instances_ids
 
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
         # TODO: randomize clustering algorithm
-        return self
 
 # -----------------------------------------------------------------------------
 
@@ -358,17 +441,32 @@ class QuickShiftSelector(AbstractSelector):
     The n_instances with highest parent-instance norm are returned.
     """
 
-    def __init__(self, n_instances='auto', metric='cosine', **kwds):
+    def __init__(self, n_instances=20, random_state=1, metric='rbf', **kwds):
+        self.name = 'QuickShiftSelector'
         self.n_instances = n_instances
+        self.random_state = random_state
         self.metric = metric
         self.kwds = kwds
 
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('metric: %s' % (self.metric))
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
+
     def select(self, data_matrix, target=None):
         # compute parent relationship
-        parent_ids = self.parents(data_matrix, target=target)
+        self.parent_ids = self.parents(data_matrix, target=target)
         # compute norm of parent-instance vector
         # compute parent vectors
-        parents = data_matrix[parent_ids]
+        parents = data_matrix[self.parent_ids]
         # compute difference
         diffs = np.diag(pairwise_distances(data_matrix, Y=parents))
         # sort from largest distance to smallest
@@ -382,7 +480,7 @@ class QuickShiftSelector(AbstractSelector):
     def parents(self, data_matrix, target=None):
         data_size = data_matrix.shape[0]
         kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
-        # compute instance density as average pairwise similarity
+        # compute instance density as 1 over average pairwise distance
         density = np.sum(kernel_matrix, 0) / data_size
         # compute list of nearest neighbors
         kernel_matrix_sorted = np.argsort(-kernel_matrix)
@@ -405,11 +503,11 @@ class QuickShiftSelector(AbstractSelector):
         return parent_ids
 
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
 
@@ -418,210 +516,58 @@ class DensitySelector(AbstractSelector):
 
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed sampling according to the instance density.
+    Selection is performed sorting according to the instance density and
+    taking instances uniformly distributed in the sorted list (i.e. from
+    the instance with maximal density to the instance with the lowest density).
     The density is computed as the average kernel.
     """
 
-    def __init__(self, n_instances='auto', randomized=False, metric='cosine', **kwds):
+    def __init__(self, n_instances=20, percentile=0.75, random_state=1, metric='rbf', **kwds):
+        self.name = 'DensitySelector'
         self.n_instances = n_instances
-        self.randomized = randomized
+        self.percentile = percentile
+        self.random_state = random_state
         self.metric = metric
         self.kwds = kwds
         self.selected_targets = None
 
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('percentile: %.2f' % (self.percentile))
+        serial.append('metric: %s' % (self.metric))
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
+
     def select(self, data_matrix, target=None):
         # select most dense instances
-        probabilities = self._probability_func(data_matrix, target)
-        if self.randomized:
-            # select instances according to their probability
-            selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
-        else:
-            # select the instances with highest probability
-            selected_instances_ids = sorted([(prob, i) for i, prob in enumerate(probabilities)], reverse=True)
-            selected_instances_ids = [i for prob, i in selected_instances_ids[:self.n_instances]]
+        densities = self._density_func(data_matrix, target)
+        # select the instances for equally spaced intervals in the list sorted by density
+        sorted_instances_ids = sorted([(prob, i) for i, prob in enumerate(densities)], reverse=True)
+        n_instances_tot = int(data_matrix.shape[0] * (1 - self.percentile))
+        step = max(1, int(n_instances_tot / self.n_instances))
+        selected_instances_ids = [i for prob, i in sorted_instances_ids[:n_instances_tot:step]]
         return selected_instances_ids
 
-    def _probability_func(self, data_matrix, target=None):
+    def _density_func(self, data_matrix, target=None):
         kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
         # compute instance density as average pairwise similarity
-        densities = np.sum(kernel_matrix, 0)
-        # normalize to obtain probabilities
-        probabilities = densities / np.sum(densities)
-        return probabilities
+        densities = np.mean(kernel_matrix, 0)
+        return densities
 
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
-
-    def _sample(self, probabilities):
-        target_prob = random.random()
-        prob_accumulator = 0
-        for i, p in enumerate(probabilities):
-            prob_accumulator += p
-            if target_prob < prob_accumulator:
-                return i
-        # at last return the id of last element
-        return len(probabilities) - 1
-
-# -----------------------------------------------------------------------------
-
-
-class KNNDecisionSurfaceSelector(AbstractSelector):
-
-    """
-    Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed sampling according to the inverse ratio score of class
-    in the neighborhood of each sample.
-    The ratio score of class is computed as the ratio between the abundance of instances
-    with a given class in a k-neighborhood.
-    """
-
-    def __init__(self, n_instances='auto', randomized=False, n_neighbors=10, metric='cosine', **kwds):
-        self.n_instances = n_instances
-        self.randomized = randomized
-        self.n_neighbors = n_neighbors
-        self.metric = metric
-        self.kwds = kwds
-
-    def transform(self, data_matrix, target=None):
-        if target is None:
-            raise Exception('target cannot be None')
-        return super(KNNDecisionSurfaceSelector, self).transform(data_matrix, target=target)
-
-    def select(self, data_matrix, target=None):
-        # select maximally ambiguous or unpredictable instances
-        probabilities = self._probability_func(data_matrix, target)
-        if self.randomized:
-            # select instances according to their probability
-            selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
-        else:
-            # select the instances with highest probability
-            selected_instances_ids = sorted([(prob, i) for i, prob in enumerate(probabilities)], reverse=True)
-            selected_instances_ids = [i for prob, i in selected_instances_ids[:self.n_instances]]
-        return selected_instances_ids
-
-    def _probability_func(self, data_matrix, target=None):
-        _max_density_const = 100
-        # compute the knn probabilities
-        neigh = KNeighborsClassifier(n_neighbors=3)
-        neigh.fit(data_matrix, target)
-        probs_lists = neigh.predict_proba(data_matrix)
-        # compute the max probability value for each instance
-        inverse_densities = [max(probs_list) for probs_list in probs_lists]
-        # compute inverse of probability as density score
-        densities = [1 / d if d != 0 else _max_density_const for d in inverse_densities]
-        # upper bound values to _max_density_const
-        densities = [d if d < _max_density_const else _max_density_const for d in densities]
-        # normalize to obtain probabilities
-        probabilities = densities / np.sum(densities)
-        return probabilities
-
-    def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
-
-    def _sample(self, probabilities):
-        target_prob = random.random()
-        prob_accumulator = 0
-        for i, p in enumerate(probabilities):
-            prob_accumulator += p
-            if target_prob < prob_accumulator:
-                return i
-        # at last return the id of last element
-        return len(probabilities) - 1
-
-# -----------------------------------------------------------------------------
-
-
-class KernelDecisionSurfaceSelector(AbstractSelector):
-
-    """
-    Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed sampling according to the inverse of a scoring function.
-    """
-
-    def __init__(self, n_instances='auto',
-                 score_func=roc_auc_score,
-                 randomized=False,
-                 metric='cosine', **kwds):
-        self.n_instances = n_instances
-        self.score_func = score_func
-        self.randomized = randomized
-        self.metric = metric
-        self.kwds = kwds
-
-    def transform(self, data_matrix, target=None):
-        if target is None:
-            raise Exception('target cannot be None')
-        return super(KernelDecisionSurfaceSelector, self).transform(data_matrix, target=target)
-
-    def select(self, data_matrix, target=None):
-        # select maximally ambiguous or unpredictable instances
-        probabilities = self._probability_func(data_matrix, target)
-        if self.randomized:
-            # select instances according to their probability
-            selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
-        else:
-            # select the instances with highest probability
-            selected_instances_ids = sorted([(prob, i) for i, prob in enumerate(probabilities)], reverse=True)
-            selected_instances_ids = [i for prob, i in selected_instances_ids[:self.n_instances]]
-        return selected_instances_ids
-
-    def _probability_func(self, data_matrix, target=None):
-        kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
-        # compute list of the ids sorted by similarity
-        kernel_matrix_ids_sorted = np.argsort(-kernel_matrix)
-        # compute the similarity of each instance in sorted order
-        kernel_matrix_sorted = np.sort(-kernel_matrix)
-        target_vals = list(set(target))
-        scores = []
-        for i in range(data_matrix.shape[0]):
-            # get list of targets sorted by the instance similarity
-            y_true = target[kernel_matrix_ids_sorted[i]]
-            current_target = target[i]
-            # if current target is the 0 class, i.e. the negative class, then invert the target
-            if current_target == target_vals[0]:
-                y_true = self._flip_targets(y_true, target_vals)
-            y_scores = kernel_matrix_sorted[i]
-            score = self.score_func(y_true, y_scores)
-            scores.append(score)
-        scores = np.array(scores)
-        # normalize to obtain probabilities
-        probabilities = scores / np.sum(scores)
-        return probabilities
-
-    def _flip_targets(self, target, target_vals):
-        target_out = []
-        for t in target:
-            if t == target_vals[0]:
-                target_out.append(target_vals[0])
-            else:
-                target_out.append(target_vals[1])
-        return target_out
-
-    def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
-
-    def _sample(self, probabilities):
-        target_prob = random.random()
-        prob_accumulator = 0
-        for i, p in enumerate(probabilities):
-            prob_accumulator += p
-            if target_prob < prob_accumulator:
-                return i
-        # at last return the id of last element
-        return len(probabilities) - 1
-
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        self.percentile = random.uniform(0.5, 0.9)
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
 
@@ -633,21 +579,43 @@ class DecisionSurfaceSelector(AbstractSelector):
     Selection is performed sampling according to the inverse of the ROC score.
     """
 
-    def __init__(self, n_instances='auto',
-                 estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True, n_jobs=-1),
+    def __init__(self, n_instances=20,
+                 estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True),
+                 random_state=1,
                  randomized=False):
+        self.name = 'DecisionSurfaceSelector'
         self.n_instances = n_instances
         self.estimator = estimator
+        self.random_state = random_state
         self.randomized = randomized
 
-    def transform(self, data_matrix, target=None):
-        if target is None:
-            raise Exception('target cannot be None')
-        return super(DecisionSurfaceSelector, self).transform(data_matrix, target=target)
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('estimator: %s' % str(self.estimator))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
+
+    def _logistic_function(self, xs, ell=1, k=1, x0=0):
+        _max_x = 100
+        _min_x = -_max_x
+        vals = []
+        for x in xs:
+            if x > _max_x:
+                x = _max_x
+            if x < _min_x:
+                x = _min_x
+            val = ell / (1 + math.exp(-k * (x - x0)))
+            vals.append(val)
+        return np.array(vals)
 
     def select(self, data_matrix, target=None):
+        if target is None:
+            raise Exception('target cannot be None')
         # select maximally ambiguous or unpredictable instances
         probabilities = self._probability_func(data_matrix, target)
+        self.scores = probabilities
         if self.randomized:
             # select instances according to their probability
             selected_instances_ids = [self._sample(probabilities) for i in range(self.n_instances)]
@@ -657,39 +625,44 @@ class DecisionSurfaceSelector(AbstractSelector):
             selected_instances_ids = [i for prob, i in selected_instances_ids[:self.n_instances]]
         return selected_instances_ids
 
-    def _logistic_func(self, x, l=1, k=1, x0=0):
-        return float(l) / (1 + math.exp(- k * (x - x0)))
-
     def _probability_func(self, data_matrix, target=None):
-        _max_const = 100
+        # select maximally ambiguous (max entropy) or unpredictable instances
         self.estimator.fit(data_matrix, target)
-        confidence_lists = self.estimator.decision_function(data_matrix)
-        if target.ndim > 1:
-            # compute the max confidence value for each instance
-            max_confidences = [max(conf_list) for conf_list in confidence_lists]
+        decision_function = getattr(self.estimator, "decision_function", None)
+        if decision_function and callable(decision_function):
+            preds = self.estimator.decision_function(data_matrix)
+            x0 = 0
         else:
-            max_confidences = confidence_lists
-        # compute inverse of the logistic of the max confidence as density score
-        densities = [1 / self._logistic_func(x) if x != 0 else _max_const for x in max_confidences]
-        # upper bound values to _max_const
-        densities = [d if d < _max_const else _max_const for d in densities]
+            predict_proba = getattr(self.estimator, "predict_proba", None)
+            if predict_proba and callable(predict_proba):
+                preds = self.estimator.predict_proba(data_matrix)
+                x0 = 0.5
+            else:
+                raise Exception('Estimator seems to lack a decision_function or predict_proba method.')
+        # Note: use -entropy to sort from max entropy to min entropy
+        entropies = np.array([- entropy(normalize(self._logistic_function(p, x0=x0), norm='l1')[0])
+                              for p in preds])
         # normalize to obtain probabilities
-        probabilities = densities / np.sum(densities)
+        probabilities = entropies / np.sum(entropies)
         return probabilities
 
     def randomize(self, data_matrix, amount=1.0):
-        min_n_instances = int(data_matrix.shape[0] * 0.1)
-        max_n_instances = int(data_matrix.shape[0] * 0.5)
-        self.n_instances = random.randint(min_n_instances, max_n_instances)
-        # TODO: randomize metric
-        return self
-
-    def _sample(self, probabilities):
-        target_prob = random.random()
-        prob_accumulator = 0
-        for i, p in enumerate(probabilities):
-            prob_accumulator += p
-            if target_prob < prob_accumulator:
-                return i
-        # at last return the id of last element
-        return len(probabilities) - 1
+        random.seed(self.random_state)
+        self.n_instances = self._auto_n_instances(data_matrix.shape[0])
+        algo = random.choice(['SGDClassifier', 'KNeighborsClassifier'])
+        kwds = dict()
+        if algo == 'SGDClassifier':
+            self.estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
+            kwds = dict(n_iter=random.randint(5, 200),
+                        penalty=random.choice(['l1', 'l2', 'elasticnet']),
+                        l1_ratio=random.uniform(0.1, 0.9),
+                        loss=random.choice(['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron']),
+                        power_t=random.uniform(0.1, 1),
+                        alpha=random.choice([10 ** x for x in range(-8, 0)]),
+                        eta0=random.choice([10 ** x for x in range(-4, -1)]),
+                        learning_rate=random.choice(["invscaling", "constant", "optimal"]))
+        if algo == 'KNeighborsClassifier':
+            self.estimator = KNeighborsClassifier()
+            kwds = dict(n_neighbors=random.randint(3, 100))
+        self.estimator.set_params(**kwds)
+        self.random_state = self.random_state ^ random.randint(1, 1e9)

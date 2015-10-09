@@ -1,23 +1,29 @@
 import logging
-import math
-from random import randint, random
+import random
 from copy import deepcopy
+import sys
+import traceback
 
 import numpy as np
+import scipy.sparse as sp
 from scipy.sparse.linalg import eigs
 import networkx as nx
 from sklearn.preprocessing import scale
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.random_projection import SparseRandomProjection
+from sklearn.decomposition import PCA
 
 from eden.selector import CompositeSelector
 from eden.selector import SparseSelector
 from eden.selector import MaxVolSelector
-# from eden.selector import EqualizingSelector
 from eden.selector import QuickShiftSelector
 from eden.selector import DensitySelector
+from eden.selector import OnionSelector
+from eden.selector import DecisionSurfaceSelector
 from eden.iterated_semisupervised_feature_selection import IteratedSemiSupervisedFeatureSelection
 from eden.auto_cluster import AutoCluster
+from eden.util import serialize_dict
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +50,29 @@ class Projector(object):
         should take two arrays from X as input and return a value indicating
         the distance between them.
 
-    `**kwds` : optional keyword parameters
+    **kwds : optional keyword parameters
         Any further parameters are passed directly to the kernel function.
     """
 
-    def __init__(self, selector=DensitySelector(), metric='cosine', **kwds):
+    def __init__(self, selector=QuickShiftSelector(),
+                 random_state=1,
+                 metric='rbf', **kwds):
         self.selector = selector
         self.metric = metric
         self.kwds = kwds
+        self.random_state = random_state
+
+    def __repr__(self):
+        serial = []
+        serial.append('Projector:')
+        serial.append('metric: %s' % self.metric)
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append(str(self.selector))
+        return '\n'.join(serial)
 
     def fit(self, data_matrix, target=None):
         """Fit the estimator on the samples.
@@ -102,15 +123,39 @@ class Projector(object):
             Transformed array.
         """
         if self.selected_instances is None:
-            raise Exception('transform must be used after fit')
+            raise Exception('Error: attempt to use transform on non fit model')
         data_matrix_out = pairwise_kernels(data_matrix,
                                            Y=self.selected_instances,
                                            metric=self.metric,
                                            **self.kwds)
         return data_matrix_out
 
+    def randomize(self, data_matrix, amount=.5):
+        random.seed(self.random_state)
+        inclusion_threshold = random.uniform(amount, 1)
+        selectors = []
+        if random.random() > inclusion_threshold:
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(DecisionSurfaceSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(SparseSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(MaxVolSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(DensitySelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(OnionSelector(random_state=random.randint(1, 1e9)))
+        if not selectors:
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        self.selector = CompositeSelector(selectors=selectors)
+        self.selector.randomize(data_matrix, amount=amount)
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
+
 
 class Embedder2D(object):
 
@@ -123,22 +168,49 @@ class Embedder2D(object):
 
     """
 
-    def __init__(self, selectors=[DensitySelector()],
+    def __init__(self, selectors=[QuickShiftSelector()],
                  layout='force',
+                 n_eigenvectors=10,
                  n_nearest_neighbors=10,
-                 metric='cosine', **kwds):
+                 random_state=1,
+                 metric='rbf', **kwds):
         self.selectors = selectors
         self.layout = layout
+        self.n_eigenvectors = n_eigenvectors
         self.n_nearest_neighbors = n_nearest_neighbors
         self.metric = metric
         self.kwds = kwds
+        self.random_state = random_state
         self.selected_instances_list = []
         self.selected_instances_ids_list = []
 
+    def __repr__(self):
+        serial = []
+        serial.append('Embedder2D:')
+        serial.append('layout: %s' % (self.layout))
+        if self.n_nearest_neighbors is None:
+            serial.append('n_nearest_neighbors: None')
+        else:
+            serial.append('n_nearest_neighbors: %d' % self.n_nearest_neighbors)
+        serial.append('metric: %s' % self.metric)
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append('selectors [%d]:' % len(self.selectors))
+        for i, selector in enumerate(self.selectors):
+            if len(self.selectors) > 1:
+                serial.append('%d/%d  ' % (i + 1, len(self.selectors)))
+            serial.append(str(selector))
+        return '\n'.join(serial)
+
     def fit(self, data_matrix):
         # find selected instances
-        target = list(range(data_matrix.shape[0]))
-        for selector in self.selectors:
+        target = np.array(range(data_matrix.shape[0]))
+        self.selected_instances_list = []
+        self.selected_instances_ids_list = []
+        for i, selector in enumerate(self.selectors):
             selected_instances = selector.fit_transform(data_matrix, target=target)
             selected_instances_ids = selector.selected_targets
             self.selected_instances_list.append(selected_instances)
@@ -146,8 +218,7 @@ class Embedder2D(object):
         return self
 
     def fit_transform(self, data_matrix):
-        self.fit(data_matrix)
-        return self.transform(data_matrix)
+        return self.fit(data_matrix).transform(data_matrix)
 
     def transform(self, data_matrix):
         # make a graph with instances as nodes
@@ -155,8 +226,10 @@ class Embedder2D(object):
         # find the closest selected instance and instantiate an edge
         for selected_instances, selected_instances_ids in \
                 zip(self.selected_instances_list, self.selected_instances_ids_list):
-            graph = self._update_graph(graph, data_matrix, selected_instances, selected_instances_ids)
+            if len(selected_instances) > 2:
+                graph = self._update_graph(graph, data_matrix, selected_instances, selected_instances_ids)
         embedded_data_matrix = self._graph_layout(graph)
+        embedded_data_matrix = PCA(n_components=2).fit_transform(embedded_data_matrix)
         return embedded_data_matrix
 
     def _links(self, data_matrix):
@@ -222,10 +295,37 @@ class Embedder2D(object):
 
     def _layout_laplacian(self, graph):
         nlm = nx.normalized_laplacian_matrix(graph)
-        eigvals, eigvects = eigs(nlm, k=2, which='SR')
+        eigvals, eigvects = eigs(nlm, k=self.n_eigenvectors, which='SR')
         eigvals, eigvects = np.real(eigvals), np.real(eigvects)
-        embedded_data_matrix = scale(eigvects)
-        return embedded_data_matrix
+        return scale(eigvects)
+
+    def randomize(self, data_matrix, amount=.5):
+        random.seed(self.random_state)
+        inclusion_threshold = random.uniform(amount, 1)
+        selectors = []
+        if random.random() > inclusion_threshold:
+            selectors.append(SparseSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(MaxVolSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(DensitySelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(OnionSelector(random_state=random.randint(1, 1e9)))
+        if not selectors:
+            selectors.append(MaxVolSelector(random_state=random.randint(1, 1e9)))
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        selector = CompositeSelector(selectors=selectors)
+        selector.randomize(data_matrix, amount=amount)
+        self.selectors = deepcopy(selector.selectors)
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        if random.random() > inclusion_threshold:
+            self.n_nearest_neighbors = random.randint(3, 20)
+        else:
+            self.n_nearest_neighbors = None
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
 
@@ -240,40 +340,61 @@ class Embedder(object):
 
     """
 
-    def __init__(self, n_instances_transformation='auto', n_instances_embedding='auto', n_iter=20):
+    def __init__(self,
+                 max_n_clusters=8,
+                 n_iter=20,
+                 inclusion_threshold=0.7,
+                 random_state=1):
+        self.max_n_clusters = max_n_clusters
         self.n_iter = n_iter
+        self.inclusion_threshold = inclusion_threshold
+        self.random_state = random_state
         self.feature_selector = IteratedSemiSupervisedFeatureSelection()
-        selectors_feature_transformation = [SparseSelector(n_instances=n_instances_transformation),
-                                            MaxVolSelector(n_instances=n_instances_transformation),
-                                            QuickShiftSelector(n_instances=n_instances_transformation),
-                                            DensitySelector(n_instances=n_instances_transformation)]
-        selector = CompositeSelector(selectors=selectors_feature_transformation)
-        self.feature_constructor = Projector(selector=selector)
-        selectors_embedding = [SparseSelector(n_instances=n_instances_embedding),
-                               MaxVolSelector(n_instances=n_instances_embedding),
-                               QuickShiftSelector(n_instances=n_instances_embedding),
-                               DensitySelector(n_instances=n_instances_embedding)]
-        self.embedder = Embedder2D(selectors=selectors_embedding)
+        self.feature_constructor = Projector()
+        self.embedder = Embedder2D()
         self.evaluator = LocalEmbeddingEvaluator()
         self.refiner = LocalEmbeddingRefiner()
         self.auto_cluster = AutoCluster()
+
+    def __repr__(self):
+        serial = []
+        serial.append('Embedder:')
+        serial.append('inclusion_threshold: %.3f' % (self.inclusion_threshold))
+        serial.append('n_iter: %d' % (self.n_iter))
+        serial.append('max_n_clusters: %d' % (self.max_n_clusters))
+        serial.append('-' * 80)
+        serial.append(str(self.feature_constructor))
+        serial.append('-' * 80)
+        serial.append(str(self.embedder))
+        serial.append('=' * 80)
+        return '\n'.join(serial)
 
     def fit(self, data_matrix, target=None):
         raise NotImplementedError("Should have implemented this")
         return self
 
     def fit_transform(self, data_matrix, target=None):
+        logger.info('Input data matrix: %d rows  %d cols' %
+                    (data_matrix.shape[0], data_matrix.shape[1]))
+        if sp.issparse(data_matrix):
+            logger.info('Convert matrix format from sparse to dense using random projections')
+            data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
+            logger.info('Data matrix: %d rows  %d cols' %
+                        (data_matrix.shape[0], data_matrix.shape[1]))
         if target is not None:
             data_matrix_feature_select = self.feature_selector.fit_transform(data_matrix, target)
+            logger.info('Feature selection')
+            logger.info('Data matrix: %d rows  %d cols' %
+                        (data_matrix_feature_select.shape[0], data_matrix_feature_select.shape[1]))
         else:
             data_matrix_feature_select = data_matrix
-        self.data_matrix = self.optimize(data_matrix_feature_select, n_iter=self.n_iter)
-        self.auto_cluster.optimize(self.data_matrix, max_n_clusters=8)
-        self.predictions = self.auto_cluster.predictions
+
+        self.data_matrix = self.optimize(data_matrix_feature_select, target=target, n_iter=self.n_iter)
+        logger.debug('%s' % str(self.__repr__()))
         return self.data_matrix
 
-    def transform(self, data_matrix):
-        data_matrix_feature_constr = self.feature_constructor.fit_transform(data_matrix)
+    def transform(self, data_matrix, target=None):
+        data_matrix_feature_constr = self.feature_constructor.fit_transform(data_matrix, target=target)
         data_matrix_lowdim = self.embedder.fit_transform(data_matrix_feature_constr)
         data_matrix_out = self.refiner.embedding_refinement(data_matrix,
                                                             data_matrix_lowdim,
@@ -286,56 +407,37 @@ class Embedder(object):
                                                                                   return_scores=True)
         return data_matrix_out
 
+    def predict(self, data_matrix, target=None):
+        self.fit_transform(data_matrix, target=target)
+        self.auto_cluster.optimize(self.data_matrix, max_n_clusters=self.max_n_clusters)
+        self.predictions = self.auto_cluster.predictions
+        logger.debug('embedding score: %.4f' % (self.score))
+        return self.predictions
+
     def randomize(self, data_matrix, amount=1):
-        _inclusion_threshold = 0.7
-        data_size = data_matrix.shape[0]
-        min_n = 3
-        max_n = min(data_size / 2, 2 * int(math.sqrt(data_size)))
+        self.feature_constructor.randomize(data_matrix, amount=amount)
+        self.embedder.randomize(data_matrix, amount=amount)
 
-        selectors_feature_transformation = []
-        if random() > _inclusion_threshold:
-            selectors_feature_transformation.append(SparseSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_feature_transformation.append(MaxVolSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_feature_transformation.append(QuickShiftSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_feature_transformation.append(DensitySelector(n_instances=randint(min_n, max_n)))
-        if not selectors_feature_transformation:
-            selectors_feature_transformation = [DensitySelector(n_instances=randint(min_n, max_n))]
-        selector = CompositeSelector(selectors=selectors_feature_transformation)
-        self.feature_constructor = Projector(selector=selector)
-
-        selectors_embedding = []
-        if random() > _inclusion_threshold:
-            selectors_embedding.append(SparseSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_embedding.append(MaxVolSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_embedding.append(QuickShiftSelector(n_instances=randint(min_n, max_n)))
-        if random() > _inclusion_threshold:
-            selectors_embedding.append(DensitySelector(n_instances=randint(min_n, max_n)))
-        if not selectors_embedding:
-            selectors_embedding = [DensitySelector(n_instances=randint(min_n, max_n))]
-        self.embedder = Embedder2D(selectors=selectors_embedding)
-
-        return self
-
-    def optimize(self, data_matrix, n_iter=20):
-        score, iter_id, data_matrix_out, obj_dict = max(self._optimize(data_matrix, n_iter))
+    def optimize(self, data_matrix, target=None, n_iter=20):
+        score, iter_id, data_matrix_out, obj_dict = max(self._optimize(data_matrix,
+                                                                       target=target, n_iter=n_iter))
         self.__dict__.update(obj_dict)
         return data_matrix_out
 
-    def _optimize(self, data_matrix, n_iter=None):
-        for iter_id in range(n_iter):
-            self.randomize(data_matrix)
-            data_matrix_out = self.transform(data_matrix)
-            score = self.score
-            logger.debug('%d score:%.3f' % (iter_id, score))
-            yield (score, iter_id, data_matrix_out, deepcopy(self.__dict__))
-
+    def _optimize(self, data_matrix, target=None, n_iter=None):
+        for iter_id in range(1, n_iter + 1):
+            try:
+                self.randomize(data_matrix, amount=self.inclusion_threshold)
+                data_matrix_out = self.transform(data_matrix, target=target)
+                score = self.score
+                yield (score, iter_id, data_matrix_out, deepcopy(self.__dict__))
+            except Exception as e:
+                logger.debug('Failed iteration: %s' % e)
+                traceback.print_exc(file=sys.stdout)
+                logger.debug(self.__repr__())
 
 # -----------------------------------------------------------------------------
+
 
 class LocalEmbeddingEvaluator(object):
 
@@ -433,9 +535,9 @@ class LocalEmbeddingRefiner(object):
         neigh_high = NearestNeighbors(n_neighbors=n_neighbors)
         neigh_high.fit(data_matrix_highdim)
         neighbors_list_highdim = neigh_high.kneighbors(data_matrix_highdim, return_distance=0)
-        n_instances = data_matrix_lowdim.shape[0]
-        logger.debug('refinements max num iters: %d  k in neqs: %d num insts: %d' %
-                     (n_iter, n_neighbors, n_instances))
+        # n_instances = data_matrix_lowdim.shape[0]
+        # logger.debug('refinements max num iters: %d  k in neqs: %d num insts: %d' %
+        #             (n_iter, n_neighbors, n_instances))
         for it in range(n_iter):
             average_embedding_quality_score, scores = self.evaluator.knn_quality_score(data_matrix_lowdim,
                                                                                        neighbors_list_highdim,
@@ -451,11 +553,11 @@ class LocalEmbeddingRefiner(object):
                 n_neighbors)
             if new_average_embedding_quality_score > average_embedding_quality_score:
                 data_matrix_lowdim = new_data_matrix_lowdim
-                n_refinements = len(ids)
-                frac_refinements = float(n_refinements) / n_instances
-                logger.debug('r %.2d neqs: %.3f \t %.2f (%d insts)' %
-                             (it + 1, new_average_embedding_quality_score,
-                              frac_refinements, n_refinements))
+                # n_refinements = len(ids)
+                # frac_refinements = float(n_refinements) / n_instances
+                # logger.debug('r %.2d neqs: %.3f \t %.2f (%d insts)' %
+                #             (it + 1, new_average_embedding_quality_score,
+                #              frac_refinements, n_refinements))
             else:
                 break
         return data_matrix_lowdim

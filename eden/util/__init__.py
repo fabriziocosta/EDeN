@@ -52,11 +52,14 @@ def configure_logging(logger, verbosity=0, filename=None):
         logger.addHandler(fh)
 
 
-def serialize_dict(the_dict):
+def serialize_dict(the_dict, offset='small'):
     if the_dict:
         text = []
         for key in sorted(the_dict):
-            text.append('%10s: %s' % (key, the_dict[key]))
+            if offset == 'small':
+                text.append('%10s: %s' % (key, the_dict[key]))
+            elif offset == 'large':
+                text.append('%20s: %s' % (key, the_dict[key]))
         return '\n'.join(text)
     else:
         return ""
@@ -73,7 +76,7 @@ def read(uri):
         return uri
     else:
         try:
-            # try if it is a URL and if we can open it
+                # try if it is a URL and if we can open it
             f = requests.get(uri).text.split('\n')
         except ValueError:
             # assume it is a file object

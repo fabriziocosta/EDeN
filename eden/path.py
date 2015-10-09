@@ -76,6 +76,9 @@ class Vectorizer(AbstractVectorizer):
     def _transform(self, instance_id, seq):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance # %d.' % instance_id)
+        if len(seq) == 2 and len(seq[1]) > 0:
+            # assume the instance is a pair (header,seq) and extract only seq
+            seq = seq[1]
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
         neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
