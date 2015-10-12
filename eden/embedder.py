@@ -5,7 +5,7 @@ import sys
 import traceback
 
 import numpy as np
-import scipy.sparse as sp
+from scipy import sparse
 from scipy.sparse.linalg import eigs
 import networkx as nx
 from sklearn.preprocessing import scale
@@ -13,8 +13,10 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.random_projection import SparseRandomProjection
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from eden.selector import CompositeSelector
+from eden.selector import AllSelector
 from eden.selector import SparseSelector
 from eden.selector import MaxVolSelector
 from eden.selector import QuickShiftSelector
@@ -54,10 +56,13 @@ class Projector(object):
         Any further parameters are passed directly to the kernel function.
     """
 
-    def __init__(self, selector=QuickShiftSelector(),
+    def __init__(self, selector=AllSelector(),
+                 scale=True,
                  random_state=1,
                  metric='rbf', **kwds):
         self.selector = selector
+        self.scale = scale
+        self.scaler = StandardScaler()
         self.metric = metric
         self.kwds = kwds
         self.random_state = random_state
@@ -87,6 +92,10 @@ class Projector(object):
         self
         """
         self.selected_instances = self.selector.fit_transform(data_matrix, target=target)
+        if self.scale:
+            self.scale = False
+            self.scaler.fit(self.transform(data_matrix))
+            self.scale = True
         return self
 
     def fit_transform(self, data_matrix, target=None):
@@ -128,6 +137,8 @@ class Projector(object):
                                            Y=self.selected_instances,
                                            metric=self.metric,
                                            **self.kwds)
+        if self.scale:
+            data_matrix_out = self.scaler.transform(data_matrix_out)
         return data_matrix_out
 
     def randomize(self, data_matrix, amount=.5):
@@ -168,16 +179,19 @@ class Embedder2D(object):
 
     """
 
-    def __init__(self, selectors=[QuickShiftSelector()],
+    def __init__(self,
+                 selectors=[QuickShiftSelector()],
+                 n_nearest_neighbors=10,
+                 n_links=1,
                  layout='force',
                  n_eigenvectors=10,
-                 n_nearest_neighbors=10,
                  random_state=1,
                  metric='rbf', **kwds):
         self.selectors = selectors
+        self.n_nearest_neighbors = n_nearest_neighbors
+        self.n_links = n_links
         self.layout = layout
         self.n_eigenvectors = n_eigenvectors
-        self.n_nearest_neighbors = n_nearest_neighbors
         self.metric = metric
         self.kwds = kwds
         self.random_state = random_state
@@ -188,6 +202,7 @@ class Embedder2D(object):
         serial = []
         serial.append('Embedder2D:')
         serial.append('layout: %s' % (self.layout))
+        serial.append('n_links: %s' % (self.n_links))
         if self.n_nearest_neighbors is None:
             serial.append('n_nearest_neighbors: None')
         else:
@@ -269,14 +284,15 @@ class Embedder2D(object):
         return graph
 
     def _update_graph(self, graph, data_matrix, selected_instances, selected_instances_ids):
-        nn = NearestNeighbors(n_neighbors=1)
+        n_neighbors = min(self.n_links, len(selected_instances))
+        nn = NearestNeighbors(n_neighbors=n_neighbors)
         nn.fit(selected_instances)
         knns = nn.kneighbors(data_matrix, return_distance=0)
         for i, knn in enumerate(knns):
-            id = knn[0]
-            original_id = selected_instances_ids[id]
-            # add edge
-            graph.add_edge(i, original_id)
+            for id in knn:
+                original_id = selected_instances_ids[id]
+                # add edge
+                graph.add_edge(i, original_id)
         return graph
 
     def _graph_layout(self, graph):
@@ -325,6 +341,7 @@ class Embedder2D(object):
             self.n_nearest_neighbors = random.randint(3, 20)
         else:
             self.n_nearest_neighbors = None
+        self.n_links = random.randint(1, 5)
         self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
@@ -376,7 +393,7 @@ class Embedder(object):
     def fit_transform(self, data_matrix, target=None):
         logger.info('Input data matrix: %d rows  %d cols' %
                     (data_matrix.shape[0], data_matrix.shape[1]))
-        if sp.issparse(data_matrix):
+        if sparse.issparse(data_matrix):
             logger.info('Convert matrix format from sparse to dense using random projections')
             data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
             logger.info('Data matrix: %d rows  %d cols' %

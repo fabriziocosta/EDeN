@@ -4,6 +4,7 @@ import logging
 import math
 from copy import deepcopy
 import numpy as np
+from scipy import sparse
 
 import pymf
 from sklearn.preprocessing import normalize
@@ -85,8 +86,7 @@ class CompositeSelector(object):
         data_matrix : array-like, shape = (n_samples_new, n_features)
             Subset of samples.
         """
-        self.fit(data_matrix, target)
-        return self.transform(data_matrix, target)
+        return self.fit(data_matrix, target).transform(data_matrix, target)
 
     def transform(self, data_matrix, target=None):
         """Select a subset of samples and return the reduced data matrix.
@@ -109,24 +109,34 @@ class CompositeSelector(object):
         data_matrix : array-like, shape = (n_samples_new, n_features)
             Subset of samples.
         """
-        data_matrix_out_list = []
         for selector in self.selectors:
             data_matrix_out = selector.transform(data_matrix, target=target)
-            data_matrix_out_list.append(data_matrix_out)
-        data_matrix_out = np.vstack(data_matrix_out_list)
 
+        self._collect_selected_instances_ids()
+        self._collect_target()
+        data_matrix_out = self._collect_data_matrix(data_matrix)
+
+        return data_matrix_out
+
+    def _collect_data_matrix(self, data_matrix):
+        if isinstance(data_matrix, sparse.csr_matrix):
+            data_matrix_out = data_matrix[self.selected_instances_ids, :]
+        else:
+            data_matrix_out = data_matrix[self.selected_instances_ids]
+        return data_matrix_out
+
+    def _collect_selected_instances_ids(self):
         selected_instances_ids = [np.array(selector.selected_instances_ids) for selector in self.selectors
                                   if selector.selected_instances_ids is not None]
         self.selected_instances_ids = np.hstack(selected_instances_ids)
 
+    def _collect_target(self):
         selected_targets = [np.array(selector.selected_targets) for selector in self.selectors
                             if selector.selected_targets is not None]
         if selected_targets:
             self.selected_targets = np.hstack(selected_targets)
         else:
             self.selected_targets = None
-
-        return data_matrix_out
 
     def randomize(self, data_matrix, amount=1.0):
         """Set all the (hyper) parameters of the method to a random value.
@@ -221,6 +231,33 @@ class AbstractSelector(object):
         raise NotImplementedError("Should have implemented this")
 
 # -----------------------------------------------------------------------------
+
+
+class AllSelector(AbstractSelector):
+
+    """
+    Transform a set of sparse high dimensional vectors to a smaller set.
+    Selection is performed choosing all instances as landmarks.
+    """
+
+    def __init__(self, n_instances=None, random_state=1):
+        self.name = 'AllSelector'
+        self.n_instances = n_instances
+        self.random_state = random_state
+
+    def __repr__(self):
+        serial = []
+        serial.append(self.name)
+        serial.append('n_instances: %d' % (self.n_instances))
+        serial.append('random_state: %d' % (self.random_state))
+        return '\n'.join(serial)
+
+    def select(self, data_matrix, target=None):
+        self.n_instances = data_matrix.shape[0]
+        selected_instances_ids = list(range(self.n_instances))
+        return selected_instances_ids
+
+    # -----------------------------------------------------------------------------
 
 
 class SparseSelector(AbstractSelector):

@@ -5,7 +5,6 @@ from itertools import tee
 import numpy as np
 import random
 
-import networkx as nx
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
 
@@ -62,7 +61,9 @@ class Vectorizer(AbstractVectorizer):
                  graph_vectorizer_complexity=2,
                  n_neighbors=5,
                  sampling_prob=.5,
-                 n_iter=5):
+                 n_iter=5,
+                 random_state=1):
+        random.seed(random_state)
         if complexity is not None:
             sequence_vectorizer_complexity = complexity
             graph_vectorizer_complexity = complexity
@@ -143,7 +144,7 @@ class Vectorizer(AbstractVectorizer):
         cmd = 'echo "%s" | muscle -clwstrict -quiet' % (str_out)
         out = sp.check_output(cmd, shell=True)
         seed = extract_aligned_seed(header, out)
-        cmd = 'echo "%s" | RNAalifold -noPS' % (out)
+        cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
         out = sp.check_output(cmd, shell=True)
         struct, energy = extract_struct_energy(out)
         clean_seq, clean_struct = make_seq_struct(seed, struct)
@@ -160,12 +161,11 @@ class Vectorizer(AbstractVectorizer):
             yield seq, neighbor_seqs
 
     def _seq_to_eden(self, header, sequence, struct, energy):
-        graph = nx.Graph()
+        graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=struct)
+        if graph.number_of_nodes() < 2:
+            graph = seq_to_networkx(header, sequence)
         graph.graph['id'] = header
         graph.graph['info'] = 'muscle+RNAalifold energy=%.3f' % (energy)
         graph.graph['energy'] = energy
         graph.graph['sequence'] = sequence
-        graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=struct)
-        if graph.number_of_nodes() < 2:
-            graph = seq_to_networkx(header, sequence)
         return graph
