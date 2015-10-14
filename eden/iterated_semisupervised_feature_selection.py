@@ -36,7 +36,6 @@ def semisupervised_target(target=None,
     target : array-like, shape = (n_samples)
         Class labels using -1 for the unknown class.
     """
-    _max_n_attempts = 1000
     if unknown_fraction is not None and known_fraction is not None:
         if unknown_fraction != 1 - known_fraction:
             raise Exception('unknown_fraction and known_fraction are inconsistent. bailing out')
@@ -50,29 +49,21 @@ def semisupervised_target(target=None,
     elif unknown_fraction == 1:
         return None
     else:
-        do_iter = True
-        counter = 0
-        while do_iter is True:
-            counter += 1
-            label_ids = [1] * int(len(target) * unknown_fraction) + \
-                [0] * int(len(target) * (1 - unknown_fraction))
-            random.seed(random_state)
-            random.shuffle(label_ids)
-            random_unlabeled_points = np.where(label_ids)
-            labels = np.copy(target)
-            labels[random_unlabeled_points] = -1
-            n_classes_true = len(set(target))
-            n_classes = len(set(labels)) - 1
-            # if we have added an extra class to the num of original classes then stop
-            # if the numbers differ then we might have removed some classes with low counts
-            # then try again
-            if n_classes_true == n_classes:
-                do_iter = False
-            if counter > _max_n_attempts:
-                logger.info('Warning: reached max num attempts (n=%d) to balance class distribution,\
-                bailing out' % _max_n_attempts)
-                do_iter = False
-        return labels
+        labels = []
+        known_fraction = 0.2
+        class_set = set(target)
+        class_samples = {}
+        for c in class_set:
+            cs = [id for id in range(len(target)) if target[id] == c]
+            n_desired = int(max(1, len(cs) * known_fraction))
+            class_samples[c] = random.sample(cs, n_desired)
+        for id in range(len(target)):
+            if id in class_samples[target[id]]:
+                val = target[id]
+            else:
+                val = -1
+            labels.append(val)
+        return np.array(labels)
 
 
 class IteratedSemiSupervisedFeatureSelection(object):
@@ -96,10 +87,14 @@ class IteratedSemiSupervisedFeatureSelection(object):
     def __init__(self,
                  estimator=SGDClassifier(average=True, shuffle=True, penalty='elasticnet'),
                  n_iter=30,
+                 step=0.1,
+                 cv=5,
                  min_feature_ratio=0.1,
                  n_neighbors=5):
         self.estimator = estimator
         self.n_iter = n_iter
+        self.step = step
+        self.cv = cv
         self.min_feature_ratio = min_feature_ratio
         self.n_neighbors = n_neighbors
         self.feature_selectors = []
@@ -130,8 +125,9 @@ class IteratedSemiSupervisedFeatureSelection(object):
             data_matrix = self._feature_selection(data_matrix, target_new)
             n_features_output = data_matrix.shape[1]
             if self._terminate(n_features_orig, n_features_input, n_features_output):
-                # remove last feature_selector since it does not satisfy conditions
-                self.feature_selectors.pop(-1)
+                if len(self.feature_selectors) > 0:
+                    # remove last feature_selector since it does not satisfy conditions
+                    self.feature_selectors.pop(-1)
                 break
         return self
 
@@ -211,8 +207,12 @@ class IteratedSemiSupervisedFeatureSelection(object):
         return np.array(extended_target)
 
     def _feature_selection(self, data_matrix, target):
-        # perform recursive feature elimination
-        feature_selector = RFECV(self.estimator, step=0.1, cv=10)
-        data_matrix_out = feature_selector.fit_transform(data_matrix, target)
-        self.feature_selectors.append(feature_selector)
-        return data_matrix_out
+        try:
+            # perform recursive feature elimination
+            feature_selector = RFECV(self.estimator, step=self.step, cv=self.cv)
+            data_matrix_out = feature_selector.fit_transform(data_matrix, target)
+            self.feature_selectors.append(feature_selector)
+            return data_matrix_out
+        except Exception as e:
+            logger.debug(e)
+            return data_matrix

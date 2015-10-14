@@ -5,13 +5,11 @@ import sys
 import traceback
 
 import numpy as np
-from scipy import sparse
 from scipy.sparse.linalg import eigs
 import networkx as nx
 from sklearn.preprocessing import scale
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
-from sklearn.random_projection import SparseRandomProjection
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -42,6 +40,16 @@ class Projector(object):
     selector : Selector
         TODO.
 
+    scale : bool (default True)
+        If true then the data matrix returned is standardized to have 0 mean and unit variance
+
+    scaling_factor : float (default 0.8)
+        Multiplicative factor applied after normalization. This can be useful when data needs to be
+        post-processed by neural networks and one wishes to push data in a linear region.
+
+    random_state : int (deafault 1)
+        The seed used for the pseudo-random generator.
+
     metric : string, or callable
         The metric to use when calculating kernel between instances in a
         feature array. If metric is a string, it must be one of the metrics
@@ -58,10 +66,12 @@ class Projector(object):
 
     def __init__(self, selector=AllSelector(),
                  scale=True,
+                 scaling_factor=0.8,
                  random_state=1,
                  metric='rbf', **kwds):
         self.selector = selector
         self.scale = scale
+        self.scaling_factor = scaling_factor
         self.scaler = StandardScaler()
         self.metric = metric
         self.kwds = kwds
@@ -138,7 +148,7 @@ class Projector(object):
                                            metric=self.metric,
                                            **self.kwds)
         if self.scale:
-            data_matrix_out = self.scaler.transform(data_matrix_out)
+            data_matrix_out = self.scaler.transform(data_matrix_out) * self.scaling_factor
         return data_matrix_out
 
     def randomize(self, data_matrix, amount=.5):
@@ -289,9 +299,9 @@ class Embedder2D(object):
         nn.fit(selected_instances)
         knns = nn.kneighbors(data_matrix, return_distance=0)
         for i, knn in enumerate(knns):
+            # add edges to the knns
             for id in knn:
                 original_id = selected_instances_ids[id]
-                # add edge
                 graph.add_edge(i, original_id)
         return graph
 
@@ -330,8 +340,8 @@ class Embedder2D(object):
         if random.random() > inclusion_threshold:
             selectors.append(OnionSelector(random_state=random.randint(1, 1e9)))
         if not selectors:
-            selectors.append(MaxVolSelector(random_state=random.randint(1, 1e9)))
-            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+            selectors.append(DensitySelector(random_state=random.randint(1, 1e9)))
+            selectors.append(SparseSelector(random_state=random.randint(1, 1e9)))
         selector = CompositeSelector(selectors=selectors)
         selector.randomize(data_matrix, amount=amount)
         self.selectors = deepcopy(selector.selectors)
@@ -393,11 +403,11 @@ class Embedder(object):
     def fit_transform(self, data_matrix, target=None):
         logger.info('Input data matrix: %d rows  %d cols' %
                     (data_matrix.shape[0], data_matrix.shape[1]))
-        if sparse.issparse(data_matrix):
-            logger.info('Convert matrix format from sparse to dense using random projections')
-            data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
-            logger.info('Data matrix: %d rows  %d cols' %
-                        (data_matrix.shape[0], data_matrix.shape[1]))
+        # if sparse.issparse(data_matrix):
+        #     logger.info('Convert matrix format from sparse to dense using random projections')
+        #     data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
+        #     logger.info('Data matrix: %d rows  %d cols' %
+        #                 (data_matrix.shape[0], data_matrix.shape[1]))
         if target is not None:
             data_matrix_feature_select = self.feature_selector.fit_transform(data_matrix, target)
             logger.info('Feature selection')

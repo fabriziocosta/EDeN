@@ -13,6 +13,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import SGDClassifier
 from scipy.stats import entropy
+from sklearn.random_projection import SparseRandomProjection
 
 from eden.util import serialize_dict
 
@@ -341,6 +342,8 @@ class MaxVolSelector(AbstractSelector):
         return '\n'.join(serial)
 
     def select(self, data_matrix, target=None):
+        if sparse.issparse(data_matrix):
+            data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
         mf = pymf.SIVM(data_matrix.T, num_bases=self.n_instances)
         mf.factorize()
         basis = mf.W.T
@@ -385,6 +388,8 @@ class OnionSelector(AbstractSelector):
         return '\n'.join(serial)
 
     def transform(self, data_matrix, target=None):
+        if sparse.issparse(data_matrix):
+            data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
         current_data_matrix = data_matrix
         current_target = target
         self.selected_instances_ids = np.array(range(data_matrix.shape[0]))
@@ -437,10 +442,11 @@ class EqualizingSelector(AbstractSelector):
     choosing instances uniformly at random from each cluster.
     """
 
-    def __init__(self, n_instances=20, clustering_algo=None, random_state=1):
+    def __init__(self, n_instances=20, clustering_algo=None, random_state=1, **kwds):
         self.name = 'EqualizingSelector'
         self.n_instances = n_instances
-        self.clustering_algo = clustering_algo
+        self.clustering_algo = clustering_algo(**kwds)
+        self.kwds = kwds
         self.random_state = random_state
         random.seed(random_state)
 

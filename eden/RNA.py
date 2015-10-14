@@ -8,11 +8,11 @@ import random
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
 
-from eden import AbstractVectorizer
 from eden.path import Vectorizer as SeqVectorizer
 from eden.graph import Vectorizer as GraphVectorizer
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.converter.fasta import seq_to_networkx
+from eden.converter.rna import rnafold
 
 import logging
 logger = logging.getLogger(__name__)
@@ -53,15 +53,17 @@ def make_seq_struct(seq, struct):
     return clean_seq, clean_struct
 
 
-class Vectorizer(AbstractVectorizer):
+class Vectorizer(object):
 
     def __init__(self,
                  complexity=None,
+                 nbits=20,
                  sequence_vectorizer_complexity=3,
                  graph_vectorizer_complexity=2,
                  n_neighbors=5,
                  sampling_prob=.5,
                  n_iter=5,
+                 min_energy=-10,
                  random_state=1):
         random.seed(random_state)
         if complexity is not None:
@@ -69,12 +71,14 @@ class Vectorizer(AbstractVectorizer):
             graph_vectorizer_complexity = complexity
 
         self.sequence_vectorizer = SeqVectorizer(complexity=sequence_vectorizer_complexity,
+                                                 nbits=nbits,
                                                  normalization=False,
                                                  inner_normalization=False)
-        self.graph_vectorizer = GraphVectorizer(complexity=graph_vectorizer_complexity)
+        self.graph_vectorizer = GraphVectorizer(complexity=graph_vectorizer_complexity, nbits=nbits)
         self.n_neighbors = n_neighbors
         self.sampling_prob = sampling_prob
         self.n_iter = n_iter
+        self.min_energy = min_energy
         self.nearest_neighbors = NearestNeighbors(n_neighbors=n_neighbors)
 
     def fit(self, seqs):
@@ -85,17 +89,21 @@ class Vectorizer(AbstractVectorizer):
         self.nearest_neighbors.fit(data_matrix)
         return self
 
-    def fit_transform(self, seqs):
+    def fit_transform(self, seqs, sampling_prob=None, n_iter=None):
         seqs, seqs_ = tee(seqs)
-        return self.fit(seqs_).transform(seqs)
+        return self.fit(seqs_).transform(seqs, sampling_prob=sampling_prob, n_iter=n_iter)
 
-    def transform(self, seqs):
+    def transform(self, seqs, sampling_prob=None, n_iter=None):
         seqs = list(seqs)
         graphs_ = self.graphs(seqs)
         data_matrix = self.graph_vectorizer.transform(graphs_)
         return data_matrix
 
-    def graphs(self, seqs):
+    def graphs(self, seqs, sampling_prob=None, n_iter=None):
+        if n_iter is not None:
+            self.n_iter = n_iter
+        if sampling_prob is not None:
+            self.sampling_prob = sampling_prob
         for seq, neighs in self._compute_neighbors(seqs):
             if self.n_iter > 1:
                 header, sequence, struct, energy = self._optimize_struct(seq, neighs)
@@ -147,7 +155,11 @@ class Vectorizer(AbstractVectorizer):
         cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
         out = sp.check_output(cmd, shell=True)
         struct, energy = extract_struct_energy(out)
-        clean_seq, clean_struct = make_seq_struct(seed, struct)
+        if energy > self.min_energy:
+            # use min free energy structure
+            clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
+        else:
+            clean_seq, clean_struct = make_seq_struct(seed, struct)
         return header, clean_seq, clean_struct, energy
 
     def _compute_neighbors(self, seqs):
