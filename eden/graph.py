@@ -208,10 +208,9 @@ class Vectorizer(AbstractVectorizer):
         self
 
         """
-
         if self.n == 1:
             # fit is meaningful only when n>1
-            logger.debug('fitting was asked with n=1')
+            logger.debug('Warning: fit was asked with n=1')
         else:
             # compute a log spaced sequence (label_size elements) of number of clusters
             # in this way when asked for max 1000 clusters and min 4 clusters and 5 levels
@@ -219,14 +218,15 @@ class Vectorizer(AbstractVectorizer):
             c_start = math.log10(self.min_n)
             c_end = math.log10(self.n)
             n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
-            # remove repeated values; this manages very large values of label_size
+            # remove repeated values; this manages artifacts resulting from very large values of label_size
             n_clusters_list = sorted(list(set(n_clusters_list)))
             n_trailing = self.label_size - len(n_clusters_list)
             if n_trailing > 0:
                 n_clusters_list += [n_clusters_list[-1]] * n_trailing
-            label_data_matrixs = self._assemble_dense_data_matrices(graphs)
-            label_data_matrixs.update(
-                self._assemble_sparse_data_matrices(graphs))
+            label_data_matrixs = dict()
+            graphs_dense, graphs_sparse = itertools.tee(graphs)
+            label_data_matrixs = self._assemble_dense_data_matrices(graphs_dense)
+            label_data_matrixs.update(self._assemble_sparse_data_matrices(graphs_sparse))
             for node_entity in label_data_matrixs:
                 self.discretization_models[node_entity] = []
                 for m in n_clusters_list:
@@ -280,7 +280,6 @@ class Vectorizer(AbstractVectorizer):
         data_matrix : array-like, shape = [n_samples, n_features]
             Vector representation of input graphs.
         """
-
         graphs, graphs_ = itertools.tee(graphs)
         self.fit(graphs_)
         return self.transform(graphs)
