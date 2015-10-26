@@ -60,7 +60,7 @@ class Vectorizer(AbstractVectorizer):
         'normalization' flag it will be applied first and then the resulting feature vector
         will be normalized.
 
-    triangular_decomposition : bool (default True)
+    triangular_decomposition : bool (default False)
         Flag to add to each graph the disjoint set of triangles. This
         allows also dense graphs to be processed.
 
@@ -95,7 +95,7 @@ class Vectorizer(AbstractVectorizer):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 triangular_decomposition=True,
+                 triangular_decomposition=False,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -524,15 +524,17 @@ class Vectorizer(AbstractVectorizer):
             print(e.message)
 
     def _weight_preprocessing(self, graph):
-        # it is expected that all vertices either have or do not have the attribute self.key_weight
-        # we sniff the attributes of the first node to determine if graph is weighted
-        if self.key_weight in graph.nodes(data=True)[0][1]:
-            graph.graph['weighted'] = True
-            # check that edges are weighted, if not assign unitary weight
+        # if at least one vertex or edge is weighted then ensure that all vertices and edges are weighted
+        # in this case use a default weight of 1 if the weight attribute is missing
+        graph.graph['weighted'] = False
+        for n, d in graph.nodes_iter(data=True):
+            if self.key_weight in d:
+                graph.graph['weighted'] = True
+                break
+        if graph.graph['weighted'] is True:
             for n, d in graph.nodes_iter(data=True):
-                if d.get('edge', False) is True:
-                    if d.get(self.key_weight, False) is False:
-                        graph.node[n][self.key_weight] = 1
+                if self.key_weight not in d:
+                    graph.node[n][self.key_weight] = 1
 
     def _edge_to_vertex_transform(self, original_graph):
         """Return a graph where the edges of the original_graph are converted to nodes."""
@@ -639,8 +641,7 @@ class Vectorizer(AbstractVectorizer):
             u = nesting_endpoints[0]
             v = nesting_endpoints[1]
             distance = 1
-            self._transform_vertex_pair(graph, v, u,
-                                        distance, feature_list,
+            self._transform_vertex_pair(graph, v, u, distance, feature_list,
                                         connection_weight=connection_weight)
 
     def _transform_vertex(self, graph, vertex_v, feature_list):
@@ -650,8 +651,7 @@ class Vectorizer(AbstractVectorizer):
             if distance in root_dist_dict:
                 node_set = root_dist_dict[distance]
                 for vertex_u in node_set:
-                    self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                distance, feature_list)
+                    self._transform_vertex_pair(graph, vertex_v, vertex_u, distance, feature_list)
 
     def _transform_vertex_pair(self, graph, vertex_v, vertex_u, distance, feature_list, connection_weight=1):
         self._transform_vertex_pair_base(graph, vertex_v, vertex_u, distance, feature_list, connection_weight)
