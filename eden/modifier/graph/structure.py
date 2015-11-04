@@ -2,6 +2,23 @@ import networkx as nx
 from collections import Counter, namedtuple
 
 
+def del_basepair(graphs):
+    for graph in graphs:
+        for edge_src, edge_dest, edge_dat in graph.edges_iter(data=True):
+            if edge_dat.get('type', None) == 'basepair':
+                graph.remove_edge(edge_src, edge_dest)
+        yield graph
+
+
+def basepair_to_nesting(graphs):
+    for graph in graphs:
+        for edge_src, edge_dest, edge_dat in graph.edges_iter(data=True):
+            if edge_dat.get('type', None) == 'basepair':
+                edge_dat['nesting'] = True
+                graph.add_edge(edge_src, edge_dest, edge_dat)
+        yield graph
+
+
 def edge_contraction(graph=None, node_attribute=None):
     g = graph.copy()
     # add a 'contracted' attribute in each node
@@ -18,7 +35,8 @@ def edge_contraction(graph=None, node_attribute=None):
             if node_attribute in d and 'position' in d:
                 neighbors = g.neighbors(n)
                 if len(neighbors) > 0:
-                    # identify neighbors that have a greater 'position' attribute and that have the same node_attribute
+                    # identify neighbors that have a greater 'position' attribute and that have
+                    # the same node_attribute
                     greater_position_neighbors = [v for v in neighbors if 'position' in g.node[v] and
                                                   node_attribute in g.node[v] and
                                                   g.node[v][node_attribute] == d[node_attribute] and
@@ -29,8 +47,11 @@ def edge_contraction(graph=None, node_attribute=None):
                         # i.e. move the endpoint of all edges ending in v to n
                         cntr_edge_set = g.edges(greater_position_neighbors, data=True)
                         new_edges = map(lambda x: (n, x[1], x[2]), cntr_edge_set)
-                        # we are going to remove the greater pos neighbors , so we better make sure not to loose their contracted sets.
-                        gpn_contracted = set([removed_node for greater_position_node in greater_position_neighbors for removed_node in g.node[greater_position_node]['contracted']])
+                        # we are going to remove the greater pos neighbors , so we better make sure not to
+                        # loose their contracted sets.
+                        gpn_contracted = set([removed_node for greater_position_node in
+                                              greater_position_neighbors for removed_node in g.node[
+                                                  greater_position_node]['contracted']])
 
                         # remove nodes
                         g.remove_nodes_from(greater_position_neighbors)
@@ -89,7 +110,9 @@ modifiers = [label_modifier, weight_modifier]
 def serialize_modifiers(modifiers):
     lines = ""
     for modifier in modifiers:
-        line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in, modifier.attribute_out, modifier.reduction)
+        line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in,
+                                                                  modifier.attribute_out,
+                                                                  modifier.reduction)
         lines += line + "\n"
     return lines
 
@@ -108,7 +131,8 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
     "histogram" returns a sparse vector with numerical hashed keys,
     "sum" and "average" cast the values into floats before computing the sum and average respectively,
     "categorical" returns the concatenation string of the lexicographically sorted list of input attributes,
-    "set_categorical" returns the concatenation string of the lexicographically sorted set of input attributes.
+    "set_categorical" returns the concatenation string of the lexicographically sorted set of input
+    attributes.
     '''
     for g in graphs:
         # check for 'position' attribute and add it if not present
@@ -126,7 +150,8 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
                 raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
             for modifier in modifiers:
                 modifier_func = contraction_modifer_map[modifier.reduction]
-                g_contracted.node[n][modifier.attribute_out] = modifier_func(input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
+                g_contracted.node[n][modifier.attribute_out] = modifier_func(
+                    input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
         if nesting:  # add nesting edges between the constraction graph and the original graph
             g_nested = nx.disjoint_union(g, g_contracted)
             # rewire contracted graph to the original graph

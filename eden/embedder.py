@@ -1,8 +1,6 @@
 import logging
 import random
 from copy import deepcopy
-import sys
-import traceback
 
 import numpy as np
 from scipy.sparse.linalg import eigs
@@ -12,6 +10,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+from sknn.mlp import Regressor, Layer
 
 from eden.selector import CompositeSelector
 from eden.selector import AllSelector
@@ -143,6 +142,8 @@ class Projector(object):
         """
         if self.selected_instances is None:
             raise Exception('Error: attempt to use transform on non fit model')
+        if self.selected_instances.shape[0] == 0:
+            raise Exception('Error: attempt to use transform using 0 selectors')
         data_matrix_out = pairwise_kernels(data_matrix,
                                            Y=self.selected_instances,
                                            metric=self.metric,
@@ -190,6 +191,9 @@ class Embedder2D(object):
     """
 
     def __init__(self,
+                 compiled=False,
+                 learning_rate=0.002,
+                 n_features_hidden_factor=10,
                  selectors=[QuickShiftSelector()],
                  n_nearest_neighbors=10,
                  n_links=1,
@@ -197,6 +201,9 @@ class Embedder2D(object):
                  n_eigenvectors=10,
                  random_state=1,
                  metric='rbf', **kwds):
+        self.compiled = compiled
+        self.learning_rate = learning_rate
+        self.n_features_hidden_factor = n_features_hidden_factor
         self.selectors = selectors
         self.n_nearest_neighbors = n_nearest_neighbors
         self.n_links = n_links
@@ -211,6 +218,12 @@ class Embedder2D(object):
     def __repr__(self):
         serial = []
         serial.append('Embedder2D:')
+        if self.compiled is True:
+            serial.append('compiled: yes')
+            serial.append('learning_rate: %.6f' % self.learning_rate)
+            serial.append('n_features_hidden_factor: %d' % self.n_features_hidden_factor)
+        else:
+            serial.append('compiled: no')
         serial.append('layout: %s' % (self.layout))
         serial.append('n_links: %s' % (self.n_links))
         if self.n_nearest_neighbors is None:
@@ -231,6 +244,44 @@ class Embedder2D(object):
         return '\n'.join(serial)
 
     def fit(self, data_matrix):
+        if self.compiled is True:
+            return self.fit_compiled(data_matrix)
+        else:
+            return self._fit(data_matrix)
+
+    def transform(self, data_matrix):
+        if self.compiled is True:
+            return self.transform_compiled(data_matrix)
+        else:
+            return self._transform(data_matrix)
+
+    def fit_transform(self, data_matrix):
+        if self.compiled is True:
+            return self.fit_transform_compiled(data_matrix)
+        else:
+            return self._fit_transform(data_matrix)
+
+    def fit_compiled(self, data_matrix_in):
+        data_matrix_out = self._fit_transform(data_matrix_in)
+        n_features_in = data_matrix_in.shape[1]
+        n_features_out = data_matrix_out.shape[1]
+        n_features_hidden = int(n_features_in * self.n_features_hidden_factor)
+        self.net = Regressor(layers=[
+            Layer("Rectifier", units=n_features_hidden),
+            Layer("Linear", units=n_features_out)],
+            learning_rate=self.learning_rate,
+            valid_size=0.1)
+        self.net.fit(data_matrix_in, data_matrix_out)
+        return self.net
+
+    def transform_compiled(self, data_matrix):
+        return self.net.predict(data_matrix)
+
+    def fit_transform_compiled(self, data_matrix):
+        self.fit_compiled(data_matrix)
+        return self.transform_compiled(data_matrix)
+
+    def _fit(self, data_matrix):
         # find selected instances
         target = np.array(range(data_matrix.shape[0]))
         self.selected_instances_list = []
@@ -242,22 +293,27 @@ class Embedder2D(object):
             self.selected_instances_ids_list.append(selected_instances_ids)
         return self
 
-    def fit_transform(self, data_matrix):
-        return self.fit(data_matrix).transform(data_matrix)
+    def _fit_transform(self, data_matrix):
+        return self._fit(data_matrix)._transform(data_matrix)
 
-    def transform(self, data_matrix):
+    def _transform(self, data_matrix):
         # make a graph with instances as nodes
         graph = self._init_graph(data_matrix)
-        # find the closest selected instance and instantiate an edge
+        # find the closest selected instance and instantiate knn edges
         for selected_instances, selected_instances_ids in \
                 zip(self.selected_instances_list, self.selected_instances_ids_list):
             if len(selected_instances) > 2:
-                graph = self._update_graph(graph, data_matrix, selected_instances, selected_instances_ids)
+                graph = self._selection_knn_links(graph,
+                                                  data_matrix,
+                                                  selected_instances,
+                                                  selected_instances_ids)
+        # use graph layout
         embedded_data_matrix = self._graph_layout(graph)
+        # normalize display using 2D PCA
         embedded_data_matrix = PCA(n_components=2).fit_transform(embedded_data_matrix)
         return embedded_data_matrix
 
-    def _links(self, data_matrix):
+    def _kernel_shift_links(self, data_matrix):
         data_size = data_matrix.shape[0]
         kernel_matrix = pairwise_kernels(data_matrix, metric=self.metric, **self.kwds)
         # compute instance density as average pairwise similarity
@@ -288,12 +344,12 @@ class Embedder2D(object):
     def _init_graph(self, data_matrix):
         graph = nx.Graph()
         graph.add_nodes_from(range(data_matrix.shape[0]))
-        self.link_ids = self._links(data_matrix)
+        self.link_ids = self._kernel_shift_links(data_matrix)
         for i, link in enumerate(self.link_ids):
             graph.add_edge(i, link)
         return graph
 
-    def _update_graph(self, graph, data_matrix, selected_instances, selected_instances_ids):
+    def _selection_knn_links(self, graph, data_matrix, selected_instances, selected_instances_ids):
         n_neighbors = min(self.n_links, len(selected_instances))
         nn = NearestNeighbors(n_neighbors=n_neighbors)
         nn.fit(selected_instances)
@@ -357,7 +413,7 @@ class Embedder2D(object):
 # -----------------------------------------------------------------------------
 
 
-class Embedder(object):
+class AutoEmbedder(object):
 
     """
     Transform a set of high dimensional vectors to a set of two dimensional vectors.
@@ -368,6 +424,7 @@ class Embedder(object):
     """
 
     def __init__(self,
+                 compiled=False,
                  max_n_clusters=8,
                  n_iter=20,
                  inclusion_threshold=0.7,
@@ -378,7 +435,7 @@ class Embedder(object):
         self.random_state = random_state
         self.feature_selector = IteratedSemiSupervisedFeatureSelection()
         self.feature_constructor = Projector()
-        self.embedder = Embedder2D()
+        self.embedder = Embedder2D(compiled=compiled)
         self.evaluator = LocalEmbeddingEvaluator()
         self.refiner = LocalEmbeddingRefiner()
         self.auto_cluster = AutoCluster()
@@ -459,9 +516,11 @@ class Embedder(object):
                 score = self.score
                 yield (score, iter_id, data_matrix_out, deepcopy(self.__dict__))
             except Exception as e:
-                logger.debug('Failed iteration: %s' % e)
-                traceback.print_exc(file=sys.stdout)
+                logger.debug('Failed iteration. Reason: %s' % e)
+                logger.debug('Exception', exc_info=True)
+                logger.debug('Current object status:')
                 logger.debug(self.__repr__())
+                logger.debug('*' * 80)
 
 # -----------------------------------------------------------------------------
 

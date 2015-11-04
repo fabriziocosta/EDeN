@@ -529,7 +529,7 @@ def optimize_embedding(data_matrix, known_targets=None,
                                     change_of_basis=general_opts['change_of_basis'])
                 score_list.append(score)
             mean_reduced_score = np.mean(score_list) - np.std(score_list)
-            if mean_reduced_score > best_score:
+            if best_score == 0 or mean_reduced_score > best_score:
                 # best_embed_opts = embed_opts
                 # best_basis_opts = basis_opts
                 # best_change_of_basis = change_of_basis

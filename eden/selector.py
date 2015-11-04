@@ -427,7 +427,7 @@ class OnionSelector(AbstractSelector):
     def randomize(self, data_matrix, amount=1.0):
         random.seed(self.random_state)
         self.n_instances = self._auto_n_instances(data_matrix.shape[0])
-        max_n_layers = min(10, data_matrix.shape[0] / (self.n_instances + 1))
+        max_n_layers = min(5, data_matrix.shape[0] / (self.n_instances + 1))
         self.n_layers = random.randint(1, max_n_layers)
         self.random_state = self.random_state ^ random.randint(1, 1e9)
 
