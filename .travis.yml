@@ -19,6 +19,7 @@ install:
   - conda install --yes matplotlib
   - conda install --yes cvxopt
   - pip install git+https://github.com/nils-werner/pymf.git
+  - pip install scikit-neuralnetwork
   # packages for running tests
   - pip install setuptools
   - pip install flake8
