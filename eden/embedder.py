@@ -425,6 +425,8 @@ class AutoEmbedder(object):
 
     def __init__(self,
                  compiled=False,
+                 learning_rate=0.002,
+                 n_features_hidden_factor=10,
                  max_n_clusters=8,
                  n_iter=20,
                  inclusion_threshold=0.7,
@@ -435,7 +437,9 @@ class AutoEmbedder(object):
         self.random_state = random_state
         self.feature_selector = IteratedSemiSupervisedFeatureSelection()
         self.feature_constructor = Projector()
-        self.embedder = Embedder2D(compiled=compiled)
+        self.embedder = Embedder2D(compiled=compiled,
+                                   learning_rate=learning_rate,
+                                   n_features_hidden_factor=n_features_hidden_factor)
         self.evaluator = LocalEmbeddingEvaluator()
         self.refiner = LocalEmbeddingRefiner()
         self.auto_cluster = AutoCluster()
