@@ -1,5 +1,6 @@
 import networkx as nx
 import pylab as plt
+from matplotlib.font_manager import FontProperties
 import json
 from networkx.readwrite import json_graph
 
@@ -132,7 +133,9 @@ def draw_graph(graph,
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
     if title_key:
         title = str(graph.graph.get(title_key, ''))
-        plt.title(title)
+        font = FontProperties()
+        font.set_family('monospace')
+        plt.title(title, fontproperties=font)
     if size is not None:
         # here we decide if we output the image.
         # note: if size is not set, the canvas has been created outside of this function.

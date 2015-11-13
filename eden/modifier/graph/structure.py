@@ -2,18 +2,18 @@ import networkx as nx
 from collections import Counter, namedtuple
 
 
-def del_basepair(graphs):
+def delete_edge_type(graphs, edge_type_key='basepair'):
     for graph in graphs:
         for edge_src, edge_dest, edge_dat in graph.edges_iter(data=True):
-            if edge_dat.get('type', None) == 'basepair':
+            if edge_dat.get('type', None) == edge_type_key:
                 graph.remove_edge(edge_src, edge_dest)
         yield graph
 
 
-def basepair_to_nesting(graphs):
+def make_edge_type_into_nesting(graphs, edge_type_key='basepair'):
     for graph in graphs:
         for edge_src, edge_dest, edge_dat in graph.edges_iter(data=True):
-            if edge_dat.get('type', None) == 'basepair':
+            if edge_dat.get('type', None) == edge_type_key:
                 edge_dat['nesting'] = True
                 graph.add_edge(edge_src, edge_dest, edge_dat)
         yield graph
