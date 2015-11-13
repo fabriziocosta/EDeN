@@ -22,7 +22,14 @@ Please cite:
     Genome Biology, 2014, 15(1), R17
 """
 
-from eden.model_base import *
+import os
+import logging
+
+from numpy.random import randint, uniform
+from sklearn.linear_model import SGDClassifier
+from eden.graph import Vectorizer
+from eden.model_base import ModelInitializerBase, main_script
+
 
 class ModelInitializer(ModelInitializerBase):
 
