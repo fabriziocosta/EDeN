@@ -15,6 +15,7 @@ install:
   # packages from anaconda distribution
   - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
   - source activate condaenv
+  - conda install --yes nose
   - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.16"
   - conda install --yes matplotlib
   - conda install --yes cvxopt
@@ -29,4 +30,5 @@ script:
   - flake8 . --exclude=.venv --ignore=E501
   # run nose with doctests
   # excludes files with missing or broken dependencies
+  - which nosetests
   - nosetests --with-doctest -I selector.py -I embedding.py -I obabel.py
