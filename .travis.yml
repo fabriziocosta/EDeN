@@ -30,5 +30,4 @@ script:
   - flake8 . --exclude=.venv --ignore=E501
   # run nose with doctests
   # excludes files with missing or broken dependencies
-  - which nosetests
   - nosetests --with-doctest -I selector.py -I embedding.py -I obabel.py
