@@ -17,7 +17,9 @@ from __future__ import print_function
 import argparse
 from csv import reader
 from itertools import izip
+import logging
 from pybedtools.featurefuncs import midpoint
+from pybedtools.helpers import get_chromsizes_from_ucsc
 from pybedtools import BedTool
 
 # parse command line arguments
@@ -52,11 +54,34 @@ parser.add_argument(
     "--negative_site_candidate_regions_fn",
     help="Path to regions considered for placement of negatives in bed format")
 parser.add_argument(
-    "--debug", help="Enable debug output.", action="store_true")
+    "-v", "--verbose",
+    help="Be verbose.",
+    action="store_true")
+parser.add_argument(
+    "-d", "--debug",
+    help="Print lots of debugging information",
+    action="store_true")
 args = parser.parse_args()
+
+if args.debug:
+    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(filename)s - %(levelname)s - %(message)s")
+elif args.verbose:
+    logging.basicConfig(level=logging.INFO, format="%(filename)s - %(levelname)s - %(message)s")
+else:
+    logging.basicConfig(format="%(filename)s - %(levelname)s - %(message)s")
 
 # fixed global variables
 npeek = 2
+
+# check chromsizes retreival
+if (args.chromosome_limits is None):
+    # check if genome_id can be found,
+    chromsizes = get_chromsizes_from_ucsc(args.genome_id)
+    logging.debug("Number of chromosomes: {}.".format(len(chromsizes)))
+    # otherwise request manual definition of chromosome limits
+    if (len(chromsizes) == 0):
+        logging.error("Error: retrieving chromosome sizes from UCSC failed. Please specify manually using parameter --chromosome_limits")
+        exit(1)
 
 # output file arguments
 pos_core_bed_fn = args.output_file_prefix + ".positives_core.bed"
@@ -79,9 +104,9 @@ if (args.core_length + flank_upstream_length + flank_downstream_length != args.s
 def dbg_head(sites, description="", n=npeek, run=args.debug):
     """Print the first few bed entries."""
     if (run):
-        print(description)
+        logging.debug(description)
         for i in sites[0:n]:
-            print(i)
+            logging.debug(i)
 
 
 def prefix_neg(feature, prefix="negative_from_"):
@@ -105,7 +130,7 @@ def get_flanks(cores,
                flank_downstream_length=flank_downstream_length):
     """Calculate flanking regions of a core region."""
     if (args.chromosome_limits is not None):
-        print("using chromosome_limits " + args.chromosome_limits)
+        logging.debug("using chromosome_limits " + args.chromosome_limits)
         # get upstream flanks
         flanks_upstream = cores.flank(
             s=True,
@@ -195,9 +220,9 @@ bsites = BedTool(args.bsites_fn).sort().saveas()
 centers = bsites.each(midpoint).saveas()
 
 # prepare positive instances
-print("preparing positive instances")
+logging.info("preparing positive instances")
 if (args.chromosome_limits):
-    print("using chromosome_limits " + args.chromosome_limits)
+    logging.debug("using chromosome_limits " + args.chromosome_limits)
     cores = centers.slop(s=True,
                          l=int(args.core_length / 2),
                          # -1 to account for the center nucleotide!
@@ -226,16 +251,16 @@ if args.negative_site_candidate_regions_fn:
         s=True).saveas()
 
     # create negative core sites by placing within candidate regions
-    print("preparing negative instances")
-    print("starting from " + str(cores.count()) + " positive cores")
+    logging.info("preparing negative instances")
+    logging.info("starting from " + str(cores.count()) + " positive cores")
     if args.chromosome_limits:
-        print("using chromosome_limits " + args.chromosome_limits)
+        logging.debug("using chromosome_limits " + args.chromosome_limits)
         neg_cores = cores.shuffle(
             g=args.chromosome_limits,
             chrom=True,
             incl=processed_negative_site_candidate_regions.fn,
             noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
-        print("derived negative cores: " + str(neg_cores.count()))
+        logging.info("derived negative cores: " + str(neg_cores.count()))
         neg_fup, neg_fdown = get_flanks(neg_cores)
         get_seqs(neg_cores, neg_fup, neg_fdown, neg_seq_fa_fn)
     else:
@@ -244,6 +269,6 @@ if args.negative_site_candidate_regions_fn:
             chrom=True,
             incl=processed_negative_site_candidate_regions.fn,
             noOverlapping=True).each(prefix_neg).saveas(neg_core_bed_fn)
-        print("derived negative cores: " + str(neg_cores.count()))
+        logging.info("derived negative cores: " + str(neg_cores.count()))
         neg_fup, neg_fdown = get_flanks(neg_cores)
         get_seqs(neg_cores, neg_fup, neg_fdown, neg_seq_fa_fn)
