@@ -1,7 +1,7 @@
-def testfun(string):
-    """A simple test function.
+def thereisuinfun(string):
+    """A simple test function for testing unittests and module level tests.
 
-    >>> testfun("lalala")
+    >>> thereisuinfun("lalala")
     lalala
     """
     print(string)

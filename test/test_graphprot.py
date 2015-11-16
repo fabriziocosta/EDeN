@@ -1,8 +1,9 @@
-from graphprot import testfun
+from graphprot import thereisuinfun
 
 
 def test_testfun():
-    testfun("hello world!")
+    """Simple example for testing module functions."""
+    thereisuinfun("hello world!")
 
 
 from eden.converter.fasta import fasta_to_sequence

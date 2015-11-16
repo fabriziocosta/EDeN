@@ -73,3 +73,4 @@ EDeN.Rproj
 *.swp
 examples/model_comparison/models/
 working_examples/
+testenv*
