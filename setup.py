@@ -132,6 +132,7 @@ setup(
         "pymf",
         "pygraphviz",
         "scripttest",
+        "pybedtools>=0.6.6",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
