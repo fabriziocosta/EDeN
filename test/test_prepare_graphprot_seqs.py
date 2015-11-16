@@ -1,7 +1,3 @@
-# test cal#
-# ../graphprot/prepare_graphprot_seqs.py artificial_coords.bed artificial_test_genome artificial_test_genome
-
-# from filecmp import cmp
 from re import search
 from scripttest import TestFileEnvironment
 
@@ -25,4 +21,4 @@ def test_no_such_genome_id():
         datadir_rel + "artificial_genome.fa",
         expect_error=True
     )
-    assert(search("chromosome_limits", run.stderr))
+    assert search("chromosome_limits", run.stderr), "Error message did not contain reference to 'chromosome_limits', was :'\n{}'".format(run.stderr)
