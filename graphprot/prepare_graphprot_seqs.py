@@ -133,9 +133,14 @@ def get_flanks(cores,
             genome=args.genome_id).saveas()
     # check if sites and flanks have the same number of entries
     if (not cores.count() == flanks_upstream.count() == flanks_downstream.count()):
-        cores.saveas("debug_cores.bed")
-        flanks_upstream.saveas("debug_upstream.bed")
-        flanks_downstream.saveas("debug_downstream.bed")
+        if args.debug:
+            cores.saveas("debug_cores.bed")
+            flanks_upstream.saveas("debug_upstream.bed")
+            flanks_downstream.saveas("debug_downstream.bed")
+        else:
+            cores.saveas()
+            flanks_upstream.saveas()
+            flanks_downstream.saveas()
         raise Exception("Error: numbers of cores and flanks don't match: got " + str(cores.count()) + " cores, " + str(
             flanks_upstream.count()) + " upstream flanks and " + str(flanks_downstream.count()) + " downstream flanks.")
     return flanks_upstream, flanks_downstream
