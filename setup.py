@@ -119,7 +119,7 @@ setup(
     install_requires=[
         "numpy >= 1.8.0",
         "scipy >= 0.14.0",
-        "scikit-learn >= 0.16.0",
+        "scikit-learn >= 0.17.0",
         "scikit-neuralnetwork",
         "joblib",
         "dill",
@@ -128,6 +128,7 @@ setup(
         "requests",
         "esmre",
         "pymf",
+        "pygraphviz",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
