@@ -258,8 +258,7 @@ class Vectorizer(AbstractVectorizer):
             self.fit(graphs)
         else:
             label_data_matrixs = self._assemble_dense_data_matrices(graphs)
-            label_data_matrixs.update(
-                self._assemble_sparse_data_matrices(graphs))
+            label_data_matrixs.update(self._assemble_sparse_data_matrices(graphs))
             for node_entity in label_data_matrixs:
                 self.discretization_models[node_entity] = []
                 for i in range(self.label_size):
@@ -362,7 +361,7 @@ class Vectorizer(AbstractVectorizer):
         for n, d in graph.nodes_iter(data=True):
             if isinstance(d[self.key_label], list):
                 node_entity, data = self._extract_entity_and_label(d)
-                label_data_dict[node_entity] += [data]
+                label_data_dict[node_entity].append(data)
         return label_data_dict
 
     def _assemble_dense_data_matrix_dict(self, label_data_dict):
@@ -370,8 +369,7 @@ class Vectorizer(AbstractVectorizer):
         # return a dict of numpy dense matrices
         label_matrix_dict = dict()
         for node_entity in label_data_dict:
-            label_matrix_dict[node_entity] = np.array(
-                label_data_dict[node_entity])
+            label_matrix_dict[node_entity] = np.array(label_data_dict[node_entity])
         return label_matrix_dict
 
     def _assemble_dense_data_matrices(self, graphs):
@@ -468,17 +466,16 @@ class Vectorizer(AbstractVectorizer):
                 node_entity = 'sparse_vector'
             else:
                 node_entity = 'default'
-
         # determine the label type
-        if isinstance(d[self.key_label], list):
-            # transform python list into numpy array
-            data = np.array(d[self.key_label])
-        elif isinstance(d[self.key_label], dict):
-            # return the dict rerpesentation
-            data = d[self.key_label]
-        else:
-            data = d[self.key_label]
-
+        # if isinstance(d[self.key_label], list):
+        #     # transform python list into numpy array
+        #     data = np.array(d[self.key_label])
+        # elif isinstance(d[self.key_label], dict):
+        #     # return the dict rerpesentation
+        #     data = d[self.key_label]
+        # else:  # this is a string
+        #    data = d[self.key_label]
+        data = d[self.key_label]
         return node_entity, data
 
     def _label_preprocessing(self, graph):
@@ -488,6 +485,8 @@ class Vectorizer(AbstractVectorizer):
                 # for dense or sparse vectors
                 if isinstance(d[self.key_label], list) or isinstance(d[self.key_label], dict):
                     node_entity, data = self._extract_entity_and_label(d)
+                    if isinstance(d[self.key_label], list):
+                        data = np.array(data).reshape(1, -1)
                     if isinstance(d[self.key_label], dict):
                         data = self._convert_dict_to_sparse_vector(data)
                     # create a list of integer codes of size: label_size

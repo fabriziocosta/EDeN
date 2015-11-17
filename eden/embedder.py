@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import random
 from copy import deepcopy

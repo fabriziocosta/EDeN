@@ -146,20 +146,25 @@ class Vectorizer(object):
 
     def _align_sequence_structure(self, seq, neighs):
         header = seq[0]
-        str_out = convert_seq_to_fasta_str(seq)
-        for neigh in neighs:
-            str_out += convert_seq_to_fasta_str(neigh)
-        cmd = 'echo "%s" | muscle -clwstrict -quiet' % (str_out)
-        out = sp.check_output(cmd, shell=True)
-        seed = extract_aligned_seed(header, out)
-        cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
-        out = sp.check_output(cmd, shell=True)
-        struct, energy = extract_struct_energy(out)
-        if energy > self.min_energy:
-            # use min free energy structure
+        if len(neighs) < 1:
             clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
+            energy = 0
+            logger.debug('Warning: no alignment for: %s' % seq)
         else:
-            clean_seq, clean_struct = make_seq_struct(seed, struct)
+            str_out = convert_seq_to_fasta_str(seq)
+            for neigh in neighs:
+                str_out += convert_seq_to_fasta_str(neigh)
+            cmd = 'echo "%s" | muscle -clwstrict -quiet' % (str_out)
+            out = sp.check_output(cmd, shell=True)
+            seed = extract_aligned_seed(header, out)
+            cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
+            out = sp.check_output(cmd, shell=True)
+            struct, energy = extract_struct_energy(out)
+            if energy > self.min_energy:
+                # use min free energy structure
+                clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
+            else:
+                clean_seq, clean_struct = make_seq_struct(seed, struct)
         return header, clean_seq, clean_struct, energy
 
     def _compute_neighbors(self, seqs):
