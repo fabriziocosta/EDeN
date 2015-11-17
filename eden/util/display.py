@@ -6,7 +6,6 @@ from networkx.readwrite import json_graph
 
 
 class SetEncoder(json.JSONEncoder):
-
     def default(self, obj):
         if isinstance(obj, set):
             return list(obj)
@@ -15,7 +14,7 @@ class SetEncoder(json.JSONEncoder):
 
 def serialize_graph(graph):
     json_data = json_graph.node_link_data(graph)
-    serial_data = json.dumps(json_data, separators=(',', ':'), indent = 4, cls = SetEncoder)
+    serial_data = json.dumps(json_data, separators=(',', ':'), indent=4, cls=SetEncoder)
     return serial_data
 
 
@@ -41,8 +40,8 @@ def draw_graph(graph,
                invert_colormap=False,
                verbose=True,
                file_name=None,
-               title_key='info'):
-
+               title_key='info',
+               ignore_for_layout="edgeswiththisattribute"):
     if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
@@ -63,11 +62,11 @@ def draw_graph(graph,
 
     if edge_label is not None:
         if secondary_edge_label:
-            edge_labels = dict([((u, v, ), '%s\n%s' % (d.get(edge_label, 'N/A'),
-                                                       d.get(secondary_edge_label, 'N/A')))
+            edge_labels = dict([((u, v,), '%s\n%s' % (d.get(edge_label, 'N/A'),
+                                                      d.get(secondary_edge_label, 'N/A')))
                                 for u, v, d in graph.edges(data=True)])
         else:
-            edge_labels = dict([((u, v, ), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
+            edge_labels = dict([((u, v,), d.get(edge_label, 'N/A')) for u, v, d in graph.edges(data=True)])
 
     if vertex_color is None:
         node_color = 'white'
@@ -89,6 +88,9 @@ def draw_graph(graph,
         else:
             edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
 
+    tmp_edge_set = [(a, b, d) for (a, b, d) in graph.edges(data=True) if ignore_for_layout in d]
+    graph.remove_edges_from(tmp_edge_set)
+
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog=prog)
     elif layout == 'circular':
@@ -109,12 +111,15 @@ def draw_graph(graph,
     else:
         linewidths = 1
 
+    graph.add_edges_from(tmp_edge_set)
+
     nx.draw_networkx_nodes(graph, pos,
                            node_color=node_color,
                            alpha=vertex_alpha,
                            node_size=node_size,
                            linewidths=linewidths,
                            cmap=plt.get_cmap(colormap))
+
     if vertex_label is not None:
         nx.draw_networkx_labels(graph, pos, vertex_labels, font_size=font_size, font_color='black')
     nx.draw_networkx_edges(graph, pos,
@@ -154,7 +159,6 @@ def draw_adjacency_graph(adjacency_matrix,
                          prog='neato',
                          node_size=80,
                          colormap='autumn'):
-
     graph = nx.from_scipy_sparse_matrix(adjacency_matrix)
 
     plt.figure(figsize=(size, size))
@@ -273,7 +277,7 @@ def plot_embedding(data_matrix, y,
             label = str(labels[id])
             x = data_matrix[id, 0]
             y = data_matrix[id, 1]
-            plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords = 'offset points')
+            plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
 
 
 def plot_embeddings(data_matrix, y,
@@ -345,7 +349,8 @@ def plot_embeddings(data_matrix, y,
     duration = time.time() - start
     plt.subplot(224)
     plot_embedding(data_matrix_, y, labels=labels, title="KQST knn=%d (%.1f sec)" %
-                   (knn, duration), cmap=cmap, density=density, image_file_name=image_file_name)
+                                                         (knn, duration), cmap=cmap, density=density,
+                   image_file_name=image_file_name)
 
     if save_image_file_name:
         plt.savefig(save_image_file_name)
