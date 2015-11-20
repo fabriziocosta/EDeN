@@ -245,11 +245,11 @@ class Embedder2D(object):
             serial.append(str(selector))
         return '\n'.join(serial)
 
-    def fit(self, data_matrix):
+    def fit(self, data_matrix, target=None):
         if self.compiled is True:
-            return self.fit_compiled(data_matrix)
+            return self.fit_compiled(data_matrix, target=target)
         else:
-            return self._fit(data_matrix)
+            return self._fit(data_matrix, target=target)
 
     def transform(self, data_matrix):
         if self.compiled is True:
@@ -257,14 +257,14 @@ class Embedder2D(object):
         else:
             return self._transform(data_matrix)
 
-    def fit_transform(self, data_matrix):
+    def fit_transform(self, data_matrix, target=None):
         if self.compiled is True:
-            return self.fit_transform_compiled(data_matrix)
+            return self.fit_transform_compiled(data_matrix, target=target)
         else:
-            return self._fit_transform(data_matrix)
+            return self._fit_transform(data_matrix, target=target)
 
-    def fit_compiled(self, data_matrix_in):
-        data_matrix_out = self._fit_transform(data_matrix_in)
+    def fit_compiled(self, data_matrix_in, target=None):
+        data_matrix_out = self._fit_transform(data_matrix_in, target=target)
         n_features_in = data_matrix_in.shape[1]
         n_features_out = data_matrix_out.shape[1]
         n_features_hidden = int(n_features_in * self.n_features_hidden_factor)
@@ -279,36 +279,36 @@ class Embedder2D(object):
     def transform_compiled(self, data_matrix):
         return self.net.predict(data_matrix)
 
-    def fit_transform_compiled(self, data_matrix):
-        self.fit_compiled(data_matrix)
+    def fit_transform_compiled(self, data_matrix, target=None):
+        self.fit_compiled(data_matrix, target=target)
         return self.transform_compiled(data_matrix)
 
-    def _fit(self, data_matrix):
+    def _fit(self, data_matrix, target=None):
         # find selected instances
-        target = np.array(range(data_matrix.shape[0]))
         self.selected_instances_list = []
         self.selected_instances_ids_list = []
         for i, selector in enumerate(self.selectors):
             selected_instances = selector.fit_transform(data_matrix, target=target)
-            selected_instances_ids = selector.selected_targets
+            selected_instances_ids = selector.selected_instances_ids
             self.selected_instances_list.append(selected_instances)
             self.selected_instances_ids_list.append(selected_instances_ids)
         return self
 
-    def _fit_transform(self, data_matrix):
-        return self._fit(data_matrix)._transform(data_matrix)
+    def _fit_transform(self, data_matrix, target=None):
+        return self._fit(data_matrix, target=target)._transform(data_matrix)
 
     def _transform(self, data_matrix):
         # make a graph with instances as nodes
         graph = self._init_graph(data_matrix)
-        # find the closest selected instance and instantiate knn edges
-        for selected_instances, selected_instances_ids in \
-                zip(self.selected_instances_list, self.selected_instances_ids_list):
-            if len(selected_instances) > 2:
-                graph = self._selection_knn_links(graph,
-                                                  data_matrix,
-                                                  selected_instances,
-                                                  selected_instances_ids)
+        if self.n_links > 0:
+            # find the closest selected instance and instantiate knn edges
+            for selected_instances, selected_instances_ids in \
+                    zip(self.selected_instances_list, self.selected_instances_ids_list):
+                if len(selected_instances) > 2:
+                    graph = self._selection_knn_links(graph,
+                                                      data_matrix,
+                                                      selected_instances,
+                                                      selected_instances_ids)
         # use graph layout
         embedded_data_matrix = self._graph_layout(graph)
         # normalize display using 2D PCA

@@ -129,6 +129,7 @@ setup(
         "esmre",
         "pymf",
         "pygraphviz",
+        "scripttest",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
