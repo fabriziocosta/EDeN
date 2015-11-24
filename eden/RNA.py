@@ -18,8 +18,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def convert_seq_to_fasta_str(seq):
-    return '>%s\n%s\n' % seq
+def normalize_seq(seq_pair):
+    header, seq = seq_pair
+    header = header.split('\n')[0]
+    header = header.split('_')[0]
+    return (header, seq)
+
+
+def normalize_seqs(seqs):
+    for seq in seqs:
+        yield normalize_seq(seq)
+
+
+def convert_seq_to_fasta_str(seq_pair):
+    header, seq = normalize_seq(seq_pair)
+    return '>%s\n%s\n' % (header, seq)
 
 
 def extract_aligned_seed(header, out):
@@ -63,7 +76,7 @@ class Vectorizer(object):
                  n_neighbors=5,
                  sampling_prob=.5,
                  n_iter=5,
-                 min_energy=-10,
+                 min_energy=-5,
                  random_state=1):
         random.seed(random_state)
         if complexity is not None:
@@ -83,7 +96,7 @@ class Vectorizer(object):
 
     def fit(self, seqs):
         # store seqs
-        self.seqs = list(seqs)
+        self.seqs = list(normalize_seqs(seqs))
         data_matrix = self.sequence_vectorizer.transform(self.seqs)
         # fit nearest_neighbors model
         self.nearest_neighbors.fit(data_matrix)
@@ -94,12 +107,13 @@ class Vectorizer(object):
         return self.fit(seqs_).transform(seqs, sampling_prob=sampling_prob, n_iter=n_iter)
 
     def transform(self, seqs, sampling_prob=None, n_iter=None):
-        seqs = list(seqs)
+        seqs = list(normalize_seqs(seqs))
         graphs_ = self.graphs(seqs)
         data_matrix = self.graph_vectorizer.transform(graphs_)
         return data_matrix
 
     def graphs(self, seqs, sampling_prob=None, n_iter=None):
+        seqs = list(normalize_seqs(seqs))
         if n_iter is not None:
             self.n_iter = n_iter
         if sampling_prob is not None:

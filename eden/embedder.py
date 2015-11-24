@@ -195,21 +195,27 @@ class Embedder2D(object):
     def __init__(self,
                  compiled=False,
                  learning_rate=0.002,
+                 n_layers=1,
                  n_features_hidden_factor=10,
                  selectors=[QuickShiftSelector()],
                  n_nearest_neighbors=10,
                  n_links=1,
                  layout='force',
+                 layout_prog='sfdp',
+                 layout_prog_args='-Goverlap=scale',
                  n_eigenvectors=10,
                  random_state=1,
                  metric='rbf', **kwds):
         self.compiled = compiled
         self.learning_rate = learning_rate
+        self.n_layers = n_layers
         self.n_features_hidden_factor = n_features_hidden_factor
         self.selectors = selectors
         self.n_nearest_neighbors = n_nearest_neighbors
         self.n_links = n_links
         self.layout = layout
+        self.layout_prog = layout_prog
+        self.layout_prog_args = layout_prog_args
         self.n_eigenvectors = n_eigenvectors
         self.metric = metric
         self.kwds = kwds
@@ -227,6 +233,9 @@ class Embedder2D(object):
         else:
             serial.append('compiled: no')
         serial.append('layout: %s' % (self.layout))
+        serial.append('layout_prog: %s' % (self.layout_prog))
+        if self.layout_prog_args:
+            serial.append('layout_prog_args: %s' % (self.layout_prog_args))
         serial.append('n_links: %s' % (self.n_links))
         if self.n_nearest_neighbors is None:
             serial.append('n_nearest_neighbors: None')
@@ -268,11 +277,13 @@ class Embedder2D(object):
         n_features_in = data_matrix_in.shape[1]
         n_features_out = data_matrix_out.shape[1]
         n_features_hidden = int(n_features_in * self.n_features_hidden_factor)
-        self.net = Regressor(layers=[
-            Layer("Rectifier", units=n_features_hidden),
-            Layer("Linear", units=n_features_out)],
-            learning_rate=self.learning_rate,
-            valid_size=0.1)
+        layers = []
+        for i in range(self.n_layers):
+            layers.append(Layer("Rectifier", units=n_features_hidden, name='hidden%d' % i))
+        layers.append(Layer("Linear", units=n_features_out))
+        self.net = Regressor(layers=layers,
+                             learning_rate=self.learning_rate,
+                             valid_size=0.1)
         self.net.fit(data_matrix_in, data_matrix_out)
         return self.net
 
@@ -372,7 +383,8 @@ class Embedder2D(object):
             raise Exception('Unknown layout type: %s' % self.layout)
 
     def _layout_force(self, graph):
-        two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+        two_dimensional_data_matrix = nx.graphviz_layout(graph,
+                                                         prog=self.layout_prog, args=self.layout_prog_args)
         two_dimensional_data_list = [list(two_dimensional_data_matrix[i]) for i in range(len(graph))]
         embedded_data_matrix = scale(np.array(two_dimensional_data_list))
         return embedded_data_matrix
