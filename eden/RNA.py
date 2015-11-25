@@ -4,17 +4,15 @@ import subprocess as sp
 from itertools import tee
 import numpy as np
 import random
-
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
-
 from eden.path import Vectorizer as SeqVectorizer
 from eden.graph import Vectorizer as GraphVectorizer
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import rnafold
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +52,6 @@ def make_seq_struct(seq, struct):
 
 
 class Vectorizer(object):
-
     def __init__(self,
                  complexity=None,
                  nbits=20,
@@ -144,7 +141,7 @@ class Vectorizer(object):
                 out_neighs.append(neigh)
         return out_neighs
 
-    def _align_sequence_structure(self, seq, neighs):
+    def _align_sequence_structure(self, seq, neighs, structure_deletions=False):
         header = seq[0]
         str_out = convert_seq_to_fasta_str(seq)
         for neigh in neighs:
@@ -160,7 +157,70 @@ class Vectorizer(object):
             clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
         else:
             clean_seq, clean_struct = make_seq_struct(seed, struct)
+
+        if structure_deletions:
+            clean_struct = self._clean(clean_seq, clean_struct)
+
         return header, clean_seq, clean_struct, energy
+
+    def clean_structure(self, seq, stru):
+        '''
+        Parameters
+        ----------
+        seq : basestring
+            rna sequence
+        stru : basestring
+            dotbracket string
+
+        Returns
+        -------
+        the structure given may not respect deletions in the sequence.
+        we transform the structure to one that does
+        '''
+
+        # find  deletions in sequence
+        ids = []
+        for i, c in enumerate(seq):
+            if c == '-':
+                ids.append(i)
+        # remove brackets that dont have a partner anymore
+        stru = list(stru)
+        pairdict = self._pairs(stru)
+        for i in ids:
+            stru[pairdict[i]] = '.'
+        # delete deletions in structure
+        ids.reverse()
+        for i in ids:
+            del stru[i]
+        stru = ''.join(stru)
+
+        # removing obvious mistakes
+        stru = stru.replace("(())", "....")
+        stru = stru.replace("(.)", "...")
+        stru = stru.replace("(..)", "....")
+
+        return stru
+
+    def _pairs(self, struct):
+        '''
+        Parameters
+        ----------
+        struct : basestring
+
+        Returns
+        -------
+        dictionary of ids in the struct, that are bond pairs
+        '''
+        unpaired = []
+        pairs = {}
+        for i, c in enumerate(struct):
+            if c == '(':
+                unpaired.append(i)
+            if c == ')':
+                partner = unpaired.pop()
+                pairs[i] = partner
+                pairs[partner] = i
+        return pairs
 
     def _compute_neighbors(self, seqs):
         seqs = list(seqs)
