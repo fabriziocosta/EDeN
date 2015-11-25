@@ -159,11 +159,11 @@ class Vectorizer(object):
             clean_seq, clean_struct = make_seq_struct(seed, struct)
 
         if structure_deletions:
-            clean_struct = self._clean(clean_seq, clean_struct)
+            clean_struct = self._clean_structure(clean_seq, clean_struct)
 
         return header, clean_seq, clean_struct, energy
 
-    def clean_structure(self, seq, stru):
+    def _clean_structure(self, seq, stru):
         '''
         Parameters
         ----------
