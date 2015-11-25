@@ -123,7 +123,7 @@ setup(
         "scikit-neuralnetwork",
         "joblib",
         "dill",
-        "networkx",
+        "networkx <= 1.10",
         "matplotlib",
         "requests",
         "esmre",
