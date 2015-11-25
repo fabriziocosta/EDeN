@@ -212,21 +212,11 @@ class Vectorizer(AbstractVectorizer):
             # fit is meaningful only when n>1
             logger.debug('Warning: fit was asked with n=1')
         else:
-            # compute a log spaced sequence (label_size elements) of number of clusters
-            # in this way when asked for max 1000 clusters and min 4 clusters and 5 levels
-            # we produce the sequence of cluster sizes: 4,16,64,256,1024
-            c_start = math.log10(self.min_n)
-            c_end = math.log10(self.n)
-            n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
-            # remove repeated values; this manages artifacts resulting from very large values of label_size
-            n_clusters_list = sorted(list(set(n_clusters_list)))
-            n_trailing = self.label_size - len(n_clusters_list)
-            if n_trailing > 0:
-                n_clusters_list += [n_clusters_list[-1]] * n_trailing
+            n_clusters_list = self._compute_n_clusters_list()
             label_data_matrixs = dict()
-            graphs_dense, graphs_sparse = itertools.tee(graphs)
-            label_data_matrixs = self._assemble_dense_data_matrices(graphs_dense)
-            label_data_matrixs.update(self._assemble_sparse_data_matrices(graphs_sparse))
+            graphs, graphs_ = itertools.tee(graphs)
+            label_data_matrixs = self._assemble_dense_data_matrices(graphs_)
+            label_data_matrixs.update(self._assemble_sparse_data_matrices(graphs))
             for node_entity in label_data_matrixs:
                 self.discretization_models[node_entity] = []
                 for m in n_clusters_list:
@@ -239,6 +229,20 @@ class Vectorizer(AbstractVectorizer):
                     self.discretization_models[node_entity] += [discretization_model]
             self.fit_status = 'fit'
         return self
+
+    def _compute_n_clusters_list(self):
+        # compute a log spaced sequence (label_size elements) of number of clusters
+        # in this way when asked for max 1000 clusters and min 4 clusters and 5 levels
+        # we produce the sequence of cluster sizes: 4,16,64,256,1024
+        c_start = math.log10(self.min_n)
+        c_end = math.log10(self.n)
+        n_clusters_list = [int(x) for x in np.ceil(np.logspace(c_start, c_end, num=self.label_size))]
+        # remove repeated values; this manages artifacts resulting from very large values of label_size
+        n_clusters_list = sorted(list(set(n_clusters_list)))
+        n_trailing = self.label_size - len(n_clusters_list)
+        if n_trailing > 0:
+            n_clusters_list += [n_clusters_list[-1]] * n_trailing
+        return n_clusters_list
 
     def partial_fit(self, graphs):
         """Update the discretizer of the real valued vector data stored in the nodes of the graphs.
@@ -258,8 +262,7 @@ class Vectorizer(AbstractVectorizer):
             self.fit(graphs)
         else:
             label_data_matrixs = self._assemble_dense_data_matrices(graphs)
-            label_data_matrixs.update(
-                self._assemble_sparse_data_matrices(graphs))
+            label_data_matrixs.update(self._assemble_sparse_data_matrices(graphs))
             for node_entity in label_data_matrixs:
                 self.discretization_models[node_entity] = []
                 for i in range(self.label_size):
@@ -362,7 +365,7 @@ class Vectorizer(AbstractVectorizer):
         for n, d in graph.nodes_iter(data=True):
             if isinstance(d[self.key_label], list):
                 node_entity, data = self._extract_entity_and_label(d)
-                label_data_dict[node_entity] += [data]
+                label_data_dict[node_entity].append(data)
         return label_data_dict
 
     def _assemble_dense_data_matrix_dict(self, label_data_dict):
@@ -370,8 +373,7 @@ class Vectorizer(AbstractVectorizer):
         # return a dict of numpy dense matrices
         label_matrix_dict = dict()
         for node_entity in label_data_dict:
-            label_matrix_dict[node_entity] = np.array(
-                label_data_dict[node_entity])
+            label_matrix_dict[node_entity] = np.array(label_data_dict[node_entity], dtype=np.float64)
         return label_matrix_dict
 
     def _assemble_dense_data_matrices(self, graphs):
@@ -468,17 +470,16 @@ class Vectorizer(AbstractVectorizer):
                 node_entity = 'sparse_vector'
             else:
                 node_entity = 'default'
-
         # determine the label type
-        if isinstance(d[self.key_label], list):
-            # transform python list into numpy array
-            data = np.array(d[self.key_label])
-        elif isinstance(d[self.key_label], dict):
-            # return the dict rerpesentation
-            data = d[self.key_label]
-        else:
-            data = d[self.key_label]
-
+        # if isinstance(d[self.key_label], list):
+        #     # transform python list into numpy array
+        #     data = np.array(d[self.key_label])
+        # elif isinstance(d[self.key_label], dict):
+        #     # return the dict rerpesentation
+        #     data = d[self.key_label]
+        # else:  # this is a string
+        #    data = d[self.key_label]
+        data = d[self.key_label]
         return node_entity, data
 
     def _label_preprocessing(self, graph):
@@ -488,6 +489,8 @@ class Vectorizer(AbstractVectorizer):
                 # for dense or sparse vectors
                 if isinstance(d[self.key_label], list) or isinstance(d[self.key_label], dict):
                     node_entity, data = self._extract_entity_and_label(d)
+                    if isinstance(d[self.key_label], list):
+                        data = np.array(data, dtype=np.float64).reshape(1, -1)
                     if isinstance(d[self.key_label], dict):
                         data = self._convert_dict_to_sparse_vector(data)
                     # create a list of integer codes of size: label_size
@@ -756,23 +759,20 @@ class Vectorizer(AbstractVectorizer):
         # make a list of the neighborhood_graph_weight at every distance
         neighborhood_graph_weight_list = []
         w = graph.node[root][self.key_weight]
-        node_weight_list = np.array([w])
+        node_weight_list = np.array([w], dtype=np.float64)
         node_average = node_weight_list[0]
-        edge_weight_list = np.array([1])
+        edge_weight_list = np.array([1], dtype=np.float64)
         edge_average = edge_weight_list[0]
         # for all distances
         root_dist_dict = graph.node[root]['remote_neighbours']
         for distance, node_set in root_dist_dict.iteritems():
             # extract array of weights at given distance
-            weight_array_at_d = np.array(
-                [graph.node[v][self.key_weight] for v in node_set])
+            weight_array_at_d = np.array([graph.node[v][self.key_weight] for v in node_set], dtype=np.float64)
             if distance % 2 == 0:  # nodes
-                node_weight_list = np.concatenate(
-                    (node_weight_list, weight_array_at_d))
+                node_weight_list = np.concatenate((node_weight_list, weight_array_at_d))
                 node_average = np.mean(node_weight_list)
             else:  # edges
-                edge_weight_list = np.concatenate(
-                    (edge_weight_list, weight_array_at_d))
+                edge_weight_list = np.concatenate((edge_weight_list, weight_array_at_d))
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
@@ -898,7 +898,7 @@ class Vectorizer(AbstractVectorizer):
         if self.estimator is None:
             # if we do not provide an estimator then consider default margin of
             # 1/float(len(graph)) for all vertices
-            margins = np.array([1 / float(len(graph))] * data_matrix.shape[0])
+            margins = np.array([1 / float(len(graph))] * data_matrix.shape[0], dtype=np.float64)
         else:
             margins = self.estimator.decision_function(data_matrix) - self.estimator.intercept_ + \
                 self.estimator.intercept_ / float(len(graph))

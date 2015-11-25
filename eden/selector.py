@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from collections import defaultdict
 import random
 import logging
@@ -127,15 +129,17 @@ class CompositeSelector(object):
         return data_matrix_out
 
     def _collect_selected_instances_ids(self):
-        selected_instances_ids = [np.array(selector.selected_instances_ids) for selector in self.selectors
+        selected_instances_ids = [np.array(selector.selected_instances_ids)
+                                  for selector in self.selectors
                                   if selector.selected_instances_ids is not None]
         self.selected_instances_ids = np.hstack(selected_instances_ids)
 
     def _collect_target(self):
-        selected_targets = [np.array(selector.selected_targets) for selector in self.selectors
+        selected_targets = [np.array(selector.selected_targets).reshape(-1, 1)
+                            for selector in self.selectors
                             if selector.selected_targets is not None]
         if selected_targets:
-            self.selected_targets = np.hstack(selected_targets)
+            self.selected_targets = np.vstack(selected_targets).reshape(-1, 1)
         else:
             self.selected_targets = None
 
@@ -249,7 +253,10 @@ class AllSelector(AbstractSelector):
     def __repr__(self):
         serial = []
         serial.append(self.name)
-        serial.append('n_instances: %d' % (self.n_instances))
+        if self.n_instances:
+            serial.append('n_instances: %d' % (self.n_instances))
+        else:
+            serial.append('n_instances: all')
         serial.append('random_state: %d' % (self.random_state))
         return '\n'.join(serial)
 
@@ -308,7 +315,8 @@ class SparseSelector(AbstractSelector):
             kernel_matrix[id, :] = m
             kernel_matrix[:, id] = m
         # extract surviving elements, i.e. element that have 0 on the diagonal
-        selected_instances_ids = np.array([i for i, x in enumerate(np.diag(kernel_matrix)) if x == 0])
+        selected_instances_ids = np.array(
+            [i for i, x in enumerate(np.diag(kernel_matrix)) if x == 0])
         return selected_instances_ids
 
     def randomize(self, data_matrix, amount=1.0):
@@ -623,7 +631,7 @@ class DecisionSurfaceSelector(AbstractSelector):
     """
 
     def __init__(self, n_instances=20,
-                 estimator=SGDClassifier(average=True, class_weight='auto', shuffle=True),
+                 estimator=SGDClassifier(average=True, class_weight='balanced', shuffle=True),
                  random_state=1,
                  randomized=False):
         self.name = 'DecisionSurfaceSelector'
@@ -651,7 +659,7 @@ class DecisionSurfaceSelector(AbstractSelector):
                 x = _min_x
             val = ell / (1 + math.exp(-k * (x - x0)))
             vals.append(val)
-        return np.array(vals)
+        return np.array(vals).reshape(1, -1)
 
     def select(self, data_matrix, target=None):
         if target is None:
@@ -683,10 +691,14 @@ class DecisionSurfaceSelector(AbstractSelector):
             else:
                 raise Exception('Estimator seems to lack a decision_function or predict_proba method.')
         # Note: use -entropy to sort from max entropy to min entropy
-        entropies = np.array([- entropy(normalize(self._logistic_function(p, x0=x0), norm='l1')[0])
-                              for p in preds])
+        entropies = []
+        for p in preds:
+            ps = self._logistic_function(p, x0=x0)
+            nps = normalize(ps, norm='l1').reshape(-1, 1)
+            e = - entropy(nps)
+            entropies.append(e)
         # normalize to obtain probabilities
-        probabilities = entropies / np.sum(entropies)
+        probabilities = entropies / sum(entropies)
         return probabilities
 
     def randomize(self, data_matrix, amount=1.0):
@@ -695,7 +707,7 @@ class DecisionSurfaceSelector(AbstractSelector):
         algo = random.choice(['SGDClassifier', 'KNeighborsClassifier'])
         kwds = dict()
         if algo == 'SGDClassifier':
-            self.estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
+            self.estimator = SGDClassifier(average=True, class_weight='balanced', shuffle=True)
             kwds = dict(n_iter=random.randint(5, 200),
                         penalty=random.choice(['l1', 'l2', 'elasticnet']),
                         l1_ratio=random.uniform(0.1, 0.9),

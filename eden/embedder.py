@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import random
 from copy import deepcopy
@@ -193,21 +195,27 @@ class Embedder2D(object):
     def __init__(self,
                  compiled=False,
                  learning_rate=0.002,
+                 n_layers=1,
                  n_features_hidden_factor=10,
                  selectors=[QuickShiftSelector()],
                  n_nearest_neighbors=10,
                  n_links=1,
                  layout='force',
+                 layout_prog='sfdp',
+                 layout_prog_args='-Goverlap=scale',
                  n_eigenvectors=10,
                  random_state=1,
                  metric='rbf', **kwds):
         self.compiled = compiled
         self.learning_rate = learning_rate
+        self.n_layers = n_layers
         self.n_features_hidden_factor = n_features_hidden_factor
         self.selectors = selectors
         self.n_nearest_neighbors = n_nearest_neighbors
         self.n_links = n_links
         self.layout = layout
+        self.layout_prog = layout_prog
+        self.layout_prog_args = layout_prog_args
         self.n_eigenvectors = n_eigenvectors
         self.metric = metric
         self.kwds = kwds
@@ -225,6 +233,9 @@ class Embedder2D(object):
         else:
             serial.append('compiled: no')
         serial.append('layout: %s' % (self.layout))
+        serial.append('layout_prog: %s' % (self.layout_prog))
+        if self.layout_prog_args:
+            serial.append('layout_prog_args: %s' % (self.layout_prog_args))
         serial.append('n_links: %s' % (self.n_links))
         if self.n_nearest_neighbors is None:
             serial.append('n_nearest_neighbors: None')
@@ -243,11 +254,11 @@ class Embedder2D(object):
             serial.append(str(selector))
         return '\n'.join(serial)
 
-    def fit(self, data_matrix):
+    def fit(self, data_matrix, target=None):
         if self.compiled is True:
-            return self.fit_compiled(data_matrix)
+            return self.fit_compiled(data_matrix, target=target)
         else:
-            return self._fit(data_matrix)
+            return self._fit(data_matrix, target=target)
 
     def transform(self, data_matrix):
         if self.compiled is True:
@@ -255,58 +266,60 @@ class Embedder2D(object):
         else:
             return self._transform(data_matrix)
 
-    def fit_transform(self, data_matrix):
+    def fit_transform(self, data_matrix, target=None):
         if self.compiled is True:
-            return self.fit_transform_compiled(data_matrix)
+            return self.fit_transform_compiled(data_matrix, target=target)
         else:
-            return self._fit_transform(data_matrix)
+            return self._fit_transform(data_matrix, target=target)
 
-    def fit_compiled(self, data_matrix_in):
-        data_matrix_out = self._fit_transform(data_matrix_in)
+    def fit_compiled(self, data_matrix_in, target=None):
+        data_matrix_out = self._fit_transform(data_matrix_in, target=target)
         n_features_in = data_matrix_in.shape[1]
         n_features_out = data_matrix_out.shape[1]
         n_features_hidden = int(n_features_in * self.n_features_hidden_factor)
-        self.net = Regressor(layers=[
-            Layer("Rectifier", units=n_features_hidden),
-            Layer("Linear", units=n_features_out)],
-            learning_rate=self.learning_rate,
-            valid_size=0.1)
+        layers = []
+        for i in range(self.n_layers):
+            layers.append(Layer("Rectifier", units=n_features_hidden, name='hidden%d' % i))
+        layers.append(Layer("Linear", units=n_features_out))
+        self.net = Regressor(layers=layers,
+                             learning_rate=self.learning_rate,
+                             valid_size=0.1)
         self.net.fit(data_matrix_in, data_matrix_out)
         return self.net
 
     def transform_compiled(self, data_matrix):
         return self.net.predict(data_matrix)
 
-    def fit_transform_compiled(self, data_matrix):
-        self.fit_compiled(data_matrix)
+    def fit_transform_compiled(self, data_matrix, target=None):
+        self.fit_compiled(data_matrix, target=target)
         return self.transform_compiled(data_matrix)
 
-    def _fit(self, data_matrix):
+    def _fit(self, data_matrix, target=None):
         # find selected instances
-        target = np.array(range(data_matrix.shape[0]))
         self.selected_instances_list = []
         self.selected_instances_ids_list = []
         for i, selector in enumerate(self.selectors):
             selected_instances = selector.fit_transform(data_matrix, target=target)
-            selected_instances_ids = selector.selected_targets
+            selected_instances_ids = selector.selected_instances_ids
             self.selected_instances_list.append(selected_instances)
             self.selected_instances_ids_list.append(selected_instances_ids)
         return self
 
-    def _fit_transform(self, data_matrix):
-        return self._fit(data_matrix)._transform(data_matrix)
+    def _fit_transform(self, data_matrix, target=None):
+        return self._fit(data_matrix, target=target)._transform(data_matrix)
 
     def _transform(self, data_matrix):
         # make a graph with instances as nodes
         graph = self._init_graph(data_matrix)
-        # find the closest selected instance and instantiate knn edges
-        for selected_instances, selected_instances_ids in \
-                zip(self.selected_instances_list, self.selected_instances_ids_list):
-            if len(selected_instances) > 2:
-                graph = self._selection_knn_links(graph,
-                                                  data_matrix,
-                                                  selected_instances,
-                                                  selected_instances_ids)
+        if self.n_links > 0:
+            # find the closest selected instance and instantiate knn edges
+            for selected_instances, selected_instances_ids in \
+                    zip(self.selected_instances_list, self.selected_instances_ids_list):
+                if len(selected_instances) > 2:
+                    graph = self._selection_knn_links(graph,
+                                                      data_matrix,
+                                                      selected_instances,
+                                                      selected_instances_ids)
         # use graph layout
         embedded_data_matrix = self._graph_layout(graph)
         # normalize display using 2D PCA
@@ -370,7 +383,8 @@ class Embedder2D(object):
             raise Exception('Unknown layout type: %s' % self.layout)
 
     def _layout_force(self, graph):
-        two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+        two_dimensional_data_matrix = nx.graphviz_layout(graph,
+                                                         prog=self.layout_prog, args=self.layout_prog_args)
         two_dimensional_data_list = [list(two_dimensional_data_matrix[i]) for i in range(len(graph))]
         embedded_data_matrix = scale(np.array(two_dimensional_data_list))
         return embedded_data_matrix

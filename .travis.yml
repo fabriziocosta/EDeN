@@ -6,7 +6,7 @@ python:
 sudo: false
 before_install:
   # setup miniconda distribution
-  - travis_retry wget http://repo.continuum.io/miniconda/Miniconda-3.8.3-Linux-x86_64.sh -O miniconda.sh
+  - travis_retry wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
   - chmod +x miniconda.sh
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH=$HOME/miniconda/bin:$PATH
@@ -16,7 +16,7 @@ install:
   - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
   - source activate condaenv
   - conda install --yes nose
-  - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.16"
+  - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.17"
   - conda install --yes matplotlib
   - conda install --yes cvxopt
   - pip install git+https://github.com/nils-werner/pymf.git

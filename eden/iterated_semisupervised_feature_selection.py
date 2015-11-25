@@ -63,7 +63,7 @@ def semisupervised_target(target=None,
             else:
                 val = -1
             labels.append(val)
-        return np.array(labels)
+        return np.array(labels).reshape(-1, 1)
 
 
 class IteratedSemiSupervisedFeatureSelection(object):
@@ -204,7 +204,7 @@ class IteratedSemiSupervisedFeatureSelection(object):
                 extended_target.append(label)
             else:
                 extended_target.append(pred_label)
-        return np.array(extended_target)
+        return np.array(extended_target).reshape(-1, 1)
 
     def _feature_selection(self, data_matrix, target):
         try:

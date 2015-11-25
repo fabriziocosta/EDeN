@@ -4,20 +4,36 @@ import subprocess as sp
 from itertools import tee
 import numpy as np
 import random
+
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
+
 from eden.path import Vectorizer as SeqVectorizer
 from eden.graph import Vectorizer as GraphVectorizer
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.converter.fasta import seq_to_networkx
 from eden.converter.rna import rnafold
+
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-def convert_seq_to_fasta_str(seq):
-    return '>%s\n%s\n' % seq
+def normalize_seq(seq_pair):
+    header, seq = seq_pair
+    header = header.split('\n')[0]
+    header = header.split('_')[0]
+    return (header, seq)
+
+
+def normalize_seqs(seqs):
+    for seq in seqs:
+        yield normalize_seq(seq)
+
+
+def convert_seq_to_fasta_str(seq_pair):
+    header, seq = normalize_seq(seq_pair)
+    return '>%s\n%s\n' % (header, seq)
 
 
 def extract_aligned_seed(header, out):
@@ -52,6 +68,7 @@ def make_seq_struct(seq, struct):
 
 
 class Vectorizer(object):
+
     def __init__(self,
                  complexity=None,
                  nbits=20,
@@ -60,7 +77,7 @@ class Vectorizer(object):
                  n_neighbors=5,
                  sampling_prob=.5,
                  n_iter=5,
-                 min_energy=-10,
+                 min_energy=-5,
                  random_state=1):
         random.seed(random_state)
         if complexity is not None:
@@ -80,7 +97,7 @@ class Vectorizer(object):
 
     def fit(self, seqs):
         # store seqs
-        self.seqs = list(seqs)
+        self.seqs = list(normalize_seqs(seqs))
         data_matrix = self.sequence_vectorizer.transform(self.seqs)
         # fit nearest_neighbors model
         self.nearest_neighbors.fit(data_matrix)
@@ -91,12 +108,13 @@ class Vectorizer(object):
         return self.fit(seqs_).transform(seqs, sampling_prob=sampling_prob, n_iter=n_iter)
 
     def transform(self, seqs, sampling_prob=None, n_iter=None):
-        seqs = list(seqs)
+        seqs = list(normalize_seqs(seqs))
         graphs_ = self.graphs(seqs)
         data_matrix = self.graph_vectorizer.transform(graphs_)
         return data_matrix
 
     def graphs(self, seqs, sampling_prob=None, n_iter=None):
+        seqs = list(normalize_seqs(seqs))
         if n_iter is not None:
             self.n_iter = n_iter
         if sampling_prob is not None:
@@ -143,23 +161,27 @@ class Vectorizer(object):
 
     def _align_sequence_structure(self, seq, neighs, structure_deletions=False):
         header = seq[0]
-        str_out = convert_seq_to_fasta_str(seq)
-        for neigh in neighs:
-            str_out += convert_seq_to_fasta_str(neigh)
-        cmd = 'echo "%s" | muscle -clwstrict -quiet' % (str_out)
-        out = sp.check_output(cmd, shell=True)
-        seed = extract_aligned_seed(header, out)
-        cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
-        out = sp.check_output(cmd, shell=True)
-        struct, energy = extract_struct_energy(out)
-        if energy > self.min_energy:
-            # use min free energy structure
+        if len(neighs) < 1:
             clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
+            energy = 0
+            logger.debug('Warning: no alignment for: %s' % seq)
         else:
-            clean_seq, clean_struct = make_seq_struct(seed, struct)
-
-        if structure_deletions:
-            clean_struct = self._clean_structure(clean_seq, clean_struct)
+            str_out = convert_seq_to_fasta_str(seq)
+            for neigh in neighs:
+                str_out += convert_seq_to_fasta_str(neigh)
+            cmd = 'echo "%s" | muscle -clwstrict -quiet' % (str_out)
+            out = sp.check_output(cmd, shell=True)
+            seed = extract_aligned_seed(header, out)
+            cmd = 'echo "%s" | RNAalifold --noPS 2>/dev/null' % (out)
+            out = sp.check_output(cmd, shell=True)
+            struct, energy = extract_struct_energy(out)
+            if energy > self.min_energy:
+                # use min free energy structure
+                clean_seq, clean_struct = rnafold.RNAfold_wrapper(seq[1])
+            else:
+                clean_seq, clean_struct = make_seq_struct(seed, struct)
+            if structure_deletions:
+                clean_struct = self._clean_structure(clean_seq, clean_struct)
 
         return header, clean_seq, clean_struct, energy
 
