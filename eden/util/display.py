@@ -92,7 +92,7 @@ def draw_graph(graph,
     graph.remove_edges_from(tmp_edge_set)
 
     if layout == 'graphviz':
-        pos = nx.graphviz_layout(graph, prog=prog)
+        pos = nx.graphviz_layout(graph, prog=prog, args="-Gstart=rand")
     elif layout == 'circular':
         pos = nx.circular_layout(graph)
     elif layout == 'random':
@@ -193,7 +193,7 @@ def draw_graph_set(graphs, n_graphs_per_line=5, size=4, edge_label=None, **args)
 
 
 # draw a row of graphs
-def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlinehook=lambda x: "", **args):
+def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, **args):
     count = len(graphs)
     size_y = size
     size_x = size * n_graphs_per_line
@@ -202,7 +202,6 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, headlineh
 
     for i in range(count):
         plt.subplot(1, n_graphs_per_line, i + 1)
-        graphs[i].graph['info'] = headlinehook(graphs[i])
         g = graphs[i]
         draw_graph(g, size=None, **args)
     plt.show()
