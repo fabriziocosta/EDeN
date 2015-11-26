@@ -320,6 +320,7 @@ class Embedder2D(object):
                                                       data_matrix,
                                                       selected_instances,
                                                       selected_instances_ids)
+        self.graph = graph
         # use graph layout
         embedded_data_matrix = self._graph_layout(graph)
         # normalize display using 2D PCA

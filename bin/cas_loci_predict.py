@@ -339,9 +339,9 @@ class CasLociPredictor(object):
             graph = graphs.next()
             id = graph.graph['id']
             if begin is not None and end is not None:
-                yield score, centers[begin], centers[end], id
+                yield score, centers[begin], centers[end], id, margins
             else:
-                yield score, None, None, id
+                yield score, None, None, id, margins
 
 
 def main_fit(args):
@@ -365,10 +365,11 @@ def main_predict(args):
     pred = CasLociPredictor()
     pred.load(args.model_file)
     scores = pred.predict(input_file=args.input_file, gene_domain_score_file=args.gene_domain_score_fname)
+    scores, scores_ = tee(scores)
     score_list = []
     text = []
     text.append('#id score start end')
-    for score, begin, end, id in scores:
+    for score, begin, end, id, margins in scores:
         score_list.append(score)
         if begin is not None and end is not None:
             line = '%d %.2f %+d %+d' % (id, score, begin, end)
@@ -377,6 +378,14 @@ def main_predict(args):
         logger.info(line)
         text.append(line)
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='predictions.txt')
+
+    text = []
+    text.append('#id margins')
+    for score, begin, end, id, margins in scores_:
+        margins_str = ' '.join(['%.2f' % (val) for i, val in enumerate(margins)])
+        line = '%d %s' % (id, margins_str)
+        text.append(line)
+    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='margins.txt')
 
     text = []
     text.append('# instances: %d' % (len(score_list)))

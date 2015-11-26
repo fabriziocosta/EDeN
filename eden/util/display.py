@@ -132,8 +132,8 @@ def draw_graph(graph,
                            edgelist=edges_nesting,
                            width=1,
                            edge_color='k',
-                           style='dashed',
-                           alpha=edge_alpha)
+                           style='dotted',
+                           alpha=0.3)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=font_size)
     if title_key:

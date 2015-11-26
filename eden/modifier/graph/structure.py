@@ -159,7 +159,7 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
                 contracted = d.get('contracted', None)
                 if contracted:
                     for m in contracted:
-                        g_nested.add_edge(n, m, label='.', nesting=True)
+                        g_nested.add_edge(n, m, label='.', len=1, nesting=True)
             yield g_nested
         else:
             yield g_contracted
