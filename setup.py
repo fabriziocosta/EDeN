@@ -105,6 +105,8 @@ setup(
     scripts=['bin/alignment',
              'bin/model',
              'bin/motif',
+             'bin/location_predictor',
+             'bin/motif_display.py',
              ],
     include_package_data=True,
     package_data={},
