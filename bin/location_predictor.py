@@ -22,18 +22,21 @@ from eden.util import vectorize
 
 logger = logging.getLogger(__name__)
 
+prog_name = 'LocationPredictor'
+__version__ = '0.2.1'
+
 description = """
-CasLociPredictor
+LocationPredictor
 
 
 Example usage:
 # for fitting a predictive model:
-./cas_loci_predict.py -x -v fit -c 2 -b 13 -n 30 -s 3 -l 'clust_id' 'domain_scores' \
+./location_predictor.py -x -v fit -c 2 -b 13 -n 30 -s 3 -l 'clust_id' 'domain_scores' \
 -i ../data/Traindataset_Cas_loci_TypeI_system_only.Feautres.tab \
 -m mod_type_I.md -g ../data/ProteinID_DomainID_Bitscore_TypeI.tab
 
 # for predicting using a fit model:
-./cas_loci_predict.py -x predict -i ../data/Testdataset_Cas_loci_TypeI_system_only.Feautres.tab \
+./location_predictor.py -x predict -i ../data/Testdataset_Cas_loci_TypeI_system_only.Feautres.tab \
 -g ../data/ProteinID_DomainID_Bitscore_TypeI.tab -m out/mod_type_I.md
 cat out/summary.txt
 """
@@ -45,8 +48,9 @@ License: GPL
 Maintainer: Fabrizio Costa
 Email: costa@informatik.uni-freiburg.de
 Status: Production
+Version: 0.2.1
 
-Cite: ...
+Cite:
 """
 
 
@@ -419,6 +423,7 @@ def argparse_setup(description, epilog):
     parser = argparse.ArgumentParser(description=description,
                                      epilog=epilog,
                                      formatter_class=DefaultsRawDescriptionHelpFormatter)
+    parser.add_argument('--version', action='version', version='%s %s' % (prog_name, __version__))
     parser.add_argument("-v", "--verbosity",
                         action="count",
                         help="Increase output verbosity")
@@ -503,7 +508,6 @@ def argparse_setup(description, epilog):
     return parser
 
 if __name__ == "__main__":
-    prog_name = 'CasLociPredictor'
     parser = argparse_setup(description, epilog)
     args = parser.parse_args()
 
