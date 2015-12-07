@@ -310,22 +310,43 @@ class Embedder2D(object):
 
     def _transform(self, data_matrix):
         # make a graph with instances as nodes
-        graph = self._init_graph(data_matrix)
-        if self.n_links > 0:
-            # find the closest selected instance and instantiate knn edges
-            for selected_instances, selected_instances_ids in \
-                    zip(self.selected_instances_list, self.selected_instances_ids_list):
-                if len(selected_instances) > 2:
-                    graph = self._selection_knn_links(graph,
-                                                      data_matrix,
-                                                      selected_instances,
-                                                      selected_instances_ids)
-        self.graph = graph
+        graph = self._build_graph(data_matrix)
+        # add the distance attribute to edges
+        self.graph = self._add_distance_to_edges(graph, data_matrix)
         # use graph layout
         embedded_data_matrix = self._graph_layout(graph)
         # normalize display using 2D PCA
         embedded_data_matrix = PCA(n_components=2).fit_transform(embedded_data_matrix)
         return embedded_data_matrix
+
+    def _add_distance_to_edges(self, graph, data_matrix):
+        for e in graph.edges():
+            src_id, dest_id = e[0], e[1]
+            dist = np.linalg.norm(data_matrix[src_id] - data_matrix[dest_id])
+            graph[src_id][dest_id]['len'] = dist
+        return graph
+
+    def _build_graph(self, data_matrix):
+        graph = nx.Graph()
+        graph.add_nodes_from(range(data_matrix.shape[0]))
+
+        # build shift tree
+        self.link_ids = self._kernel_shift_links(data_matrix)
+        for i, link in enumerate(self.link_ids):
+            if i != link:
+                graph.add_edge(i, link)
+
+        # build knn edges
+        if self.n_links > 0:
+            # find the closest selected instance and instantiate knn edges
+            for selected_instances, selected_instances_ids in \
+                    zip(self.selected_instances_list, self.selected_instances_ids_list):
+                if len(selected_instances) > 2:
+                    graph = self._add_knn_links(graph,
+                                                data_matrix,
+                                                selected_instances,
+                                                selected_instances_ids)
+        return graph
 
     def _kernel_shift_links(self, data_matrix):
         data_size = data_matrix.shape[0]
@@ -355,15 +376,7 @@ class Embedder2D(object):
                         break
         return link_ids
 
-    def _init_graph(self, data_matrix):
-        graph = nx.Graph()
-        graph.add_nodes_from(range(data_matrix.shape[0]))
-        self.link_ids = self._kernel_shift_links(data_matrix)
-        for i, link in enumerate(self.link_ids):
-            graph.add_edge(i, link)
-        return graph
-
-    def _selection_knn_links(self, graph, data_matrix, selected_instances, selected_instances_ids):
+    def _add_knn_links(self, graph, data_matrix, selected_instances, selected_instances_ids):
         n_neighbors = min(self.n_links, len(selected_instances))
         nn = NearestNeighbors(n_neighbors=n_neighbors)
         nn.fit(selected_instances)
@@ -372,7 +385,8 @@ class Embedder2D(object):
             # add edges to the knns
             for id in knn:
                 original_id = selected_instances_ids[id]
-                graph.add_edge(i, original_id)
+                if i != original_id:
+                    graph.add_edge(i, original_id)
         return graph
 
     def _graph_layout(self, graph):

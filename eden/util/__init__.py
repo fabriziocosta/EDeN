@@ -392,7 +392,7 @@ def estimate_model(positive_data_matrix=None,
                                                   scoring=scoring, n_jobs=n_jobs)
         logger.info('%20s: %.3f +- %.3f' % (scoring, np.mean(scores), np.std(scores)))
 
-    return apr, roc
+    return roc, apr
 
 
 def estimate(iterable_pos=None,
