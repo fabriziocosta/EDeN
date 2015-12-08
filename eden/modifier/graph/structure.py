@@ -117,7 +117,12 @@ def serialize_modifiers(modifiers):
     return lines
 
 
-def contraction(graphs=None, contraction_attribute='label', nesting=False, modifiers=modifiers, **options):
+def contraction(graphs=None,
+                contraction_attribute='label',
+                nesting=False,
+                scale=1,
+                modifiers=modifiers,
+                **options):
     '''
     modifiers: list of named tuples, each containing the keys: attribute_in, attribute_out and reduction.
     "attribute_in" identifies the node attribute that is extracted from all contracted nodes.
@@ -133,6 +138,7 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
     "categorical" returns the concatenation string of the lexicographically sorted list of input attributes,
     "set_categorical" returns the concatenation string of the lexicographically sorted set of input
     attributes.
+    scale: factor to multiply the weights of the contracted part
     '''
     for g in graphs:
         # check for 'position' attribute and add it if not present
@@ -152,6 +158,11 @@ def contraction(graphs=None, contraction_attribute='label', nesting=False, modif
                 modifier_func = contraction_modifer_map[modifier.reduction]
                 g_contracted.node[n][modifier.attribute_out] = modifier_func(
                     input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
+                # rescale the weight of the contracted nodes
+                if scale != 1:
+                    w = d.get('weight', 1)
+                    w = w * scale
+                    g_contracted.node[n]['weight'] = w
         if nesting:  # add nesting edges between the constraction graph and the original graph
             g_nested = nx.disjoint_union(g, g_contracted)
             # rewire contracted graph to the original graph

@@ -6,6 +6,7 @@ from networkx.readwrite import json_graph
 
 
 class SetEncoder(json.JSONEncoder):
+
     def default(self, obj):
         if isinstance(obj, set):
             return list(obj)
@@ -70,7 +71,8 @@ def draw_graph(graph,
 
     if vertex_color is None:
         node_color = 'white'
-    elif vertex_color == '_labels_':
+    elif vertex_color == '_labels_' or vertex_color == '_label_' or \
+            vertex_color == '__labels__' or vertex_color == '__label__':
         node_color = [hash(d.get('label', '.')) for u, d in graph.nodes(data=True)]
     else:
         if invert_colormap:

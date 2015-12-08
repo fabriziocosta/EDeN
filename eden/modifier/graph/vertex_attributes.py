@@ -111,7 +111,8 @@ def trapezoidal_reweighting(graph_list=None,
                             high_weight_window_start=0,
                             high_weight_window_end=1,
                             low_weight_window_start=0,
-                            low_weight_window_end=1):
+                            low_weight_window_end=1,
+                            attribute='weight'):
     """
     Piece wise linear weight function between two levels with specified start end positions.
     high   ___
@@ -150,14 +151,14 @@ def trapezoidal_reweighting(graph_list=None,
                 __/   \__
                 |
                 """
-                g.node[n]["weight"] = low_weight
+                g.node[n][attribute] = low_weight
             elif pos >= low_weight_window_start and pos < high_weight_window_start:
                 """
                    ___
                 __/   \__
                   |
                 """
-                g.node[n]["weight"] = (high_weight - low_weight) / (high_weight_window_start - low_weight_window_start) * \
+                g.node[n][attribute] = (high_weight - low_weight) / (high_weight_window_start - low_weight_window_start) * \
                     (pos - low_weight_window_start) + low_weight
             elif pos >= high_weight_window_start and pos < high_weight_window_end:
                 """
@@ -165,14 +166,14 @@ def trapezoidal_reweighting(graph_list=None,
                 __/   \__
                     |
                 """
-                g.node[n]["weight"] = high_weight
+                g.node[n][attribute] = high_weight
             elif pos >= high_weight_window_end and pos < low_weight_window_end:
                 """
                    ___
                 __/   \__
                       |
                 """
-                g.node[n]["weight"] = high_weight - \
+                g.node[n][attribute] = high_weight - \
                     (high_weight - low_weight) / (low_weight_window_end - high_weight_window_end) * \
                     (pos - high_weight_window_end)
             else:
@@ -181,11 +182,11 @@ def trapezoidal_reweighting(graph_list=None,
                 __/   \__
                         |
                 """
-                g.node[n]["weight"] = low_weight
+                g.node[n][attribute] = low_weight
         yield g
 
 
-def reweight(graph_list, weight_vector_list):
+def reweight(graph_list, weight_vector_list, attribute='weight'):
     """Assigns a value to the weight attribute of each node in each graph according to
     the information supplied in the list of vectors."""
 
@@ -197,5 +198,27 @@ def reweight(graph_list, weight_vector_list):
                 raise Exception('Nodes must have "position" attribute')
             # given the 'position' attribute of node assign the weight accordingly
             pos = d['position']
-            g.node[n]["weight"] = w[pos]
+            g.node[n][attribute] = w[pos]
+        yield g
+
+
+def list_reweight(graph_list, start_end_weight_list=None, attribute='weight'):
+    """Assign weights according to a list of triplets: each triplet defines the start, end position
+    and the (uniform) weight of the region; the order of the triplets matters: later triplets override
+    the weight specification of previous triplets. The special triplet (-1,-1,w) assign a default weight
+    to all nodes."""
+
+    for g in graph_list:
+        for start, end, weight in start_end_weight_list:
+            # iterate over nodes
+            for n, d in g.nodes_iter(data=True):
+                if 'position' not in d:
+                    # assert nodes must have position attribute
+                    raise Exception('Nodes must have "position" attribute')
+                # given the 'position' attribute of node assign the weight accordingly
+                pos = d['position']
+                if pos >= start and pos <= end:
+                    g.node[n][attribute] = weight
+                if start == -1 and end == -1:
+                    g.node[n][attribute] = weight
         yield g
