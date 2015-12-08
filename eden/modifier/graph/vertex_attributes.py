@@ -211,7 +211,7 @@ def linear_trapezoidal_weight(pos,
         __/   \__
           |
         """
-        return (high_weight - low_weight) / (interpolate_up_end - interpolate_up_start) * \
+        return (high_weight - low_weight) / float(interpolate_up_end - interpolate_up_start) * \
             (pos - interpolate_up_start) + low_weight
     elif pos >= interpolate_up_end and pos <= interpolate_down_start:
         """
@@ -227,7 +227,7 @@ def linear_trapezoidal_weight(pos,
               |
         """
         return high_weight - \
-            (high_weight - low_weight) / (interpolate_down_end - interpolate_down_start) * \
+            (high_weight - low_weight) / float(interpolate_down_end - interpolate_down_start) * \
             (pos - interpolate_down_start)
     elif pos >= interpolate_down_end:
         """
