@@ -241,10 +241,10 @@ def linear_trapezoidal_weight(pos,
 def trapezoidal_reweighting(graph_list=None,
                             high_weight=1.0,
                             low_weight=0.1,
-                            high_weight_window_start=0,
-                            high_weight_window_end=1,
-                            low_weight_window_start=0,
-                            low_weight_window_end=1,
+                            interpolate_up_start=0,
+                            interpolate_up_end=1,
+                            interpolate_down_start=0,
+                            interpolate_down_end=1,
                             attribute='weight'):
     """
     Weight graphs via piecewise linear weight function between two levels with
