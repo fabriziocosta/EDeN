@@ -29,13 +29,14 @@ from numpy.random import randint, uniform
 from sklearn.linear_model import SGDClassifier
 from eden.graph import Vectorizer
 from eden.model_base import ModelInitializerBase, main_script
+from eden.converter.fasta import fasta_to_sequence
+from eden.converter.fasta import sequence_to_eden
 
 
 class ModelInitializer(ModelInitializerBase):
 
     def _load_data(self, input_file):
         """Load sequence tuples from file."""
-        from eden.converter.fasta import fasta_to_sequence
         seqs = fasta_to_sequence(input_file)
         return seqs
 
@@ -55,7 +56,6 @@ class ModelInitializer(ModelInitializerBase):
         """Setup conversion of sequence tuples to graphs."""
         def pre_processor(seqs, **args):
             """Convert sequence tuples to graphs."""
-            from eden.converter.fasta import sequence_to_eden
             graphs = sequence_to_eden(seqs)
             return graphs
         pre_processor_parameters = {}
