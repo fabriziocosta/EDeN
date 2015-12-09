@@ -96,7 +96,7 @@ if (args.core_length + flank_upstream_length + flank_downstream_length != args.s
 
 def dbg_head(sites, description="", n=npeek, run=args.debug):
     """Print the first few bed entries."""
-    if (run):
+    if run:
         logging.debug(description)
         for i in sites[0:n]:
             logging.debug(i)
@@ -113,8 +113,8 @@ def offset_zero_by_one(feature):
 
     Required for the flanking to work properly in those cases.
     """
-    if (feature.start == 0):
-        feature.start = feature.start + 1
+    if feature.start == 0:
+        feature.start += 1
     return feature
 
 
@@ -122,7 +122,7 @@ def get_flanks(cores,
                flank_upstream_length=flank_upstream_length,
                flank_downstream_length=flank_downstream_length):
     """Calculate flanking regions of a core region."""
-    if (args.chromosome_limits is not None):
+    if args.chromosome_limits is not None:
         logging.debug("using chromosome_limits " + args.chromosome_limits)
         # get upstream flanks
         flanks_upstream = cores.flank(
@@ -150,7 +150,9 @@ def get_flanks(cores,
             l=0,
             genome=args.genome_id).saveas()
     # check if sites and flanks have the same number of entries
-    if (not cores.count() == flanks_upstream.count() == flanks_downstream.count()):
+    if cores.count() == flanks_upstream.count() == flanks_downstream.count():
+        return flanks_upstream, flanks_downstream
+    else:
         if args.debug:
             cores.saveas("debug_cores.bed")
             flanks_upstream.saveas("debug_upstream.bed")
@@ -161,7 +163,6 @@ def get_flanks(cores,
             flanks_downstream.saveas()
         raise Exception("Error: numbers of cores and flanks don't match: got " + str(cores.count()) + " cores, " + str(
             flanks_upstream.count()) + " upstream flanks and " + str(flanks_downstream.count()) + " downstream flanks.")
-    return flanks_upstream, flanks_downstream
 
 
 def get_seqs(cores,
@@ -196,9 +197,7 @@ def get_seqs(cores,
         core_reader = reader(core_tabseq, delimiter="\t")
         fdown_reader = reader(fdown_tabseq, delimiter="\t")
         for fup, core, fdown in izip(fup_reader, core_reader, fdown_reader):
-            if (not fup[0] == core[0] == fdown[0]):
-                raise Exception(
-                    "Error: sequence ids of cores and flanks don't match")
+            assert fup[0] == core[0] == fdown[0], "Error: sequence ids of cores and flanks don't match."
             # setup fasta headers and sequences
             fa_header = ">" + core[0]
             seq_viewpoint = fup[1].lower() + core[1].upper() + fdown[1].lower()
