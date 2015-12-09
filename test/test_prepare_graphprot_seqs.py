@@ -21,4 +21,4 @@ def test_no_such_genome_id():
         datadir_rel + "artificial_genome.fa",
         expect_error=True
     )
-    assert search("chromosome_limits", run.stderr), "Error message did not contain reference to 'chromosome_limits', was :'\n{}'".format(run.stderr)
+    assert search("chromosome_limits", run.stdout), "Error message did not contain reference to 'chromosome_limits', was :'\n{}'".format(run.stdout)

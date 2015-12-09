@@ -18,6 +18,7 @@ import argparse
 from csv import reader
 from itertools import izip
 import logging
+from eden.util import configure_logging
 from pybedtools.featurefuncs import midpoint
 from pybedtools.helpers import get_chromsizes_from_ucsc
 from pybedtools import BedTool
@@ -54,21 +55,13 @@ parser.add_argument(
     "--negative_site_candidate_regions_fn",
     help="Path to regions considered for placement of negatives in bed format")
 parser.add_argument(
-    "-v", "--verbose",
-    help="Be verbose.",
-    action="store_true")
-parser.add_argument(
-    "-d", "--debug",
-    help="Print lots of debugging information",
-    action="store_true")
+    "-v", "--verbosity",
+    action="count",
+    help="Increase output verbosity")
 args = parser.parse_args()
 
-if args.debug:
-    logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(filename)s - %(levelname)s - %(message)s")
-elif args.verbose:
-    logging.basicConfig(level=logging.INFO, format="%(filename)s - %(levelname)s - %(message)s")
-else:
-    logging.basicConfig(format="%(filename)s - %(levelname)s - %(message)s")
+logger = logging.getLogger()
+configure_logging(logger, verbosity=args.verbosity)
 
 # fixed global variables
 npeek = 2
