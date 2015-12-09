@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import logging
+from math import sqrt
 
 from eden.model_base import ModelInitializerBase, main_script
 from eden.converter.molecule import obabel
@@ -102,7 +103,6 @@ class ModelInitializer(ModelInitializerBase):
         prepared by the
         pre_processor function and a set of matching parameter choices.
         """
-        from math import sqrt
 
         # Get the number of positive data points to use in calculating the max
         # value of n

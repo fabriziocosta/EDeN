@@ -12,6 +12,7 @@ import joblib
 import argparse
 import logging
 import logging.handlers
+import datetime
 
 from eden.util import configure_logging
 from eden.util import serialize_dict
@@ -524,7 +525,6 @@ if __name__ == "__main__":
     try:
         main_dipatch(args)
     except Exception:
-        import datetime
         curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
         logger.exception("Program run failed on %s" % curr_time)
     finally:
