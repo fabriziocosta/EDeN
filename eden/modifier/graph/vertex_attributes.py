@@ -105,13 +105,13 @@ def discretize(graph_list=None, output_attribute='value', input_attribute='weigh
         yield g
 
 
-def linear_trapezoidal_weight(pos,
-                              high_weight,
-                              low_weight,
-                              interpolate_up_start,
-                              interpolate_up_end,
-                              interpolate_down_start,
-                              interpolate_down_end):
+def _linear_trapezoidal_weight(pos,
+                               high_weight,
+                               low_weight,
+                               interpolate_up_start,
+                               interpolate_up_end,
+                               interpolate_down_start,
+                               interpolate_down_end):
     """
     Piecewise linear weight function between two levels with specified start end
     positions. This function linearly interpolates between positions
@@ -133,69 +133,69 @@ def linear_trapezoidal_weight(pos,
            |
            interpolate_up_start
 
-    >>> linear_trapezoidal_weight(pos=0,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=0,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     0
-    >>> linear_trapezoidal_weight(pos=1,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=1,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     0
-    >>> linear_trapezoidal_weight(pos=2,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=2,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     0.5
-    >>> linear_trapezoidal_weight(pos=3,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=3,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     1
-    >>> linear_trapezoidal_weight(pos=4,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=4,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     1
-    >>> linear_trapezoidal_weight(pos=5,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=5,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     1
-    >>> linear_trapezoidal_weight(pos=6,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=6,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     0.5
-    >>> linear_trapezoidal_weight(pos=7,
-    ...                           high_weight=1,
-    ...                           low_weight=0,
-    ...                           interpolate_up_end=3,
-    ...                           interpolate_down_start=5,
-    ...                           interpolate_up_start=1,
-    ...                           interpolate_down_end=7)
+    >>> _linear_trapezoidal_weight(pos=7,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
     0
     """
     if pos <= interpolate_up_start:
@@ -292,13 +292,13 @@ def trapezoidal_reweighting(graph_list=None,
             # given the 'position' attribute of node assign weight according to
             # piece wise linear weight function between two levels
             pos = d['position']
-            g.node[n][attribute] = linear_trapezoidal_weight(pos,
-                                                             high_weight,
-                                                             low_weight,
-                                                             interpolate_up_end,
-                                                             interpolate_down_start,
-                                                             interpolate_up_start,
-                                                             interpolate_down_end)
+            g.node[n][attribute] = _linear_trapezoidal_weight(pos,
+                                                              high_weight,
+                                                              low_weight,
+                                                              interpolate_up_end,
+                                                              interpolate_down_start,
+                                                              interpolate_up_start,
+                                                              interpolate_down_end)
         yield g
 
 
