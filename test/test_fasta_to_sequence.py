@@ -1,4 +1,5 @@
 from eden.converter.fasta import fasta_to_sequence
+from eden.converter.fasta import sequence_to_eden
 from eden.util import is_iterable
 
 
@@ -35,3 +36,11 @@ class TestFastaToSequence:
         (header, sequence) = seq.next()
         # sequence should correspond to the unmodified fasta string
         assert(sequence == "gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa")
+
+    def test_sequence_to_eden_id_attribute(self):
+        """Test if networkx graph ids are set correctly to fasta header."""
+
+        fa_fn = "test/test_fasta_to_sequence_with_center_annotation.fa"
+        graphs = sequence_to_eden(fasta_to_sequence(fa_fn))
+        graph = graphs.next()
+        assert graph.graph["id"] == "ID0 center:25"

@@ -6,6 +6,7 @@ import math
 import pylab as pl
 import json
 import time
+import datetime
 
 from scipy.cluster.hierarchy import linkage, dendrogram
 import numpy as np
@@ -13,7 +14,7 @@ from scipy.sparse import csr_matrix
 
 from eden import graph
 from eden.converter.graph import node_link_data
-from eden.util import util, setup, eden_io
+from eden.util import setup, eden_io
 from eden.util import NeedlemanWunsh
 
 DESCRIPTION = """
@@ -391,7 +392,6 @@ if __name__ == "__main__":
     try:
         alignment(args)
     except Exception:
-        import datetime
         curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
         logger.exception("Program run failed on %s" % curr_time)
     finally:

@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+
+DESCRIPTION = """
+GraphProt:
+
+Explicit Decomposition with Neighborhood (EDeN) utility program for
+sequence-based modeling of binding preferences of RNA-binding proteins.
+"""
+
+EPILOG = """
+Author: Daniel Maticzka
+Copyright: 2015
+License: GPL
+Maintainer: Daniel Maticzka
+Email: maticzkd@informatik.uni-freiburg.de
+Status: Development
+
+Please cite:
+
+    Daniel Maticzka, Sita J. Lange, Fabrizio Costa, Rolf Backofen
+    GraphProt: modeling binding preferences of RNA-binding proteins
+    Genome Biology, 2014, 15(1), R17
+"""
+
+import os
+import logging
+
+from numpy.random import randint, uniform
+from sklearn.linear_model import SGDClassifier
+from eden.graph import Vectorizer
+from eden.model_base import ModelInitializerBase, main_script
+from eden.converter.fasta import fasta_to_sequence
+from eden.converter.fasta import sequence_to_eden
+
+
+class ModelInitializer(ModelInitializerBase):
+
+    def _load_data(self, input_file):
+        """Load sequence tuples from file."""
+        seqs = fasta_to_sequence(input_file)
+        return seqs
+
+    def load_data(self, args):
+        """Load positive class data from file."""
+        return self._load_data(args.input_file)
+
+    def load_positive_data(self, args):
+        """Load positive class data from file."""
+        return self._load_data(args.positive_input_file)
+
+    def load_negative_data(self, args):
+        """Load negative class data from file."""
+        return self._load_data(args.negative_input_file)
+
+    def pre_processor_init(self, n_iter):
+        """Setup conversion of sequence tuples to graphs."""
+        def pre_processor(seqs, **args):
+            """Convert sequence tuples to graphs."""
+            graphs = sequence_to_eden(seqs)
+            return graphs
+        pre_processor_parameters = {}
+        return pre_processor, pre_processor_parameters
+
+    def vectorizer_init(self, n_iter):
+        """Setup conversion of graphs to features."""
+        vectorizer = Vectorizer()
+        vectorizer_parameters = {
+            'r': [1, 0, 2, 3, 4],
+            'd': [4, 0, 1, 2, 3, 4, 5, 6],
+            'nbits': [14, 16, 18]}
+        return vectorizer, vectorizer_parameters
+
+    def estimator_init(self, n_iter):
+        """Setup the estimator and set of matching parameter choices."""
+        estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
+        estimator_parameters = {'n_iter': randint(5, 200, size=n_iter),
+                                'penalty': ['l1', 'l2', 'elasticnet'],
+                                'l1_ratio': uniform(0.1, 0.9, size=n_iter),
+                                'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
+                                'power_t': uniform(0.1, size=n_iter),
+                                'alpha': [10 ** x for x in range(-8, 0)],
+                                'eta0': [10 ** x for x in range(-4, -1)],
+                                'learning_rate': ["invscaling", "constant", "optimal"],
+                                'n_jobs': [-1]}
+        return estimator, estimator_parameters
+
+    def add_arguments(self, parser):
+        """Add arguments for the main call."""
+        parser.add_argument('--version', action='version', version='0.1')
+        return parser
+
+    def add_arguments_fit(self, parser):
+        """Add arguments for the fit command."""
+        parser.add_argument("-p", "--bound-file",
+                            dest="positive_input_file",
+                            help="Path to FASTA file containing sequences of bound sites.",
+                            required=True)
+        parser.add_argument("-n", "--unbound-file",
+                            dest="negative_input_file",
+                            help="Path to FASTA file containing sequences on unbound sites.",
+                            required=True)
+        return parser
+
+    def add_arguments_estimate(self, parser):
+        """Add arguments for the estimate command."""
+        return self.add_arguments_fit(parser)
+
+    def add_arguments_base(self, parser):
+        parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to FASTA file containing input sequences.",
+                            required=True)
+        return parser
+
+    def add_arguments_matrix(self, parser):
+        """Add arguments used by the matrix command."""
+        return parser
+
+    def add_arguments_predict(self, parser):
+        """Add arguments used by the predict command."""
+        return parser
+
+    def add_arguments_feature(self, parser):
+        """Add arguments used by the feature command."""
+        return parser
+
+
+if __name__ == "__main__":
+    model_initializer = ModelInitializer()
+    main_script(model_initializer=model_initializer,
+                description=DESCRIPTION,
+                epilog=EPILOG,
+                prog_name=os.path.basename(__file__),
+                logger=logging.getLogger())

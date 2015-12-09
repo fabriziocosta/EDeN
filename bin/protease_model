@@ -22,12 +22,16 @@ import logging
 
 from eden.graph import Vectorizer
 from eden.model_base import ModelInitializerBase, main_script
+from eden.converter.fasta import fasta_to_sequence
+from eden.modifier.seq import seq_to_seq
+from eden.modifier.seq import shuffle_modifier
+from eden.modifier.seq import mark_modifier
+from eden.converter.fasta import sequence_to_eden
 
 
 class ModelInitializer(ModelInitializerBase):
 
     def load_data(self, args):
-        from eden.converter.fasta import fasta_to_sequence
         seqs = fasta_to_sequence(args.input_file)
         return seqs
 
@@ -36,7 +40,6 @@ class ModelInitializer(ModelInitializerBase):
 
     def load_negative_data(self, args):
         seqs = self.load_data(args)
-        from eden.modifier.seq import seq_to_seq, shuffle_modifier
         return seq_to_seq(seqs,
                           modifier=shuffle_modifier,
                           times=args.negative_ratio,
@@ -44,11 +47,9 @@ class ModelInitializer(ModelInitializerBase):
 
     def pre_processor_init(self, args):
         def pre_processor(seqs, **args):
-            from eden.modifier.seq import seq_to_seq, mark_modifier
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.5, mark='%')
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=0.0, mark='@')
             seqs = seq_to_seq(seqs, modifier=mark_modifier, position=1.0, mark='*')
-            from eden.converter.fasta import sequence_to_eden
             graphs = sequence_to_eden(seqs)
             return graphs
 

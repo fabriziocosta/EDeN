@@ -19,6 +19,7 @@ install:
   - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.17"
   - conda install --yes matplotlib
   - conda install --yes cvxopt
+  - conda install --yes -c http://conda.anaconda.org/bioconda pybedtools
   - pip install git+https://github.com/nils-werner/pymf.git
   - pip install scikit-neuralnetwork
   # packages for running tests
