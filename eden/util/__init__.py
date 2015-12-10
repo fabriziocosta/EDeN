@@ -63,9 +63,17 @@ def serialize_dict(the_dict, offset='small'):
         text = []
         for key in sorted(the_dict):
             if offset == 'small':
-                text.append('%10s: %s' % (key, the_dict[key]))
+                line = '%10s: %s' % (key, the_dict[key])
             elif offset == 'large':
-                text.append('%20s: %s' % (key, the_dict[key]))
+                line = '%25s: %s' % (key, the_dict[key])
+            elif offset == 'very_large':
+                line = '%50s: %s' % (key, the_dict[key])
+            else:
+                raise Exception('unrecognized option: %s' % offset)
+            line = line.replace('\n', ' ')
+            if len(line) > 100:
+                line = line[:100] + '  ...  ' + line[-20:]
+            text.append(line)
         return '\n'.join(text)
     else:
         return ""
