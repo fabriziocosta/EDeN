@@ -202,6 +202,22 @@ def reweight(graph_list, weight_vector_list, attribute='weight'):
         yield g
 
 
+def start_end_weight_reweight(graph, start_end_weight_list=None, attribute='weight'):
+    for start, end, weight in start_end_weight_list:
+        # iterate over nodes
+        for n, d in graph.nodes_iter(data=True):
+            if 'position' not in d:
+                # assert nodes must have position attribute
+                raise Exception('Nodes must have "position" attribute')
+            # given the 'position' attribute of node assign the weight accordingly
+            pos = d['position']
+            if pos >= start and pos < end:
+                graph.node[n][attribute] = weight
+            if start == -1 and end == -1:
+                graph.node[n][attribute] = weight
+    return graph
+
+
 def list_reweight(graph_list, start_end_weight_list=None, attribute='weight'):
     """Assign weights according to a list of triplets: each triplet defines the start, end position
     and the (uniform) weight of the region; the order of the triplets matters: later triplets override
@@ -209,16 +225,17 @@ def list_reweight(graph_list, start_end_weight_list=None, attribute='weight'):
     to all nodes."""
 
     for g in graph_list:
-        for start, end, weight in start_end_weight_list:
-            # iterate over nodes
-            for n, d in g.nodes_iter(data=True):
-                if 'position' not in d:
-                    # assert nodes must have position attribute
-                    raise Exception('Nodes must have "position" attribute')
-                # given the 'position' attribute of node assign the weight accordingly
-                pos = d['position']
-                if pos >= start and pos <= end:
-                    g.node[n][attribute] = weight
-                if start == -1 and end == -1:
-                    g.node[n][attribute] = weight
+        g = start_end_weight_reweight(g, start_end_weight_list=start_end_weight_list, attribute=attribute)
+        yield g
+
+
+def listof_list_reweight(graph_list, listof_start_end_weight_list=None, attribute='weight'):
+    """Assign weights according to a list of triplets: each triplet defines the start, end position
+    and the (uniform) weight of the region; the order of the triplets matters: later triplets override
+    the weight specification of previous triplets. The special triplet (-1,-1,w) assign a default weight
+    to all nodes. Each element in listof_start_end_weight_list specifies the start_end_weight_list for a
+    single graph."""
+
+    for g, start_end_weight_list in izip(graph_list, listof_start_end_weight_list):
+        g = start_end_weight_reweight(g, start_end_weight_list=start_end_weight_list, attribute=attribute)
         yield g
