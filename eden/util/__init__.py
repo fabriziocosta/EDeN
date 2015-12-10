@@ -21,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 def configure_logging(logger, verbosity=0, filename=None):
+    """Utility to configure the logging aspects. If filename is None then no info is stored in files.
+    If filename is not None then everything that is logged is dumped to file (including program traces).
+    Verbosity is an int that can take values: 0 -> warning, 1 -> info, >=2 -> debug.
+    All levels are displayed on stdout, not on stderr. Please use exceptions and asserts
+    to output on stderr."""
+
     logger.propagate = False
     logger.handlers = []
     log_level = logging.WARNING
@@ -45,7 +51,7 @@ def configure_logging(logger, verbosity=0, filename=None):
         fh.setLevel(logging.DEBUG)
         # create formatter
         fformatter = logging.Formatter('%(asctime)s | %(levelname)-6s | %(name)10s | %(filename)10s |\
-         %(lineno)4s | %(message)s')
+   %(lineno)4s | %(message)s')
         # add formatter to fh
         fh.setFormatter(fformatter)
         # add handlers to logger

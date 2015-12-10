@@ -91,17 +91,20 @@ class StructCluster(object):
         self.threshold = threshold
         self.clusters = defaultdict(list)
 
-    def predict(self, seqs):
+    def fit(self, seqs):
         graphs = self.pre_processor.transform(seqs)
-        data_matrix = self.vectorizer.transform(graphs)
-        logger.debug('#instances:%d  #features:%d' % (data_matrix.shape[0], data_matrix.shape[1]))
+        self.data_matrix = self.vectorizer.transform(graphs)
+        logger.debug('#instances:%d  #features:%d' % (self.data_matrix.shape[0], self.data_matrix.shape[1]))
 
-        distance_matrix = pairwise_distances(data_matrix)
+    def predict(self, seqs=None):
+        if seqs is not None:
+            self.fit(seqs)
+        distance_matrix = pairwise_distances(self.data_matrix)
         eps = np.mean(distance_matrix) - self.factor * np.std(distance_matrix)
         logger.debug('eps: %.3f' % eps)
 
         self.clustering_algo.set_params(eps=eps)
-        self.predictions = self.clustering_algo.fit_predict(data_matrix)
+        self.predictions = self.clustering_algo.fit_predict(self.data_matrix)
 
         clustered_seqs = defaultdict(list)
         for cluster_id, seq in zip(self.predictions, seqs):
