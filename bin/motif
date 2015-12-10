@@ -83,11 +83,17 @@ from itertools import izip
 import argparse
 import logging
 import logging.handlers
+import datetime
 from eden.util import configure_logging, serialize_dict
+from eden.util import save_output
+from eden.converter.fasta import fasta_to_sequence
+from eden.motif import SequenceMotif
+from sklearn.cluster import MiniBatchKMeans
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import Birch
 
 
 def predict(seqs, sequence_motif, args):
-    from eden.util import save_output
 
     # output num occurrences of cluster hit in sequences
     predictions = sequence_motif.predict(seqs, return_list=True)
@@ -136,17 +142,14 @@ def predict(seqs, sequence_motif, args):
 
 def main_predict(args):
     # read in sequences in FASTA format
-    from eden.converter.fasta import fasta_to_sequence
     seqs = fasta_to_sequence(args.input_file)
     seqs = list(seqs)
-    from eden.motif import SequenceMotif
     sequence_motif = SequenceMotif()
     sequence_motif.load(args.model_filename)
     predict(seqs, sequence_motif, args)
 
 
 def _save_motives_multiple_fasta_files(sequence_motif, args):
-    from eden.util import save_output
     output_dir_path = os.path.join(args.output_dir_path, 'motives_dir')
     for cluster_id in sequence_motif.motives_db:
         out_file_name = 'motif_%d.fa' % cluster_id
@@ -158,7 +161,6 @@ def _save_motives_multiple_fasta_files(sequence_motif, args):
 
 
 def _save_motives_single_file(sequence_motif, args):
-    from eden.util import save_output
     text = sequence_motif.info()
     save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='motifs.txt')
 
@@ -170,25 +172,20 @@ def _save_motives(sequence_motif, args):
 
 def main_fit(args):
     # read in sequences in FASTA format
-    from eden.converter.fasta import fasta_to_sequence
     seqs = fasta_to_sequence(args.input_file)
     seqs = list(seqs)
     logger.info("Extracting motives from %d sequences" % len(seqs))
 
     if args.which_algorithm == 'MiniBatchKMeans':
-        from sklearn.cluster import MiniBatchKMeans
         clustering_algorithm = MiniBatchKMeans(n_clusters=args.n_clusters)
 
     if args.which_algorithm == 'DBSCAN':
-        from sklearn.cluster import DBSCAN
         clustering_algorithm = DBSCAN(eps=args.eps, min_samples=args.min_samples)
 
     if args.which_algorithm == 'Birch':
-        from sklearn.cluster import Birch
         clustering_algorithm = Birch(threshold=args.threshold, n_clusters=args.n_clusters, branching_factor=args.branching_factor)
 
     # setup
-    from eden.motif import SequenceMotif
     sequence_motif = SequenceMotif(training_size=args.training_size,
                                    clustering_algorithm=clustering_algorithm,
                                    min_subarray_size=args.min_subarray_size,
@@ -447,7 +444,6 @@ if __name__ == "__main__":
     try:
         main(args)
     except Exception:
-        import datetime
         curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
         logger.exception("Program run failed on %s" % curr_time)
     finally:
