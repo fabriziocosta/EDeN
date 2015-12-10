@@ -302,6 +302,52 @@ def trapezoidal_reweighting(graph_list=None,
         yield g
 
 
+def symmetric_trapezoidal_reweighting(graph_list=None,
+                                      high_weight=1.0,
+                                      low_weight=0.1,
+                                      radius_high=10,
+                                      distance_high2low=10):
+    """
+    Symmetric piecewise linear weight function between two levels. Size of the high
+    weights region is is given as the radius around the center position. The
+    dropdown between high and low levels is given by the distance of the positions
+    with high and low levels.
+
+    The center position can be arbitrary set by adding a center parameter of format
+    center:integer to the graph id. For example, to set the center of a graph to
+    postion 10 one would add "center:10" to the graph id. If this parameter is not
+    set, the actual center position is used.
+
+                |rrrrr      - radius_high
+                |
+    high    __center__
+           /          \
+    low __/            \__
+
+                      ddd   - distance_high2low
+    """
+
+    for graph in graph_list:
+        # TODO parse center
+        center_position = 10
+
+        # determine absolute positions from distances
+        interpolate_up_start = center_position - radius_high - distance_high2low
+        interpolate_up_end = center_position - radius_high
+        interpolate_down_start = center_position + radius_high
+        interpolate_down_end = center_position + radius_high + distance_high2low
+
+        # generate weighted graphs
+        yield trapezoidal_reweighting(
+            graph_list,
+            high_weight=high_weight,
+            low_weight=low_weight,
+            interpolate_up_end=interpolate_up_end,
+            interpolate_down_start=interpolate_down_start,
+            interpolate_up_start=interpolate_up_start,
+            interpolate_down_end=interpolate_down_end)
+
+
 def reweight(graph_list, weight_vector_list, attribute='weight'):
     """Assigns a value to the weight attribute of each node in each graph according to
     the information supplied in the list of vectors."""
