@@ -4,7 +4,7 @@
 [![Build Status](https://travis-ci.org/fabriziocosta/EDeN.svg?branch=master)](https://travis-ci.org/fabriziocosta/EDeN)
 
 
-[!(https://github.com/fabriziocosta/EDeN/blob/master/EDeN_logo.png)]
+[![EDeN](https://github.com/fabriziocosta/EDeN/blob/master/EDeN_logo.png)]
 
 [EDeN](http://fabriziocosta.github.io/EDeN)
 ====
