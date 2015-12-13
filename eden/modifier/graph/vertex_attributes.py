@@ -106,12 +106,12 @@ def discretize(graph_list=None, output_attribute='value', input_attribute='weigh
 
 
 def _linear_trapezoidal_weight(pos,
-                               high_weight,
-                               low_weight,
-                               interpolate_up_start,
-                               interpolate_up_end,
-                               interpolate_down_start,
-                               interpolate_down_end):
+                               high_weight=None,
+                               low_weight=None,
+                               interpolate_up_start=None,
+                               interpolate_up_end=None,
+                               interpolate_down_start=None,
+                               interpolate_down_end=None):
     """
     Piecewise linear weight function between two levels with specified start end
     positions. This function linearly interpolates between positions
@@ -121,7 +121,7 @@ def _linear_trapezoidal_weight(pos,
 
     This function does not check for parameter sanity.
 
-              interpolate_up_start
+              interpolate_up_end
               |
               | interpolate_down_start
               | |
@@ -293,12 +293,12 @@ def trapezoidal_reweighting(graph_list=None,
             # piece wise linear weight function between two levels
             pos = d['position']
             g.node[n][attribute] = _linear_trapezoidal_weight(pos,
-                                                              high_weight,
-                                                              low_weight,
-                                                              interpolate_up_end,
-                                                              interpolate_down_start,
-                                                              interpolate_up_start,
-                                                              interpolate_down_end)
+                                                              high_weight=high_weight,
+                                                              low_weight=low_weight,
+                                                              interpolate_up_end=interpolate_up_end,
+                                                              interpolate_down_start=interpolate_down_start,
+                                                              interpolate_up_start=interpolate_up_start,
+                                                              interpolate_down_end=interpolate_down_end)
         yield g
 
 

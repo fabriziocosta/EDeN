@@ -42,7 +42,7 @@ def draw_graph(graph,
                verbose=True,
                file_name=None,
                title_key='info',
-               ignore_for_layout="edgeswiththisattribute"):
+               ignore_for_layout="edge_attribute"):
     if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)

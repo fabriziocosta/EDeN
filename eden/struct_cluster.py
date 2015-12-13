@@ -76,6 +76,7 @@ class PreProcessor(object):
         Parameters
         ----------
         seqs : iterable strings
+            Input sequences.
 
         Returns
         -------
@@ -206,6 +207,7 @@ class StructCluster(object):
         Parameters
         ----------
         seqs : iterable strings
+            Input sequences.
 
 
         Attributes
@@ -230,6 +232,7 @@ class StructCluster(object):
         Parameters
         ----------
         seqs : iterable strings
+            Input sequences.
 
         Attributes
         ----------

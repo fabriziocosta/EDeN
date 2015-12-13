@@ -17,10 +17,10 @@ def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
         graph.add_node(i, label=c, position=i)
         if i > 0:
-            graph.add_edge(i, i - 1, label='-', type='backbone')
+            graph.add_edge(i, i - 1, label='-', type='backbone', len=1)
         if b == '(':
             lifo.append(i)
         if b == ')':
             j = lifo.pop()
-            graph.add_edge(i, j, label='=', type='basepair')
+            graph.add_edge(i, j, label='=', type='basepair', len=1)
     return graph

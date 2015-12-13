@@ -190,16 +190,36 @@ class Embedder2D(object):
     an edge between the two. Finally output 2D coordinates of the corresponding graph embedding using the sfdp
     Graphviz algorithm.
 
+    Parameters
+    ----------
+    compiled : boolean (default: False)
+        If set to True then a deep neural network is fit to generalize the embedding computed via the
+        graph layout.
+
+    deepnet_learning_rate: float (default: 0.002)
+        Learning rate parameter for the deep neural network predictor.
+
+    deepnet_n_hidden_layers: int (default: 1)
+        Number of hidden layers for the deep neural network predictor.
+
+    deepnet_n_features_hidden_factor: int (default: 10)
+        Factor that multiplies the number of features in the input layer to obtain the number
+        of features in each hidden layer for the deep neural network predictor.
+
+    selectors: list of selector objects derived from AbstractSelector
+        Each selector object exposes a fit_transform method to select with a characteristic bias
+        a subset of the input instances.
+
     """
 
     def __init__(self,
                  compiled=False,
-                 learning_rate=0.002,
-                 n_layers=1,
-                 n_features_hidden_factor=10,
+                 deepnet_learning_rate=0.002,
+                 deepnet_n_hidden_layers=1,
+                 deepnet_n_features_hidden_factor=10,
                  selectors=[QuickShiftSelector()],
                  n_nearest_neighbors=10,
-                 n_links=1,
+                 n_nearest_neighbor_links=1,
                  layout='force',
                  layout_prog='sfdp',
                  layout_prog_args='-Goverlap=scale',
@@ -207,12 +227,12 @@ class Embedder2D(object):
                  random_state=1,
                  metric='rbf', **kwds):
         self.compiled = compiled
-        self.learning_rate = learning_rate
-        self.n_layers = n_layers
-        self.n_features_hidden_factor = n_features_hidden_factor
+        self.deepnet_learning_rate = deepnet_learning_rate
+        self.deepnet_n_hidden_layers = deepnet_n_hidden_layers
+        self.deepnet_n_features_hidden_factor = deepnet_n_features_hidden_factor
         self.selectors = selectors
         self.n_nearest_neighbors = n_nearest_neighbors
-        self.n_links = n_links
+        self.n_nearest_neighbor_links = n_nearest_neighbor_links
         self.layout = layout
         self.layout_prog = layout_prog
         self.layout_prog_args = layout_prog_args
@@ -228,15 +248,15 @@ class Embedder2D(object):
         serial.append('Embedder2D:')
         if self.compiled is True:
             serial.append('compiled: yes')
-            serial.append('learning_rate: %.6f' % self.learning_rate)
-            serial.append('n_features_hidden_factor: %d' % self.n_features_hidden_factor)
+            serial.append('learning_rate: %.6f' % self.deepnet_learning_rate)
+            serial.append('n_features_hidden_factor: %d' % self.deepnet_n_features_hidden_factor)
         else:
             serial.append('compiled: no')
         serial.append('layout: %s' % (self.layout))
         serial.append('layout_prog: %s' % (self.layout_prog))
         if self.layout_prog_args:
             serial.append('layout_prog_args: %s' % (self.layout_prog_args))
-        serial.append('n_links: %s' % (self.n_links))
+        serial.append('n_nearest_neighbor_links: %s' % (self.n_nearest_neighbor_links))
         if self.n_nearest_neighbors is None:
             serial.append('n_nearest_neighbors: None')
         else:
@@ -276,13 +296,13 @@ class Embedder2D(object):
         data_matrix_out = self._fit_transform(data_matrix_in, target=target)
         n_features_in = data_matrix_in.shape[1]
         n_features_out = data_matrix_out.shape[1]
-        n_features_hidden = int(n_features_in * self.n_features_hidden_factor)
+        n_features_hidden = int(n_features_in * self.deepnet_n_features_hidden_factor)
         layers = []
-        for i in range(self.n_layers):
+        for i in range(self.deepnet_n_hidden_layers):
             layers.append(Layer("Rectifier", units=n_features_hidden, name='hidden%d' % i))
         layers.append(Layer("Linear", units=n_features_out))
         self.net = Regressor(layers=layers,
-                             learning_rate=self.learning_rate,
+                             learning_rate=self.deepnet_learning_rate,
                              valid_size=0.1)
         self.net.fit(data_matrix_in, data_matrix_out)
         return self.net
@@ -337,7 +357,7 @@ class Embedder2D(object):
                 graph.add_edge(i, link)
 
         # build knn edges
-        if self.n_links > 0:
+        if self.n_nearest_neighbor_links > 0:
             # find the closest selected instance and instantiate knn edges
             for selected_instances, selected_instances_ids in \
                     zip(self.selected_instances_list, self.selected_instances_ids_list):
@@ -377,7 +397,7 @@ class Embedder2D(object):
         return link_ids
 
     def _add_knn_links(self, graph, data_matrix, selected_instances, selected_instances_ids):
-        n_neighbors = min(self.n_links, len(selected_instances))
+        n_neighbors = min(self.n_nearest_neighbor_links, len(selected_instances))
         nn = NearestNeighbors(n_neighbors=n_neighbors)
         nn.fit(selected_instances)
         knns = nn.kneighbors(data_matrix, return_distance=0)
@@ -436,7 +456,7 @@ class Embedder2D(object):
             self.n_nearest_neighbors = random.randint(3, 20)
         else:
             self.n_nearest_neighbors = None
-        self.n_links = random.randint(1, 5)
+        self.n_nearest_neighbor_links = random.randint(1, 5)
         self.random_state = self.random_state ^ random.randint(1, 1e9)
 
 # -----------------------------------------------------------------------------
