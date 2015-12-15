@@ -16,7 +16,7 @@ git+https://github.com/nils-werner/pymf.git@9d3b8d49941b018473de01cb28b97d42b867
 reportlab==3.2.0
 requests-toolbelt==0.4.0
 requests==2.7.0
-scikit-learn==0.16.0
+scikit-learn==0.17.0
 scikit-neuralnetwork==0.3
 scipy==0.14.0
 scripttest==1.3

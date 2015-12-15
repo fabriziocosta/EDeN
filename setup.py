@@ -137,7 +137,7 @@ setup(
         "reportlab",
         "requests-toolbelt",
         "requests",
-        "scikit-learn >= 0.16.0",
+        "scikit-learn >= 0.17.0",
         "scikit-neuralnetwork",
         "scipy >= 0.14.0",
         "scripttest",
