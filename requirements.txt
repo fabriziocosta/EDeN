@@ -12,7 +12,7 @@ openbabel==1.8.1
 pandas==0.14.1
 pybedtools==0.7.4
 pygraphviz==1.2
-pymf==0.1.9
+git+https://github.com/nils-werner/pymf.git@9d3b8d49941b018473de01cb28b97d42b8675857
 reportlab==3.2.0
 requests-toolbelt==0.4.0
 requests==2.7.0
