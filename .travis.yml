@@ -20,13 +20,13 @@ install:
   - conda install --yes matplotlib
   - conda install --yes cvxopt
   - conda install --yes -c http://conda.anaconda.org/bioconda pybedtools
-  - pip install git+https://github.com/nils-werner/pymf.git
+  - pip install git+https://github.com/nils-werner/pymf.git@9d3b8d49941b018473de01cb28b97d42b8675857
   - pip install scikit-neuralnetwork
   # packages for running tests
   - pip install setuptools
   - pip install flake8
-  # packages specified by setup.py
-  - pip install .
+  # install specific versions
+  - pip install -r requirements.txt
 script:
   - flake8 . --exclude=.venv --ignore=E501
   # run nose with doctests
