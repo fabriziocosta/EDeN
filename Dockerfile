@@ -31,7 +31,7 @@ ADD requirements.txt .
 ADD setup.py .
 RUN pip install -r requirements.txt > /dev/null
 
-RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev build-essential libreadline-dev && \
+RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev libreadline-dev && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN mkdir /opt/EDeN
