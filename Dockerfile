@@ -27,16 +27,22 @@ RUN pip install "numpy==1.8.0"
 RUN pip install "scipy==0.14.0"
 
 # install from local copy of requirements.txt, changes in this file invalidate the cache
-COPY requirements.txt .
+ADD requirements.txt .
+ADD setup.py .
 RUN pip install -r requirements.txt
 
 RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev build-essential libreadline-dev && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-RUN git clone https://github.com/fabriziocosta/pyEDeN.git
+ADD * /opt/EDeN/
+ENV PYTHONPATH $PYTHONPATH:/opt/EDeN/
+ENV PATH $PATH:/opt/EDeN/bin/
+WORKDIR /opt/EDeN
 
-ENV PYTHONPATH $PYTHONPATH:/pyEDeN/
-ENV PATH $PATH:/pyEDeN/eden/bin/
-
-WORKDIR /pyEDeN/eden/bin/
+# RUN git clone https://github.com/fabriziocosta/pyEDeN.git
+#
+# ENV PYTHONPATH $PYTHONPATH:/pyEDeN/
+# ENV PATH $PATH:/pyEDeN/eden/bin/
+#
+# WORKDIR /pyEDeN/eden/bin/
 # ENTRYPOINT [""]

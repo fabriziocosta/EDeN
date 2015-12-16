@@ -4,8 +4,8 @@ services:
   - docker
 
 before_install:
-  - docker build -t eden docker
-  - docker run eden /bin/bash "cd /opt/EDeN"
+  - docker build -t eden .
+  - docker run eden /bin/bash "flake8 . --exclude=.venv --ignore=E501"
 
 script:
   - flake8 . --exclude=.venv --ignore=E501
