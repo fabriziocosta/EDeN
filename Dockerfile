@@ -28,7 +28,6 @@ RUN pip install "scipy==0.14.0" >> install.log
 
 # install from local copy of requirements.txt, changes in this file invalidate the cache
 ADD requirements.txt .
-ADD setup.py .
 RUN pip install -r requirements.txt >> install.log
 
 RUN apt-get remove -y --purge libzmq-dev software-properties-common libc-dev libreadline-dev && \
