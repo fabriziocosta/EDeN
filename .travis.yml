@@ -9,7 +9,3 @@ before_install:
 script:
   - docker run eden /bin/bash -c "flake8 /opt/EDeN/ --ignore=E501"
   - docker run eden /bin/bash -c "nosetests --where=/opt/EDeN --with-doctest -I selector.py -I embedding.py -I obabel.py"
-  - flake8 /opt/EDeN/ --ignore=E501
-  # run nose with doctests
-  # excludes files with missing or broken dependencies
-  - nosetests --where=/opt/EDeN --with-doctest -I selector.py -I embedding.py -I obabel.py
