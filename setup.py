@@ -123,6 +123,7 @@ setup(
         "cvxpy",
         "dill",
         "esmre",
+        "flake8",
         "joblib",
         "matplotlib",
         "mpld3",
