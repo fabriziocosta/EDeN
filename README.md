@@ -3,13 +3,14 @@
 [![DOI](https://zenodo.org/badge/10054/fabriziocosta/EDeN.svg)](https://zenodo.org/badge/latestdoi/10054/fabriziocosta/EDeN)
 [![Build Status](https://travis-ci.org/fabriziocosta/EDeN.svg?branch=master)](https://travis-ci.org/fabriziocosta/EDeN)
 
+[![''](https://github.com/fabriziocosta/EDeN/blob/master/EDeN_logo.png)]
 
 [EDeN](http://fabriziocosta.github.io/EDeN)
 ====
 
-The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce an explicit feature representation for graphs. This in turn allows the adoption of machine learning algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast stochastic gradient descent methods in classification).
+The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce an explicit feature representation for graphs. This in turn allows the adoption of machine learning algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. using fast stochastic gradient descent methods in classification and approximate neighborhood queries in clustering).
 
-Among the novelties introduced in EDeN is the ability to take in input real vector labels and to process weighted graphs.
+Among the novelties introduced in EDeN is the ability to take in input real vector labels and to process weighted and nested graphs.
 
 
 Installation
