@@ -34,7 +34,8 @@ RUN pip install -r requirements.txt
 RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev build-essential libreadline-dev && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-ADD * /opt/EDeN/
+RUN mkdir /opt/EDeN
+ADD . /opt/EDeN/
 ENV PYTHONPATH $PYTHONPATH:/opt/EDeN/
 ENV PATH $PATH:/opt/EDeN/bin/
 WORKDIR /opt/EDeN
