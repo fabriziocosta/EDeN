@@ -1,32 +1,12 @@
-language: python
-python:
-  - "2.7"
-  # disabled because esmre won't install with python 3.4
-  # - "3.4"
-sudo: false
+sudo: required
+
+services:
+  - docker
+
 before_install:
-  # setup miniconda distribution
-  - travis_retry wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH=$HOME/miniconda/bin:$PATH
-  - conda update --yes conda
-install:
-  # packages from anaconda distribution
-  - conda create --yes -n condaenv python=$TRAVIS_PYTHON_VERSION
-  - source activate condaenv
-  - conda install --yes nose
-  - conda install --yes "numpy>=1.8" "scipy>=0.14" "scikit-learn>=0.17"
-  - conda install --yes matplotlib
-  - conda install --yes cvxopt
-  - conda install --yes -c http://conda.anaconda.org/bioconda pybedtools
-  - pip install git+https://github.com/nils-werner/pymf.git@9d3b8d49941b018473de01cb28b97d42b8675857
-  - pip install scikit-neuralnetwork
-  # packages for running tests
-  - pip install setuptools
-  - pip install flake8
-  # install specific versions
-  - pip install -r requirements.txt
+  - docker build -t eden docker
+  - docker run eden /bin/bash "cd /opt/EDeN"
+
 script:
   - flake8 . --exclude=.venv --ignore=E501
   # run nose with doctests
