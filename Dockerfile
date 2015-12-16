@@ -21,15 +21,15 @@ RUN pip install distribute --upgrade && \
     pip install "requests==2.7.0"
 
 # weblogo installation from requirements.txt complains about missing numpy, so install beforehand
-RUN pip install "numpy==1.8.0"
+RUN pip install "numpy==1.8.0" > /dev/null/
 
 # scikit-learn installation from requirements.txt complains about missing scipy, so install beforehand
-RUN pip install "scipy==0.14.0"
+RUN pip install "scipy==0.14.0" > /dev/null
 
 # install from local copy of requirements.txt, changes in this file invalidate the cache
 ADD requirements.txt .
 ADD setup.py .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt > /dev/null
 
 RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev build-essential libreadline-dev && \
     apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
