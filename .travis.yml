@@ -5,10 +5,11 @@ services:
 
 before_install:
   - docker build -t eden .
-  - docker run eden /bin/bash "flake8 . --exclude=.venv --ignore=E501"
+  - docker run eden /bin/bash -c "flake8 /opt/EDeN/ --ignore=E501"
+  - docker run eden /bin/bash -c "nosetests --where=/opt/EDeN --with-doctest -I selector.py -I embedding.py -I obabel.py"
 
 script:
-  - flake8 . --exclude=.venv --ignore=E501
+  - flake8 /opt/EDeN/ --ignore=E501
   # run nose with doctests
   # excludes files with missing or broken dependencies
-  - nosetests --with-doctest -I selector.py -I embedding.py -I obabel.py
+  - nosetests --where=/opt/EDeN --with-doctest -I selector.py -I embedding.py -I obabel.py
