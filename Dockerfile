@@ -39,11 +39,3 @@ ADD . /opt/EDeN/
 ENV PYTHONPATH $PYTHONPATH:/opt/EDeN/
 ENV PATH $PATH:/opt/EDeN/bin/
 WORKDIR /opt/EDeN
-
-# RUN git clone https://github.com/fabriziocosta/pyEDeN.git
-#
-# ENV PYTHONPATH $PYTHONPATH:/pyEDeN/
-# ENV PATH $PATH:/pyEDeN/eden/bin/
-#
-# WORKDIR /pyEDeN/eden/bin/
-# ENTRYPOINT [""]
