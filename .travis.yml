@@ -8,4 +8,4 @@ before_install:
 
 script:
   - docker run eden /bin/bash -c "flake8 /opt/EDeN/ --ignore=E501"
-  - docker run eden /bin/bash -c "nosetests --where=/opt/EDeN --with-doctest -I selector.py -I embedding.py -I obabel.py"
+  - docker run eden /bin/bash -c "nosetests --where=/opt/EDeN --with-doctest"
