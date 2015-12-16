@@ -136,7 +136,6 @@ setup(
         "pygraphviz",
         "pymf",
         "reportlab",
-        "requests-toolbelt",
         "requests",
         "scikit-learn >= 0.17.0",
         "scikit-neuralnetwork",
