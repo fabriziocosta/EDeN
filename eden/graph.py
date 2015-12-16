@@ -731,7 +731,10 @@ class Vectorizer(AbstractVectorizer):
                 # create a list of hashed labels
                 hash_label_list = []
                 for v in node_set:
-                    vhlabel = graph.node[v]['hlabel'][label_index]
+                    # compute the vertex hashed label by hashing the hlabel field of position label_index
+                    # with the degree of the vertex (obtained as the size of the adjacency dictionary
+                    # for the vertex v)
+                    vhlabel = fast_hash_2(graph.node[v]['hlabel'][label_index], len(graph[v]), self.bitmask)
                     hash_label_list.append(vhlabel)
                 # sort it
                 hash_label_list.sort()
