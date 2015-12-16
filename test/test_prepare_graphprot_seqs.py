@@ -1,4 +1,4 @@
-from re import search
+# from re import search
 from scripttest import TestFileEnvironment
 
 bindir = "graphprot/"
