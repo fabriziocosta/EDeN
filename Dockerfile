@@ -18,21 +18,21 @@ RUN apt-get -qq update && apt-get install --no-install-recommends -y apt-transpo
 
 # requests: system level package has a bug that makes installing from requirements.txt fail
 RUN pip install distribute --upgrade && \
-    pip install "requests==2.7.0"
+    pip install "requests==2.7.0" >> install.log
 
 # weblogo installation from requirements.txt complains about missing numpy, so install beforehand
-RUN pip install "numpy==1.8.0"
+RUN pip install "numpy==1.8.0" >> install.log
 
 # scikit-learn installation from requirements.txt complains about missing scipy, so install beforehand
-RUN pip install "scipy==0.14.0"
+RUN pip install "scipy==0.14.0" >> install.log
 
 # install from local copy of requirements.txt, changes in this file invalidate the cache
 ADD requirements.txt .
 ADD setup.py .
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt >> install.log
 
 RUN apt-get remove -y --purge libzmq-dev python-dev software-properties-common libc-dev libreadline-dev && \
-    apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    apt-get autoremove -y && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* install.log
 
 RUN mkdir /opt/EDeN
 ADD . /opt/EDeN/
