@@ -19,6 +19,7 @@ RUN apt-get -qq update && \
     build-essential libblas-dev liblapack-dev git-core wget software-properties-common python-pygraphviz \
     libopenbabel-dev swig libjpeg62-dev && \
     add-apt-repository ppa:bibi-help/bibitools && add-apt-repository ppa:j-4/vienna-rna && \
+    apt-get -qq update && \
     apt-get install --no-install-recommends -y rnashapes vienna-rna && \
     pip install distribute --upgrade && \
     pip install "requests==2.7.0" "numpy==1.8.0" "scipy==0.14.0" >> install.log && \
