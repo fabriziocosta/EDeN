@@ -74,7 +74,7 @@ def gspan_to_networkx(header, lines):
             src = int(tokens[1])
             dst = int(tokens[2])
             label = tokens[3]
-            graph.add_edge(src, dst, label=label)
+            graph.add_edge(src, dst, label=label, len=1)
             attribute_str = ' '.join(tokens[4:])
             if attribute_str.strip():
                 attribute_dict = json.loads(attribute_str)

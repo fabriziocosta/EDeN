@@ -939,3 +939,22 @@ class Vectorizer(AbstractVectorizer):
                 vertex_id += 1
         data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
         return data_matrix
+
+    def components(self, graphs, estimator=None, score_threshold=0, min_size=2):
+        annotated_graphs = self.annotate(graphs, estimator=estimator, reweight=1.0, relabel=False)
+        for graph in annotated_graphs:
+            connected_components = self._extract_connected_components(graph,
+                                                                      score_threshold=score_threshold,
+                                                                      min_size=min_size)
+            for connected_component in connected_components:
+                yield connected_component
+
+    def _extract_connected_components(self, graph, score_threshold=0, min_size=2):
+        # remove all vertices that have an importance score less then score_threshold
+        for v, d in graph.nodes_iter(data=True):
+            if d.get(self.key_importance, False):
+                if d[self.key_importance] < score_threshold:
+                    graph.remove_node(v)
+        for cc in nx.connected_component_subgraphs(graph):
+            if len(cc) >= min_size:
+                yield cc
