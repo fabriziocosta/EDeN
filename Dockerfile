@@ -22,12 +22,12 @@ RUN apt-get -qq update && \
     apt-get -qq update && \
     apt-get install --no-install-recommends -y rnashapes vienna-rna && \
     pip install distribute --upgrade && \
-    pip install "requests==2.7.0" "numpy==1.8.0" "scipy==0.14.0" >> install.log && \
-    pip install -r requirements.txt >> install.log && \
+    pip install "requests==2.7.0" "numpy==1.8.0" "scipy==0.14.0" && \
+    pip install -r requirements.txt && \
     apt-get remove -y --purge libzmq-dev software-properties-common libc-dev libreadline-dev && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* install.log
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 RUN mkdir /opt/EDeN
 ADD . /opt/EDeN/
