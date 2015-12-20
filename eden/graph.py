@@ -8,9 +8,12 @@ from numpy.linalg import norm
 from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
 import itertools
+import joblib
 import networkx as nx
-from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
+from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
+from eden.util import serialize_dict
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -103,6 +106,7 @@ class Vectorizer(AbstractVectorizer):
                  key_original_label='original_label',
                  key_entity='entity'):
 
+        self.name = self.__class__.__name__
         self.complexity = complexity
         if r is None:
             r = complexity
@@ -178,22 +182,13 @@ class Vectorizer(AbstractVectorizer):
             self.triangular_decomposition = True
 
     def __repr__(self):
-        representation = """graph.Vectorizer( r = %d, d = %d, n = %d, min_r = %d, min_d = %d, min_n = %d, \
-                         label_size = %d, nbits = %d, status = %s, normalization = %s, \
-                         inner_normalization = %s, triangular_decomposition = %s )""" % (
-            self.r / 2,
-            self.d / 2,
-            self.n,
-            self.min_r / 2,
-            self.min_d / 2,
-            self.min_n,
-            self.label_size,
-            self.nbits,
-            self.fit_status,
-            self.normalization,
-            self.inner_normalization,
-            self.triangular_decomposition)
-        return representation
+        return serialize_dict(self.__dict__, offset='large')
+
+    def save(self, model_name):
+        joblib.dump(self, model_name, compress=1)
+
+    def load(self, obj):
+        self.__dict__.update(joblib.load(obj).__dict__)
 
     def fit(self, graphs):
         """Fit the discretizer to the real valued vector data stored in the nodes of the graphs.
@@ -604,7 +599,10 @@ class Vectorizer(AbstractVectorizer):
 
         out_graph = graph.copy()
         for u, v, w in triangles:
-            out_graph = nx.disjoint_union(out_graph, nx.Graph(graph.subgraph([u, v, w])))
+            triangle_graph = nx.Graph(graph.subgraph([u, v, w]))
+            for i in triangle_graph.nodes():
+                triangle_graph.node[i]['triangle'] = True
+            out_graph = nx.disjoint_union(out_graph, triangle_graph)
         return out_graph
 
     def _graph_preprocessing(self, original_graph):
@@ -720,6 +718,11 @@ class Vectorizer(AbstractVectorizer):
                 self._compute_neighborhood_graph_hash(u, graph)
 
     def _compute_neighborhood_graph_hash(self, root, graph):
+        # compute different hash encodings if the graph belongs to a triangular component
+        if graph[root].get('triangle', False):
+            hash_func_code = 2
+        else:
+            hash_func_code = 1
         hash_neighborhood_list = []
         # for all labels
         for label_index in range(graph.graph['label_size']):
@@ -734,7 +737,9 @@ class Vectorizer(AbstractVectorizer):
                     # compute the vertex hashed label by hashing the hlabel field of position label_index
                     # with the degree of the vertex (obtained as the size of the adjacency dictionary
                     # for the vertex v)
-                    vhlabel = fast_hash_2(graph.node[v]['hlabel'][label_index], len(graph[v]), self.bitmask)
+                    vhlabel = fast_hash_3(hash_func_code,
+                                          graph.node[v]['hlabel'][label_index],
+                                          len(graph[v]), self.bitmask)
                     hash_label_list.append(vhlabel)
                 # sort it
                 hash_label_list.sort()

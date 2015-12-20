@@ -65,6 +65,10 @@ def fast_hash_2(dat_1, dat_2, bitmask):
     return int(hash((dat_1, dat_2)) & bitmask) + 1
 
 
+def fast_hash_3(dat_1, dat_2, dat_3, bitmask):
+    return int(hash((dat_1, dat_2, dat_3)) & bitmask) + 1
+
+
 def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
     return int(hash((dat_1, dat_2, dat_3, dat_4)) & bitmask) + 1
 

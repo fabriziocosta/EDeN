@@ -146,6 +146,10 @@ class Projector(object):
             raise Exception('Error: attempt to use transform on non fit model')
         if self.selected_instances.shape[0] == 0:
             raise Exception('Error: attempt to use transform using 0 selectors')
+        # TODO: the first instance is more important than others in a selector, so it should
+        # receive a weight proportional to the rank e.g. 1/rank^p
+        # the selector should return also a rank information for each feature, note: for the
+        # composite selector it is important to distinguish the rank of multiple selectors
         data_matrix_out = pairwise_kernels(data_matrix,
                                            Y=self.selected_instances,
                                            metric=self.metric,
