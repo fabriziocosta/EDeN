@@ -7,6 +7,7 @@ FROM dmaticzka/docker-edenbase:latest
 MAINTAINER Björn A. Grüning, bjoern.gruening@gmail.com and Fabrizio Costa
 
 ADD requirements.txt .
+RUN pip install -r requirements.txt
 
 RUN mkdir /opt/EDeN
 ADD . /opt/EDeN/
