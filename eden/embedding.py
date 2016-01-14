@@ -969,7 +969,7 @@ def embed_dat_matrix_two_dimensions(low_dimension_data_matrix,
             label = labels[id]
             x = low_dimension_data_matrix[id, 0]
             y = low_dimension_data_matrix[id, 1]
-            plt.annotate(label, xy=(x, y), xytext = (0, 0), textcoords = 'offset points')
+            plt.annotate(label, xy=(x, y), xytext=(0, 0), textcoords='offset points')
 
 
 def quick_shift_tree_embedding(data_matrix,
