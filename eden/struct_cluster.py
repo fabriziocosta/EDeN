@@ -20,7 +20,6 @@ logger = logging.getLogger(__name__)
 class Transformer(object):
 
     def __init__(self, start_end_weight_list=[(-1, -1, 1)],
-                 listof_start_end_weight_list=None,
                  contraction_weight_scaling_factor=2.0,
                  contraction_level=2,
                  window_size=50,
