@@ -22,6 +22,21 @@ You can install EDeN with pip directly from github.
 pip install git+https://github.com/fabriziocosta/EDeN.git --user
 ```
 
+Docker
+======
+
+You can create a docker image containing your versions of EDeN with all necessary dependencies installed using the command
+
+```bash
+docker build -t eden .
+```
+
+Running this image will start a Jupyter notebook server. You can access this server on your machine via [http://localhost:8080](http://localhost:8080). Using  option ```-v /home/user/EDeN/examples/:/export/``` will make the notebooks in your local folder ```/home/user/EDeN/examples/``` accessible to Jupyter.
+
+```bash
+docker run -i -p 8080:8888 -v /home/user/EDeN/examples/:/export/ eden
+```
+
 References
 ==========
 
@@ -37,7 +52,7 @@ Steffen Heyne, Fabrizio Costa, Dominic Rose, and Rolf Backofen,"GraphClust: alig
 Kousik Kundu, Fabrizio Costa, and Rolf Backofen, "A graph kernel approach for alignment-free domain-peptide interaction prediction with an application to human SH3 domains", Bioinformatics, 29 no. 13 pp. i335-i343, 2013. ([ref](http://bioinformatics.oxfordjournals.org/content/29/13/i335))
 
 
-P. Frasconi, F. Costa, K. De Grave, L. De Raedt,"kLog: A Language for Logical and Relational Learning with Kernels", Artificial Intelligence, 2014. ([ref](http://www.sciencedirect.com/science/article/pii/S0004370214001064)) 
+P. Frasconi, F. Costa, K. De Grave, L. De Raedt,"kLog: A Language for Logical and Relational Learning with Kernels", Artificial Intelligence, 2014. ([ref](http://www.sciencedirect.com/science/article/pii/S0004370214001064))
 
 Omer S. Alkhnbashi, Fabrizio Costa, Shiraz A. Shah, Roger A. Garrett, Sita J. Saunders and Rolf Backofen, "CRISPRstrand: Predicting repeat orientations to determine the crRNA-encoding strand at CRISPR loci", ECCB, 13th European Conference on Computational Biology, 2014. ([ref](http://www.ncbi.nlm.nih.gov/pmc/articles/PMC4147912/))
 
