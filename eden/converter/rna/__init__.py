@@ -1,3 +1,5 @@
+import networkx as nx
+
 __author__ = "Fabrizio Costa, Bjoern Gruening"
 __copyright__ = "Copyright 2014, Fabrizio Costa"
 __credits__ = ["Fabrizio Costa", "Bjoern Gruening"]
@@ -6,9 +8,6 @@ __version__ = "0.1"
 __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburgraph.de"
 __status__ = "Production"
-
-
-import networkx as nx
 
 
 def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):

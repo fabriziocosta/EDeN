@@ -10,13 +10,6 @@
    forgi: https://github.com/pkerpedjiev/forgi
    """
 
-__author__ = "Peter Kerpedjiev"
-__copyright__ = "Copyright 2012, 2013, 2014"
-__version__ = "0.2"
-__maintainer__ = "Peter Kerpedjiev"
-__email__ = "pkerp@tbi.univie.ac.at"
-
-
 import sys
 import collections as col
 
@@ -28,6 +21,11 @@ import random
 import shutil
 import tempfile as tf
 
+__author__ = "Peter Kerpedjiev"
+__copyright__ = "Copyright 2012, 2013, 2014"
+__version__ = "0.2"
+__maintainer__ = "Peter Kerpedjiev"
+__email__ = "pkerp@tbi.univie.ac.at"
 
 bracket_left = "([{<ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 bracket_right = ")]}>abcdefghijklmnopqrstuvwxyz"

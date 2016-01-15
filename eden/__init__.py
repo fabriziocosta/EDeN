@@ -1,3 +1,6 @@
+import dill
+from itertools import izip_longest
+
 __author__ = "Fabrizio Costa"
 __copyright__ = "Copyright 2015, Fabrizio Costa"
 __credits__ = ["Fabrizio Costa", "Bjoern Gruening"]
@@ -6,9 +9,6 @@ __version__ = "0.1"
 __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
-
-import dill
-from itertools import izip_longest
 
 
 class AbstractVectorizer(object):
