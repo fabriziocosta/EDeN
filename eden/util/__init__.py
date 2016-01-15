@@ -336,8 +336,7 @@ def fit_estimator(estimator,
 
 def fit(iterable_pos, iterable_neg=None,
         vectorizer=None,
-        estimator=SGDClassifier(
-            average=True, class_weight='balanced', shuffle=True),
+        estimator=SGDClassifier(average=True, class_weight='balanced', shuffle=True),
         fit_flag=False,
         n_jobs=-1,
         cv=10,

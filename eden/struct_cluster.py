@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class PreProcessor(object):
+class Transformer(object):
 
     def __init__(self, start_end_weight_list=[(-1, -1, 1)],
                  listof_start_end_weight_list=None,
@@ -34,10 +34,6 @@ class PreProcessor(object):
         ----------
         start_end_weight_list : list or triplets
             Each triplet specifies the start, end and (constant) weight. Positions are 0 based.
-
-        listof_start_end_weight_list : list of start_end_weight_lists
-            Each element in listof_start_end_weight_list specifies the start_end_weight_list
-            for a single graph.
 
         contraction_weight_scaling_factor : float (default 2.0)
             Multiplicative factor that scales the weight attribute on contracted nodes.
@@ -59,7 +55,6 @@ class PreProcessor(object):
         """
         self.name = self.__class__.__name__
         self.start_end_weight_list = start_end_weight_list
-        self.listof_start_end_weight_list = listof_start_end_weight_list
         self.contraction_weight_scaling_factor = contraction_weight_scaling_factor
         self.contraction_level = contraction_level
         self.window_size = window_size
@@ -70,13 +65,17 @@ class PreProcessor(object):
     def __repr__(self):
         return serialize_dict(self.__dict__, offset='large')
 
-    def transform(self, seqs):
+    def transform(self, seqs, listof_start_end_weight_list=None):
         """Transforms the sequences in input into graphs.
 
         Parameters
         ----------
         seqs : iterable strings
             Input sequences.
+
+        listof_start_end_weight_list : list of start_end_weight_lists
+            Each element in listof_start_end_weight_list specifies the start_end_weight_list
+            for a single graph.
 
         Returns
         -------
@@ -90,15 +89,15 @@ class PreProcessor(object):
                                    avg_bp_prob_cutoff=self.avg_bp_prob_cutoff,
                                    max_num_edges=self.max_num_edges)
 
-        if self.listof_start_end_weight_list is None:
+        if listof_start_end_weight_list is None:
             graphs = list_reweight(graphs, start_end_weight_list=self.start_end_weight_list)
             graphs = list_reweight(graphs, start_end_weight_list=self.start_end_weight_list,
                                    attribute='level')
         else:
             graphs = listof_list_reweight(graphs,
-                                          listof_start_end_weight_list=self.listof_start_end_weight_list)
+                                          listof_start_end_weight_list=listof_start_end_weight_list)
             graphs = listof_list_reweight(graphs,
-                                          listof_start_end_weight_list=self.listof_start_end_weight_list,
+                                          listof_start_end_weight_list=listof_start_end_weight_list,
                                           attribute='level')
         # annotate in node attribute 'type' the incident edges' labels
         graphs = vertex_attributes.incident_edge_label(graphs,
@@ -128,7 +127,7 @@ class PreProcessor(object):
 class StructCluster(object):
 
     def __init__(self,
-                 pre_processor=None,
+                 transformer=None,
                  vectorizer=Vectorizer(complexity=4, nbits=13),
                  clustering_algo=DBSCAN(),
                  distance_std_factor=2,
@@ -138,7 +137,7 @@ class StructCluster(object):
 
         Parameters
         ----------
-        pre_processor : initialized PreProcessor object
+        transformer : initialized PreProcessor object
             Transforms sequences to graphs that encode secondary structure information
             and weights nucleotides according to user defined list of intervals.
 
@@ -170,7 +169,7 @@ class StructCluster(object):
             List of sparse vectors resulting from the transformation of sequences into structures.
         """
         self.name = self.__class__.__name__
-        self.pre_processor = pre_processor
+        self.transformer = transformer
         self.vectorizer = vectorizer
         self.clustering_algo = clustering_algo
         self.distance_std_factor = distance_std_factor
@@ -200,15 +199,18 @@ class StructCluster(object):
                 self.__dict__.update({key: value})
         return self
 
-    def fit(self, seqs=None):
+    def fit(self, seqs=None, listof_start_end_weight_list=None):
         """Transforms the sequences in input into sparse vectors using
-        the pre_processor and the vectorizer.
+        the transformer and the vectorizer.
 
         Parameters
         ----------
         seqs : iterable strings
             Input sequences.
 
+        listof_start_end_weight_list : list of start_end_weight_lists
+            Each element in listof_start_end_weight_list specifies the start_end_weight_list
+            for a single graph.
 
         Attributes
         ----------
@@ -220,14 +222,14 @@ class StructCluster(object):
         -------
         self
         """
-        graphs = self.pre_processor.transform(seqs)
+        graphs = self.transformer.transform(seqs, listof_start_end_weight_list=listof_start_end_weight_list)
         self.data_matrix = self.vectorizer.transform(graphs)
         logger.debug('#instances:%d  #features:%d' % (self.data_matrix.shape[0], self.data_matrix.shape[1]))
         return self
 
     def predict(self, seqs=None):
         """Transforms the sequences in input into sparse vectors using
-        the pre_processor and the vectorizer.
+        the transformer and the vectorizer.
 
         Parameters
         ----------

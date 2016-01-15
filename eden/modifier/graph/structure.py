@@ -7,6 +7,8 @@ def delete_edge_type(graphs, edge_type_key='basepair'):
         for edge_src, edge_dest, edge_dat in graph.edges_iter(data=True):
             if edge_dat.get('type', None) == edge_type_key:
                 graph.remove_edge(edge_src, edge_dest)
+            if edge_dat.get(edge_type_key, False) is True:
+                graph.remove_edge(edge_src, edge_dest)
         yield graph
 
 
@@ -120,7 +122,7 @@ def serialize_modifiers(modifiers):
 def contraction(graphs=None,
                 contraction_attribute='label',
                 nesting=False,
-                scale=1,
+                contraction_weight_scaling_factor=1,
                 modifiers=modifiers,
                 **options):
     '''
@@ -138,7 +140,7 @@ def contraction(graphs=None,
     "categorical" returns the concatenation string of the lexicographically sorted list of input attributes,
     "set_categorical" returns the concatenation string of the lexicographically sorted set of input
     attributes.
-    scale: factor to multiply the weights of the contracted part
+    contraction_weight_scaling_factor: factor to multiply the weights of the contracted part
     '''
     for g in graphs:
         # check for 'position' attribute and add it if not present
@@ -159,9 +161,9 @@ def contraction(graphs=None,
                 g_contracted.node[n][modifier.attribute_out] = modifier_func(
                     input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
                 # rescale the weight of the contracted nodes
-                if scale != 1:
+                if contraction_weight_scaling_factor != 1:
                     w = d.get('weight', 1)
-                    w = w * scale
+                    w = w * contraction_weight_scaling_factor
                     g_contracted.node[n]['weight'] = w
         if nesting:  # add nesting edges between the constraction graph and the original graph
             g_nested = nx.disjoint_union(g, g_contracted)
