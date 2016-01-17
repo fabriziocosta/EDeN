@@ -194,6 +194,11 @@ class Vectorizer(AbstractVectorizer):
         self.relabel = relabel
 
         for seq in seqs:
+            if seq is None or len(seq) == 0:
+                raise Exception('ERROR: something went wrong, empty instance')
+            if len(seq) == 2 and len(seq[1]) > 0:
+                # assume the instance is a pair (header,seq) and extract only seq
+                seq = seq[1]
             yield self._annotate(seq)
 
     def _annotate(self, seq):
