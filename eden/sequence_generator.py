@@ -41,10 +41,6 @@ class SequenceGenerator(object):
         self.n_jobs = n_jobs
         self.n_differences = n_differences
         self.enhance = enhance
-        if self.enhance is True:
-            self.inhibit = False
-        else:
-            self.inhibit = True
         self.vectorizer = vectorizer
         self.estimator = None
 
@@ -84,7 +80,7 @@ class SequenceGenerator(object):
                              block_size=None)
         return self
 
-    def sample(self, seqs, n_seqs=1, show_score=False):
+    def sample(self, seqs, n_seqs=1, show_score=False, enhance=None, n_differences=None):
         """Generate sequences starting from input sequences that are 'better' if enhance is set to True
         ('worse' otherwise) given the set of sequences used in the fit phase.
 
@@ -100,12 +96,24 @@ class SequenceGenerator(object):
             If True the return type is a pair consisting of a score and a sequence. If
             False the return type is a sequence.
 
+        enhance : bool (default None)
+            If set to True then the score computed by the estimator will be higher for the sequences
+            generated than for the input sequences. If False than the score will be lower. If None
+            the state set in the initializer is used.
+
+        n_differences : int (default None)
+            Number of characters that differ for the generated sequence from the original input sequence.
+            If None the number set in the initializer is used.
+
         Returns
         -------
         sequences : iterable sequences
             List of sequences or (score, sequence) pairs if show_score is True.
         """
-
+        if enhance is not None:
+            self.enhance = enhance
+        if n_differences is not None:
+            self.n_differences = n_differences
         for seq in seqs:
             if show_score:
                 preds = predict(iterable=[seq],
@@ -129,10 +137,11 @@ class SequenceGenerator(object):
                         vectorizer=self.vectorizer,
                         mode='decision_function', n_blocks=5, block_size=None, n_jobs=self.n_jobs)
         sorted_pred_ids = np.argsort(preds)
-        if self.inhibit:
-            n_seqs_ids = sorted_pred_ids[:n_seqs]
-        else:
+        if self.enhance:
             n_seqs_ids = sorted_pred_ids[-n_seqs:]
+            n_seqs_ids = n_seqs_ids[::-1]
+        else:
+            n_seqs_ids = sorted_pred_ids[:n_seqs]
         if show_score:
             return zip(np.array(preds)[n_seqs_ids], np.array(gen_seqs)[n_seqs_ids])
         else:
