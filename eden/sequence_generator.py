@@ -9,7 +9,35 @@ logger = logging.getLogger(__name__)
 
 class SequenceGenerator(object):
 
-    def __init__(self, n_differences=1, enhance=True, vectorizer=Vectorizer(complexity=3), n_jobs=1):
+    def __init__(self,
+                 n_differences=1,
+                 enhance=True,
+                 vectorizer=Vectorizer(complexity=3),
+                 n_jobs=-1,
+                 random_state=1):
+        """Generate sequences starting from input sequences that are 'better' if enhance is set to True
+        ('worse' otherwise) given the set of sequences used in the fit phase.
+
+        Parameters
+        ----------
+        n_differences : int (default 1)
+            Number of characters that differ for the generated sequence from the original input sequence.
+
+        enhance : bool (default True)
+            If set to True then the score computed by the estimator will be higher for the sequences
+            generated than for the input sequences. If False than the score will be lower.
+
+        vectorizer : EDeN sequence vectorizer
+            The vectorizer to map sequences to sparse vectors.
+
+        n_jobs : int (default -1)
+            The number of cores to use in parallel. -1 indicates all available.
+
+        random_state: int (default 1)
+            The random seed.
+        """
+
+        self.random_state = random_state
         self.n_jobs = n_jobs
         self.n_differences = n_differences
         self.enhance = enhance
@@ -20,19 +48,64 @@ class SequenceGenerator(object):
         self.vectorizer = vectorizer
         self.estimator = None
 
-    def fit(self, pos_seqs, neg_seqs=None):
+    def fit(self, pos_seqs, neg_seqs=None, times=2, order=2):
+        """Fit an estimator to discriminate the pos_seqs from the neg_seqs.
+
+        Parameters
+        ----------
+        pos_seqs : iterable strings
+            Input sequences.
+
+        neg_seqs : iterable strings (default: None)
+            If not None the program uses these as negative examples. If
+            it is None, then negative sequences are generated as random
+            shuffling of the positive sequences.
+
+        times: int (default: 2)
+            Factor between number of negatives and number of positives.
+
+        order: int (default: 2)
+            Size of the minimum block to shuffle: 1 means shuffling single characters,
+            2 means shuffling pairs of characters, etc.
+
+        Returns
+        -------
+        self.
+        """
+
         if neg_seqs is None:
-            neg_seqs = list(seq_to_seq(pos_seqs, modifier=shuffle_modifier, times=2, order=2))
+            neg_seqs = list(seq_to_seq(pos_seqs, modifier=shuffle_modifier, times=times, order=order))
         self.estimator = fit(pos_seqs, neg_seqs, self.vectorizer,
                              n_jobs=self.n_jobs,
                              cv=10,
                              n_iter_search=1,
-                             random_state=1,
+                             random_state=self.random_state,
                              n_blocks=5,
                              block_size=None)
         return self
 
     def sample(self, seqs, n_seqs=1, show_score=False):
+        """Generate sequences starting from input sequences that are 'better' if enhance is set to True
+        ('worse' otherwise) given the set of sequences used in the fit phase.
+
+        Parameters
+        ----------
+        seqs : iterable strings
+            Input sequences.
+
+        n_seqs : int (default: 1)
+            Number of sequences to be generated starting from each sequence in input.
+
+        show_score: bool (default: False)
+            If True the return type is a pair consisting of a score and a sequence. If
+            False the return type is a sequence.
+
+        Returns
+        -------
+        sequences : iterable sequences
+            List of sequences or (score, sequence) pairs if show_score is True.
+        """
+
         for seq in seqs:
             if show_score:
                 preds = predict(iterable=[seq],
