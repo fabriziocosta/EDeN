@@ -57,8 +57,8 @@ class Annotator:
 
         # transform sets to lists
         for n, d in graph.nodes(data=True):
-            d[part_id]= list(d[part_id])
-            d[part_name]= list(d[part_name])
+            d[part_id] = list(d[part_id])
+            d[part_name] = list(d[part_name])
 
         return graph
 
@@ -182,7 +182,6 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         visited = visited | frontier
         frontier = next
     return no_cycle_default
-
 
 
 '''
