@@ -2,11 +2,28 @@ import eden
 from collections import defaultdict
 
 
-class cycleAnnotation:
+class Annotator:
     def fit(self):
         pass
 
     def transform(self, graphs, part_id='part_id', part_name='part_name'):
+        '''
+        Parameters
+        ----------
+        graphs  nx.graph iterator
+        part_id  attributename to write the part_id
+        part_name attributename to write the part_name
+
+
+        Returns
+        -------
+        annotated graph.
+
+
+        it is important to see that the part_name is not equivalent to the part_id.
+        all circles may be called 'circle', but each structure has its own id.
+
+        '''
         for g in graphs:
             yield self._transform_single(g, part_id=part_id, part_name=part_name)
 
@@ -37,6 +54,12 @@ class cycleAnnotation:
             for nid in d['__cycle']:
                 graph.node[nid][part_id].add(idd)
                 graph.node[nid][part_name].add(name)
+
+        # transform sets to lists
+        for n, d in graph.nodes(data=True):
+            d[part_id]= list(d[part_id])
+            d[part_name]= list(d[part_name])
+
         return graph
 
 
@@ -159,3 +182,28 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         visited = visited | frontier
         frontier = next
     return no_cycle_default
+
+
+
+'''
+TESTING IN A NOTEBOOK:
+
+%matplotlib inline
+# get data
+from eden.converter.graph.gspan import gspan_to_eden
+from itertools import islice
+def get_graphs(dataset_fname, size=100):
+    return  islice(gspan_to_eden(dataset_fname),size)
+dataset_fname = 'toolsdata/bursi.pos.gspan'
+from graphlearn.utils import draw
+
+ca = cycleAnnotation()
+graphs=get_graphs(dataset_fname,10)
+
+for gg in graphs:
+    g = ca._transform_single(gg)
+    draw.graphlearn(g,n_graphs_per_line=2, size=20,
+                       colormap='Paired', invert_colormap=False,node_border=0.5,vertex_label='part_name',secondary_vertex_label='part_id',
+                       vertex_alpha=0.5, edge_alpha=0.4, node_size=200)
+
+'''
