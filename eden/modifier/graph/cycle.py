@@ -1,10 +1,12 @@
 import eden
 from collections import defaultdict
 
+from sklearn.base import BaseEstimator, ClassifierMixin
 
-class Annotator:
+
+class Annotator(BaseEstimator, ClassifierMixin):
     def fit(self):
-        pass
+        return self
 
     def transform(self, graphs, part_id='part_id', part_name='part_name'):
         '''

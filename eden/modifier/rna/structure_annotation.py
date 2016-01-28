@@ -1,10 +1,11 @@
 import networkx as nx
 import eden.modifier.rna.lib_forgi as lib_forgi
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 
-class Annotator:
+class Annotator(BaseEstimator, ClassifierMixin):
     def fit(self):
-        pass
+        return self
 
     def transform(self, graphs, part_id='part_id', part_name='part_name'):
         '''
