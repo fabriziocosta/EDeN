@@ -4,7 +4,7 @@
 
 FROM dmaticzka/docker-edenbase:latest
 
-MAINTAINER Daniel Maticzka, maticzkd@gmail.com,Björn A. Grüning, bjoern.gruening@gmail.com and Fabrizio Costa
+MAINTAINER Daniel Maticzka (maticzkd@gmail.com), Björn A. Grüning (bjoern.gruening@gmail.com) and Fabrizio Costa (xfcosta@gmail.com)
 
 ADD requirements.txt .
 RUN pip install -r requirements.txt
