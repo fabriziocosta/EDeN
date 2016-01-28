@@ -4,6 +4,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 
 class Annotator(BaseEstimator, ClassifierMixin):
+
     def fit(self):
         return self
 
@@ -27,7 +28,6 @@ class Annotator(BaseEstimator, ClassifierMixin):
             yield self._transform_single(g, part_id=part_id, part_name=part_name)
 
     def _transform_single(self, graph, part_id='part_id', part_name='part_name'):
-
         '''
         you have generated graphs  like this and want a forgi annotation now:
 
@@ -118,7 +118,9 @@ def forgi_to_graph(forgi, ignore_inserts=False):
         while len(numbers) > 1:
             a, b = numbers[:2]
             numbers = numbers[2:]
-            for n in range(a - 1, b): ans.add(n)  # should be range a,b+1 but the biologists are weired
+            # should be range a,b+1 but the biologists are weired
+            for n in range(a - 1, b):
+                ans.add(n)
         return ans
 
     def get_pairs(things):
@@ -259,7 +261,8 @@ g= f._transform_single(g)
 
 #draw
 draw.graphlearn(g,n_graphs_per_line=2, size=20,
-                       colormap='Paired', invert_colormap=False,node_border=0.5,vertex_label='part_name',secondary_vertex_label='part_id',
+                       colormap='Paired', invert_colormap=False,node_border=0.5,vertex_label='part_name',
+                       secondary_vertex_label='part_id',
                        vertex_alpha=0.5, edge_alpha=0.4, node_size=200)
 
 '''

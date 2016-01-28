@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 
 class Annotator(BaseEstimator, ClassifierMixin):
+
     def fit(self):
         return self
 
@@ -30,8 +31,7 @@ class Annotator(BaseEstimator, ClassifierMixin):
             yield self._transform_single(g, part_id=part_id, part_name=part_name)
 
     def _transform_single(self, graph, part_id='part_id', part_name='part_name'):
-        # letz annotateo oOoO 
-
+        # letz annotateo oOoO
 
         # make basic annotation
         for n, d in graph.nodes(data=True):
@@ -50,7 +50,7 @@ class Annotator(BaseEstimator, ClassifierMixin):
         for n, d in graph.nodes(data=True):
             idd = fhash(d['__cycle'])
             name = namedict.get(idd, None)
-            if name == None:
+            if name is None:
                 name = get_name(graph, n)
                 namedict[idd] = name
             for nid in d['__cycle']:
@@ -98,8 +98,8 @@ def node_to_cycle(graph, n, min_cycle_size=3):
             :param root: root node. probably we dont really need this since the root node is the orphan
             :return: cyclenodes or none
 
-             --- mm we dont care if we get the shortest path.. that is true for cycle checking.. but may be a problem in
-             --- cycle finding.. dousurururururu?
+             --- mm we dont care if we get the shortest path.. that is true for cycle checking.. but may be a
+             problem in cycle finding.. dousurururururu?
             """
             current = work_list[-1]
             while current != root:
@@ -204,7 +204,8 @@ graphs=get_graphs(dataset_fname,10)
 for gg in graphs:
     g = ca._transform_single(gg)
     draw.graphlearn(g,n_graphs_per_line=2, size=20,
-                       colormap='Paired', invert_colormap=False,node_border=0.5,vertex_label='part_name',secondary_vertex_label='part_id',
+                       colormap='Paired', invert_colormap=False,node_border=0.5,vertex_label='part_name',
+                       secondary_vertex_label='part_id',
                        vertex_alpha=0.5, edge_alpha=0.4, node_size=200)
 
 '''
