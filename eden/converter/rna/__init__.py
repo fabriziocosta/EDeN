@@ -11,6 +11,20 @@ __status__ = "Production"
 
 
 def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
+    """
+
+    Parameters
+    ----------
+    seq_info string
+        node labels eg a sequence string
+    seq_struct  string
+        dotbracket string
+
+    Returns
+    -------
+        returns a nx.Graph
+        secondary struct associated with seq_struct
+    """
     graph = nx.Graph()
     lifo = list()
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
