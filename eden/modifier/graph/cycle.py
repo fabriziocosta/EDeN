@@ -5,7 +5,6 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 
 class Annotator(BaseEstimator, ClassifierMixin):
-
     def fit(self):
         return self
 
@@ -38,7 +37,7 @@ class Annotator(BaseEstimator, ClassifierMixin):
             d['__cycle'] = list(node_to_cycle(graph, n))
             d['__cycle'].sort()
             graph.node[n][part_id] = set()
-            graph.node[n][part_name] = set()
+            # graph.node[n][part_name] = set()
 
         # process cycle annotation
         def get_name(graph, n):
@@ -55,12 +54,12 @@ class Annotator(BaseEstimator, ClassifierMixin):
                 namedict[idd] = name
             for nid in d['__cycle']:
                 graph.node[nid][part_id].add(idd)
-                graph.node[nid][part_name].add(name)
+                # graph.node[nid][part_name].add(name)
 
         # transform sets to lists
         for n, d in graph.nodes(data=True):
             d[part_id] = list(d[part_id])
-            d[part_name] = list(d[part_name])
+            d[part_name] = [namedict[idd] for idd in d[part_id]]
 
         return graph
 

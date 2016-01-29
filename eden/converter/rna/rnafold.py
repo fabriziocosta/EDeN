@@ -29,7 +29,19 @@ def string_to_networkx(header, sequence, **options):
 
 
 def rnafold_to_eden(iterable=None, **options):
-    assert(is_iterable(iterable)), 'Not iterable'
+    '''
+
+    Parameters
+    ----------
+    iterable: over (header_string, sequence_string)
+
+    options
+
+    Returns
+    -------
+        nx.graph generator
+    '''
+    assert (is_iterable(iterable)), 'Not iterable'
     for header, seq in iterable:
         try:
             graph = string_to_networkx(header, seq, **options)
