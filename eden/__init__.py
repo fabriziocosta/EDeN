@@ -1,5 +1,6 @@
 import dill
 from itertools import izip_longest
+from sklearn.base import BaseEstimator, TransformerMixin
 
 __author__ = "Fabrizio Costa"
 __copyright__ = "Copyright 2015, Fabrizio Costa"
@@ -11,7 +12,7 @@ __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
 
 
-class AbstractVectorizer(object):
+class AbstractVectorizer(BaseEstimator, TransformerMixin):
 
     """Interface declaration for the Vectorizer class """
 

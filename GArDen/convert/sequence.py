@@ -1,12 +1,12 @@
 from eden import util
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 
 import logging
 logger = logging.getLogger(__name__)
 
 
-class FastaToPathGraph(BaseEstimator, ClassifierMixin):
+class FastaToPathGraph(BaseEstimator, TransformerMixin):
 
     """
     Transform FASTA files into path graphs.
@@ -25,21 +25,26 @@ class FastaToPathGraph(BaseEstimator, ClassifierMixin):
         '''
         Parameters
         ----------
-        data :
+        data : filename or url or iterable
+            Data source containing sequences information in FASTA format.
 
 
         Returns
         -------
         Iterator over networkx graphs.
         '''
-        seqs = self.fasta_to_fasta(data)
-        for header, seq in seqs:
-            yield self.seq_to_networkx(header, seq)
+        try:
+            seqs = self.fasta_to_fasta(data)
+            for header, seq in seqs:
+                yield self.seq_to_networkx(header, seq)
+        except Exception as e:
+            print e.__doc__
+            print e.message
 
     def seq_to_networkx(self, header, seq):
         """Convert sequence tuples to networkx graphs."""
         graph = nx.Graph()
-        graph.graph['id'] = header
+        graph.graph['header'] = header
         for id, character in enumerate(seq):
             graph.add_node(id, label=character, position=id)
             if id > 0:
