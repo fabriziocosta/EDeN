@@ -20,7 +20,8 @@ logger = logging.getLogger(__name__)
 
 class Vectorizer(AbstractVectorizer):
 
-    """Transform real vector labeled, weighted, nested graphs in sparse vectors.
+    """
+    Transform real vector labeled, weighted, nested graphs in sparse vectors.
 
     Parameters
     ----------
