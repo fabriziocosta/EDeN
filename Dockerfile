@@ -4,7 +4,7 @@
 
 FROM dmaticzka/docker-edenbase:latest
 
-MAINTAINER Daniel Maticzka (maticzkd@gmail.com), Björn A. Grüning (bjoern.gruening@gmail.com) and Fabrizio Costa (xfcosta@gmail.com)
+MAINTAINER Daniel Maticzka (maticzkd@informatik.uni-freiburg.de), Björn A. Grüning (bjoern.gruening@gmail.com) and Fabrizio Costa (xfcosta@gmail.com)
 
 ADD requirements.txt .
 RUN pip install -r requirements.txt
@@ -25,5 +25,6 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /usr/
 RUN chmod +x /usr/bin/tini
 ENTRYPOINT ["/usr/bin/tini", "--"]
 
+RUN mkdir /export
 EXPOSE 8888
 CMD ["jupyter", "notebook", "--port=8888", "--no-browser", "--ip=0.0.0.0", "--notebook-dir=/export/"]
