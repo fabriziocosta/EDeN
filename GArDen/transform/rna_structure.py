@@ -10,19 +10,19 @@ logger = logging.getLogger(__name__)
 
 def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
     """
-
     Parameters
     ----------
-    seq_info string
+    seq_info : string
         node labels eg a sequence string
-    seq_struct  string
+
+    seq_struct : string
         dotbracket string
 
     Returns
     -------
-        returns a nx.Graph
-        secondary struct associated with seq_struct
+    A nx.Graph secondary struct associated with seq_struct
     """
+
     graph = nx.Graph()
     lifo = list()
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
@@ -67,8 +67,8 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
             for graph in graphs:
                 yield self.string_to_networkx(graph.graph['header'], graph.graph['sequence'])
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
     def rnafold_wrapper(self, sequence):
         # defaults
@@ -156,8 +156,8 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
                 for structure in structures:
                     yield structure
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
     def string_to_networkx(self, header, sequence):
         seq_info, seq_struct_list, struct_list = self.rnashapes_wrapper(sequence,
@@ -260,8 +260,8 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
             for graph in graphs:
                 yield self.string_to_networkx(graph.graph['header'], graph.graph['sequence'])
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
     def rnaplfold_wrapper(self,
                           sequence,
@@ -393,12 +393,15 @@ class PathGraphToRNASubopt(BaseEstimator, TransformerMixin):
         '''
         try:
             for graph in graphs:
-                structures = self.string_to_networkx(graph.graph['header'], graph.graph['sequence'])
+                header = graph.graph['header']
+                sequence = graph.graph['sequence']
+                constraint = graph.graph.get('sequence', None)
+                structures = self.string_to_networkx(header=header, sequence=sequence, constraint=constraint)
                 for structure in structures:
                     yield structure
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
     def difference(self, seq_a, seq_b):
         ''' Compute the number of characters that are different between the two sequences.'''
@@ -435,34 +438,31 @@ class PathGraphToRNASubopt(BaseEstimator, TransformerMixin):
         # extract surviving elements, i.e. element that have 0 on the diagonal
         return np.array([i for i, x in enumerate(np.diag(diff_matrix)) if x == 0])
 
-    def rnasubopt_wrapper(self, sequence, energy_range=None, max_num=None, max_num_subopts=None):
+    def rnasubopt_wrapper(self, sequence, constraint=None):
         # command line
-        cmd = 'echo "%s" | RNAsubopt -e %d' % (sequence, energy_range)
+        if constraint is None:
+            cmd = 'echo "%s" | RNAsubopt -e %d' % (sequence, self.energy_range)
+        else:
+            cmd = 'echo "%s\n%s" | RNAsubopt -C -e %d' % (sequence, constraint, self.energy_range)
         out = sp.check_output(cmd, shell=True)
         # parse output
         text = out.strip().split('\n')
-        seq_struct_list = [line.split()[0] for line in text[1:max_num_subopts]]
-        energy_list = [line.split()[1] for line in text[1:max_num_subopts]]
-        selected_ids = self.max_difference_subselection(seq_struct_list, scores=energy_list, max_num=max_num)
+        seq_struct_list = [line.split()[0] for line in text[1:self.max_num_subopts]]
+        energy_list = [line.split()[1] for line in text[1:self.max_num_subopts]]
+        selected_ids = self.max_difference_subselection(seq_struct_list,
+                                                        scores=energy_list,
+                                                        max_num=self.max_num)
         np_seq_struct_list = np.array(seq_struct_list)
         selected_seq_struct_list = list(np_seq_struct_list[selected_ids])
         selected_energy_list = list(np.array(energy_list)[selected_ids])
         return selected_seq_struct_list, selected_energy_list
 
-    def string_to_networkx(self, header, sequence, **options):
-        # defaults
-        energy_range = options.get('energy_range', 10)
-        max_num = options.get('max_num', 3)
-        max_num_subopts = options.get('max_num_subopts', 100)
-        split_components = options.get('split_components', False)
-        seq_struct_list, energy_list = self.rnasubopt_wrapper(sequence,
-                                                              energy_range=energy_range,
-                                                              max_num=max_num,
-                                                              max_num_subopts=max_num_subopts)
-        if split_components:
+    def string_to_networkx(self, header=None, sequence=None, constraint=None):
+        seq_struct_list, energy_list = self.rnasubopt_wrapper(sequence)
+        if self.split_components:
             for seq_struct, energy in zip(seq_struct_list, energy_list):
                 graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)
-                graph.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, max_num)
+                graph.graph['info'] = 'RNAsubopt energy=%s max_num=%s' % (energy, self.max_num)
                 graph.graph['id'] = header
                 graph.graph['sequence'] = sequence
                 graph.graph['structure'] = seq_struct
@@ -470,7 +470,8 @@ class PathGraphToRNASubopt(BaseEstimator, TransformerMixin):
         else:
             graph_global = nx.Graph()
             graph_global.graph['id'] = header
-            graph_global.graph['info'] = 'RNAsubopt energy_range=%s max_num=%s' % (energy_range, max_num)
+            graph_global.graph['info'] = 'RNAsubopt energy_range=%s max_num=%s' % \
+                (self.energy_range, self.max_num)
             graph_global.graph['sequence'] = sequence
             for seq_struct in seq_struct_list:
                 graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)

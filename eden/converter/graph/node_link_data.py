@@ -31,3 +31,11 @@ def eden_to_node_link_data(graph_list):
         json_data = json_graph.node_link_data(G)
         serial_data = json.dumps(json_data)
         yield serial_data
+
+
+def eden_to_node_link_file(graph_list, fname):
+    """Takes a list of networkx graphs and writes a serialised node_link_data JSON file."""
+    with open(fname, 'w') as f:
+        serials = eden_to_node_link_data(graph_list)
+        for serial in serials:
+            f.write('%s\n' % serial)

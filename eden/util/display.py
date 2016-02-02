@@ -3,6 +3,7 @@ import pylab as plt
 from matplotlib.font_manager import FontProperties
 import json
 from networkx.readwrite import json_graph
+from eden.util import _serialize_list
 
 
 class SetEncoder(json.JSONEncoder):
@@ -41,7 +42,7 @@ def draw_graph(graph,
                invert_colormap=False,
                verbose=True,
                file_name=None,
-               title_key='info',
+               title_key='id',
                ignore_for_layout="edge_attribute"):
     if size is not None:
         size_x = size
@@ -52,11 +53,16 @@ def draw_graph(graph,
 
     if vertex_label is not None:
         if secondary_vertex_label:
-            vertex_labels = dict([(u, '%s\n%s' % (d.get(vertex_label, 'N/A'),
-                                                  d.get(secondary_vertex_label, 'N/A')))
-                                  for u, d in graph.nodes(data=True)])
+            vertex_labels = dict()
+            for u, d in graph.nodes(data=True):
+                label1 = _serialize_list(d.get(vertex_label, 'N/A'))
+                label2 = _serialize_list(d.get(secondary_vertex_label, 'N/A'))
+                vertex_labels[u] = '%s\n%s' % (label1, label2)
         else:
-            vertex_labels = dict([(u, d.get(vertex_label, 'N/A')) for u, d in graph.nodes(data=True)])
+            vertex_labels = dict()
+            for u, d in graph.nodes(data=True):
+                label = d.get(vertex_label, 'N/A')
+                vertex_labels[u] = _serialize_list(label)
 
     edges_normal = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is False]
     edges_nesting = [(u, v) for (u, v, d) in graph.edges(data=True) if d.get('nesting', False) is True]
@@ -73,7 +79,10 @@ def draw_graph(graph,
         node_color = 'white'
     elif vertex_color == '_labels_' or vertex_color == '_label_' or \
             vertex_color == '__labels__' or vertex_color == '__label__':
-        node_color = [hash(d.get('label', '.')) for u, d in graph.nodes(data=True)]
+        node_color = []
+        for u, d in graph.nodes(data=True):
+            label = d.get('label', '.')
+            node_color.append(hash(_serialize_list(label)))
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
@@ -81,14 +90,16 @@ def draw_graph(graph,
             node_color = [d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
 
     if edge_color is None:
-        edge_color = 'black'
-    elif edge_color == '_labels_':
-        edge_color = [hash(d.get('label', '.')) for u, v, d in graph.edges(data=True)]
+        edge_colors = 'black'
+    elif edge_color == '_labels_' or edge_color == '_label_' or \
+            edge_color == '__labels__' or edge_color == '__label__':
+        edge_colors = [hash(str(d.get('label', '.')))
+                       for u, v, d in graph.edges(data=True) if 'nesting' not in d]
     else:
         if invert_colormap:
-            edge_color = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
+            edge_colors = [- d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
         else:
-            edge_color = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
+            edge_colors = [d.get(edge_color, 0) for u, v, d in graph.edges(data=True) if 'nesting' not in d]
 
     tmp_edge_set = [(a, b, d) for (a, b, d) in graph.edges(data=True) if ignore_for_layout in d]
     graph.remove_edges_from(tmp_edge_set)
@@ -127,7 +138,7 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=2,
-                           edge_color=edge_color,
+                           edge_color=edge_colors,
                            cmap=plt.get_cmap(colormap),
                            alpha=edge_alpha)
     nx.draw_networkx_edges(graph, pos,

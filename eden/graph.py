@@ -10,7 +10,7 @@ from collections import defaultdict, deque
 import itertools
 import joblib
 import networkx as nx
-from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_3, fast_hash_4
+from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
 from eden import AbstractVectorizer
 from eden.util import serialize_dict
 
@@ -64,10 +64,6 @@ class Vectorizer(AbstractVectorizer):
         'normalization' flag it will be applied first and then the resulting feature vector
         will be normalized.
 
-    triangular_decomposition : bool (default False)
-        Flag to add to each graph the disjoint set of triangles. This
-        allows also dense graphs to be processed.
-
     key_label : string (default 'label')
         The key used to indicate the label information in nodes.
 
@@ -99,7 +95,6 @@ class Vectorizer(AbstractVectorizer):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
-                 triangular_decomposition=False,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -133,7 +128,6 @@ class Vectorizer(AbstractVectorizer):
         self.feature_size = self.bitmask + 2
         self.discretization_models = dict()
         self.fit_status = None
-        self.triangular_decomposition = triangular_decomposition
         self.key_label = key_label
         self.key_weight = key_weight
         self.key_nesting = key_nesting
@@ -177,10 +171,6 @@ class Vectorizer(AbstractVectorizer):
         # Note: if the discretization is active then label_size cannot be larger than n-min_n
         if self.n > 1:
             self.label_size = min(self.n - self.min_n, self.label_size)
-        if args.get('triangular_decomposition', None) is not None:
-            self.triangular_decomposition = args['triangular_decomposition']
-        else:
-            self.triangular_decomposition = True
 
     def __repr__(self):
         return serialize_dict(self.__dict__, offset='large')
@@ -588,30 +578,8 @@ class Vectorizer(AbstractVectorizer):
         else:
             return original_graph
 
-    def _extract_and_add_triangles(self, graph):
-        triangles = set()
-        for u in graph.nodes():
-            u_neighbors = graph.neighbors(u)
-            for v in u_neighbors:
-                v_neighbors = graph.neighbors(v)
-                for w in v_neighbors:
-                    if w in u_neighbors:
-                        triangles.add(tuple(sorted([u, v, w])))
-
-        out_graph = graph.copy()
-        for u, v, w in triangles:
-            triangle_graph = nx.Graph(graph.subgraph([u, v, w]))
-            for i in triangle_graph.nodes():
-                triangle_graph.node[i]['triangle'] = True
-            out_graph = nx.disjoint_union(out_graph, triangle_graph)
-        return out_graph
-
     def _graph_preprocessing(self, original_graph):
-        if self.triangular_decomposition:
-            graph = self._extract_and_add_triangles(original_graph)
-        else:
-            graph = original_graph
-        graph = self._edge_to_vertex_transform(graph)
+        graph = self._edge_to_vertex_transform(original_graph)
         self._weight_preprocessing(graph)
         self._label_preprocessing(graph)
         self._compute_distant_neighbours(graph, max(self.r, self.d))
@@ -719,11 +687,6 @@ class Vectorizer(AbstractVectorizer):
                 self._compute_neighborhood_graph_hash(u, graph)
 
     def _compute_neighborhood_graph_hash(self, root, graph):
-        # compute different hash encodings if the graph belongs to a triangular component
-        if graph[root].get('triangle', False):
-            hash_func_code = 2
-        else:
-            hash_func_code = 1
         hash_neighborhood_list = []
         # for all labels
         for label_index in range(graph.graph['label_size']):
@@ -738,8 +701,7 @@ class Vectorizer(AbstractVectorizer):
                     # compute the vertex hashed label by hashing the hlabel field of position label_index
                     # with the degree of the vertex (obtained as the size of the adjacency dictionary
                     # for the vertex v)
-                    vhlabel = fast_hash_3(hash_func_code,
-                                          graph.node[v]['hlabel'][label_index],
+                    vhlabel = fast_hash_2(graph.node[v]['hlabel'][label_index],
                                           len(graph[v]), self.bitmask)
                     hash_label_list.append(vhlabel)
                 # sort it

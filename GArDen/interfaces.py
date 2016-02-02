@@ -1,3 +1,10 @@
+from eden.util import vectorize
+from eden.graph import Vectorizer
+import random
+from itertools import tee, izip
+from collections import defaultdict
+
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -21,37 +28,53 @@ Organize the collection ob the basis of the interfaces.
 """
 
 
-def convert(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def convert(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map an input data type to a graph."""
     pass
 
 
-def associate(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def associate(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map a graph to an output data type."""
     pass
 
 
-def partition(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def partition(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map a graph to an iterator over the input graphs.
     Example: a graph to the set of graphs that are in the same part.
     Example: for a hierarchical clustering return an iterator over a tree structure: the iterator exposes
     the interface for advancing on other elements that have the same parent or advances to the parent.
     """
+    # convert iterable graphs in vector data matrix
+    r = random.choice(parameters_priors.get('r', 3))
+    d = random.choice(parameters_priors.get('d', 3))
+    vectorizer = Vectorizer(r=r, d=d)
+    n_jobs = random.choice(parameters_priors.get('n_jobs', 1))
+    iterable, iterable_ = tee(iterable)
+    data_matrix = vectorize(iterable_,
+                            vectorizer=vectorizer,
+                            fit_flag=False,
+                            n_blocks=5,
+                            block_size=None,
+                            n_jobs=n_jobs)
+    predictions = program.fit_predict(data_matrix)
+    partition_list = defaultdict(list)
+    for prediction, graph in izip(predictions, iterable):
+        partition_list[prediction].append(graph.copy())
+    return partition_list
+
+
+def compose(iter_1, iter_2, program=None, precondition=None, postcondition=None, parameters_priors=None):
+    """Map two graphs to a graph.
+    Example: receive two iterators on corresponding graphs and yield an iterator over a composite graph."""
     pass
 
 
-def compose(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
-    """Map an iterator over graphs to a graph.
-    Example: receive a list of pairs of graphs and yield an iterator over composite a graph."""
-    pass
-
-
-def decompose(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def decompose(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map a graph to an iterator over subgraphs of the input graph."""
     pass
 
 
-def transform(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def transform(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map a graph to a graph.
     The postcondition can be:
     - compress : |V_out| < |V_in| or |E_out| < |E_in|
@@ -62,7 +85,7 @@ def transform(iterable, precondition=None, postcondition=None, program=None, par
     pass
 
 
-def contruct(iterable, precondition=None, postcondition=None, program=None, parameters_priors=None):
+def contruct(iterable, program=None, precondition=None, postcondition=None, parameters_priors=None):
     """Map a graph to several graphs.
     Example: learn probability distribution over graphs given a finite example set and sample a stream of
     graphs from the same probability distribution."""

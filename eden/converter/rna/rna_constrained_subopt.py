@@ -54,7 +54,9 @@ def rnasubopt_wrapper(sequence, constraint, energy_range=None, max_num=None, max
     text = out.strip().split('\n')
     seq_struct_list = [line.split()[0] for line in text[1:max_num_subopts]]
     energy_list = [line.split()[1] for line in text[1:max_num_subopts]]
-    selected_ids = max_difference_subselection(seq_struct_list, scores=energy_list, max_num=max_num)
+    selected_ids = max_difference_subselection(seq_struct_list,
+                                               scores=energy_list,
+                                               max_num=max_num)
     np_seq_struct_list = np.array(seq_struct_list)
     selected_seq_struct_list = list(np_seq_struct_list[selected_ids])
     selected_energy_list = list(np.array(energy_list)[selected_ids])
@@ -67,7 +69,8 @@ def string_to_networkx(header, sequence, constraint, **options):
     max_num = options.get('max_num', 3)
     max_num_subopts = options.get('max_num_subopts', 100)
     split_components = options.get('split_components', False)
-    seq_struct_list, energy_list = rnasubopt_wrapper(sequence, constraint, energy_range=energy_range, max_num=max_num, max_num_subopts=max_num_subopts)
+    seq_struct_list, energy_list = rnasubopt_wrapper(sequence, constraint, energy_range=energy_range,
+                                                     max_num=max_num, max_num_subopts=max_num_subopts)
     if split_components:
         for seq_struct, energy in zip(seq_struct_list, energy_list):
             graph = sequence_dotbracket_to_graph(seq_info=sequence, seq_struct=seq_struct)

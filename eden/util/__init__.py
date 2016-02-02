@@ -58,6 +58,13 @@ def configure_logging(logger, verbosity=0, filename=None):
         logger.addHandler(fh)
 
 
+def _serialize_list(items, separator='_'):
+    if is_iterable(items):
+        return separator.join([str(item) for item in items])
+    else:
+        return str(items)
+
+
 def serialize_dict(the_dict, offset='small'):
     if the_dict:
         text = []
