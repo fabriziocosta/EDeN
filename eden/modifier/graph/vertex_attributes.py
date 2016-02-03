@@ -264,6 +264,18 @@ def trapezoidal_reweighting(graph_list=None,
            |       interpolate_down_end
            |
            interpolate_up_start
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\tcenter:5", "ACGUACGUAC")])
+    >>> graph = trapezoidal_reweighting(graph,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
     """
 # assert high_ weight > low_weight
     if high_weight < low_weight:
