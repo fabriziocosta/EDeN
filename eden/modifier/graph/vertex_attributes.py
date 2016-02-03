@@ -133,70 +133,15 @@ def _linear_trapezoidal_weight(pos,
            |
            interpolate_up_start
 
-    >>> _linear_trapezoidal_weight(pos=0,
+    >>> map(lambda pos: _linear_trapezoidal_weight(pos=pos,
     ...                            high_weight=1,
     ...                            low_weight=0,
     ...                            interpolate_up_start=1,
     ...                            interpolate_up_end=3,
     ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    0
-    >>> _linear_trapezoidal_weight(pos=1,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    0
-    >>> _linear_trapezoidal_weight(pos=2,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    0.5
-    >>> _linear_trapezoidal_weight(pos=3,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=4,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=5,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=6,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    0.5
-    >>> _linear_trapezoidal_weight(pos=7,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_down_end=7)
-    0
+    ...                            interpolate_down_end=7),
+    ...                 [0,1,2,3,4,5,6,7])
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0]
     """
     if pos <= interpolate_up_start:
         """
