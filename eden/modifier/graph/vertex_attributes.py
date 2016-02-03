@@ -307,18 +307,19 @@ def trapezoidal_reweighting(graph_list=None,
             g.node[n][attribute] = _linear_trapezoidal_weight(pos,
                                                               high_weight=high_weight,
                                                               low_weight=low_weight,
+                                                              interpolate_up_start=interpolate_up_start,
                                                               interpolate_up_end=interpolate_up_end,
                                                               interpolate_down_start=interpolate_down_start,
-                                                              interpolate_up_start=interpolate_up_start,
                                                               interpolate_down_end=interpolate_down_end)
         yield g
 
 
 def symmetric_trapezoidal_reweighting(graph_list=None,
-                                      high_weight=1.0,
+                                      high_weight=1,
                                       low_weight=0.1,
                                       radius_high=10,
-                                      distance_high2low=10):
+                                      distance_high2low=10,
+                                      attribute='weight'):
     """
     Symmetric piecewise linear weight function between two levels. Size of the high
     weights region is is given as the radius around the center position. The
@@ -337,11 +338,21 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
     low __/            \__
 
                       ddd   - distance_high2low
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\tcenter:4", "ACGUACGUAC")])
+    >>> graph = symmetric_trapezoidal_reweighting(graph,
+    ...                                           high_weight=1,
+    ...                                           low_weight=0,
+    ...                                           radius_high=1,
+    ...                                           distance_high2low=2)
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
     """
 
-    for graph in graph_list:
+    for g in graph_list:
         # TODO parse center
-        center_position = 10
+        center_position = 4
 
         # determine absolute positions from distances
         interpolate_up_start = center_position - radius_high - distance_high2low
@@ -349,15 +360,22 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
         interpolate_down_start = center_position + radius_high
         interpolate_down_end = center_position + radius_high + distance_high2low
 
-        # generate weighted graphs
-        yield trapezoidal_reweighting(
-            graph_list,
-            high_weight=high_weight,
-            low_weight=low_weight,
-            interpolate_up_end=interpolate_up_end,
-            interpolate_down_start=interpolate_down_start,
-            interpolate_up_start=interpolate_up_start,
-            interpolate_down_end=interpolate_down_end)
+        # iterate over nodes
+        for n, d in g.nodes_iter(data=True):
+            if 'position' not in d:
+                # assert nodes must have position attribute
+                raise Exception('Nodes must have "position" attribute')
+            # given the 'position' attribute of node assign weight according to
+            # piece wise linear weight function between two levels
+            pos = d['position']
+            g.node[n][attribute] = _linear_trapezoidal_weight(pos,
+                                                              high_weight=high_weight,
+                                                              low_weight=low_weight,
+                                                              interpolate_up_start=interpolate_up_start,
+                                                              interpolate_up_end=interpolate_up_end,
+                                                              interpolate_down_start=interpolate_down_start,
+                                                              interpolate_down_end=interpolate_down_end)
+        yield g
 
 
 def reweight(graph_list, weight_vector_list, attribute='weight'):
