@@ -296,8 +296,19 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
     """
 
     for g in graph_list:
-        # TODO parse center
-        center_position = 4
+        # parse center position from fasta header
+        center_set = False
+        center_position = -1
+        for idsplits in g.graph["id"].split()[1:]:
+            (key, value) = idsplits.split(":")
+            if key == "center":
+                try:
+                    center_position = int(value)
+                    center_set = True
+                    break
+                except ValueError:
+                    raise ValueError("Error: Center position not set to int in fasta header '{}'".format(g.graph["id"]))
+        assert center_set, "Error: Center annoation not set in fasta header '{}'".format(g.graph["id"])
 
         # determine absolute positions from distances
         interpolate_up_start = center_position - radius_high - distance_high2low
