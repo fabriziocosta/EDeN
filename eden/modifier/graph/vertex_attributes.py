@@ -264,7 +264,8 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
                                       low_weight=0.1,
                                       radius_high=10,
                                       distance_high2low=10,
-                                      attribute='weight'):
+                                      attribute='weight',
+                                      centerpos_key='center'):
     """
     Symmetric piecewise linear weight function between two levels. Size of the high
     weights region is is given as the radius around the center position. The
@@ -273,8 +274,7 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
 
     The center position can be arbitrary set by adding a center parameter of format
     center:integer to the graph id. For example, to set the center of a graph to
-    postion 10 one would add "center:10" to the graph id. If this parameter is not
-    set, the actual center position is used.
+    postion 10 one would add "center:10" to the graph id.
 
                 |rrrrr      - radius_high
                 |
@@ -293,6 +293,17 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
     ...                                           distance_high2low=2)
     >>> [ x["weight"] for x in graph.next().node.values() ]
     [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\trightend:4", "ACGUACGUAC")])
+    >>> graph = symmetric_trapezoidal_reweighting(graph,
+    ...                                           high_weight=1,
+    ...                                           low_weight=0,
+    ...                                           radius_high=1,
+    ...                                           distance_high2low=2,
+    ...                                           centerpos_key="rightend")
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
     """
 
     for g in graph_list:
@@ -301,7 +312,7 @@ def symmetric_trapezoidal_reweighting(graph_list=None,
         center_position = -1
         for idsplits in g.graph["id"].split()[1:]:
             (key, value) = idsplits.split(":")
-            if key == "center":
+            if key == centerpos_key:
                 try:
                     center_position = int(value)
                     center_set = True
