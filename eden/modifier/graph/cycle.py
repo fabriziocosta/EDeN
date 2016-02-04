@@ -60,6 +60,9 @@ class Annotator(BaseEstimator, ClassifierMixin):
         for n, d in graph.nodes(data=True):
             d[part_id] = list(d[part_id])
             d[part_name] = [namedict[idd] for idd in d[part_id]]
+            d[part_id].sort()
+            d[part_name].sort()
+
 
         return graph
 

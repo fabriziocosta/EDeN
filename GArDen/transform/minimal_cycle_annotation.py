@@ -67,6 +67,8 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
         for n, d in graph.nodes(data=True):
             d[part_id] = list(d[part_id])
             d[part_name] = [namedict[id] for id in d[part_id]]
+            d[part_id].sort()
+            d[part_name].sort()
 
         return graph
 
