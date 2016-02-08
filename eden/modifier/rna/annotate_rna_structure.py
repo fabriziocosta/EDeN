@@ -25,11 +25,22 @@ def annotate_single(graph, position_attribute='position'):
     '''
     input is a graph that has a 'structure' attribute and the first node has id 0.
     when done all the node have an 'entity' attribute that indicates the structural element it is part of.
-    there is also entity_short which cuts the entity down to a single letter for prettier printing.
+    in addition, attribute 'entity_short' cuts the entity down to a single letter for prettier printing.
 
     if the ids of the node are not an indicator for the position of a nucleotide,
     you can supply an alternative position_attribute
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> sequence = "GAAUUGCGGGAAAGGGGUCAACAGCCGUUCAGUACCAAGUCUCAGGGGAAACUUUGAGAUGGCCUUGCAAAGGGUAUGGUAAUAAGCUGACGGACAUGGUCCUAACCACGCAGCCAAGUCCUAAGUCAACAGAUCUUCUGUUGAUAUGGAUGCAGUUC"
+    >>> structur = "....((((((....((.......((((.((((.(((...(((((..........)))))...((.......))....)))......))))))))......))...)).))))......(((....((((((((...))))))))...)))........"
+    >>> graph = sequence_to_eden([("ID", sequence)]).next()
+    >>> graph.graph['structure']=structur
+    >>> annotate_single(graph)
+    >>> ''.join([ x["entity_short"] for x in graph.node.values() ])
+    'ffffssssssiiiissiiiiiiissssissssisssmmmssssshhhhhhhhhhsssssmmmsshhhhhhhssmmmmsssiiiiiissssssssiiiiiissiiississssmmmmmmsssiiiisssssssshhhssssssssiiissstttttttt'
     '''
+
+    assert "structure" in graph.graph, "Error, structure attribute of graph '{}' not set.".format(str(graph.graph))
 
     positions = {}
     if position_attribute is not None:
@@ -37,8 +48,8 @@ def annotate_single(graph, position_attribute='position'):
             positions[d[position_attribute]] = n
 
     # forgi can also output directly to a ssshhhhsss like string.. oh well...
-    entity_lookup = {'t': 'dangling start',
-                     'f': 'dangling end',
+    entity_lookup = {'f': 'dangling start',
+                     't': 'dangling end',
                      'i': 'internal loop',
                      'h': 'hairpin loop',
                      'm': 'multi loop',
@@ -74,8 +85,8 @@ def annotate_single(graph, position_attribute='position'):
                 if position_attribute:
                     n = positions[n]
 
-                graph.node[n]['Entity'] = entity_lookup[entity]
-                graph.node[n]['entity'] = entity
+                graph.node[n]['entity'] = entity_lookup[entity]
+                graph.node[n]['entity_short'] = entity
 
 
 def annotate_rna_structure(graphs):

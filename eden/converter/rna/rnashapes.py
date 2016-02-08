@@ -100,6 +100,29 @@ def rnashapes_to_eden(iterable, **options):
     split_components : bool (default False)
         If True each structure is yielded as an independent graph. Otherwise all structures
         are part of the same graph that has therefore several disconnectd components.
+
+    >>> # transform a simple sequence
+    >>> graphs = rnashapes_to_eden([("ID", "CCCCCGGGGG")])
+    >>> g = graphs.next()
+    >>> # extract sequence from graph nodes
+    >>> "".join([ value["label"] for (key, value) in g.nodes(data=True)])
+    'CCCCCGGGGG'
+    >>> # get vertice types
+    >>> [ (start, end, g.edge[start][end]["type"]) for start, end in g.edges()]
+    [(0, 1, 'backbone'), (0, 9, 'basepair'), (1, 8, 'basepair'), (1, 2, 'backbone'), (2, 3, 'backbone'), (2, 7, 'basepair'), (3, 4, 'backbone'), (4, 5, 'backbone'), (5, 6, 'backbone'), (6, 7, 'backbone'), (7, 8, 'backbone'), (8, 9, 'backbone')]
+
+    >>> # transform a simple sequence, splitting components
+    >>> graphs = rnashapes_to_eden([("ID", "CCCCCGGGGG")], split_components=True)
+    >>> g = graphs.next()
+    >>> # extract sequence from graph nodes
+    >>> "".join([ value["label"] for (key, value) in g.nodes(data=True)])
+    'CCCCCGGGGG'
+    >>> # get dotbracket structure annotation
+    >>> g.graph["structure"]
+    '(((....)))'
+    >>> # get vertice types
+    >>> [ (start, end, g.edge[start][end]["type"]) for start, end in g.edges()]
+    [(0, 1, 'backbone'), (0, 9, 'basepair'), (1, 8, 'basepair'), (1, 2, 'backbone'), (2, 3, 'backbone'), (2, 7, 'basepair'), (3, 4, 'backbone'), (4, 5, 'backbone'), (5, 6, 'backbone'), (6, 7, 'backbone'), (7, 8, 'backbone'), (8, 9, 'backbone')]
     """
 
     assert(is_iterable(iterable)), 'Not iterable'
