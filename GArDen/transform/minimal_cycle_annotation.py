@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides annotation of minimal cycles."""
+
 import eden
 from collections import defaultdict
 
