@@ -47,6 +47,31 @@ class SeqToPathGraph(BaseEstimator, TransformerMixin):
 
 # ---------------------------------------------------------------------------------------
 
+class SeqWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
+
+    """
+    Transform seq lists into path graphs.
+    The seq format is a triplet of header, sequence and constraint.
+
+    """
+
+    def __init__(self):
+        pass
+
+    def fit(self):
+        return self
+
+    def transform(self, seqs):
+        try:
+            for header, seq, constr in seqs:
+                yield seq_to_networkx(header, seq, constr=constr)
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+
+# ---------------------------------------------------------------------------------------
+
 class FastaToPathGraph(BaseEstimator, TransformerMixin):
 
     """

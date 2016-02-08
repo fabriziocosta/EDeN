@@ -7,7 +7,39 @@ logger = logging.getLogger(__name__)
 # ----------------------------------------------------------------------------------------------
 
 
-class ReweightDictionary(BaseEstimator, TransformerMixin):
+class AddNodeAttributeValue(BaseEstimator, TransformerMixin):
+
+    """
+    Missing.
+    """
+
+    def __init__(self, attribute=None, value=None):
+        self.attribute = attribute
+        self.value = value
+
+    def fit(self):
+        return self
+
+    def transform(self, graphs):
+        """
+        TODO
+        """
+        try:
+            for graph in graphs:
+                # iterate over nodes
+                for n in graph.nodes():
+                    graph.node[n][self.attribute] = self.value
+                yield graph
+            pass
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+
+# ----------------------------------------------------------------------------------------------
+
+
+class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
 
     """
     Missing.
@@ -19,13 +51,22 @@ class ReweightDictionary(BaseEstimator, TransformerMixin):
     def fit(self):
         return self
 
-    def transform(self, graphs,
-                  weight_dict=None):
+    def transform(self, graphs, weight_dict=None):
         """
-        Assign weights according to ...
+        Multiply weights according to attribute,value pairs matching.
+        The weight_dict is structured as a dict of attribute strings associated to a dictionary
+        of values types associated to a weight number.
         """
         try:
-            # TODO
+            for graph in graphs:
+                # iterate over nodes
+                for n, d in graph.nodes_iter(data=True):
+                    for attribute in weight_dict:
+                        if attribute in d:
+                            if d[attribute] in weight_dict[attribute]:
+                                graph.node[n]['weight'] = graph.node[n]['weight'] * \
+                                    weight_dict[attribute][d[attribute]]
+                yield graph
             pass
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
