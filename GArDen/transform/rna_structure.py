@@ -395,7 +395,7 @@ class PathGraphToRNASubopt(BaseEstimator, TransformerMixin):
             for graph in graphs:
                 header = graph.graph['header']
                 sequence = graph.graph['sequence']
-                constraint = graph.graph.get('sequence', None)
+                constraint = graph.graph.get('constraint', None)
                 structures = self.string_to_networkx(header=header, sequence=sequence, constraint=constraint)
                 for structure in structures:
                     yield structure

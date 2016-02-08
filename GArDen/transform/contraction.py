@@ -1,13 +1,17 @@
+#!/usr/bin/env python
+"""Provides contraction."""
+
 from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 from collections import Counter, namedtuple, defaultdict
-from eden.util import _serialize_list
+from eden.util import _serialize_list, serialize_dict
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 def contraction_histogram(input_attribute=None, graph=None, id_nodes=None):
+    """."""
     labels = [graph.node[v].get(input_attribute, 'N/A') for v in id_nodes]
     dict_label = dict(Counter(labels).most_common())
     sparse_vec = {str(key): value for key, value in dict_label.iteritems()}
@@ -20,7 +24,7 @@ def contraction_sum(input_attribute=None, graph=None, id_nodes=None):
 
 
 def contraction_average(input_attribute=None, graph=None, id_nodes=None):
-    vals = [float(graph.node[v].get(input_attribute, 0)) for v in id_nodes]
+    vals = [float(graph.node[v].get(input_attribute, 1)) for v in id_nodes]
     return sum(vals) / float(len(vals))
 
 
@@ -36,11 +40,12 @@ def contraction_set_categorical(input_attribute=None, graph=None, id_nodes=None,
 
 def serialize_modifiers(modifiers):
     lines = ""
-    for modifier in modifiers:
-        line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in,
-                                                                  modifier.attribute_out,
-                                                                  modifier.reduction)
-        lines += line + "\n"
+    if modifiers:
+        for modifier in modifiers:
+            line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in,
+                                                                      modifier.attribute_out,
+                                                                      modifier.reduction)
+            lines += line + "\n"
     return lines
 
 contraction_modifer_map = {'histogram': contraction_histogram,
@@ -164,40 +169,46 @@ class Contract(BaseEstimator, TransformerMixin):
 
 class Minor(BaseEstimator, TransformerMixin):
 
-    def __init__(self):
-        pass
+    def __init__(self,
+                 part_id='part_id',
+                 part_name='part_name',
+                 nesting=False,
+                 minorization_weight_scaling_factor=1,
+                 modifiers=None):
+        self.part_id = part_id
+        self.part_name = part_name
+        self.nesting = nesting
+        self.minorization_weight_scaling_factor = minorization_weight_scaling_factor
+        self.modifiers = modifiers
 
     def fit(self):
         return self
 
-    def transform(self, graphs=None,
-                  minorization_attribute='part_id',
-                  nesting=False,
-                  minorization_weight_scaling_factor=1,
-                  modifiers=modifiers):
+    def transform(self, graphs=None):
         try:
+            logger.debug(serialize_dict(self.get_params()))
             for graph in graphs:
-                # contract all nodes that have the same value for the minorization_attribute
-                minor_graph = self.minor(graph, minorization_attribute=minorization_attribute)
+                # contract all nodes that have the same value for the part_id
+                minor_graph = self.minor(graph)
                 info = minor_graph.graph.get('info', '')
-                minor_graph.graph['info'] = info + '\n' + serialize_modifiers(modifiers)
+                minor_graph.graph['info'] = info + '\n' + serialize_modifiers(self.modifiers)
                 for n, d in minor_graph.nodes_iter(data=True):
                     # get list of contracted node ids
                     contracted = d.get('contracted', None)
                     if contracted is None:
                         raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
-                    for modifier in modifiers:
+                    for modifier in self.modifiers:
                         modifier_func = contraction_modifer_map[modifier.reduction]
                         minor_graph.node[n][modifier.attribute_out] = modifier_func(
                             input_attribute=modifier.attribute_in, graph=graph, id_nodes=contracted)
-                        # rescale the weight of the contracted nodes
-                    if minorization_weight_scaling_factor != 1:
+                    # rescale the weight of the contracted nodes
+                    if self.minorization_weight_scaling_factor != 1:
                         w = d.get('weight', 1)
-                        w = w * minorization_weight_scaling_factor
+                        w = w * self.minorization_weight_scaling_factor
                         minor_graph.node[n]['weight'] = w
 
                 # build nesting graph
-                if nesting:  # add nesting edges between the minor graph and the original graph
+                if self.nesting:  # add nesting edges between the minor graph and the original graph
                     g_nested = nx.disjoint_union(graph, minor_graph)
                     g_nested.graph.update(graph.graph)
                     # rewire contracted graph to the original graph
@@ -213,29 +224,35 @@ class Minor(BaseEstimator, TransformerMixin):
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def minor(self, graph, minorization_attribute='part_id'):
-        # contract all nodes that have the same value for the minorization_attribute
+    def minor(self, graph):
+        # contract all nodes that have the same value for the part_id
         # store the contracted nodes original ids for later reference
 
-        # find all values for the minorization_attribute and create a dict with
-        # key=minorization_attribute and value=node ids
+        # find all values for the part_id and create a dict with
+        # key=part_id and value=node ids
+        part_name_dict = dict()
         part_id_dict = defaultdict(list)
         for u in graph.nodes_iter():
-            values = graph.node[u][minorization_attribute]
-            for value in values:
-                part_id_dict[value].append(u)
+            part_ids = graph.node[u][self.part_id]
+            part_names = graph.node[u][self.part_name]
+            for part_id, part_name in zip(part_ids, part_names):
+                part_id_dict[part_id].append(u)
+                part_name_dict[part_id] = part_name
         minor_graph = nx.Graph()
         # allocate a node per part_id
         for part_id in part_id_dict:
-            minor_graph.add_node(part_id, label='.', contracted=part_id_dict[part_id])
-            minor_graph.node[part_id][minorization_attribute] = part_id
+            minor_graph.add_node(part_id, contracted=part_id_dict[part_id])
+            minor_graph.node[part_id][self.part_id] = part_id
+            minor_graph.node[part_id][self.part_name] = part_name_dict[part_id]
+            minor_graph.node[part_id]['label'] = part_name_dict[part_id]
         # create an edge between twp part_id nodes if there existed such an edge between
         # two nodes that had that part_id
         for u, v in graph.edges():
-            part_id_us = graph.node[u][minorization_attribute]
-            part_id_vs = graph.node[v][minorization_attribute]
+            part_id_us = graph.node[u][self.part_id]
+            part_id_vs = graph.node[v][self.part_id]
             for part_id_u in part_id_us:
                 for part_id_v in part_id_vs:
                     if (part_id_u, part_id_v) not in minor_graph.edges():
-                        minor_graph.add_edge(part_id_u, part_id_v, label='.')
-        return nx.convert_node_labels_to_integers(minor_graph)
+                        minor_graph.add_edge(part_id_u, part_id_v)
+                        minor_graph.edge[part_id_u][part_id_v] = graph.edge[u][v]
+        return minor_graph

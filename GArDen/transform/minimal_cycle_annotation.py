@@ -40,17 +40,20 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
     def _transform_single(self, graph, attribute='label', part_id='part_id', part_name='part_name'):
         # letz annotateo oOoO
 
+        # process cycle annotation
+        def get_name(graph, n):
+            # labels = sorted([graph.node[i][attribute] for i in graph.node[n]['__cycle']])
+            # return ''.join(labels)
+            orig = ''.join([graph.node[i][attribute] for i in graph.node[n]['__cycle']])
+            normalized = min_lex(orig)
+            return normalized
+
         # make basic annotation
         for n, d in graph.nodes(data=True):
             d['__cycle'] = list(node_to_cycle(graph, n))
-            d['__cycle'].sort()
+            # d['__cycle'].sort()
             graph.node[n][part_id] = set()
             # graph.node[n][part_name] = set()
-
-        # process cycle annotation
-        def get_name(graph, n):
-            labels = sorted([graph.node[i][attribute] for i in graph.node[n]['__cycle']])
-            return ''.join(labels)
 
         namedict = {}
         for n, d in graph.nodes(data=True):
@@ -69,6 +72,18 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
             d[part_name] = [namedict[id] for id in d[part_id]]
 
         return graph
+
+
+def min_lex(s):
+    def all_lex(s):
+        n = len(s)
+        for i in range(n):
+            yield s
+            s = list(s)
+            s_list = s[1:]
+            s_list += s[0]
+            s = ''.join(s_list)
+    return min(all_lex(s))
 
 
 def fhash(stuff):
