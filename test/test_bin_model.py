@@ -20,10 +20,3 @@ def test_call_without_parameters():
                   expect_error=True
                   )
     assert re.search("too few arguments", run.stderr), 'expecting "too few arguments" in stderr'
-
-
-def test_fit():
-    "Call bin/model in fit mode."
-    call_script = bindir_rel + 'model -p xx -n xx'
-    run = env.run(*call_script.split())
-    assert False, str(run.files_created)
