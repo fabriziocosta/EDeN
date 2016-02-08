@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides modification of node attributes."""
+
 from sklearn.base import BaseEstimator, TransformerMixin
 from itertools import izip
 
@@ -8,22 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class AddNodeAttributeValue(BaseEstimator, TransformerMixin):
-
-    """
-    Missing.
-    """
+    """AddNodeAttributeValue."""
 
     def __init__(self, attribute=None, value=None):
+        """Construct."""
         self.attribute = attribute
         self.value = value
 
-    def fit(self):
-        return self
-
     def transform(self, graphs):
-        """
-        TODO
-        """
+        """TODO."""
         try:
             for graph in graphs:
                 # iterate over nodes
@@ -40,32 +36,29 @@ class AddNodeAttributeValue(BaseEstimator, TransformerMixin):
 
 
 class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
+    """MultiplicativeReweightDictionary.
 
+    Multiply weights according to attribute,value pairs matching.
+    The weight_dict is structured as a dict of attribute strings associated
+    to a dictionary of values types associated to a weight number.
     """
-    Missing.
-    """
 
-    def __init__(self):
-        pass
+    def __init__(self, weight_dict=None):
+        """Construct."""
+        self.weight_dict = weight_dict
 
-    def fit(self):
-        return self
-
-    def transform(self, graphs, weight_dict=None):
-        """
-        Multiply weights according to attribute,value pairs matching.
-        The weight_dict is structured as a dict of attribute strings associated to a dictionary
-        of values types associated to a weight number.
-        """
+    def transform(self, graphs):
+        """Transform."""
         try:
             for graph in graphs:
                 # iterate over nodes
                 for n, d in graph.nodes_iter(data=True):
-                    for attribute in weight_dict:
+                    for attribute in self.weight_dict:
                         if attribute in d:
-                            if d[attribute] in weight_dict[attribute]:
-                                graph.node[n]['weight'] = graph.node[n]['weight'] * \
-                                    weight_dict[attribute][d[attribute]]
+                            if d[attribute] in self.weight_dict[attribute]:
+                                graph.node[n]['weight'] = \
+                                    graph.node[n]['weight'] * \
+                                    self.weight_dict[attribute][d[attribute]]
                 yield graph
             pass
         except Exception as e:
@@ -76,42 +69,37 @@ class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
 # ----------------------------------------------------------------------------------------------
 
 class WeightWithIntervals(BaseEstimator, TransformerMixin):
+    """WeightWithIntervals.
 
+    Assign weights according to a list of triplets: each triplet defines
+    the start, end position and the (uniform) weight of the region; the
+    order of the triplets matters: later triplets override the weight
+    specification of previous triplets. The special triplet (-1,-1,w)
+    assign a default weight to all nodes.
+
+    If listof_start_end_weight_list is available then each element in
+    listof_start_end_weight_list specifies the start_end_weight_list for a
+    single graph.
     """
-    Missing.
-    """
 
-    def __init__(self):
-        pass
+    def __init__(self,
+                 attribute='weight',
+                 start_end_weight_list=None):
+        """Construct."""
+        self.attribute = attribute
+        self.sew = start_end_weight_list
 
-    def fit(self):
-        return self
-
-    def transform(self, graphs,
-                  attribute='weight',
-                  start_end_weight_list=None,
-                  listof_start_end_weight_list=None):
-        """
-        Assign weights according to a list of triplets: each triplet defines the start, end position
-        and the (uniform) weight of the region; the order of the triplets matters: later triplets override
-        the weight specification of previous triplets. The special triplet (-1,-1,w) assign a default weight
-        to all nodes.
-
-        If listof_start_end_weight_list is available then each element in listof_start_end_weight_list
-        specifies the start_end_weight_list for a single graph.
-        """
+    def transform(self, graphs, listof_start_end_weight_list=None):
+        """Transform."""
         try:
             if listof_start_end_weight_list is not None:
-                for graph, start_end_weight_list in izip(graphs, listof_start_end_weight_list):
-                    graph = self.start_end_weight_reweight(graph,
-                                                           start_end_weight_list=start_end_weight_list,
-                                                           attribute=attribute)
+                for graph, sew in izip(graphs, listof_start_end_weight_list):
+                    graph = self._start_end_weight_reweight(graph, sew=sew)
                     yield graph
-            elif start_end_weight_list is not None:
+            elif self.start_end_weight_list is not None:
                 for graph in graphs:
-                    graph = self.start_end_weight_reweight(graph,
-                                                           start_end_weight_list=start_end_weight_list,
-                                                           attribute=attribute)
+                    graph = self._start_end_weight_reweight(graph,
+                                                            sew=self.sew)
                     yield graph
             else:
                 raise Exception('Either start_end_weight_list or listof_start_end_weight_list \
@@ -120,40 +108,35 @@ class WeightWithIntervals(BaseEstimator, TransformerMixin):
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def start_end_weight_reweight(self, graph, start_end_weight_list=None, attribute='weight'):
-        for start, end, weight in start_end_weight_list:
+    def _start_end_weight_reweight(self, graph, sew=None):
+        for start, end, weight in sew:
             # iterate over nodes
             for n, d in graph.nodes_iter(data=True):
                 if 'position' not in d:
                     # assert nodes must have position attribute
                     raise Exception('Nodes must have "position" attribute')
-                # given the 'position' attribute of node assign the weight accordingly
+                # given the 'position' attribute of node assign the weight
+                # accordingly
                 pos = d['position']
                 if pos >= start and pos < end:
-                    graph.node[n][attribute] = weight
+                    graph.node[n][self.attribute] = weight
                 if start == -1 and end == -1:
-                    graph.node[n][attribute] = weight
+                    graph.node[n][self.attribute] = weight
         return graph
 
 # ----------------------------------------------------------------------------------------------
 
 
 class RelabelWithLabelOfIncidentEdges(BaseEstimator, TransformerMixin):
+    """RelabelWithLabelOfIncidentEdges.
 
+    Delete an edge if its dictionary has a key equal to 'attribute' and the
+    'condition' is true between 'value' and the value associated to
+    key=attribute.
     """
-    Missing.
-    """
 
-    def __init__(self):
-        pass
-
-    def fit(self):
-        return self
-
-    def transform(self, graphs, output_attribute='type', separator='', distance=1):
-        '''
-        Delete an edge if its dictionary has a key equal to 'attribute' and the 'condition'
-        is true between 'value' and the value associated to key=attribute.
+    def __init__(self, output_attribute='type', separator='', distance=1):
+        """"Construct.
 
         Parameters
         ----------
@@ -167,30 +150,33 @@ class RelabelWithLabelOfIncidentEdges(BaseEstimator, TransformerMixin):
 
         distance : integer (default 1)
             The neighborhood radius explored.
+        """
+        self.output_attribute = output_attribute
+        self.separator = separator
+        self.distance = distance
 
-        Returns
-        -------
-        Iterator over networkx graphs.
-        '''
+    def transform(self, graphs):
+        """Transform."""
         try:
             for graph in graphs:
                 # iterate over nodes
                 for n, d in graph.nodes_iter(data=True):
                     # for all neighbors
                     edge_labels = []
-                    if distance == 1:
-                        edge_labels += [ed.get('label', 'N/A') for u, v, ed in graph.edges_iter(n, data=True)]
-                    elif distance == 2:
+                    if self.distance == 1:
+                        edge_labels += [graph.edge[u][v].get('label', '-')
+                                        for u, v in graph.edges_iter(n)]
+                    elif self.distance == 2:
                         neighbors = graph.neighbors(n)
                         for nn in neighbors:
                             # extract list of edge labels
-                            edge_labels += [ed.get('label', 'N/A')
-                                            for u, v, ed in graph.edges_iter(nn, data=True)]
+                            edge_labels += [graph.edge[u][v].get('label', '-')
+                                            for u, v in graph.edges_iter(nn)]
                     else:
-                        raise Exception('Unknown distance: %s' % distance)
+                        raise Exception('Unknown distance: %s' % self.distance)
                     # consider the sorted serialization of all labels as a type
-                    vertex_type = separator.join(sorted(edge_labels))
-                    graph.node[n][output_attribute] = vertex_type
+                    vertex_type = self.separator.join(sorted(edge_labels))
+                    graph.node[n][self.output_attribute] = vertex_type
                 yield graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)

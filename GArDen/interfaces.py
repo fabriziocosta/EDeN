@@ -72,6 +72,7 @@ def partition(iterable, program=None,
     structure: the iterator exposes the interface for advancing on other
     elements that have the same parent or advances to the parent.
     """
+    # NOTE: all programs should be already wrapped in vectorizer
     # convert iterable graphs in vector data matrix
     parameters = sample_parameters_uniformly_at_random(parameters_priors)
     vectorizer = Vectorizer(r=parameters['r'], d=parameters['d'])

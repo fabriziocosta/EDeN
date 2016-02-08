@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 class TrimToLargestComponent(BaseEstimator, ClassifierMixin):
-    """Todo."""
+    """TrimToLargestComponent."""
 
     def transform(self, graphs):
-        """Todo."""
+        """transform."""
         try:
             for graph in graphs:
                 yield self._transform(graph)
