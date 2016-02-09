@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 """Provides interface declaration."""
 
-from eden.util import vectorize, is_iterable
-from eden.graph import Vectorizer
+from eden.util import is_iterable
 import random
 from itertools import tee, izip
 from collections import defaultdict
-
+from GArDen.partition import ClusterWrapper
 
 import logging
 logger = logging.getLogger(__name__)
@@ -72,17 +71,13 @@ def partition(iterable, program=None,
     structure: the iterator exposes the interface for advancing on other
     elements that have the same parent or advances to the parent.
     """
-    # convert iterable graphs in vector data matrix
+    # the wrapper provides the vectorization support
+    program = ClusterWrapper(program=program)
     parameters = sample_parameters_uniformly_at_random(parameters_priors)
-    vectorizer = Vectorizer(r=parameters['r'], d=parameters['d'])
+    if parameters:
+        program.set_params(**parameters)
     iterable, iterable_ = tee(iterable)
-    data_matrix = vectorize(iterable_,
-                            vectorizer=vectorizer,
-                            fit_flag=False,
-                            n_blocks=5,
-                            block_size=None,
-                            n_jobs=parameters['n_jobs'])
-    predictions = program.fit_predict(data_matrix)
+    predictions = program.fit_predict(iterable_)
     partition_list = defaultdict(list)
     for prediction, graph in izip(predictions, iterable):
         partition_list[prediction].append(graph.copy())

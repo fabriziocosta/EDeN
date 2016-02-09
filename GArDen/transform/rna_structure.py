@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides ways to compute the secondary structure of RNA sequences."""
+
 from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 import subprocess as sp
@@ -9,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 
 def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
-    """
+    """Build a graph given a sequence string and a string with dotbracket notation.
+
     Parameters
     ----------
     seq_info : string
@@ -22,7 +26,6 @@ def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
     -------
     A nx.Graph secondary struct associated with seq_struct
     """
-
     graph = nx.Graph()
     lifo = list()
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
@@ -40,37 +43,19 @@ def sequence_dotbracket_to_graph(seq_info=None, seq_struct=None):
 
 
 class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
-
-    """
-    Transform path graph of RNA sequence into structure graph according to RNAfold.
-
-    """
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        return self
+    """Transform path graph into structure graph according to RNAfold."""
 
     def transform(self, graphs):
-        '''
-        Parameters
-        ----------
-        graphs : iterator over path graphs of RNA sequences
-
-
-        Returns
-        -------
-        Iterator over networkx graphs.
-        '''
+        """Transform path graph into structure graph according to RNAfold."""
         try:
             for graph in graphs:
-                yield self.string_to_networkx(graph.graph['header'], graph.graph['sequence'])
+                yield self._string_to_networkx(graph.graph['header'],
+                                               graph.graph['sequence'])
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def rnafold_wrapper(self, sequence):
+    def _rnafold_wrapper(self, sequence):
         # defaults
         flags = '--noPS'
         # command line
@@ -81,9 +66,10 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
         seq_struct = text[1].split()[0]
         return seq_info, seq_struct
 
-    def string_to_networkx(self, header, sequence, **options):
-        seq_info, seq_struct = self.rnafold_wrapper(sequence, **options)
-        graph = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
+    def _string_to_networkx(self, header, sequence, **options):
+        seq_info, seq_struct = self._rnafold_wrapper(sequence, **options)
+        graph = sequence_dotbracket_to_graph(seq_info=seq_info,
+                                             seq_struct=seq_struct)
         graph.graph['info'] = header
         graph.graph['sequence'] = sequence
         graph.graph['structure'] = seq_struct
@@ -94,50 +80,55 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
 # ----------------------------------------------------------------------------------------------
 
 class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
-
-    """
-    Transform path graph of RNA sequence into structure graph according to
-    the RNAShapes algorithm.
+    """Transform path graph into structure graph according to RNAShapes.
 
     Parameters
     ----------
 
     shape_type : int (default 5)
-        Is the level of abstraction or dissimilarity which defines a different shape.
-        In general, helical regions are depicted by a pair of opening and closing brackets
-        and unpaired regions are represented as a single underscore. The differences of the
-        shape types are due to whether a structural element (bulge loop, internal loop, multiloop,
-        hairpin loop, stacking region and external loop) contributes to the shape representation:
-        Five types are implemented.
+        Is the level of abstraction or dissimilarity which defines a different
+        shape. In general, helical regions are depicted by a pair of opening
+        and closing brackets and unpaired regions are represented as a single
+        underscore. The differences of the shape types are due to whether a
+        structural element (bulge loop, internal loop, multiloop, hairpin
+        loop, stacking region and external loop) contributes to the shape
+        representation: Five types are implemented.
         1   Most accurate - all loops and all unpaired  [_[_[]]_[_[]_]]_
-        2   Nesting pattern for all loop types and unpaired regions in external loop
-        and multiloop [[_[]][_[]_]]
-        3   Nesting pattern for all loop types but no unpaired regions [[[]][[]]]
+        2   Nesting pattern for all loop types and unpaired regions in external
+        loop and multiloop [[_[]][_[]_]]
+        3   Nesting pattern for all loop types but no unpaired
+        regions [[[]][[]]]
         4   Helix nesting pattern in external loop and multiloop [[][[]]]
-        5   Most abstract - helix nesting pattern and no unpaired regions [[][]]
+        5   Most abstract - helix nesting pattern and no unpaired
+        regions [[][]]
 
     energy_range : float (default 10)
         Sets the energy range as percentage value of the minimum free energy.
-        For example, when relative deviation is specified as 5.0, and the minimum free energy
-        is -10.0 kcal/mol, the energy range is set to -9.5 to -10.0 kcal/mol.
-        Relative deviation must be a positive floating point number; by default it is set to to 10 %.
+        For example, when relative deviation is specified as 5.0, and the
+        minimum free energy is -10.0 kcal/mol, the energy range is set to -9.5
+        to -10.0 kcal/mol.
+        Relative deviation must be a positive floating point number; by default
+        it is set to to 10 %.
 
     max_num : int (default 3)
         Is the maximum number of structures that are generated.
 
     split_components : bool (default False)
-        If True each structure is yielded as an independent graph. Otherwise all structures
-        are part of the same graph that has therefore several disconnectd components.
+        If True each structure is yielded as an independent graph. Otherwise
+        all structures are part of the same graph that has therefore several
+        disconnectd components.
     """
 
-    def __init__(self, shape_type=5, energy_range=10, max_num=3, split_components=False):
+    def __init__(self,
+                 shape_type=5,
+                 energy_range=10,
+                 max_num=3,
+                 split_components=False):
+        """Initialize object."""
         self.shape_type = shape_type
         self.energy_range = energy_range
         self.max_num = max_num
         self.split_components = split_components
-
-    def fit(self):
-        return self
 
     def transform(self, graphs):
         '''
