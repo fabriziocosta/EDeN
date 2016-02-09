@@ -11,20 +11,35 @@ from eden.util import is_iterable
 # check version of program
 
 
-def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None):
+def rnashapes_wrapper(sequence, shape_type=None, energy_range=None, max_num=None, rnashapes_version=None):
     # command line
-    cmd = 'echo "%s" | RNAshapes -t %d -c %d -# %d' % (sequence, shape_type, energy_range, max_num)
-    out = sp.check_output(cmd, shell=True)
-    # parse output
-    text = out.strip().split('\n')
-    seq_info = text[0]
-    if 'configured to print' in text[-1]:
-        struct_text = text[1:-1]
+    if rnashapes_version == 2:
+        cmd = 'echo "%s" | RNAshapes -t %d -c %d -# %d' % (sequence, shape_type, energy_range, max_num)
+        out = sp.check_output(cmd, shell=True)
+        # parse output
+        text = out.strip().split('\n')
+        seq_info = text[0]
+        if 'configured to print' in text[-1]:
+            struct_text = text[1:-1]
+        else:
+            struct_text = text[1:]
+        seq_struct_list = [line.split()[1] for line in struct_text]
+        struct_list = [line.split()[2] for line in struct_text]
+        return seq_info, seq_struct_list, struct_list
+    elif rnashapes_version == 3:
+        cmd = 'echo "%s" | RNAshapes --mode shapes --shapeLevel %d --relativeDeviation %d' % (sequence, shape_type, energy_range)
+        out = sp.check_output(cmd, shell=True)
+        # parse output
+        text = out.strip().split('\n')
+        # remove additional fasta-like sequence id found in RNAshapes version 3+
+        text.pop(0)
+        seq_info = text.pop(0).split()[1]
+        struct_text = text[:max_num + 1]
+        seq_struct_list = [line.split()[1] for line in struct_text]
+        struct_list = [line.split()[2] for line in struct_text]
+        return seq_info, seq_struct_list, struct_list
     else:
-        struct_text = text[1:]
-    seq_struct_list = [line.split()[1] for line in struct_text]
-    struct_list = [line.split()[2] for line in struct_text]
-    return seq_info, seq_struct_list, struct_list
+        raise Exception("Error, parsing of RNAshapes version level '{}' not implemented.".format(rnashapes_version))
 
 
 def string_to_networkx(header, sequence, **options):
@@ -36,7 +51,8 @@ def string_to_networkx(header, sequence, **options):
     seq_info, seq_struct_list, struct_list = rnashapes_wrapper(sequence,
                                                                shape_type=shape_type,
                                                                energy_range=energy_range,
-                                                               max_num=max_num)
+                                                               max_num=max_num,
+                                                               rnashapes_version=options.get('rnashapes_version', 2))
     if split_components:
         for seq_struct, struct in zip(seq_struct_list, struct_list):
             graph = sequence_dotbracket_to_graph(seq_info=seq_info, seq_struct=seq_struct)
@@ -74,6 +90,11 @@ def rnashapes_to_eden(iterable, **options):
     sequences : iterable
         iterable pairs of header and sequence strings
 
+    rnashapes_version : int (default 2)
+        The version of RNAshapes that is in the path.
+        2   e.g. RNAshapes version 2.1.6
+        3   e.g. RNAshapes version 3.3.0
+
     shape_type : int (default 5)
         Is the level of abstraction or dissimilarity which defines a different shape.
         In general, helical regions are depicted by a pair of opening and closing brackets
@@ -100,6 +121,37 @@ def rnashapes_to_eden(iterable, **options):
     split_components : bool (default False)
         If True each structure is yielded as an independent graph. Otherwise all structures
         are part of the same graph that has therefore several disconnectd components.
+
+    example: transform a simple sequence using RNAshapes version 3+
+        >>> graphs = rnashapes_to_eden([("ID", "CCCCCGGGGG")], rnashapes_version=3)
+        >>> g = graphs.next()
+        >>> # extract sequence from graph nodes
+        >>> "".join([ value["label"] for (key, value) in g.nodes(data=True)])
+        'CCCCCGGGGG'
+        >>> # get vertice types
+        >>> [(start, end, g.edge[start][end]["type"]) for start, end in g.edges()]
+        [(0, 8, 'basepair'), (0, 1, 'backbone'), (1, 2, 'backbone'), (1, 7, 'basepair'), (2, 3, 'backbone'), (2, 6, 'basepair'), (3, 4, 'backbone'), (4, 5, 'backbone'), (5, 6, 'backbone'), (6, 7, 'backbone'), (7, 8, 'backbone'), (8, 9, 'backbone')]
+
+    example: transform a simple sequence using RNAshapes version 3+, splitting components
+        >>> graphs = rnashapes_to_eden([("ID", "CCCCCGGGGG")], split_components=True, rnashapes_version=3)
+        >>> g = graphs.next()
+        >>> # extract sequence from graph nodes
+        >>> "".join([ value["label"] for (key, value) in g.nodes(data=True)])
+        'CCCCCGGGGG'
+        >>> # get dotbracket structure annotation
+        >>> g.graph["structure"]
+        '(((...))).'
+        >>> # get vertice types
+        >>> [ (start, end, g.edge[start][end]["type"]) for start, end in g.edges()]
+        [(0, 8, 'basepair'), (0, 1, 'backbone'), (1, 2, 'backbone'), (1, 7, 'basepair'), (2, 3, 'backbone'), (2, 6, 'basepair'), (3, 4, 'backbone'), (4, 5, 'backbone'), (5, 6, 'backbone'), (6, 7, 'backbone'), (7, 8, 'backbone'), (8, 9, 'backbone')]
+
+    test max_num parameter with RNAshapes version 3+
+        >>> seq = "CGUCGUCGCAUCGUACGCAUGACUCAGCAUCAGACUACGUACGCAUACGUCAGCAUCAGUCAGCAUCAGCAUGCAUCACUAGCAUGCACCCCCGGGGGCACAUCGUACGUACGCUCAGUACACUGCAUGACUACGU"
+        >>> graphs = rnashapes_to_eden([("ID", seq)], split_components=True, max_num=2, rnashapes_version=3)
+        >>> g = graphs.next()
+        >>> # get dotbracket structure annotations
+        >>> len([g.graph["structure"] for g in graphs])
+        2
     """
 
     assert(is_iterable(iterable)), 'Not iterable'
