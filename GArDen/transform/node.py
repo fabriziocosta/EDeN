@@ -2,12 +2,11 @@
 """Provides modification of node attributes."""
 
 from sklearn.base import BaseEstimator, TransformerMixin
-from itertools import izip
 
 import logging
 logger = logging.getLogger(__name__)
 
-# ----------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class AddNodeAttributeValue(BaseEstimator, TransformerMixin):
@@ -32,7 +31,7 @@ class AddNodeAttributeValue(BaseEstimator, TransformerMixin):
             logger.debug('Exception', exc_info=True)
 
 
-# ----------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
@@ -66,7 +65,7 @@ class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
             logger.debug('Exception', exc_info=True)
 
 
-# ----------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 class WeightWithIntervals(BaseEstimator, TransformerMixin):
     """WeightWithIntervals.
@@ -87,29 +86,20 @@ class WeightWithIntervals(BaseEstimator, TransformerMixin):
                  start_end_weight_list=None):
         """Construct."""
         self.attribute = attribute
-        self.sew = start_end_weight_list
+        self.start_end_weight_list = start_end_weight_list
 
-    def transform(self, graphs, listof_start_end_weight_list=None):
+    def transform(self, graphs):
         """Transform."""
         try:
-            if listof_start_end_weight_list is not None:
-                for graph, sew in izip(graphs, listof_start_end_weight_list):
-                    graph = self._start_end_weight_reweight(graph, sew=sew)
-                    yield graph
-            elif self.start_end_weight_list is not None:
-                for graph in graphs:
-                    graph = self._start_end_weight_reweight(graph,
-                                                            sew=self.sew)
-                    yield graph
-            else:
-                raise Exception('Either start_end_weight_list or listof_start_end_weight_list \
-                    must be non empty.')
+            for graph in graphs:
+                graph = self._start_end_weight_reweight(graph)
+                yield graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def _start_end_weight_reweight(self, graph, sew=None):
-        for start, end, weight in sew:
+    def _start_end_weight_reweight(self, graph):
+        for start, end, weight in self.start_end_weight_list:
             # iterate over nodes
             for n, d in graph.nodes_iter(data=True):
                 if 'position' not in d:
@@ -124,7 +114,7 @@ class WeightWithIntervals(BaseEstimator, TransformerMixin):
                     graph.node[n][self.attribute] = weight
         return graph
 
-# ----------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class RelabelWithLabelOfIncidentEdges(BaseEstimator, TransformerMixin):

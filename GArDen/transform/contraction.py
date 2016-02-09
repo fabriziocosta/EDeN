@@ -4,14 +4,14 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 from collections import Counter, namedtuple, defaultdict
-from eden.util import _serialize_list, serialize_dict
+from eden.util import _serialize_list
 
 import logging
 logger = logging.getLogger(__name__)
 
 
 def contraction_histogram(input_attribute=None, graph=None, id_nodes=None):
-    """."""
+    """contraction_histogram."""
     labels = [graph.node[v].get(input_attribute, 'N/A') for v in id_nodes]
     dict_label = dict(Counter(labels).most_common())
     sparse_vec = {str(key): value for key, value in dict_label.iteritems()}
@@ -19,32 +19,47 @@ def contraction_histogram(input_attribute=None, graph=None, id_nodes=None):
 
 
 def contraction_sum(input_attribute=None, graph=None, id_nodes=None):
+    """contraction_sum."""
     vals = [float(graph.node[v].get(input_attribute, 1)) for v in id_nodes]
     return sum(vals)
 
 
 def contraction_average(input_attribute=None, graph=None, id_nodes=None):
+    """contraction_average."""
     vals = [float(graph.node[v].get(input_attribute, 1)) for v in id_nodes]
     return sum(vals) / float(len(vals))
 
 
-def contraction_categorical(input_attribute=None, graph=None, id_nodes=None, separator='.'):
-    vals = sorted([_serialize_list(graph.node[v].get(input_attribute, 'N/A')) for v in id_nodes])
+def contraction_categorical(input_attribute=None,
+                            graph=None,
+                            id_nodes=None,
+                            separator='.'):
+    """contraction_categorical."""
+    vals = sorted([_serialize_list(graph.node[v].get(input_attribute, 'N/A'))
+                   for v in id_nodes])
     return _serialize_list(vals, separator=separator)
 
 
-def contraction_set_categorical(input_attribute=None, graph=None, id_nodes=None, separator='.'):
-    vals = sorted(set([_serialize_list(graph.node[v].get(input_attribute, 'N/A')) for v in id_nodes]))
+def contraction_set_categorical(input_attribute=None,
+                                graph=None,
+                                id_nodes=None,
+                                separator='.'):
+    """contraction_set_categorical."""
+    vals = sorted(set(
+        [_serialize_list(graph.node[v].get(input_attribute, 'N/A'))
+         for v in id_nodes]))
     return _serialize_list(vals, separator=separator)
 
 
 def serialize_modifiers(modifiers):
+    """serialize_modifiers."""
     lines = ""
     if modifiers:
         for modifier in modifiers:
-            line = "attribute_in:%s attribute_out:%s reduction:%s" % (modifier.attribute_in,
-                                                                      modifier.attribute_out,
-                                                                      modifier.reduction)
+            line = "attribute_in:%s attribute_out:%s reduction:%s" % \
+                (modifier.attribute_in,
+                 modifier.attribute_out,
+                 modifier.reduction)
             lines += line + "\n"
     return lines
 
@@ -53,7 +68,8 @@ contraction_modifer_map = {'histogram': contraction_histogram,
                            'average': contraction_average,
                            'categorical': contraction_categorical,
                            'set_categorical': contraction_set_categorical}
-contraction_modifier = namedtuple('contraction_modifier', 'attribute_in attribute_out reduction')
+contraction_modifier = namedtuple('contraction_modifier',
+                                  'attribute_in attribute_out reduction')
 label_modifier = contraction_modifier(attribute_in='type',
                                       attribute_out='label',
                                       reduction='set_categorical')
@@ -64,78 +80,94 @@ modifiers = [label_modifier, weight_modifier]
 
 
 class Contract(BaseEstimator, TransformerMixin):
+    """Contract."""
 
-    def __init__(self):
-        pass
+    def __init__(self,
+                 contraction_attribute='label',
+                 nesting=False,
+                 weight_scaling_factor=1,
+                 modifiers=modifiers):
+        """Constructor."""
+        self.contraction_attribute = contraction_attribute
+        self.nesting = nesting
+        self.weight_scaling_factor = weight_scaling_factor
+        self.modifiers = modifiers
 
-    def fit(self):
-        return self
-
-    def transform(self, graphs=None,
-                  contraction_attribute='label',
-                  nesting=False,
-                  contraction_weight_scaling_factor=1,
-                  modifiers=modifiers):
+    def transform(self, graphs=None):
+        """transform."""
         try:
             for g in graphs:
-                # check for 'position' attribute and add it if not present
-                for i, (n, d) in enumerate(g.nodes_iter(data=True)):
-                    if d.get('position', None) is None:
-                        g.node[n]['position'] = i
-                # compute contraction
-                g_contracted = self.edge_contraction(graph=g, node_attribute=contraction_attribute)
-                info = g_contracted.graph.get('info', '')
-                g_contracted.graph['info'] = info + '\n' + serialize_modifiers(modifiers)
-                for n, d in g_contracted.nodes_iter(data=True):
-                    # get list of contracted node ids
-                    contracted = d.get('contracted', None)
-                    if contracted is None:
-                        raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
-                    for modifier in modifiers:
-                        modifier_func = contraction_modifer_map[modifier.reduction]
-                        g_contracted.node[n][modifier.attribute_out] = modifier_func(
-                            input_attribute=modifier.attribute_in, graph=g, id_nodes=contracted)
-                    # rescale the weight of the contracted nodes
-                    if contraction_weight_scaling_factor != 1:
-                        w = d.get('weight', 1)
-                        w = w * contraction_weight_scaling_factor
-                        g_contracted.node[n]['weight'] = w
-                if nesting:  # add nesting edges between the constraction graph and the original graph
-                    g_nested = nx.disjoint_union(g, g_contracted)
-                    # rewire contracted graph to the original graph
-                    for n, d in g_nested.nodes_iter(data=True):
-                        contracted = d.get('contracted', None)
-                        if contracted:
-                            for m in contracted:
-                                g_nested.add_edge(n, m, label='.', len=.1, nesting=True)
-                    yield g_nested
-                else:
-                    yield g_contracted
+                for graph_contracted in self._transform(g):
+                    yield graph_contracted
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def edge_contraction(self, graph=None, node_attribute=None):
+    def _transform(self, g):
+        # check for 'position' attribute and add it if not present
+        for i, (n, d) in enumerate(g.nodes_iter(data=True)):
+            if d.get('position', None) is None:
+                g.node[n]['position'] = i
+        # compute contraction
+        g_contracted = self._edge_contraction(graph=g)
+        info = g_contracted.graph.get('info', '')
+        g_contracted.graph['info'] = info + '\n' + \
+            serialize_modifiers(modifiers)
+        for n, d in g_contracted.nodes_iter(data=True):
+            # get list of contracted node ids
+            contracted = d.get('contracted', None)
+            if contracted is None:
+                raise Exception(
+                    'Empty contraction list for: id %d data: %s' %
+                    (n, d))
+            for modifier in modifiers:
+                modifier_func = contraction_modifer_map[modifier.reduction]
+                g_contracted.node[n][modifier.attribute_out] = modifier_func(
+                    input_attribute=modifier.attribute_in,
+                    graph=g,
+                    id_nodes=contracted)
+            # rescale the weight of the contracted nodes
+            if self.weight_scaling_factor != 1:
+                w = d.get('weight', 1)
+                w = w * self.weight_scaling_factor
+                g_contracted.node[n]['weight'] = w
+        # add nesting edges between the contraction graph and original graph
+        if self.nesting:
+            g_nested = nx.disjoint_union(g, g_contracted)
+            # rewire contracted graph to the original graph
+            for n, d in g_nested.nodes_iter(data=True):
+                contracted = d.get('contracted', None)
+                if contracted:
+                    for m in contracted:
+                        g_nested.add_edge(n, m,
+                                          label='.', len=.1, nesting=True)
+            yield g_nested
+        else:
+            yield g_contracted
+
+    def _edge_contraction(self, graph=None):
         g = graph.copy()
         # add a 'contracted' attribute in each node
         for n, d in g.nodes_iter(data=True):
             g.node[n]['contracted'] = set()
             # add the node itself to its contraction list
             g.node[n]['contracted'].add(n)
-        # iterate until contractions are possible, marked by flag: change_has_occured
+        # iterate until contractions are possible, marked by flag:
+        # change_has_occured
         # Note: the order of the contraction operations is irrelevant
         while True:
             change_has_occured = False
             for n, d in g.nodes_iter(data=True):
-                g.node[n]['label'] = g.node[n][node_attribute]
-                if node_attribute in d and 'position' in d:
+                g.node[n]['label'] = g.node[n][self.contraction_attribute]
+                if self.contraction_attribute in d and 'position' in d:
                     neighbors = g.neighbors(n)
                     if len(neighbors) > 0:
-                        # identify neighbors that have a greater 'position' attribute and that have
-                        # the same node_attribute
+                        # identify neighbors that have a greater 'position'
+                        # attribute and that have the same
+                        # self.contraction_attribute
                         greater_position_neighbors = [v for v in neighbors if 'position' in g.node[v] and
-                                                      node_attribute in g.node[v] and
-                                                      g.node[v][node_attribute] == d[node_attribute] and
+                                                      self.contraction_attribute in g.node[v] and
+                                                      g.node[v][self.contraction_attribute] == d[self.contraction_attribute] and
                                                       g.node[v]['position'] > d['position']]
                         if len(greater_position_neighbors) > 0:
                             # contract all neighbors
@@ -173,12 +205,12 @@ class Minor(BaseEstimator, TransformerMixin):
                  part_id='part_id',
                  part_name='part_name',
                  nesting=False,
-                 minorization_weight_scaling_factor=1,
+                 weight_scaling_factor=1,
                  modifiers=None):
         self.part_id = part_id
         self.part_name = part_name
         self.nesting = nesting
-        self.minorization_weight_scaling_factor = minorization_weight_scaling_factor
+        self.weight_scaling_factor = weight_scaling_factor
         self.modifiers = modifiers
 
     def fit(self):
@@ -186,43 +218,47 @@ class Minor(BaseEstimator, TransformerMixin):
 
     def transform(self, graphs=None):
         try:
-            logger.debug(serialize_dict(self.get_params()))
             for graph in graphs:
-                # contract all nodes that have the same value for the part_id
-                minor_graph = self.minor(graph)
-                info = minor_graph.graph.get('info', '')
-                minor_graph.graph['info'] = info + '\n' + serialize_modifiers(self.modifiers)
-                for n, d in minor_graph.nodes_iter(data=True):
-                    # get list of contracted node ids
-                    contracted = d.get('contracted', None)
-                    if contracted is None:
-                        raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
-                    for modifier in self.modifiers:
-                        modifier_func = contraction_modifer_map[modifier.reduction]
-                        minor_graph.node[n][modifier.attribute_out] = modifier_func(
-                            input_attribute=modifier.attribute_in, graph=graph, id_nodes=contracted)
-                    # rescale the weight of the contracted nodes
-                    if self.minorization_weight_scaling_factor != 1:
-                        w = d.get('weight', 1)
-                        w = w * self.minorization_weight_scaling_factor
-                        minor_graph.node[n]['weight'] = w
-
-                # build nesting graph
-                if self.nesting:  # add nesting edges between the minor graph and the original graph
-                    g_nested = nx.disjoint_union(graph, minor_graph)
-                    g_nested.graph.update(graph.graph)
-                    # rewire contracted graph to the original graph
-                    for n, d in g_nested.nodes_iter(data=True):
-                        contracted = d.get('contracted', None)
-                        if contracted:
-                            for m in contracted:
-                                g_nested.add_edge(n, m, label='.', len=.1, nesting=True)
-                    yield g_nested
-                else:
+                for minor_graph in self._transform(graph):
                     yield minor_graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
+
+    def _transform(self, graph):
+        # contract all nodes that have the same value for the part_id
+        minor_graph = self.minor(graph)
+        info = minor_graph.graph.get('info', '')
+        minor_graph.graph['info'] = info + '\n' + serialize_modifiers(self.modifiers)
+        for n, d in minor_graph.nodes_iter(data=True):
+            # get list of contracted node ids
+            contracted = d.get('contracted', None)
+            if contracted is None:
+                raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
+            for modifier in self.modifiers:
+                modifier_func = contraction_modifer_map[modifier.reduction]
+                minor_graph.node[n][modifier.attribute_out] = modifier_func(
+                    input_attribute=modifier.attribute_in,
+                    graph=graph, id_nodes=contracted)
+            # rescale the weight of the contracted nodes
+            if self.weight_scaling_factor != 1:
+                w = d.get('weight', 1)
+                w = w * self.weight_scaling_factor
+                minor_graph.node[n]['weight'] = w
+
+        # build nesting graph
+        if self.nesting:  # add nesting edges between the minor graph and the original graph
+            g_nested = nx.disjoint_union(graph, minor_graph)
+            g_nested.graph.update(graph.graph)
+            # rewire contracted graph to the original graph
+            for n, d in g_nested.nodes_iter(data=True):
+                contracted = d.get('contracted', None)
+                if contracted:
+                    for m in contracted:
+                        g_nested.add_edge(n, m, label='.', len=.1, nesting=True)
+            yield g_nested
+        else:
+            yield minor_graph
 
     def minor(self, graph):
         # contract all nodes that have the same value for the part_id
