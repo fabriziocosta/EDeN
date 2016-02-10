@@ -506,11 +506,8 @@ class Vectorizer(AbstractVectorizer):
                     raise Exception('ERROR: something went wrong, type of node label is unknown: \
                         %s' % d[self.key_label])
         except Exception as e:
-            import datetime
-            curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
-            print("Program run failed on %s" % curr_time)
-            print(e.__doc__)
-            print(e.message)
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
     def _weight_preprocessing(self, graph):
         # if at least one vertex or edge is weighted then ensure that all vertices and edges are weighted

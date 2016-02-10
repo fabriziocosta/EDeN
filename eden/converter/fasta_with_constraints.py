@@ -7,6 +7,6 @@ def fasta_to_sequence(input, **options):
         header = line
         seq = lines.next()
         constr = lines.next()
-        if len(seq) == 0 or len(constr):
+        if len(seq) == 0 or len(constr) == 0:
             raise Exception('ERROR: empty sequence or constraint')
         yield header, seq, constr
