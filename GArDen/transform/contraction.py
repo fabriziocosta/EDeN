@@ -78,6 +78,8 @@ weight_modifier = contraction_modifier(attribute_in='weight',
                                        reduction='sum')
 modifiers = [label_modifier, weight_modifier]
 
+# ------------------------------------------------------------------------------
+
 
 class Contract(BaseEstimator, TransformerMixin):
     """Contract."""
@@ -196,10 +198,11 @@ class Contract(BaseEstimator, TransformerMixin):
                 break
         return g
 
-# ----------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 class Minor(BaseEstimator, TransformerMixin):
+    """Minor."""
 
     def __init__(self,
                  part_id='part_id',
@@ -207,16 +210,15 @@ class Minor(BaseEstimator, TransformerMixin):
                  nesting=False,
                  weight_scaling_factor=1,
                  modifiers=None):
+        """Constructor."""
         self.part_id = part_id
         self.part_name = part_name
         self.nesting = nesting
         self.weight_scaling_factor = weight_scaling_factor
         self.modifiers = modifiers
 
-    def fit(self):
-        return self
-
     def transform(self, graphs=None):
+        """Transform."""
         try:
             for graph in graphs:
                 for minor_graph in self._transform(graph):
@@ -227,14 +229,16 @@ class Minor(BaseEstimator, TransformerMixin):
 
     def _transform(self, graph):
         # contract all nodes that have the same value for the part_id
-        minor_graph = self.minor(graph)
+        minor_graph = self._minor(graph)
         info = minor_graph.graph.get('info', '')
-        minor_graph.graph['info'] = info + '\n' + serialize_modifiers(self.modifiers)
+        minor_graph.graph['info'] = info + '\n' + \
+            serialize_modifiers(self.modifiers)
         for n, d in minor_graph.nodes_iter(data=True):
             # get list of contracted node ids
             contracted = d.get('contracted', None)
             if contracted is None:
-                raise Exception('Empty contraction list for: id %d data: %s' % (n, d))
+                raise Exception('Empty contraction list for: id %d data: %s' %
+                                (n, d))
             for modifier in self.modifiers:
                 modifier_func = contraction_modifer_map[modifier.reduction]
                 minor_graph.node[n][modifier.attribute_out] = modifier_func(
@@ -247,7 +251,8 @@ class Minor(BaseEstimator, TransformerMixin):
                 minor_graph.node[n]['weight'] = w
 
         # build nesting graph
-        if self.nesting:  # add nesting edges between the minor graph and the original graph
+        if self.nesting:
+            # add nesting edges between the minor graph and the original graph
             g_nested = nx.disjoint_union(graph, minor_graph)
             g_nested.graph.update(graph.graph)
             # rewire contracted graph to the original graph
@@ -255,12 +260,13 @@ class Minor(BaseEstimator, TransformerMixin):
                 contracted = d.get('contracted', None)
                 if contracted:
                     for m in contracted:
-                        g_nested.add_edge(n, m, label='.', len=.1, nesting=True)
+                        g_nested.add_edge(n, m,
+                                          label='.', len=.1, nesting=True)
             yield g_nested
         else:
             yield minor_graph
 
-    def minor(self, graph):
+    def _minor(self, graph):
         # contract all nodes that have the same value for the part_id
         # store the contracted nodes original ids for later reference
 
@@ -281,14 +287,14 @@ class Minor(BaseEstimator, TransformerMixin):
             minor_graph.node[part_id][self.part_id] = part_id
             minor_graph.node[part_id][self.part_name] = part_name_dict[part_id]
             minor_graph.node[part_id]['label'] = part_name_dict[part_id]
-        # create an edge between twp part_id nodes if there existed such an edge between
-        # two nodes that had that part_id
+        # create an edge between two part_id nodes if there existed such an
+        # edge between two nodes that had that part_id
         for u, v in graph.edges():
-            part_id_us = graph.node[u][self.part_id]
-            part_id_vs = graph.node[v][self.part_id]
-            for part_id_u in part_id_us:
-                for part_id_v in part_id_vs:
-                    if (part_id_u, part_id_v) not in minor_graph.edges():
-                        minor_graph.add_edge(part_id_u, part_id_v)
-                        minor_graph.edge[part_id_u][part_id_v] = graph.edge[u][v]
+            p_id_us = graph.node[u][self.part_id]
+            p_id_vs = graph.node[v][self.part_id]
+            for p_id_u in p_id_us:
+                for p_id_v in p_id_vs:
+                    if (p_id_u, p_id_v) not in minor_graph.edges():
+                        minor_graph.add_edge(p_id_u, p_id_v)
+                        minor_graph.edge[p_id_u][p_id_v] = graph.edge[u][v]
         return minor_graph
