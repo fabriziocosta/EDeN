@@ -133,70 +133,15 @@ def _linear_trapezoidal_weight(pos,
            |
            interpolate_up_start
 
-    >>> _linear_trapezoidal_weight(pos=0,
+    >>> map(lambda pos: _linear_trapezoidal_weight(pos=pos,
     ...                            high_weight=1,
     ...                            low_weight=0,
+    ...                            interpolate_up_start=1,
     ...                            interpolate_up_end=3,
     ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    0
-    >>> _linear_trapezoidal_weight(pos=1,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    0
-    >>> _linear_trapezoidal_weight(pos=2,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    0.5
-    >>> _linear_trapezoidal_weight(pos=3,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=4,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=5,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    1
-    >>> _linear_trapezoidal_weight(pos=6,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    0.5
-    >>> _linear_trapezoidal_weight(pos=7,
-    ...                            high_weight=1,
-    ...                            low_weight=0,
-    ...                            interpolate_up_end=3,
-    ...                            interpolate_down_start=5,
-    ...                            interpolate_up_start=1,
-    ...                            interpolate_down_end=7)
-    0
+    ...                            interpolate_down_end=7),
+    ...                 [0,1,2,3,4,5,6,7])
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0]
     """
     if pos <= interpolate_up_start:
         """
@@ -264,6 +209,18 @@ def trapezoidal_reweighting(graph_list=None,
            |       interpolate_down_end
            |
            interpolate_up_start
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\tcenter:5", "ACGUACGUAC")])
+    >>> graph = trapezoidal_reweighting(graph,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_down_end=7)
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
     """
 # assert high_ weight > low_weight
     if high_weight < low_weight:
@@ -295,9 +252,95 @@ def trapezoidal_reweighting(graph_list=None,
             g.node[n][attribute] = _linear_trapezoidal_weight(pos,
                                                               high_weight=high_weight,
                                                               low_weight=low_weight,
+                                                              interpolate_up_start=interpolate_up_start,
                                                               interpolate_up_end=interpolate_up_end,
                                                               interpolate_down_start=interpolate_down_start,
+                                                              interpolate_down_end=interpolate_down_end)
+        yield g
+
+
+def symmetric_trapezoidal_reweighting(graph_list=None,
+                                      high_weight=1,
+                                      low_weight=0.1,
+                                      radius_high=10,
+                                      distance_high2low=10,
+                                      attribute='weight',
+                                      centerpos_key='center'):
+    """
+    Symmetric piecewise linear weight function between two levels. Size of the high
+    weights region is is given as the radius around the center position. The
+    dropdown between high and low levels is given by the distance of the positions
+    with high and low levels.
+
+    The center position can be arbitrary set by adding a center parameter of format
+    center:integer to the graph id. For example, to set the center of a graph to
+    postion 10 one would add "center:10" to the graph id.
+
+                |rrrrr      - radius_high
+                |
+    high    __center__
+           /          \
+    low __/            \__
+
+                      ddd   - distance_high2low
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\tcenter:4", "ACGUACGUAC")])
+    >>> graph = symmetric_trapezoidal_reweighting(graph,
+    ...                                           high_weight=1,
+    ...                                           low_weight=0,
+    ...                                           radius_high=1,
+    ...                                           distance_high2low=2)
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
+
+    >>> from eden.converter.fasta import sequence_to_eden
+    >>> graph = sequence_to_eden([("ID\trightend:4", "ACGUACGUAC")])
+    >>> graph = symmetric_trapezoidal_reweighting(graph,
+    ...                                           high_weight=1,
+    ...                                           low_weight=0,
+    ...                                           radius_high=1,
+    ...                                           distance_high2low=2,
+    ...                                           centerpos_key="rightend")
+    >>> [ x["weight"] for x in graph.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
+    """
+
+    for g in graph_list:
+        # parse center position from fasta header
+        center_set = False
+        center_position = -1
+        for idsplits in g.graph["id"].split()[1:]:
+            (key, value) = idsplits.split(":")
+            if key == centerpos_key:
+                try:
+                    center_position = int(value)
+                    center_set = True
+                    break
+                except ValueError:
+                    raise ValueError("Error: Center position not set to int in fasta header '{}'".format(g.graph["id"]))
+        assert center_set, "Error: Center annoation not set in fasta header '{}'".format(g.graph["id"])
+
+        # determine absolute positions from distances
+        interpolate_up_start = center_position - radius_high - distance_high2low
+        interpolate_up_end = center_position - radius_high
+        interpolate_down_start = center_position + radius_high
+        interpolate_down_end = center_position + radius_high + distance_high2low
+
+        # iterate over nodes
+        for n, d in g.nodes_iter(data=True):
+            if 'position' not in d:
+                # assert nodes must have position attribute
+                raise Exception('Nodes must have "position" attribute')
+            # given the 'position' attribute of node assign weight according to
+            # piece wise linear weight function between two levels
+            pos = d['position']
+            g.node[n][attribute] = _linear_trapezoidal_weight(pos,
+                                                              high_weight=high_weight,
+                                                              low_weight=low_weight,
                                                               interpolate_up_start=interpolate_up_start,
+                                                              interpolate_up_end=interpolate_up_end,
+                                                              interpolate_down_start=interpolate_down_start,
                                                               interpolate_down_end=interpolate_down_end)
         yield g
 

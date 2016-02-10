@@ -77,12 +77,14 @@ def draw_graph(graph,
 
     if vertex_color is None:
         node_color = 'white'
-    elif vertex_color == '_labels_' or vertex_color == '_label_' or \
-            vertex_color == '__labels__' or vertex_color == '__label__':
+    elif vertex_color in ['_labels_', '_label_', '__labels__', '__label__']:
         node_color = []
         for u, d in graph.nodes(data=True):
             label = d.get('label', '.')
             node_color.append(hash(_serialize_list(label)))
+        color_set = set(node_color)
+        color_map = {c: i for i, c in enumerate(color_set)}
+        node_color = [color_map[c] for c in node_color]
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0) for u, d in graph.nodes(data=True)]
@@ -91,8 +93,7 @@ def draw_graph(graph,
 
     if edge_color is None:
         edge_colors = 'black'
-    elif edge_color == '_labels_' or edge_color == '_label_' or \
-            edge_color == '__labels__' or edge_color == '__label__':
+    elif edge_color in ['_labels_', '_label_', '__labels__', '__label__']:
         edge_colors = [hash(str(d.get('label', '.')))
                        for u, v, d in graph.edges(data=True) if 'nesting' not in d]
     else:

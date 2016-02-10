@@ -68,7 +68,7 @@ class Annotator(BaseEstimator, ClassifierMixin):
         # transform sets to lists
         for n, d in graph.nodes(data=True):
             d[part_id] = list(d[part_id])
-            d[part_name] = [namedict[idd] for idd in d[part_id]]
+            d[part_name] = [namedict[_idd] for _idd in d[part_id]]
             d[part_id].sort()
             d[part_name].sort()
 

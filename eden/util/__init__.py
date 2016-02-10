@@ -16,8 +16,14 @@ import random
 from time import time
 import logging.handlers
 from eden import apply_async
+import json
+
 import logging
 logger = logging.getLogger(__name__)
+
+
+def print_json(text):
+    print json.dumps(json.loads(text), sort_keys=True, indent=4, separators=(',', ': '))
 
 
 def configure_logging(logger, verbosity=0, filename=None):
@@ -60,12 +66,12 @@ def configure_logging(logger, verbosity=0, filename=None):
 
 def _serialize_list(items, separator='_'):
     if is_iterable(items):
-        return separator.join([str(item) for item in items])
+        return str(separator.join([str(item) for item in items]))
     else:
         return str(items)
 
 
-def serialize_dict(the_dict, offset='small'):
+def serialize_dict(the_dict, full=True, offset='small'):
     if the_dict:
         text = []
         for key in sorted(the_dict):
@@ -78,8 +84,9 @@ def serialize_dict(the_dict, offset='small'):
             else:
                 raise Exception('unrecognized option: %s' % offset)
             line = line.replace('\n', ' ')
-            if len(line) > 100:
-                line = line[:100] + '  ...  ' + line[-20:]
+            if full is False:
+                if len(line) > 100:
+                    line = line[:100] + '  ...  ' + line[-20:]
             text.append(line)
         return '\n'.join(text)
     else:
@@ -97,7 +104,7 @@ def read(uri):
         return uri
     else:
         try:
-                # try if it is a URL and if we can open it
+                    # try if it is a URL and if we can open it
             f = requests.get(uri).text.split('\n')
         except ValueError:
             # assume it is a file object

@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides editing of nodes and edges based on attributes."""
+
 from sklearn.base import BaseEstimator, TransformerMixin
 
 import logging
@@ -5,82 +8,77 @@ logger = logging.getLogger(__name__)
 
 
 class DeleteEdge(BaseEstimator, TransformerMixin):
-
     """
-    Delete an edge if its dictionary has a key equal to 'attribute' and the 'condition'
-    is true between 'value' and the value associated to key=attribute.
+    Delete edges.
+
+    Delete an edge if its dictionary has a key equal to 'attribute' and
+    the 'condition' is true between 'value' and the value associated to
+    key=attribute.
     """
 
-    def __init__(self):
-        pass
+    def __init__(self, attribute=None, value=None):
+        """Constructor."""
+        self.attribute = attribute
+        self.value = value
 
-    def fit(self):
-        return self
-
-    def transform(self, graphs, attribute=None, value=None, condition=lambda x, y: x == y):
-        '''
-        Delete an edge if its dictionary has a key equal to 'attribute' and the 'condition'
-        is true between 'value' and the value associated to key=attribute.
-
-        Parameters
-        ----------
-        graphs : iterator over path graphs of RNA sequences
-
-        attribute : string
-            The key of the edge dictionary.
-        value : string
-            The value associated to the attribute.
-        Returns
-        -------
-        Iterator over networkx graphs.
-        '''
+    def transform(self, graphs):
+        """Transform."""
         try:
             for graph in graphs:
-                for edge_src, edge_dest, edge_dict in graph.edges_iter(data=True):
-                    if attribute in edge_dict and condition(edge_dict[attribute], value) is True:
-                        graph.remove_edge(edge_src, edge_dest)
+                for u, v in graph.edges():
+                    if self.attribute in graph.edge[u][v] and \
+                            graph.edge[u][v].get(self.attribute, False):
+                        graph.remove_edge(u, v)
                 yield graph
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
 
 class DeleteNode(BaseEstimator, TransformerMixin):
+    """Delete node.
 
+    Delete a node if its dictionary has a key equal to 'attribute' and
+    the 'condition' is true between 'value' and the value associated to
+    key=attribute.
+
+    Parameters
+    ----------
+    graphs : iterator over path graphs of RNA sequences
+
+    attribute : string
+        The key of the node dictionary.
+    value : string
+        The value associated to the attribute.
     """
-    Delete a node if its dictionary has a key equal to 'attribute' and the 'condition'
-    is true between 'value' and the value associated to key=attribute.
-    """
 
-    def __init__(self):
-        pass
+    def __init__(self, attribute_value_dict=None, mode='AND'):
+        """Constructor."""
+        self.attribute_value_dict = attribute_value_dict
+        self.mode = mode
 
-    def fit(self):
-        return self
-
-    def transform(self, graphs, attribute=None, value=None, condition=lambda x, y: x == y):
-        '''
-        Delete a node if its dictionary has a key equal to 'attribute' and the 'condition'
-        is true between 'value' and the value associated to key=attribute.
-
-        Parameters
-        ----------
-        graphs : iterator over path graphs of RNA sequences
-
-        attribute : string
-            The key of the node dictionary.
-        value : string
-            The value associated to the attribute.
-        Returns
-        -------
-        Iterator over networkx graphs.
-        '''
+    def transform(self, graphs):
+        """Transform."""
         try:
             for graph in graphs:
                 for n, node_dict in graph.nodes_iter(data=True):
-                    if attribute in node_dict and condition(node_dict[attribute], value) is True:
+                    if self.mode == 'AND':
+                        trigger = True
+                        for attribute in self.attribute_value_dict:
+                            value = self.attribute_value_dict[attribute]
+                            if attribute not in node_dict or \
+                                    node_dict[attribute] != value:
+                                trigger = False
+                    elif self.mode == 'OR':
+                        trigger = False
+                        for attribute in self.attribute_value_dict:
+                            value = self.attribute_value_dict[attribute]
+                            if attribute in node_dict and \
+                                    node_dict[attribute] == value:
+                                trigger = True
+                    if trigger is True:
                         graph.remove_node(n)
                 yield graph
         except Exception as e:
-            print e.__doc__
-            print e.message
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
