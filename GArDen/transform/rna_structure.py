@@ -6,9 +6,27 @@ import networkx as nx
 import subprocess as sp
 import os
 import numpy as np
+import random
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def seq_to_networkx(header, seq, constr=None):
+    """Convert sequence tuples to networkx graphs."""
+    graph = nx.Graph()
+    graph.graph['id'] = header.split()[0]
+    graph.graph['header'] = header
+    for id, character in enumerate(seq):
+        graph.add_node(id, label=character, position=id)
+        if id > 0:
+            graph.add_edge(id - 1, id, label='-')
+    assert(len(graph) > 0), 'ERROR: generated empty graph.\
+    Perhaps wrong format?'
+    graph.graph['sequence'] = seq
+    if constr is not None:
+        graph.graph['constraint'] = constr
+    return graph
 
 
 def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
@@ -31,6 +49,7 @@ def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
     graph.graph['structure'] = seq_struct
     graph.graph['header'] = header
     graph.graph['id'] = header.split()[0]
+    assert(len(seq_info) == len(seq_struct))
 
     lifo = list()
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
@@ -43,6 +62,39 @@ def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
             j = lifo.pop()
             graph.add_edge(i, j, label='=', type='basepair', len=1)
     return graph
+
+# ------------------------------------------------------------------------------
+
+
+class RandomSequencePermutation(BaseEstimator, TransformerMixin):
+    """Permute the order of the nodes in a path graph."""
+
+    def __init__(self, times=None, order=None):
+        """Constructor."""
+        self.times = times
+        self.order = order
+
+    def transform(self, graphs):
+        """Transform."""
+        try:
+            for graph in graphs:
+                perm_graphs = self._shuffle(graph)
+                for perm_graph in perm_graphs:
+                    yield perm_graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _shuffle(self, graph):
+        header = graph.graph['header']
+        seq = graph.graph['sequence']
+        for i in range(self.times):
+            header_out = '%s_%d' % (header, i)
+            kmers = [seq[i:i + self.order]
+                     for i in range(0, len(seq), self.order)]
+            random.shuffle(kmers)
+            seq_out = ''.join(kmers)
+            yield seq_to_networkx(header_out, seq_out)
 
 # ------------------------------------------------------------------------------
 
