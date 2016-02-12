@@ -100,5 +100,21 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
             data_matrix = vstack(
                 [positive_data_matrix, negative_data_matrix], format="csr")
             return data_matrix, y
+        elif len(graphs) == 1 and is_iterable(graphs[0]):
+            # case of single class
+            positive_data_matrix = vectorize(graphs[0],
+                                             vectorizer=self.vectorizer,
+                                             **self.params_vectorize)
+            logger.debug('Positive data: %s' %
+                         describe(positive_data_matrix))
+            negative_data_matrix = positive_data_matrix.multiply(-1)
+            logger.debug('Negative data: %s' %
+                         describe(negative_data_matrix))
+            yp = [1] * positive_data_matrix.shape[0]
+            yn = [-1] * negative_data_matrix.shape[0]
+            y = np.array(yp + yn)
+            data_matrix = vstack(
+                [positive_data_matrix, negative_data_matrix], format="csr")
+            return data_matrix, y
         else:
             raise Exception('Unknown prediction task')
