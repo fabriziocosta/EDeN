@@ -13,14 +13,14 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
     """Annotate minimal cycles."""
 
     def __init__(self,
-                 estimator=None):
+                 program=None):
         """Construct."""
-        self.estimator = estimator
+        self.program = program
         self.vectorizer = Vectorizer()
         self.params_vectorize = dict()
 
     def set_params(self, **params):
-        """Set the parameters of this estimator.
+        """Set the parameters of this program.
 
         The method.
 
@@ -30,11 +30,15 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
         """
         # finds parameters for the vectorizer as those that contain "__"
         params_vectorizer = dict()
+        params_program = dict()
         for param in params:
             if "vectorizer__" in param:
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
+            else:
+                params_program[param] = params[param]
+        self.program.set_params(**params_program)
         self.vectorizer.set_params(**params_vectorizer)
         return self
 
@@ -43,7 +47,7 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
         try:
             annotated_graphs = self.vectorizer.annotate(
                 graphs,
-                estimator=self.estimator,
+                estimator=self.program,
                 reweight=1.0,
                 relabel=False)
             for graph in annotated_graphs:

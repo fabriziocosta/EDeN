@@ -29,7 +29,8 @@ def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
     graph.graph['structure'] = seq_struct
     graph.graph['header'] = header
     graph.graph['id'] = header.split()[0]
-    assert(len(seq_info) == len(seq_struct))
+    assert(len(seq_info) == len(seq_struct)), 'Len seq:%d is different than\
+     len struct:%d' % (len(seq_info), len(seq_struct))
     lifo = list()
     for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
         graph.add_node(i, label=c, position=i)
