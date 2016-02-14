@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides conversion from files to graphs."""
+
 from eden import util
 from sklearn.base import BaseEstimator, TransformerMixin
 import json
@@ -9,20 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 class GraphToNodeLinkData(BaseEstimator, TransformerMixin):
-
-    """
-    Transform graph into text.
-
-    """
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        return self
+    """Transform graph into text."""
 
     def transform(self, graphs):
-        '''Todo.'''
+        """Transform."""
         try:
             for graph in graphs:
                 json_data = json_graph.node_link_data(graph)
@@ -33,23 +26,13 @@ class GraphToNodeLinkData(BaseEstimator, TransformerMixin):
             logger.debug('Exception', exc_info=True)
 
 
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 class NodeLinkDataToGraph(BaseEstimator, TransformerMixin):
-
-    """
-    Transform text into graphs.
-
-    """
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        return self
+    """Transform text into graphs."""
 
     def transform(self, data):
-        '''Todo.'''
+        """Transform."""
         try:
             for serial_data in util.read(data):
                 py_obj = json.loads(serial_data)
@@ -60,20 +43,10 @@ class NodeLinkDataToGraph(BaseEstimator, TransformerMixin):
             logger.debug('Exception', exc_info=True)
 
 
-# ---------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
 
 class GspanToGraph(BaseEstimator, TransformerMixin):
-
-    """
-    Transform gSpan text into graphs.
-
-    """
-
-    def __init__(self):
-        pass
-
-    def fit(self):
-        return self
+    """Transform gSpan text into graphs."""
 
     def transform(self, data):
         """Take a string list in the extended gSpan format and yields NetworkX graphs.
@@ -98,34 +71,18 @@ class GspanToGraph(BaseEstimator, TransformerMixin):
                 if line.strip():
                     if line[0] in ['g', 't']:
                         if string_list:
-                            yield self.gspan_to_networkx(header, string_list)
+                            yield self._gspan_to_networkx(header, string_list)
                         string_list = []
                         header = line
                     else:
                         string_list += [line]
             if string_list:
-                yield self.gspan_to_networkx(header, string_list)
+                yield self._gspan_to_networkx(header, string_list)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def gspan_to_networkx(self, header, lines):
-        """Take a string list in the extended gSpan format and returns a NetworkX graph.
-
-        Parameters
-        ----------
-        header: string to be used as id for the graph
-        lines: string list in extended gSpan format
-
-        Returns
-        -------
-        NetworkX graph
-
-        Raises
-        ------
-        exception: when a graph is empty
-        """
-
+    def _gspan_to_networkx(self, header, lines):
         # remove empty lines
         lines = [line for line in lines if line.strip()]
 
@@ -140,13 +97,15 @@ class GspanToGraph(BaseEstimator, TransformerMixin):
                 label = tokens[2]
                 weight = 1.0
 
-                # uppercase V indicates no-viewpoint, in the new EDeN this is simulated via a smaller weight
+                # uppercase V indicates no-viewpoint, in the new EDeN this
+                # is simulated via a smaller weight
                 if fc == 'V':
                     weight = 0.1
 
                 graph.add_node(id, ID=id, label=label, weight=weight)
 
-                # extract the rest of the line  as a JSON string that contains all attributes
+                # extract the rest of the line  as a JSON string that
+                # contains all attributes
                 attribute_str = ' '.join(tokens[3:])
                 if attribute_str.strip():
                     attribute_dict = json.loads(attribute_str)
@@ -165,5 +124,6 @@ class GspanToGraph(BaseEstimator, TransformerMixin):
             else:
                 logger.debug('line begins with unrecognized code: %s' % fc)
         if len(graph) == 0:
-            raise Exception('ERROR: generated empty graph. Perhaps wrong format?')
+            raise Exception('ERROR: generated empty graph. \
+                Perhaps wrong format?')
         return graph

@@ -456,15 +456,6 @@ class Vectorizer(AbstractVectorizer):
                 node_entity = 'sparse_vector'
             else:
                 node_entity = 'default'
-        # determine the label type
-        # if isinstance(d[self.key_label], list):
-        #     # transform python list into numpy array
-        #     data = np.array(d[self.key_label])
-        # elif isinstance(d[self.key_label], dict):
-        #     # return the dict rerpesentation
-        #     data = d[self.key_label]
-        # else:  # this is a string
-        #    data = d[self.key_label]
         data = d[self.key_label]
         return node_entity, data
 
@@ -540,12 +531,13 @@ class Vectorizer(AbstractVectorizer):
             # and in addition a vertex for each edge
             new_node_id = max(original_graph.nodes()) + 1
             for u, v, d in original_graph.edges_iter(data=True):
-                d['edge'] = True
-                graph.add_node(new_node_id, d)
-                # and the corresponding edges
-                graph.add_edge(new_node_id, u, label=None)
-                graph.add_edge(new_node_id, v, label=None)
-                new_node_id += 1
+                if u != v:
+                    d['edge'] = True
+                    graph.add_node(new_node_id, d)
+                    # and the corresponding edges
+                    graph.add_edge(new_node_id, u, label=None)
+                    graph.add_edge(new_node_id, v, label=None)
+                    new_node_id += 1
             return graph
 
     def _revert_edge_to_vertex_transform(self, original_graph):

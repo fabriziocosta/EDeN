@@ -280,13 +280,15 @@ class Minor(BaseEstimator, TransformerMixin):
             for part_id, part_name in zip(part_ids, part_names):
                 part_id_dict[part_id].append(u)
                 part_name_dict[part_id] = part_name
-        minor_graph = nx.Graph()
+        m_graph = nx.Graph()
+        # copy attributes
+        m_graph.graph = graph.graph
         # allocate a node per part_id
         for part_id in part_id_dict:
-            minor_graph.add_node(part_id, contracted=part_id_dict[part_id])
-            minor_graph.node[part_id][self.part_id] = part_id
-            minor_graph.node[part_id][self.part_name] = part_name_dict[part_id]
-            minor_graph.node[part_id]['label'] = part_name_dict[part_id]
+            m_graph.add_node(part_id, contracted=part_id_dict[part_id])
+            m_graph.node[part_id][self.part_id] = part_id
+            m_graph.node[part_id][self.part_name] = part_name_dict[part_id]
+            m_graph.node[part_id]['label'] = part_name_dict[part_id]
         # create an edge between two part_id nodes if there existed such an
         # edge between two nodes that had that part_id
         for u, v in graph.edges():
@@ -294,7 +296,8 @@ class Minor(BaseEstimator, TransformerMixin):
             p_id_vs = graph.node[v][self.part_id]
             for p_id_u in p_id_us:
                 for p_id_v in p_id_vs:
-                    if (p_id_u, p_id_v) not in minor_graph.edges():
-                        minor_graph.add_edge(p_id_u, p_id_v)
-                        minor_graph.edge[p_id_u][p_id_v] = graph.edge[u][v]
-        return minor_graph
+                    if p_id_u != p_id_v:
+                        if (p_id_u, p_id_v) not in m_graph.edges():
+                            m_graph.add_edge(p_id_u, p_id_v)
+                            m_graph.edge[p_id_u][p_id_v]['label'] = 'part_of'
+        return m_graph

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class ClusterWrapper(BaseEstimator, ClusterMixin):
+class ClustererWrapper(BaseEstimator, ClusterMixin):
     """Clusterer."""
 
     def __init__(self, program=None):
