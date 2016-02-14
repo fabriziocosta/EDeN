@@ -46,7 +46,7 @@ class Annotator(BaseEstimator, ClassifierMixin):
             #
             # ...
 
-            ## simple name:
+            # simple name:
             # labels = [graph.node[i]['label'] for i in graph.node[n]['__cycle']]
             # labels.sort()
             # return ''.join(labels)
@@ -198,8 +198,6 @@ def node_to_cycle(graph, n, min_cycle_size=3):
 
 def _getname(graph, n):
     # more complicated naming scheme  looks at cycle and uses lexicographicaly smallest name.
-
-
     # trivial case with cycle length 1:
     if len(graph.node[n]['__cycle']) == 1:
         return graph.node[n]['label']

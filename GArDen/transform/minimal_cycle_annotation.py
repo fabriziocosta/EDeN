@@ -3,9 +3,8 @@
 
 import eden
 from collections import defaultdict
-
 from sklearn.base import BaseEstimator, ClassifierMixin
-
+import networkx as nx
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,14 +40,6 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
 
     def _transform_single(self, graph):
         # letz annotateo oOoO
-
-        # process cycle annotation
-        def get_name(graph, n):
-            orig = ''.join([graph.node[i][self.attribute]
-                            for i in graph.node[n]['__cycle']])
-            normalized = _min_lex(orig)
-            return normalized
-
         # make basic annotation
         for n, d in graph.nodes(data=True):
             d['__cycle'] = list(node_to_cycle(graph, n))
@@ -78,18 +69,6 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
             d[self.part_id].sort()
             d[self.part_name].sort()
         return graph
-
-
-def _min_lex(s):
-    def all_lex(s):
-        n = len(s)
-        for i in range(n):
-            yield s
-            s = list(s)
-            s_list = s[1:]
-            s_list += s[0]
-            s = ''.join(s_list)
-    return min(all_lex(s))
 
 
 def _fhash(stuff):
@@ -224,12 +203,9 @@ def node_to_cycle(graph, n, min_cycle_size=3):
 
 def _getname(graph, n):
     # more complicated naming scheme  looks at cycle and uses lexicographicaly smallest name.
-
-
     # trivial case with cycle length 1:
     if len(graph.node[n]['__cycle']) == 1:
         return graph.node[n]['label']
-
     # first we need the nodelabels in order
     g = nx.Graph(graph.subgraph(graph.node[n]['__cycle']))
     startnode = graph.node[n]['__cycle'][0]
