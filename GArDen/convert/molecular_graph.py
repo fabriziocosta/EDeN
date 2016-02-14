@@ -15,20 +15,41 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def mol_file_to_iterable(filename=None, file_format=None):
+    """Parse multiline file into text blocks."""
+    if file_format == 'sdf':
+        with open(filename) as f:
+            s = ''
+            for line in f:
+                if line.strip() != '$$$$':
+                    s = s + line
+                else:
+                    return_value = s + line
+                    s = ''
+                    yield return_value
+    elif file_format == 'smi':
+        with open(filename) as f:
+            for line in f:
+                yield line
+    else:
+        raise Exception('ERROR: unrecognized file format: %s' % file_format)
+
+
 # ----------------------------------------------------------------------------
 
 class MoleculeToGraph(BaseEstimator, TransformerMixin):
     """Transform text into graphs."""
 
-    def __init__(self,
-                 file_format='sdf'):
+    def __init__(self, file_format='sdf'):
         """Constructor."""
         self.file_format = file_format
 
     def transform(self, data):
         """Transform."""
         try:
-            graphs = self._obabel_to_eden(data)
+            iterable = mol_file_to_iterable(filename=data,
+                                            file_format=self.file_format)
+            graphs = self._obabel_to_eden(iterable)
             for graph in graphs:
                 yield graph
         except Exception as e:
@@ -131,7 +152,9 @@ class Molecule3DToGraph(BaseEstimator, TransformerMixin):
     def transform(self, data):
         """Transform."""
         try:
-            graphs = self._obabel_to_eden3d(data)
+            iterable = mol_file_to_iterable(filename=data,
+                                            file_format=self.file_format)
+            graphs = self._obabel_to_eden3d(iterable)
             for graph in graphs:
                 yield graph
         except Exception as e:

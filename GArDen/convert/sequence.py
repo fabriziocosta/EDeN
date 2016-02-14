@@ -9,6 +9,41 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
+    """Build a graph given a sequence string and a string with dotbracket notation.
+
+    Parameters
+    ----------
+    seq_info : string
+        node labels eg a sequence string
+
+    seq_struct : string
+        dotbracket string
+
+    Returns
+    -------
+    A nx.Graph secondary struct associated with seq_struct
+    """
+    graph = nx.Graph()
+    graph.graph['sequence'] = seq_info
+    graph.graph['structure'] = seq_struct
+    graph.graph['header'] = header
+    graph.graph['id'] = header.split()[0]
+    assert(len(seq_info) == len(seq_struct)), 'Len seq:%d is different than\
+     len struct:%d' % (len(seq_info), len(seq_struct))
+    lifo = list()
+    for i, (c, b) in enumerate(zip(seq_info, seq_struct)):
+        graph.add_node(i, label=c, position=i)
+        if i > 0:
+            graph.add_edge(i, i - 1, label='-', type='backbone', len=1)
+        if b == '(':
+            lifo.append(i)
+        if b == ')':
+            j = lifo.pop()
+            graph.add_edge(i, j, label='=', type='basepair', len=1)
+    return graph
+
+
 def seq_to_networkx(header, seq, constr=None):
     """Convert sequence tuples to networkx graphs."""
     graph = nx.Graph()
@@ -60,6 +95,7 @@ class SeqWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
 
 
 # ------------------------------------------------------------------------------
+
 
 class FastaToPathGraph(BaseEstimator, TransformerMixin):
     """Transform FASTA files into path graphs."""
@@ -144,6 +180,81 @@ class FastaWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
             seqs = self._fasta_to_seq(data)
             for header, seq, constr in seqs:
                 yield seq_to_networkx(header, seq, constr=constr)
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _fasta_to_seq(self, data):
+        iterable = self._fasta_to_fasta(data)
+        for line in iterable:
+            header = line
+            seq = iterable.next()
+            constr = iterable.next()
+            if self.normalize:
+                seq = seq.upper()
+                seq = seq.replace('T', 'U')
+            yield header, seq, constr
+
+    def _fasta_to_fasta(self, data):
+        header = ""
+        seq = ""
+        constr = ""
+        for line in util.read(data):
+            line = str(line).strip()
+            if line == "":
+                # assume the empty line indicates that next line describes
+                # the constraints
+                if seq:
+                    yield seq
+                seq = None
+            elif line[0] == '>':
+                if constr:
+                    yield constr
+                    header = ""
+                    seq = ""
+                    constr = ""
+                header = line
+                yield header
+            else:
+                # remove trailing chars, split and take only first part,
+                # removing comments
+                line_str = line.split()[0]
+                if line_str:
+                    if seq is None:
+                        constr += line_str
+                    else:
+                        seq += line_str
+        if constr:
+            yield constr
+
+
+# ------------------------------------------------------------------------------
+
+
+class FastaWithStructureToGraph(BaseEstimator, TransformerMixin):
+    """Transform FASTA files with structure into graphs."""
+
+    def __init__(self, normalize=True):
+        """Constructor."""
+        self.normalize = normalize
+
+    def transform(self, data):
+        """Transform.
+
+        Parameters
+        ----------
+        data : filename or url or iterable
+            Data source containing sequences information in FASTA format.
+
+
+        Returns
+        -------
+        Iterator over networkx graphs.
+        """
+        try:
+            seqs = self._fasta_to_seq(data)
+            for header, seq, struct in seqs:
+                yield sequence_dotbracket_to_graph(header, seq, struct)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)

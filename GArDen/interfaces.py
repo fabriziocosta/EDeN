@@ -5,7 +5,8 @@ from eden.util import is_iterable
 import random
 from itertools import tee, izip
 from collections import defaultdict
-from GArDen.partition import ClusterWrapper
+from GArDen.partition import ClustererWrapper
+from GArDen.predict import ClassifierWrapper
 
 import logging
 logger = logging.getLogger(__name__)
@@ -56,10 +57,33 @@ def convert(iterable, program=None, precondition=None,
     return program.transform(iterable)
 
 
-def associate(iterable, program=None, precondition=None,
-              postcondition=None, parameters_priors=None):
+def model(iterable, program=None, precondition=None,
+          postcondition=None, parameters_priors=None):
+    """Induce a predictive model.
+
+    The induction is done by optimizing the parameters and the
+    hyper parameters.
+    Return a biased program that can be used in the other operators.
+    """
+    # the wrapper provides the vectorization support
+    program = ClassifierWrapper(program=program)
+    parameters = sample_parameters_uniformly_at_random(parameters_priors)
+    if parameters:
+        program.set_params(**parameters)
+    estimator = program.fit(iterable)
+    return estimator
+
+
+def predict(iterable, program=None, precondition=None,
+            postcondition=None, parameters_priors=None):
     """Map a graph to an output data type."""
-    pass
+    # the wrapper provides the vectorization support
+    program = ClassifierWrapper(program=program)
+    parameters = sample_parameters_uniformly_at_random(parameters_priors)
+    if parameters:
+        program.set_params(**parameters)
+    predictions = program.predict(iterable)
+    return predictions
 
 
 def partition(iterable, program=None,
@@ -72,7 +96,7 @@ def partition(iterable, program=None,
     elements that have the same parent or advances to the parent.
     """
     # the wrapper provides the vectorization support
-    program = ClusterWrapper(program=program)
+    program = ClustererWrapper(program=program)
     parameters = sample_parameters_uniformly_at_random(parameters_priors)
     if parameters:
         program.set_params(**parameters)
