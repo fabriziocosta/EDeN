@@ -7,6 +7,7 @@ from itertools import tee, izip
 from collections import defaultdict
 from GArDen.partition import ClustererWrapper
 from GArDen.predict import ClassifierWrapper
+from GArDen.order import OrdererWrapper
 
 import logging
 logger = logging.getLogger(__name__)
@@ -106,6 +107,23 @@ def partition(iterable, program=None,
     for prediction, graph in izip(predictions, iterable):
         partition_list[prediction].append(graph.copy())
     return partition_list
+
+
+def order(iterable, program=None,
+          precondition=None, postcondition=None, parameters_priors=None):
+    """Map iterable to iterable.
+
+    Example: receive an iterator over graphs and yield an
+    iterator over the same graphs but sorted by density.
+    """
+    program = OrdererWrapper(program=program)
+    parameters = sample_parameters_uniformly_at_random(parameters_priors)
+    if parameters:
+        program.set_params(**parameters)
+    iterable, iterable_ = tee(iterable)
+    scores = program.decision_function(iterable_)
+    for score, graph in sorted(izip(scores, iterable)):
+        yield graph
 
 
 def compose(iterable, program=None,

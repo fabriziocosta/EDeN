@@ -62,7 +62,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
             logger.debug('Exception', exc_info=True)
 
     def predict(self, graphs):
-        """fit."""
+        """predict."""
         try:
             graphs, graphs_ = tee(graphs)
             data_matrix = vectorize(graphs_,
