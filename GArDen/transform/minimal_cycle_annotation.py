@@ -3,10 +3,10 @@
 
 import eden
 from collections import defaultdict
-
 from sklearn.base import BaseEstimator, ClassifierMixin
-
+import networkx as nx
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,20 +40,16 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
 
     def _transform_single(self, graph):
         # letz annotateo oOoO
-
-        # process cycle annotation
-        def get_name(graph, n):
-            orig = ''.join([graph.node[i][self.attribute]
-                            for i in graph.node[n]['__cycle']])
-            normalized = _min_lex(orig)
-            return normalized
-
         # make basic annotation
         for n, d in graph.nodes(data=True):
             d['__cycle'] = list(node_to_cycle(graph, n))
             # d['__cycle'].sort()
             graph.node[n][self.part_id] = set()
             # graph.node[n][part_name] = set()
+
+        # process cycle annotation
+        def get_name(graph, n):
+            return _getname(graph, n)
 
         namedict = {}
         for n, d in graph.nodes(data=True):
@@ -70,20 +66,9 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
         for n, d in graph.nodes(data=True):
             d[self.part_id] = list(d[self.part_id])
             d[self.part_name] = [namedict[id] for id in d[self.part_id]]
-
+            d[self.part_id].sort()
+            d[self.part_name].sort()
         return graph
-
-
-def _min_lex(s):
-    def all_lex(s):
-        n = len(s)
-        for i in range(n):
-            yield s
-            s = list(s)
-            s_list = s[1:]
-            s_list += s[0]
-            s = ''.join(s_list)
-    return min(all_lex(s))
 
 
 def _fhash(stuff):
@@ -214,3 +199,38 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         visited = visited | frontier
         frontier = next
     return no_cycle_default
+
+
+def _getname(graph, n):
+    # more complicated naming scheme  looks at cycle and uses lexicographicaly smallest name.
+    # trivial case with cycle length 1:
+    if len(graph.node[n]['__cycle']) == 1:
+        return graph.node[n]['label']
+    # first we need the nodelabels in order
+    g = nx.Graph(graph.subgraph(graph.node[n]['__cycle']))
+    startnode = graph.node[n]['__cycle'][0]
+    neighbor = g.neighbors(startnode)[0]
+    g.remove_edge(startnode, neighbor)
+
+    result = []
+    while len(g) > 1:
+        neighbor = g.neighbors(startnode)[0]
+        result.append(g.node[startnode]['label'])
+        g.remove_node(startnode)
+        startnode = neighbor
+    result.append(g.node[startnode]['label'])
+
+    #  we have the labels in order now.
+    # we want to cycle until we find the lex lowest configuration
+    def min_lex(li):
+        def all_lex(li):
+            n = len(li)
+            for i in range(n):
+                yield li
+                li = li[1:] + [li[0]]
+
+        il = list(li)
+        il.reverse()
+        return ''.join(min(min(all_lex(li)), min(all_lex(il))))
+
+    return min_lex(result)

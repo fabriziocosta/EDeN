@@ -2,6 +2,7 @@ import eden
 from collections import defaultdict
 
 from sklearn.base import BaseEstimator, ClassifierMixin
+import networkx as nx
 
 
 class Annotator(BaseEstimator, ClassifierMixin):
@@ -41,9 +42,17 @@ class Annotator(BaseEstimator, ClassifierMixin):
 
         # process cycle annotation
         def get_name(graph, n):
-            labels = [graph.node[i]['label'] for i in graph.node[n]['__cycle']]
-            labels.sort()
-            return ''.join(labels)
+            # at this point every node has only 1 cycle (its smallest cycle) annotated.
+            #
+            # ...
+
+            # simple name:
+            # labels = [graph.node[i]['label'] for i in graph.node[n]['__cycle']]
+            # labels.sort()
+            # return ''.join(labels)
+
+            # so now we need a more complicated name.
+            return _getname(graph, n)
 
         namedict = {}
         for n, d in graph.nodes(data=True):
@@ -60,6 +69,8 @@ class Annotator(BaseEstimator, ClassifierMixin):
         for n, d in graph.nodes(data=True):
             d[part_id] = list(d[part_id])
             d[part_name] = [namedict[_idd] for _idd in d[part_id]]
+            d[part_id].sort()
+            d[part_name].sort()
 
         return graph
 
@@ -183,6 +194,42 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         visited = visited | frontier
         frontier = next
     return no_cycle_default
+
+
+def _getname(graph, n):
+    # more complicated naming scheme  looks at cycle and uses lexicographicaly smallest name.
+    # trivial case with cycle length 1:
+    if len(graph.node[n]['__cycle']) == 1:
+        return graph.node[n]['label']
+
+    # first we need the nodelabels in order
+    g = nx.Graph(graph.subgraph(graph.node[n]['__cycle']))
+    startnode = graph.node[n]['__cycle'][0]
+    neighbor = g.neighbors(startnode)[0]
+    g.remove_edge(startnode, neighbor)
+
+    result = []
+    while len(g) > 1:
+        neighbor = g.neighbors(startnode)[0]
+        result.append(g.node[startnode]['label'])
+        g.remove_node(startnode)
+        startnode = neighbor
+    result.append(g.node[startnode]['label'])
+
+    #  we have the labels in order now.
+    # we want to cycle until we find the lex lowest configuration
+    def min_lex(li):
+        def all_lex(li):
+            n = len(li)
+            for i in range(n):
+                yield li
+                li = li[1:] + [li[0]]
+
+        il = list(li)
+        il.reverse()
+        return ''.join(min(min(all_lex(li)), min(all_lex(il))))
+
+    return min_lex(result)
 
 
 '''
