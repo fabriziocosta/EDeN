@@ -44,6 +44,9 @@ def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
     -------
     A nx.Graph secondary struct associated with seq_struct
     """
+    assert(header is not None), 'Header cannot be none'
+    assert(seq_info is not None), 'Sequence cannot be none'
+    assert(seq_struct is not None), 'Structure cannot be none'
     graph = nx.Graph()
     graph.graph['sequence'] = seq_info
     graph.graph['structure'] = seq_struct
@@ -217,20 +220,20 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
                                     max_num=self.max_num)
         if self.split_components:
             for seq_struct, struct in zip(seq_struct_list, struct_list):
-                graph = sequence_dotbracket_to_graph(seq_info=seq_info,
+                graph = sequence_dotbracket_to_graph(header=header,
+                                                     seq_info=seq_info,
                                                      seq_struct=seq_struct)
                 graph.graph['info'] = 'RNAshapes shape_type=%s energy_range=%s\
                  max_num=%s' % (
                     self.shape_type,
                     self.energy_range,
                     self.max_num)
-                graph.graph['id'] = header + '_' + struct
+                graph.graph['shape'] = struct
                 graph.graph['sequence'] = sequence
                 graph.graph['structure'] = seq_struct
                 yield graph
         else:
             graph_global = nx.Graph()
-            graph_global.graph['id'] = header
             graph_global.graph['info'] = 'RNAshapes shape_type=%s \
             energy_range=%s max_num=%s' % (
                 self.shape_type,
