@@ -12,6 +12,21 @@ from itertools import combinations_with_replacement
 import logging
 logger = logging.getLogger(__name__)
 
+# have a generic way to transform the original instance
+# have a way to change the labels of k positions in all possible ways
+# have a way to compute the average similarity of k-nearest neighbors
+# have a  way to learn a regression or classification task
+# (as logistic regression)
+# given a seed sequence find the k positions that are most important
+# have a way to specify them externally
+# then try all possibilities for those positions
+# then score the results with learned regressor + lambda 1/avg kernel knn
+# as a kernel use the dot product between the vectors obtained as the direct
+# product of the feature description of the transformed instance and the fit
+# weight vector.
+# take the max instance for improving.
+# when maximally inhibiting take the instance that potentially maximally reduces
+# the score, so minimize score - lambda 1/avg kernel knn.
 # ------------------------------------------------------------------------------
 
 
