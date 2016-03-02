@@ -42,21 +42,22 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
         # letz annotateo oOoO
         # make basic annotation
         for n, d in graph.nodes(data=True):
-            d['__cycle'] = list(node_to_cycle(graph, n))
+            d['__cycle'] = list(node_to_cycle(
+                    graph, n, attribute_name=self.attribute))
             d['__cycle'].sort()
             graph.node[n][self.part_id] = set()
             # graph.node[n][part_name] = set()
 
         # process cycle annotation
-        def get_name(graph, n):
-            return _getname(graph, n)
+        def get_name(graph, n, attribute):
+            return _getname(graph, n, self.attribute)
 
         namedict = {}
         for n, d in graph.nodes(data=True):
             idd = _fhash(d['__cycle'])
             name = namedict.get(idd, None)
             if name is None:
-                name = get_name(graph, n)
+                name = get_name(graph, n, self.attribute)
                 namedict[idd] = name
             for nid in d['__cycle']:
                 graph.node[nid][self.part_id].add(idd)
@@ -75,7 +76,7 @@ def _fhash(stuff):
     return eden.fast_hash(stuff, 2 ** 20 - 1)
 
 
-def node_to_cycle(graph, n, min_cycle_size=3):
+def node_to_cycle(graph, n, attribute_name='label', min_cycle_size=3):
     """Node to cycle.
 
     :param graph:
@@ -93,11 +94,13 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         - it is also possible that the newly found cycle doesnt contain our
         start node. so we check for that
     """
-    def close_cycle(collisions, parent, root,graph):
+
+    def close_cycle(collisions, parent, root, graph):
         """We found a cycle.
 
         But that does not say that the root node is part of that cycle.
         """
+
         def extend_path_to_root(work_list, parent_dict, root, graph):
             """Extend.
 
@@ -116,20 +119,20 @@ def node_to_cycle(graph, n, min_cycle_size=3):
             while current != root:
 
                 # if we have 1 partent, we use it
-                if len ( parent_dict[current] ) > 1:
-                    work_list.append( parent_dict[current][0] )
+                if len(parent_dict[current]) > 1:
+                    work_list.append(parent_dict[current][0])
 
                 # otherwise we look at all of them.
+                # and choose the lexicographically smallest parent.
                 else:
 
                     bestparent = parent_dict[current][0]
-                    bestlabel = graph.node[bestparent]['label']
+                    bestlabel = graph.node[bestparent][attribute_name]
                     for parent in parent_dict[current]:
-                        if graph.node[parent]['label'] < bestlabel:
-                            bestlabel= graph.node[parent]['label']
-                            bestparent=parent
-                    work_list.append( bestparent )
-
+                        if graph.node[parent][attribute_name] < bestlabel:
+                            bestlabel = graph.node[parent][attribute_name]
+                            bestparent = parent
+                    work_list.append(bestparent)
 
                 current = work_list[-1]
             return work_list[:-1]
@@ -144,8 +147,8 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         b = [li[1]]
         # print 'pre',a,b
         # get the path until the root node
-        a = extend_path_to_root(a, parent, root,graph)
-        b = extend_path_to_root(b, parent, root,graph)
+        a = extend_path_to_root(a, parent, root, graph)
+        b = extend_path_to_root(b, parent, root, graph)
         # print 'comp',a,b
         # if the paths to the root node dont overlap, the root node must be
         # in the loop
@@ -189,7 +192,7 @@ def node_to_cycle(graph, n, min_cycle_size=3):
             # check if we havee a cycle   => s1,s2 overlap
             if len(merge) < len(s1) + len(s2):
                 col = s1 & s2
-                cycle = close_cycle(col, parent, n,graph)
+                cycle = close_cycle(col, parent, n, graph)
                 if cycle:
                     if step * 2 > min_cycle_size:
                         return cycle
@@ -204,7 +207,7 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         # the old frontier
         if len(next & frontier) > 0:
             col = next & frontier
-            cycle = close_cycle(col, parent, n,graph)
+            cycle = close_cycle(col, parent, n, graph)
             if cycle:
                 if step * 2 - 1 > min_cycle_size:
                     return cycle
@@ -217,11 +220,12 @@ def node_to_cycle(graph, n, min_cycle_size=3):
     return no_cycle_default
 
 
-def _getname(graph, n):
-    # more complicated naming scheme  looks at cycle and uses lexicographicaly smallest name.
+def _getname(graph, n, attribute_name='label'):
+    # more complicated naming scheme  looks at cycle and uses
+    # lexicographicaly smallest name.
     # trivial case with cycle length 1:
     if len(graph.node[n]['__cycle']) == 1:
-        return graph.node[n]['label']
+        return graph.node[n][attribute_name]
     # first we need the nodelabels in order
     g = nx.Graph(graph.subgraph(graph.node[n]['__cycle']))
     startnode = graph.node[n]['__cycle'][0]
@@ -231,10 +235,10 @@ def _getname(graph, n):
     result = []
     while len(g) > 1:
         neighbor = g.neighbors(startnode)[0]
-        result.append(g.node[startnode]['label'])
+        result.append(g.node[startnode][attribute_name])
         g.remove_node(startnode)
         startnode = neighbor
-    result.append(g.node[startnode]['label'])
+    result.append(g.node[startnode][attribute_name])
 
     #  we have the labels in order now.
     # we want to cycle until we find the lex lowest configuration
