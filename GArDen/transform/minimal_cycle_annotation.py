@@ -43,7 +43,7 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
         # make basic annotation
         for n, d in graph.nodes(data=True):
             d['__cycle'] = list(node_to_cycle(graph, n))
-            # d['__cycle'].sort()
+            d['__cycle'].sort()
             graph.node[n][self.part_id] = set()
             # graph.node[n][part_name] = set()
 
@@ -93,12 +93,12 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         - it is also possible that the newly found cycle doesnt contain our
         start node. so we check for that
     """
-    def close_cycle(collisions, parent, root):
+    def close_cycle(collisions, parent, root,graph):
         """We found a cycle.
 
         But that does not say that the root node is part of that cycle.
         """
-        def extend_path_to_root(work_list, parent_dict, root):
+        def extend_path_to_root(work_list, parent_dict, root, graph):
             """Extend.
 
             :param work_list: list with start node
@@ -114,7 +114,23 @@ def node_to_cycle(graph, n, min_cycle_size=3):
             """
             current = work_list[-1]
             while current != root:
-                work_list.append(parent_dict[current][0])
+
+                # if we have 1 partent, we use it
+                if len ( parent_dict[current] ) > 1:
+                    work_list.append( parent_dict[current][0] )
+
+                # otherwise we look at all of them.
+                else:
+
+                    bestparent = parent_dict[current][0]
+                    bestlabel = graph.node[bestparent]['label']
+                    for parent in parent_dict[current]:
+                        if graph.node[parent]['label'] < bestlabel:
+                            bestlabel= graph.node[parent]['label']
+                            bestparent=parent
+                    work_list.append( bestparent )
+
+
                 current = work_list[-1]
             return work_list[:-1]
 
@@ -128,10 +144,10 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         b = [li[1]]
         # print 'pre',a,b
         # get the path until the root node
-        a = extend_path_to_root(a, parent, root)
-        b = extend_path_to_root(b, parent, root)
+        a = extend_path_to_root(a, parent, root,graph)
+        b = extend_path_to_root(b, parent, root,graph)
         # print 'comp',a,b
-        # of the paths to the root node dont overlap, the root node must be
+        # if the paths to the root node dont overlap, the root node must be
         # in the loop
         a = set(a)
         b = set(b)
@@ -173,7 +189,7 @@ def node_to_cycle(graph, n, min_cycle_size=3):
             # check if we havee a cycle   => s1,s2 overlap
             if len(merge) < len(s1) + len(s2):
                 col = s1 & s2
-                cycle = close_cycle(col, parent, n)
+                cycle = close_cycle(col, parent, n,graph)
                 if cycle:
                     if step * 2 > min_cycle_size:
                         return cycle
@@ -188,7 +204,7 @@ def node_to_cycle(graph, n, min_cycle_size=3):
         # the old frontier
         if len(next & frontier) > 0:
             col = next & frontier
-            cycle = close_cycle(col, parent, n)
+            cycle = close_cycle(col, parent, n,graph)
             if cycle:
                 if step * 2 - 1 > min_cycle_size:
                     return cycle
