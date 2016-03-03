@@ -11,10 +11,11 @@ __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
 
+_bitmask_ = 4294967295
+
 
 class AbstractVectorizer(BaseEstimator, TransformerMixin):
-
-    """Interface declaration for the Vectorizer class """
+    """Interface declaration for the Vectorizer class."""
 
     def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
         raise NotImplementedError("Should have implemented this")
@@ -62,15 +63,15 @@ def apply_async(pool, fun, args, callback=None):
     return pool.apply_async(run_dill_encoded, (dill.dumps((fun, args)),), callback=callback)
 
 
-def fast_hash_2(dat_1, dat_2, bitmask):
+def fast_hash_2(dat_1, dat_2, bitmask=_bitmask_):
     return int(hash((dat_1, dat_2)) & bitmask) + 1
 
 
-def fast_hash_3(dat_1, dat_2, dat_3, bitmask):
+def fast_hash_3(dat_1, dat_2, dat_3, bitmask=_bitmask_):
     return int(hash((dat_1, dat_2, dat_3)) & bitmask) + 1
 
 
-def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask):
+def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask=_bitmask_):
     return int(hash((dat_1, dat_2, dat_3, dat_4)) & bitmask) + 1
 
 
@@ -81,14 +82,14 @@ def calc_running_hash(running_hash, list_item, counter):
 # 1) == 0)]
 
 
-def fast_hash(vec, bitmask):
+def fast_hash(vec, bitmask=_bitmask_):
     running_hash = 0xAAAAAAAA
     for i, list_item in enumerate(vec):
         running_hash ^= calc_running_hash(running_hash, list_item, i)
     return int(running_hash & bitmask) + 1
 
 
-def fast_hash_vec(vec, bitmask):
+def fast_hash_vec(vec, bitmask=_bitmask_):
     hash_vec = []
     running_hash = 0xAAAAAAAA
     for i, list_item in enumerate(vec):
@@ -97,7 +98,7 @@ def fast_hash_vec(vec, bitmask):
     return hash_vec
 
 
-def fast_hash_vec_char(vec, bitmask):
+def fast_hash_vec_char(vec, bitmask=_bitmask_):
     hash_vec = []
     running_hash = 0xAAAAAAAA
     for i, list_item_char in enumerate(vec):
