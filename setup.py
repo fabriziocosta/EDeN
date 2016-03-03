@@ -133,7 +133,6 @@ setup(
         "openbabel",
         "pandas",
         "pybedtools>=0.6.6",
-        "pygraphviz",
         "pymf",
         "reportlab",
         "requests",
