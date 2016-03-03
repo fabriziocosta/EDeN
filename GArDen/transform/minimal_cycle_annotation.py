@@ -43,7 +43,7 @@ class AnnotateMinimalCycles(BaseEstimator, ClassifierMixin):
         # make basic annotation
         for n, d in graph.nodes(data=True):
             d['__cycle'] = list(node_to_cycle(
-                    graph, n, attribute_name=self.attribute))
+                                graph, n, attribute_name=self.attribute))
             d['__cycle'].sort()
             graph.node[n][self.part_id] = set()
             # graph.node[n][part_name] = set()
