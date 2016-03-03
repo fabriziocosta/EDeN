@@ -628,13 +628,13 @@ class Vectorizer(AbstractVectorizer):
                     # canonicazation of pair of neighborhoods
                     vertex_v_hash = graph.node[vertex_v]['neighborhood_graph_hash'][label_index][radius]
                     vertex_u_hash = graph.node[vertex_u]['neighborhood_graph_hash'][label_index][radius]
-                    if vertex_v_hash < vertex_u_hash:
-                        first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
-                    else:
-                        first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
-                    feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
-                    key = fast_hash_2(radius, distance, self.bitmask)
-                    # if self.weighted == False :
+                    # if vertex_v_hash < vertex_u_hash:
+                    #     first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
+                    # else:
+                    #     first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
+                    # feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
+                    feature = fast_hash_4(vertex_v_hash, vertex_u_hash, radius, distance, self.bitmask)
+                    key = fast_hash_2(radius, distance)
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
                     else:
@@ -645,7 +645,6 @@ class Vectorizer(AbstractVectorizer):
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance
         feature_vector = {}
-        total_norm = 0.0
         for features in feature_list.itervalues():
             norm = 0
             for count in features.itervalues():
@@ -658,10 +657,12 @@ class Vectorizer(AbstractVectorizer):
                 else:
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
-                total_norm += feature_vector_value * feature_vector_value
         # global normalization
         if self.normalization:
             normalized_feature_vector = {}
+            total_norm = 0.0
+            for feature, value in feature_vector.iteritems():
+                total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
             for feature, value in feature_vector.iteritems():
                 normalized_feature_vector[feature] = value / sqrt_total_norm
@@ -690,17 +691,16 @@ class Vectorizer(AbstractVectorizer):
                     # compute the vertex hashed label by hashing the hlabel field of position label_index
                     # with the degree of the vertex (obtained as the size of the adjacency dictionary
                     # for the vertex v)
-                    vhlabel = fast_hash_2(graph.node[v]['hlabel'][label_index],
-                                          len(graph[v]), self.bitmask)
+                    vhlabel = fast_hash_2(graph.node[v]['hlabel'][label_index], len(graph[v]))
                     hash_label_list.append(vhlabel)
                 # sort it
                 hash_label_list.sort()
                 # hash it
-                hashed_nodes_at_distance_d_in_neighborhood_set = fast_hash(hash_label_list, self.bitmask)
+                hashed_nodes_at_distance_d_in_neighborhood_set = fast_hash(hash_label_list)
                 hash_list.append(hashed_nodes_at_distance_d_in_neighborhood_set)
             # hash the sequence of hashes of the node set at increasing
             # distances into a list of features
-            hash_neighborhood = fast_hash_vec(hash_list, self.bitmask)
+            hash_neighborhood = fast_hash_vec(hash_list)
             hash_neighborhood_list.append(hash_neighborhood)
         graph.node[root]['neighborhood_graph_hash'] = hash_neighborhood_list
 
@@ -713,9 +713,9 @@ class Vectorizer(AbstractVectorizer):
     def _compute_neighborhood_graph_weight(self, root, graph):
         # list all nodes at increasing distances
         # at each distance
-        # compute the aritmetic mean weight on nodes
+        # compute the arithmetic mean weight on nodes
         # compute the geometric mean weight on edges
-        # compute the pruduct of the two
+        # compute the product of the two
         # make a list of the neighborhood_graph_weight at every distance
         neighborhood_graph_weight_list = []
         w = graph.node[root][self.key_weight]
@@ -727,16 +727,20 @@ class Vectorizer(AbstractVectorizer):
         root_dist_dict = graph.node[root]['remote_neighbours']
         for distance, node_set in root_dist_dict.iteritems():
             # extract array of weights at given distance
-            weight_array_at_d = np.array([graph.node[v][self.key_weight] for v in node_set], dtype=np.float64)
+            weight_array_at_d = np.array([graph.node[v][self.key_weight]
+                                          for v in node_set], dtype=np.float64)
             if distance % 2 == 0:  # nodes
-                node_weight_list = np.concatenate((node_weight_list, weight_array_at_d))
+                node_weight_list = np.concatenate(
+                    (node_weight_list, weight_array_at_d))
                 node_average = np.mean(node_weight_list)
             else:  # edges
-                edge_weight_list = np.concatenate((edge_weight_list, weight_array_at_d))
+                edge_weight_list = np.concatenate(
+                    (edge_weight_list, weight_array_at_d))
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
-        graph.node[root]['neighborhood_graph_weight'] = neighborhood_graph_weight_list
+        graph.node[root]['neighborhood_graph_weight'] = \
+            neighborhood_graph_weight_list
 
     def _single_vertex_breadth_first_visit(self, graph, root, max_depth):
         # the map associates to each distance value ( from 1:max_depth )
