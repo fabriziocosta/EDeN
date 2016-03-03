@@ -285,7 +285,9 @@ class Minor(BaseEstimator, TransformerMixin):
         m_graph.graph = graph.graph
         # allocate a node per part_id
         for part_id in part_id_dict:
-            m_graph.add_node(part_id, contracted=part_id_dict[part_id])
+            m_graph.add_node(part_id,
+                             is_contracted=True,
+                             contracted=part_id_dict[part_id])
             m_graph.node[part_id][self.part_id] = part_id
             m_graph.node[part_id][self.part_name] = part_name_dict[part_id]
             m_graph.node[part_id]['label'] = part_name_dict[part_id]

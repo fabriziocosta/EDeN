@@ -2,9 +2,137 @@
 """Provides modification of node attributes."""
 
 from sklearn.base import BaseEstimator, TransformerMixin
+import numpy as np
+from itertools import combinations_with_replacement
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+# ------------------------------------------------------------------------------
+
+
+class ReplaceWithAllCombinations(BaseEstimator, TransformerMixin):
+    """ReplaceWithAllCombinations."""
+
+    def __init__(self,
+                 label_list=['A', 'C', 'G', 'U'],
+                 attribute='selected'):
+        """Construct."""
+        self.label_list = label_list
+        self.attribute = attribute
+
+    def transform(self, graphs):
+        """transform."""
+        try:
+            for graph in graphs:
+                transformed_graphs = self._replace_with_all_combinations(graph)
+                for transformed_graph in transformed_graphs:
+                    yield transformed_graph
+            pass
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _replace_with_all_combinations(self, graph):
+        # find nodes with attribute
+        kmer_pos = []
+        for u in graph.nodes():
+            if graph.node[u].get(self.attribute, False):
+                kmer_pos.append(u)
+        kmers = combinations_with_replacement(self.label_list, len(kmer_pos))
+        for kmer in kmers:
+            new_graph = graph.copy()
+            for i in range(len(kmer)):
+                pos = kmer_pos[i]
+                new_label = kmer[i]
+                new_graph.node[pos]['label'] = new_label
+            yield new_graph
+
+
+# ------------------------------------------------------------------------------
+
+
+class MarkKTop(BaseEstimator, TransformerMixin):
+    """MarkKTop."""
+
+    def __init__(self,
+                 mark_attribute='selected',
+                 attribute='importance',
+                 ktop=1,
+                 reverse=True):
+        """Construct."""
+        self.mark_attribute = mark_attribute
+        self.attribute = attribute
+        self.ktop = ktop
+        self.reverse = reverse
+
+    def transform(self, graphs):
+        """transform."""
+        try:
+            for graph in graphs:
+                transformed_graph = self._mark(graph)
+                yield transformed_graph
+            pass
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _mark(self, graph):
+        # iterate over nodes and sort values of attribute
+        values = []
+        for n in graph.nodes():
+            value = float(graph.node[n].get(self.attribute, 0))
+            values.append(value)
+        sorted_values = sorted(values, reverse=self.reverse)
+
+        if self.ktop < len(sorted_values):
+            threshold = sorted_values[self.ktop]
+        else:
+            threshold = sorted_values[-1]
+        # iterate over nodes and mark
+        for n in graph.nodes():
+            value = float(graph.node[n].get(self.attribute, 0))
+            if value > threshold:
+                graph.node[n][self.mark_attribute] = True
+            else:
+                graph.node[n][self.mark_attribute] = False
+        return graph
+
+
+# ------------------------------------------------------------------------------
+
+class ColorNode(BaseEstimator, TransformerMixin):
+    """ColorNode."""
+
+    def __init__(self, input_attribute='label',
+                 output_attribute='level',
+                 labels=['A', 'U', 'C', 'G']):
+        """Construct."""
+        self.input_attribute = input_attribute
+        self.output_attribute = output_attribute
+        self.labels = labels
+        self.color_dict = None
+
+    def transform(self, graphs):
+        """transform."""
+        values = np.linspace(0.0, 1.0, num=len(self.labels))
+        self.color_dict = dict(zip(self.labels, values))
+
+        try:
+            for graph in graphs:
+                yield self._colorize(graph=graph)
+            pass
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _colorize(self, graph=None):
+        # iterate over nodes
+        for n, d in graph.nodes_iter(data=True):
+            graph.node[n][self.output_attribute] = \
+                self.color_dict.get(d[self.input_attribute], 0)
+        return graph
 
 # ------------------------------------------------------------------------------
 
