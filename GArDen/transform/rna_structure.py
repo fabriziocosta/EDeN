@@ -12,6 +12,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def extract_header_sequence(graph):
+    """extract_header_sequence."""
+    header = graph.graph['header']
+    # extract the list of labels for the nodes in sequence
+    seq_tokens = [graph.node[u]['label'] for u in graph.nodes()]
+    seq = ''.join(seq_tokens)
+    return header, seq
+
+
 def seq_to_networkx(header, seq, constr=None):
     """Convert sequence tuples to networkx graphs."""
     graph = nx.Graph()
@@ -109,8 +118,8 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
         """Transform path graph into structure graph according to RNAfold."""
         try:
             for graph in graphs:
-                yield self._string_to_networkx(graph.graph['header'],
-                                               graph.graph['sequence'])
+                header, sequence = extract_header_sequence(graph)
+                yield self._string_to_networkx(header, sequence)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
@@ -202,8 +211,8 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
         """
         try:
             for graph in graphs:
-                structures = self._string_to_networkx(graph.graph['header'],
-                                                      graph.graph['sequence'])
+                header, sequence = extract_header_sequence(graph)
+                structures = self._string_to_networkx(header, sequence)
                 for structure in structures:
                     yield structure
         except Exception as e:
@@ -318,8 +327,8 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
         """
         try:
             for graph in graphs:
-                yield self._string_to_networkx(graph.graph['header'],
-                                               graph.graph['sequence'])
+                header, sequence = extract_header_sequence(graph)
+                yield self._string_to_networkx(header, sequence)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
@@ -465,8 +474,7 @@ class PathGraphToRNASubopt(BaseEstimator, TransformerMixin):
         """
         try:
             for graph in graphs:
-                header = graph.graph['header']
-                sequence = graph.graph['sequence']
+                header, sequence = extract_header_sequence(graph)
                 constraint = graph.graph.get('constraint', None)
                 structures = self._string_to_networkx(header=header,
                                                       sequence=sequence,

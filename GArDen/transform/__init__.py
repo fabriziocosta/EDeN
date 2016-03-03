@@ -25,14 +25,18 @@ class DeleteEdge(BaseEstimator, TransformerMixin):
         """Transform."""
         try:
             for graph in graphs:
-                for u, v in graph.edges():
-                    if self.attribute in graph.edge[u][v] and \
-                            graph.edge[u][v].get(self.attribute, False):
-                        graph.remove_edge(u, v)
+                graph = self._delete_edges(graph)
                 yield graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
+
+    def _delete_edges(self, graph):
+        for u, v in graph.edges():
+            if self.attribute in graph.edge[u][v] and \
+                    graph.edge[u][v].get(self.attribute, False) == self.value:
+                graph.remove_edge(u, v)
+        return graph
 
 
 class DeleteNode(BaseEstimator, TransformerMixin):
