@@ -6,7 +6,7 @@ import random
 from itertools import tee, izip
 from collections import defaultdict
 from GArDen.partition import ClustererWrapper
-from GArDen.predict import ClassifierWrapper
+from GArDen.predict import ClassifierWrapper, RegressorWrapper, KNNWrapper
 from GArDen.order import OrdererWrapper
 
 import logging
@@ -46,6 +46,41 @@ def precondition(iterable=None, program=None):
     Preconditions evaluate to True or False.
     """
     return True
+
+
+def precond_is_classifier(iterable=None, program=None):
+    """Ensure that a program can do classification."""
+    if program.__class__.__name__ in ['SGDClassifier',
+                                      'LogisticRegression']:
+        return True
+    else:
+        return False
+
+
+def precond_is_regressor(iterable=None, program=None):
+    """Ensure that a program can do regression."""
+    if program.__class__.__name__ in ['SGDRegressor']:
+        return True
+    else:
+        return False
+
+
+def precond_is_knn(iterable=None, program=None):
+    """Ensure that a program can do k-nearest-neighbors."""
+    if program.__class__.__name__ in ['NearestNeighbors']:
+        return True
+    else:
+        return False
+
+
+def precond_is_wrapped(iterable=None, program=None):
+    """Ensure that a program is already wrapped."""
+    if program.__class__.__name__ in ['KNNWrapper',
+                                      'ClassifierWrapper',
+                                      'RegressorWrapper']:
+        return True
+    else:
+        return False
 
 
 def postcondition(iterable=None, program=None):
@@ -90,17 +125,26 @@ def model(iterable, program=None, precondition=precondition,
     """
     try:
         # the wrapper provides the vectorization support
-        program = ClassifierWrapper(program=program)
+        if precond_is_classifier(iterable=iterable, program=program):
+            wprogram = ClassifierWrapper(program=program)
+        elif precond_is_regressor(iterable=iterable, program=program):
+            wprogram = RegressorWrapper(program=program)
+        elif precond_is_knn(iterable=iterable, program=program):
+            wprogram = KNNWrapper(program=program)
+        elif precond_is_wrapped(iterable=iterable, program=program):
+            wprogram = program
+        else:
+            Exception('program type is unknown')
 
         parameters = sample_parameters_uniformly_at_random(parameters_priors)
         if parameters:
-            program.set_params(**parameters)
-        if precondition(iterable=iterable, program=program) is False:
+            wprogram.set_params(**parameters)
+        if precondition(iterable=iterable, program=wprogram) is False:
             raise Exception('precondition failed')
-        estimator = program.fit(iterable)
-        if postcondition(iterable=None, program=program) is False:
+        wprogram = wprogram.fit(iterable)
+        if postcondition(iterable=None, program=wprogram) is False:
             raise Exception('postcondition failed')
-        return estimator
+        return wprogram
     except Exception as e:
         logger.debug('Error. Reason: %s' % e)
         logger.debug('Exception', exc_info=True)
@@ -111,15 +155,24 @@ def predict(iterable, program=None, precondition=precondition,
     """Map a graph to an output data type."""
     try:
         # the wrapper provides the vectorization support
-        program = ClassifierWrapper(program=program)
+        if precond_is_classifier(iterable=iterable, program=program):
+            wprogram = ClassifierWrapper(program=program)
+        elif precond_is_regressor(iterable=iterable, program=program):
+            wprogram = RegressorWrapper(program=program)
+        elif precond_is_knn(iterable=iterable, program=program):
+            wprogram = KNNWrapper(program=program)
+        elif precond_is_wrapped(iterable=iterable, program=program):
+            wprogram = program
+        else:
+            Exception('program type is unknown')
 
         parameters = sample_parameters_uniformly_at_random(parameters_priors)
         if parameters:
-            program.set_params(**parameters)
-        if precondition(iterable=iterable, program=program) is False:
+            wprogram.set_params(**parameters)
+        if precondition(iterable=iterable, program=wprogram) is False:
             raise Exception('precondition failed')
-        predictions = program.predict(iterable)
-        if postcondition(iterable=predictions, program=program) is False:
+        predictions = wprogram.predict(iterable)
+        if postcondition(iterable=predictions, program=wprogram) is False:
             raise Exception('postcondition failed')
         return predictions
     except Exception as e:
