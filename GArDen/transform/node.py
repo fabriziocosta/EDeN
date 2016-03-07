@@ -37,17 +37,26 @@ class ReplaceWithAllCombinations(BaseEstimator, TransformerMixin):
     def _replace_with_all_combinations(self, graph):
         # find nodes with attribute
         kmer_pos = []
+        ref_kmer = []
         for u in graph.nodes():
             if graph.node[u].get(self.attribute, False):
                 kmer_pos.append(u)
+                ref_kmer.append(graph.node[u]['label'])
+        ref_kmer = tuple(ref_kmer)
         kmers = combinations_with_replacement(self.label_list, len(kmer_pos))
         for kmer in kmers:
-            new_graph = graph.copy()
-            for i in range(len(kmer)):
-                pos = kmer_pos[i]
-                new_label = kmer[i]
-                new_graph.node[pos]['label'] = new_label
-            yield new_graph
+            if kmer != ref_kmer:
+                new_graph = graph.copy()
+                new_graph.graph['ref_kmer'] = ref_kmer
+                new_graph.graph['kmer_pos'] = kmer_pos
+                new_graph.graph['kmer'] = kmer
+                new_graph.graph['header'] += '_' + ''.join(kmer) +\
+                    '-' + ''.join(ref_kmer)
+                for i in range(len(kmer)):
+                    pos = kmer_pos[i]
+                    new_label = kmer[i]
+                    new_graph.node[pos]['label'] = new_label
+                yield new_graph
 
 
 # ------------------------------------------------------------------------------
@@ -133,6 +142,28 @@ class ColorNode(BaseEstimator, TransformerMixin):
             graph.node[n][self.output_attribute] = \
                 self.color_dict.get(d[self.input_attribute], 0)
         return graph
+
+# ------------------------------------------------------------------------------
+
+
+class AddGraphAttributeValue(BaseEstimator, TransformerMixin):
+    """AddGraphAttributeValue."""
+
+    def __init__(self, attribute=None, value=None):
+        """Construct."""
+        self.attribute = attribute
+        self.value = value
+
+    def transform(self, graphs):
+        """TODO."""
+        try:
+            for graph in graphs:
+                graph.graph[self.attribute] = self.value
+                yield graph
+            pass
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
 
 # ------------------------------------------------------------------------------
 

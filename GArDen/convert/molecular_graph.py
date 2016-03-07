@@ -93,7 +93,7 @@ class MoleculeToGraph(BaseEstimator, TransformerMixin):
                 mol.removeh()
                 graph = self._obabel_to_networkx(mol)
                 if len(graph):
-                    graph.graph['info'] = mol_smi.strip()
+                    graph.graph['id'] = mol_smi.strip()
                     yield graph
 
     def _obabel_to_networkx(self, mol):

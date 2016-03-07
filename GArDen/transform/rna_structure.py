@@ -119,7 +119,10 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
         try:
             for graph in graphs:
                 header, sequence = extract_header_sequence(graph)
-                yield self._string_to_networkx(header, sequence)
+                folded_graph = self._string_to_networkx(header, sequence)
+                graph.graph.update(folded_graph.graph)
+                folded_graph.graph.update(graph.graph)
+                yield folded_graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
@@ -370,30 +373,24 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
         # Return list with base pair information.
         return plfold_bp_list
 
-    def _string_to_networkx(self, header, sequence, **options):
+    def _string_to_networkx(self, header, sequence):
         # Sort edges by average base pair probability in order to stop after
         # max_num_edges edges have been added to a specific vertex.
-        max_num_edges = options.get('max_num_edges', 1)
-        window_size = options.get('window_size', 150)
-        max_bp_span = options.get('max_bp_span', 100)
-        avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
-        no_lonely_bps = options.get('no_lonely_bps', True)
-        nesting = options.get('nesting', False)
 
         plfold_bp_list = sorted(self._rnaplfold_wrapper(
             sequence,
-            max_num_edges=max_num_edges,
-            window_size=window_size,
-            max_bp_span=max_bp_span,
-            avg_bp_prob_cutoff=avg_bp_prob_cutoff,
-            no_lonely_bps=no_lonely_bps), reverse=True)
+            max_num_edges=self.max_num_edges,
+            window_size=self.window_size,
+            max_bp_span=self.max_bp_span,
+            avg_bp_prob_cutoff=self.avg_bp_prob_cutoff,
+            no_lonely_bps=self.no_lonely_bps), reverse=True)
         graph = nx.Graph()
         graph.graph['id'] = header
         graph.graph['info'] = \
             'RNAplfold: max_num_edges=%s window_size=%s max_bp_span=%s \
             avg_bp_prob_cutoff=%s no_lonely_bps=%s'\
-            % (max_num_edges, window_size, max_bp_span,
-               avg_bp_prob_cutoff, no_lonely_bps)
+            % (self.max_num_edges, self.window_size, self.max_bp_span,
+               self.avg_bp_prob_cutoff, self.no_lonely_bps)
         graph.graph['sequence'] = sequence
         # Add nucleotide vertices.
         for i, c in enumerate(sequence):
@@ -405,17 +402,17 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
             avg_prob = float(avg_prob_str) ** 2
             # Check if either source or dest already have more than
             # max_num_edges edges.
-            if len(graph.edges(source)) >= max_num_edges or\
-                    len(graph.edges(dest)) >= max_num_edges:
+            if len(graph.edges(source)) >= self.max_num_edges or\
+                    len(graph.edges(dest)) >= self.max_num_edges:
                 pass
             else:
-                if nesting:
+                if self.nesting:
                     graph.add_edge(source, dest,
                                    label='=', type='basepair',
                                    nesting=True, weight=avg_prob)
                 else:
                     graph.add_edge(source, dest,
-                                   label='=', type='basepair', prob=avg_prob)
+                                   label='=', type='basepair', weight=avg_prob)
         # Add backbone edges.
         for i, c in enumerate(sequence):
             if i > 0:
