@@ -19,9 +19,7 @@ logger = logging.getLogger(__name__)
 class KNNWrapper(BaseEstimator, ClassifierMixin):
     """KNNWrapper."""
 
-    def __init__(self,
-                 program=NearestNeighbors(n_neighbors=2,
-                                          algorithm='ball_tree')):
+    def __init__(self, program=NearestNeighbors(n_neighbors=2)):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
@@ -147,7 +145,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
                 data_matrix = vstack(
                     [data_matrix, negative_data_matrix], format="csr")
                 y = y + y_neg
-                y = np.array(y)
+                y = np.ravel(y)
             self.program = self.program.fit(data_matrix, y)
             return self
         except Exception as e:
@@ -179,7 +177,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
             else:
                 raise Exception('Missing the attribute "target" \
                     in graph dictionary!')
-        y = np.array(y)
+        y = np.ravel(y)
         return y
 
 # ------------------------------------------------------------------------------
@@ -260,5 +258,5 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
             else:
                 raise Exception('Missing the attribute "target" \
                     in graph dictionary!')
-        y = np.array(y).reshape(-1, 1)
+        y = np.ravel(y)
         return y
