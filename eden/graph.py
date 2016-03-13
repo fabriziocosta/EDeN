@@ -11,7 +11,8 @@ from collections import defaultdict, deque
 import itertools
 import joblib
 import networkx as nx
-from eden import fast_hash, fast_hash_vec, fast_hash_2, fast_hash_4
+from eden import fast_hash, fast_hash_vec
+from eden import fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
 from eden.util import serialize_dict
 
@@ -678,24 +679,44 @@ class Vectorizer(AbstractVectorizer):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(graph.graph['label_size']):
-                if radius < len(graph.node[vertex_v]['neighborhood_graph_hash'][label_index]) and \
-                        radius < len(graph.node[vertex_u]['neighborhood_graph_hash'][label_index]):
+                if radius < len(graph.node[vertex_v]
+                                ['neigh_graph_hash'][label_index]) and \
+                        radius < len(graph.node[vertex_u]
+                                     ['neigh_graph_hash'][label_index]):
                     # feature as a pair of neighborhoods at a radius,distance
                     # canonicalization of pair of neighborhoods
-                    vertex_v_hash = graph.node[vertex_v]['neighborhood_graph_hash'][label_index][radius]
-                    vertex_u_hash = graph.node[vertex_u]['neighborhood_graph_hash'][label_index][radius]
+                    vertex_v_hash = graph.node[vertex_v]
+                    ['neigh_graph_hash'][label_index][radius]
+                    vertex_u_hash = graph.node[vertex_u]
+                    ['neigh_graph_hash'][label_index][radius]
                     if vertex_v_hash < vertex_u_hash:
-                        first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
+                        first_hash, second_hash = (vertex_v_hash,
+                                                   vertex_u_hash)
                     else:
-                        first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
-                    feature = fast_hash_4(first_hash, second_hash, radius, distance, self.bitmask)
+                        first_hash, second_hash = (vertex_u_hash,
+                                                   vertex_v_hash)
+                    feature = fast_hash_4(first_hash, second_hash,
+                                          radius, distance, self.bitmask)
+                    # half features are those that ignore the central vertex v
+                    # the reason to have those is to help model the context
+                    # independently from the identity of the vertex itself
+                    half_feature = fast_hash_3(vertex_u_hash,
+                                               radius, distance, self.bitmask)
                     key = fast_hash_2(radius, distance)
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += 1
+                        feature_list[key][half_feature] += 1
                     else:
-                        feature_list[key][feature] += connection_weight * \
-                            (graph.node[vertex_v]['neighborhood_graph_weight'][radius] +
-                             graph.node[vertex_u]['neighborhood_graph_weight'][radius])
+                        val = connection_weight * \
+                            (graph.node[vertex_v]
+                                ['neigh_graph_weight'][radius] +
+                             graph.node[vertex_u]
+                             ['neigh_graph_weight'][radius])
+                        feature_list[key][feature] += val
+                        half_val = \
+                            connection_weight * \
+                            graph.node[vertex_u]['neigh_graph_weight'][radius]
+                        feature_list[key][half_feature] += half_val
 
     def _normalization(self, feature_list, instance_id):
         # inner normalization per radius-distance
@@ -750,9 +771,9 @@ class Vectorizer(AbstractVectorizer):
                     # or, in case positional is set, using the relative
                     # position of the vertex v w.r.t. the root vertex
                     if self.positional:
-                        vhlabel = \
-                            fast_hash_2(graph.node[v]['hlabel'][label_index],
-                                        root - v)
+                        vhlabel = fast_hash_2(
+                            graph.node[v]['hlabel'][label_index],
+                            root - v)
                     else:
                         vhlabel = \
                             fast_hash_2(graph.node[v]['hlabel'][label_index],
@@ -761,14 +782,14 @@ class Vectorizer(AbstractVectorizer):
                 # sort it
                 hash_label_list.sort()
                 # hash it
-                hashed_nodes_at_distance_d_in_neighborhood = \
-                    fast_hash(hash_label_list)
+                hashed_nodes_at_distance_d_in_neighborhood = fast_hash(
+                    hash_label_list)
                 hash_list.append(hashed_nodes_at_distance_d_in_neighborhood)
             # hash the sequence of hashes of the node set at increasing
             # distances into a list of features
             hash_neighborhood = fast_hash_vec(hash_list)
             hash_neighborhood_list.append(hash_neighborhood)
-        graph.node[root]['neighborhood_graph_hash'] = hash_neighborhood_list
+        graph.node[root]['neigh_graph_hash'] = hash_neighborhood_list
 
     def _compute_neighborhood_graph_weight_cache(self, graph):
         assert (len(graph) > 0), 'ERROR: Empty graph'
@@ -805,7 +826,7 @@ class Vectorizer(AbstractVectorizer):
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
-        graph.node[root]['neighborhood_graph_weight'] = \
+        graph.node[root]['neigh_graph_weight'] = \
             neighborhood_graph_weight_list
 
     def _single_vertex_breadth_first_visit(self, graph, root, max_depth):

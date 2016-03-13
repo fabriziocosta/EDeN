@@ -51,7 +51,8 @@ class ReplaceWithAllCombinations(BaseEstimator, TransformerMixin):
                 new_graph.graph['kmer_pos'] = kmer_pos
                 new_graph.graph['kmer'] = kmer
                 new_graph.graph['header'] += '_' + ''.join(kmer) +\
-                    '-' + ''.join(ref_kmer)
+                    '-' + ''.join(ref_kmer) + '_' + \
+                    ':'.join([str(val) for val in kmer_pos])
                 for i in range(len(kmer)):
                     pos = kmer_pos[i]
                     new_label = kmer[i]
@@ -68,10 +69,12 @@ class MarkKTop(BaseEstimator, TransformerMixin):
     def __init__(self,
                  mark_attribute='selected',
                  attribute='importance',
+                 exclude_attribute='exclude',
                  ktop=1,
                  reverse=True):
         """Construct."""
         self.mark_attribute = mark_attribute
+        self.exclude_attribute = exclude_attribute
         self.attribute = attribute
         self.ktop = ktop
         self.reverse = reverse
@@ -92,7 +95,9 @@ class MarkKTop(BaseEstimator, TransformerMixin):
         values = []
         for n in graph.nodes():
             value = float(graph.node[n].get(self.attribute, 0))
-            values.append(value)
+            exclude = graph.node[n].get(self.exclude_attribute, False)
+            if exclude is False:
+                values.append(value)
         sorted_values = sorted(values, reverse=self.reverse)
 
         if self.ktop < len(sorted_values):
@@ -102,7 +107,8 @@ class MarkKTop(BaseEstimator, TransformerMixin):
         # iterate over nodes and mark
         for n in graph.nodes():
             value = float(graph.node[n].get(self.attribute, 0))
-            if value > threshold:
+            exclude = graph.node[n].get(self.exclude_attribute, False)
+            if value > threshold and exclude is False:
                 graph.node[n][self.mark_attribute] = True
             else:
                 graph.node[n][self.mark_attribute] = False
@@ -225,6 +231,50 @@ class MultiplicativeReweightDictionary(BaseEstimator, TransformerMixin):
 
 
 # ------------------------------------------------------------------------------
+
+class MarkWithIntervals(BaseEstimator, TransformerMixin):
+    """MarkWithIntervals.
+
+    Assign attribute-value pair according to a list of quadruples:
+    each quadruple defines
+    the start, end position and the region; the
+    order of the quadruples matters: later quadruples override the
+    specification of previous quadruples. The special quadruple (-1,-1,att,val)
+    assign the attribute 'att' with value 'val' to all nodes.
+    """
+
+    def __init__(self, quadruples=None):
+        """Construct."""
+        self.quadruples = quadruples
+
+    def transform(self, graphs):
+        """Transform."""
+        try:
+            for graph in graphs:
+                graph = self._quadruple_assignment(graph)
+                yield graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _quadruple_assignment(self, graph):
+        for start, end, attribute, value in self.quadruples:
+            # iterate over nodes
+            for n, d in graph.nodes_iter(data=True):
+                if 'position' not in d:
+                    # assert nodes must have position attribute
+                    raise Exception('Nodes must have "position" attribute')
+                # given the 'position' attribute of node assign the attribute
+                # value pair accordingly
+                pos = d['position']
+                if pos >= start and pos < end:
+                    graph.node[n][attribute] = value
+                elif start == -1 and end == -1:
+                    graph.node[n][attribute] = value
+        return graph
+
+# ------------------------------------------------------------------------------
+
 
 class WeightWithIntervals(BaseEstimator, TransformerMixin):
     """WeightWithIntervals.

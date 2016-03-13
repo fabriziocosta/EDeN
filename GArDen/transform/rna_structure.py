@@ -317,7 +317,7 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
         self.nesting = nesting
 
     def transform(self, graphs):
-        """Tranform.
+        """Transform.
 
         Parameters
         ----------
