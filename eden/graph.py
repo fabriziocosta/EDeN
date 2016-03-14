@@ -681,14 +681,11 @@ class Vectorizer(AbstractVectorizer):
             for label_index in range(graph.graph['label_size']):
                 if radius < len(graph.node[vertex_v]
                                 ['neigh_graph_hash'][label_index]) and \
-                        radius < len(graph.node[vertex_u]
-                                     ['neigh_graph_hash'][label_index]):
+                        radius < len(graph.node[vertex_u]['neigh_graph_hash'][label_index]):
                     # feature as a pair of neighborhoods at a radius,distance
                     # canonicalization of pair of neighborhoods
-                    vertex_v_hash = graph.node[vertex_v]
-                    ['neigh_graph_hash'][label_index][radius]
-                    vertex_u_hash = graph.node[vertex_u]
-                    ['neigh_graph_hash'][label_index][radius]
+                    vertex_v_hash = graph.node[vertex_v]['neigh_graph_hash'][label_index][radius]
+                    vertex_u_hash = graph.node[vertex_u]['neigh_graph_hash'][label_index][radius]
                     if vertex_v_hash < vertex_u_hash:
                         first_hash, second_hash = (vertex_v_hash,
                                                    vertex_u_hash)
@@ -708,10 +705,8 @@ class Vectorizer(AbstractVectorizer):
                         feature_list[key][half_feature] += 1
                     else:
                         val = connection_weight * \
-                            (graph.node[vertex_v]
-                                ['neigh_graph_weight'][radius] +
-                             graph.node[vertex_u]
-                             ['neigh_graph_weight'][radius])
+                            (graph.node[vertex_v]['neigh_graph_weight'][radius] +
+                             graph.node[vertex_u]['neigh_graph_weight'][radius])
                         feature_list[key][feature] += val
                         half_val = \
                             connection_weight * \
