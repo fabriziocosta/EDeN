@@ -12,6 +12,7 @@ from eden.util import serialize_dict
 
 from numpy.random import randint
 from numpy.random import uniform
+from numpy.random import seed
 
 from sklearn.linear_model import SGDClassifier
 from sklearn import metrics
@@ -90,7 +91,7 @@ class ModelInitializerBase(object):
 
     def estimator_init(self, args):
         """Setup the estimator and set of matching parameter choices."""
-        estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
+        estimator = SGDClassifier(average=True, class_weight='balanced', shuffle=True)
         estimator_parameters = {'n_iter': randint(5, 200, size=args.n_iter),
                                 'penalty': ['l1', 'l2', 'elasticnet'],
                                 'l1_ratio': uniform(0.1, 0.9, size=args.n_iter),
@@ -146,6 +147,7 @@ class ModelInitializerBase(object):
 
 def main_fit(model_initializer, args):
     # init
+    seed(args.random_state)
     pos_train_iterator = model_initializer.load_positive_data(args)
     neg_train_iterator = model_initializer.load_negative_data(args)
     pre_processor, pre_processor_parameters = model_initializer.pre_processor_init(args)
