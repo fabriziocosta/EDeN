@@ -141,7 +141,7 @@ def draw_graph(graph,
         import RNA
         rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
         pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
-            for i in range(len(graph.graph['structure']))}
+               for i in range(len(graph.graph['structure']))}
     elif layout == 'circular':
         pos = nx.circular_layout(graph)
     elif layout == 'random':
@@ -407,7 +407,7 @@ def plot_embeddings(data_matrix, y,
                                 n_init=1,
                                 max_iter=100,
                                 dissimilarity='precomputed').fit_transform(
-            distance_matrix)
+                                distance_matrix)
     duration = time.time() - start
     plt.subplot(222)
     plot_embedding(data_matrix_, y,
