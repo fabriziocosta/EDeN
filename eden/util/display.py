@@ -407,7 +407,7 @@ def plot_embeddings(data_matrix, y,
                                 n_init=1,
                                 max_iter=100,
                                 dissimilarity='precomputed').fit_transform(
-                                distance_matrix)
+        distance_matrix)
     duration = time.time() - start
     plt.subplot(222)
     plot_embedding(data_matrix_, y,
