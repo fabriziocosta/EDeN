@@ -523,6 +523,7 @@ class Vectorizer(AbstractVectorizer):
             return original_graph
         else:
             graph = nx.Graph()
+            graph.graph.update(original_graph.graph)
             graph.graph['expanded'] = True
             # build a graph that has as vertices the original vertex set
             for n, d in original_graph.nodes_iter(data=True):
