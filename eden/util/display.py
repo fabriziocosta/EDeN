@@ -137,6 +137,11 @@ def draw_graph(graph,
 
     if layout == 'graphviz':
         pos = nx.graphviz_layout(graph, prog=prog, args="-Gstart=rand")
+    elif layout == "RNA":
+        import RNA
+        rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
+        pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
+               for i in range(len(graph.graph['structure']))}
     elif layout == 'circular':
         pos = nx.circular_layout(graph)
     elif layout == 'random':
@@ -440,7 +445,7 @@ def plot_embeddings(data_matrix, y,
                    y,
                    labels=labels,
                    title="KQST knn=%d (%.1f sec)" %
-                   (knn, duration), cmap=cmap, density=density,
+                         (knn, duration), cmap=cmap, density=density,
                    image_file_name=image_file_name)
 
     if save_image_file_name:
