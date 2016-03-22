@@ -329,7 +329,29 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
                  distance_high2low=10,
                  attribute='weight',
                  center_dict=None):
-        """Construct."""
+        """"Construct.
+
+        Parameters
+        ----------
+        high_weight : float (default: 1)
+            Weight assigned to the nodes at the top of the trapezoid.
+
+        low_weight : float (default: 0.1)
+            Weight assigned to the nodes outside of the trapezoid.
+
+        radius_high : integer (default: 10)
+            Radius of the top of the trapezoid.
+
+        distance_high2low : integer (default: 10)
+            Interpolate from high_weight to low_weight over this many nodes.
+
+        attribute : string (default: 'weight')
+            Node attribute to assign the weights to.
+
+        center_dict: dictionary (default: None)
+            This dictionary specifies the center positions of all graphs. If
+            unset, the actual center is used.
+        """
         self.high_weight = high_weight
         self.low_weight = low_weight
         self.radius_high = radius_high
@@ -338,7 +360,12 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
         self.center_dict = center_dict
 
     def transform(self, graphs):
-        """Transform."""
+        """Transform.
+
+        Parameters
+        ----------
+        graphs : iterator over path graphs of RNA sequences
+        """
         try:
             for graph in graphs:
                 graph = self._symmetric_trapezoidal_reweighting(graph)
