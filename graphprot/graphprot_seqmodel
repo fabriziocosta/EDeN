@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 
+import os
+import logging
+
+from numpy.random import randint, uniform
+from sklearn.linear_model import SGDClassifier
+from eden.graph import Vectorizer
+from eden.model_base import ModelInitializerBase, main_script
+from eden.converter.fasta import fasta_to_sequence
+from eden.converter.fasta import sequence_to_eden
+
 DESCRIPTION = """
 GraphProt:
 
@@ -21,16 +31,6 @@ Please cite:
     GraphProt: modeling binding preferences of RNA-binding proteins
     Genome Biology, 2014, 15(1), R17
 """
-
-import os
-import logging
-
-from numpy.random import randint, uniform
-from sklearn.linear_model import SGDClassifier
-from eden.graph import Vectorizer
-from eden.model_base import ModelInitializerBase, main_script
-from eden.converter.fasta import fasta_to_sequence
-from eden.converter.fasta import sequence_to_eden
 
 
 class ModelInitializer(ModelInitializerBase):
