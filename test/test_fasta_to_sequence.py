@@ -6,7 +6,7 @@ from eden.util import is_iterable
 class TestFastaToSequence:
 
     def test_fasta_to_sequence_default(self):
-        """Test test_fasta_to_sequence with default parameters."""
+        """Test test_fasta_to_sequence with default parameters. -> moved to garden doctest"""
 
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn)
@@ -18,7 +18,7 @@ class TestFastaToSequence:
         assert(sequence == "GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA")
 
     def test_fasta_to_sequence_normalized(self):
-        """Test default test_fasta_to_sequence with default parameters."""
+        """Test default test_fasta_to_sequence with default parameters. -> moved to garden doctest"""
 
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn, normalize=True)
@@ -28,7 +28,7 @@ class TestFastaToSequence:
         assert(sequence == "GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA")
 
     def test_fasta_to_sequence_no_normalize(self):
-        """Test default test_fasta_to_sequence with default parameters."""
+        """Test default test_fasta_to_sequence with default parameters. -> moved to garden doctest"""
 
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn, normalize=False)
@@ -38,7 +38,7 @@ class TestFastaToSequence:
         assert(sequence == "gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa")
 
     def test_sequence_to_eden_id_attribute(self):
-        """Test if networkx graph ids are set correctly to fasta header."""
+        """Test if networkx graph ids are set correctly to fasta header. -> header annotation won't be moved to garden"""
 
         fa_fn = "test/test_fasta_to_sequence_with_center_annotation.fa"
         graphs = sequence_to_eden(fasta_to_sequence(fa_fn))

@@ -98,7 +98,34 @@ class SeqWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
 
 
 class FastaToPathGraph(BaseEstimator, TransformerMixin):
-    """Transform FASTA files into path graphs."""
+    """Transform FASTA files into path graphs.
+
+    Transform fasta using defaults:
+    >>> fa_upper_lower = 'test/garden_convert_sequence_FastaToPathGraph_1.fa'
+    >>> graphs = FastaToPathGraph().transform(fa_upper_lower)
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+    >>> g.graph['id']
+    'ID0'
+
+    Transform fasta with normalization enabled:
+    >>> graphs = FastaToPathGraph(normalize=True).transform(fa_upper_lower)
+    >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta without normalization:
+    >>> graphs = FastaToPathGraph(normalize=False).transform(fa_upper_lower)
+    >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
+    'gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa'
+
+    Transform fasta containing 'N' nucleotides:
+    >>> fa_n = 'test/garden_convert_sequence_FastaToPathGraph_2.fa'
+    >>> graphs = FastaToPathGraph(normalize=False).transform(fa_n)
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
+    """
 
     def __init__(self, normalize=True):
         """constructor."""

@@ -276,6 +276,143 @@ class MarkWithIntervals(BaseEstimator, TransformerMixin):
 # ------------------------------------------------------------------------------
 
 
+class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
+    """Symmetric piecewise linear weight function between two levels. Size of
+    the high weights region is is given as the radius around the center
+    position. The dropdown between high and low levels is given by the distance
+    of the positions with high and low levels.
+
+    By default, the center of the sequence is set as the center of the
+    trapezoid. The center position can also be set by providing a dictionary of
+    graph ids and center positions. In that case the weighting will abort if
+    this annotation is not set for all graphs.
+
+                |rrrrr      - radius_high
+                |
+    high    __center__
+           /          \
+    low __/            \__
+
+                      ddd   - distance_high2low
+
+    weighting with center set to sequence center
+    >>> from GArDen.convert.sequence import SeqToPathGraph
+    >>> graphs = SeqToPathGraph().transform([("ID0", "ACGUACGUAC")])
+    >>> wst = WeightSymmetricTrapezoidal(
+    ...     high_weight=1,
+    ...     low_weight=0,
+    ...     radius_high=1,
+    ...     distance_high2low=2)
+    >>> graphs = wst.transform(graphs)
+    >>> [ x["weight"] for x in graphs.next().node.values() ]
+    [0, 0, 0, 0.5, 1, 1, 1, 0.5, 0, 0]
+
+    weighting with centers set according to dictionary
+    >>> from GArDen.convert.sequence import SeqToPathGraph
+    >>> graphs = SeqToPathGraph().transform([("ID0", "ACGUACGUAC")])
+    >>> wst = WeightSymmetricTrapezoidal(
+    ...     high_weight=1,
+    ...     low_weight=0,
+    ...     radius_high=1,
+    ...     distance_high2low=2,
+    ...     center_dict={"ID0" : 4})
+    >>> graphs = wst.transform(graphs)
+    >>> [ x["weight"] for x in graphs.next().node.values() ]
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
+
+    """
+
+    def __init__(self,
+                 high_weight=1,
+                 low_weight=0.1,
+                 radius_high=10,
+                 distance_high2low=10,
+                 attribute='weight',
+                 center_dict=None):
+        """"Construct.
+
+        Parameters
+        ----------
+        high_weight : float (default: 1)
+            Weight assigned to the nodes at the top of the trapezoid.
+
+        low_weight : float (default: 0.1)
+            Weight assigned to the nodes outside of the trapezoid.
+
+        radius_high : integer (default: 10)
+            Radius of the top of the trapezoid.
+
+        distance_high2low : integer (default: 10)
+            Interpolate from high_weight to low_weight over this many nodes.
+
+        attribute : string (default: 'weight')
+            Node attribute to assign the weights to.
+
+        center_dict: dictionary (default: None)
+            This dictionary specifies the center positions of all graphs. If
+            unset, the actual center is used.
+        """
+        self.high_weight = high_weight
+        self.low_weight = low_weight
+        self.radius_high = radius_high
+        self.distance_high2low = distance_high2low
+        self.attribute = attribute
+        self.center_dict = center_dict
+
+    def transform(self, graphs):
+        """Transform.
+
+        Parameters
+        ----------
+        graphs : iterator over path graphs of RNA sequences
+        """
+        try:
+            for graph in graphs:
+                graph = self._symmetric_trapezoidal_reweighting(graph)
+                yield graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _symmetric_trapezoidal_reweighting(self, graph):
+        if self.center_dict is None:
+            center_position = int(len(graph) / float(2))
+        else:
+            try:
+                center_position = self.center_dict[graph.graph["id"]]
+            except KeyError:
+                raise Exception(
+                    "Center annotation not set for graph '{}'".format(graph.graph["id"]))
+
+        # determine absolute positions from distances
+        interpolate_up_start = center_position - \
+            self.radius_high - self.distance_high2low
+        interpolate_up_end = center_position - self.radius_high
+        interpolate_down_start = center_position + self.radius_high
+        interpolate_down_end = center_position + \
+            self.radius_high + self.distance_high2low
+
+        # iterate over nodes
+        for n, d in graph.nodes_iter(data=True):
+            if 'position' not in d:
+                # assert nodes must have position attribute
+                raise Exception('Nodes must have "position" attribute')
+            # given the 'position' attribute of node assign weight according to
+            # piece wise linear weight function between two levels
+            pos = d['position']
+            graph.node[n][self.attribute] = _linear_trapezoidal_weight(
+                pos,
+                high_weight=self.high_weight,
+                low_weight=self.low_weight,
+                interpolate_up_start=interpolate_up_start,
+                interpolate_up_end=interpolate_up_end,
+                interpolate_down_start=interpolate_down_start,
+                interpolate_down_end=interpolate_down_end)
+        return graph
+
+# ------------------------------------------------------------------------------
+
+
 class WeightWithIntervals(BaseEstimator, TransformerMixin):
     """WeightWithIntervals.
 
@@ -380,3 +517,81 @@ class RelabelWithLabelOfIncidentEdges(BaseEstimator, TransformerMixin):
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
+
+
+def _linear_trapezoidal_weight(pos,
+                               high_weight=None,
+                               low_weight=None,
+                               interpolate_up_start=None,
+                               interpolate_up_end=None,
+                               interpolate_down_start=None,
+                               interpolate_down_end=None):
+    """
+    Piecewise linear weight function between two levels with specified start end
+    positions. This function linearly interpolates between positions
+    interpolate_up_start and interpolate_up_end and between positions
+    interpolate_down_start and interpolate_down_end where start and end points get
+    high and low weights.
+
+    This function does not check for parameter sanity.
+
+              interpolate_up_end
+              |
+              | interpolate_down_start
+              | |
+    high      ___
+             /   \
+    low   __/     \__
+           |       |
+           |       interpolate_down_end
+           |
+           interpolate_up_start
+
+    >>> map(lambda pos: _linear_trapezoidal_weight(pos=pos,
+    ...                            high_weight=1,
+    ...                            low_weight=0,
+    ...                            interpolate_up_start=1,
+    ...                            interpolate_up_end=3,
+    ...                            interpolate_down_start=5,
+    ...                            interpolate_down_end=7),
+    ...                 [0,1,2,3,4,5,6,7])
+    [0, 0, 0.5, 1, 1, 1, 0.5, 0]
+    """
+    if pos <= interpolate_up_start:
+        """
+           ___
+        __/   \__
+        |
+        """
+        return low_weight
+    elif pos > interpolate_up_start and pos < interpolate_up_end:
+        """
+           ___
+        __/   \__
+          |
+        """
+        return (high_weight - low_weight) / float(interpolate_up_end - interpolate_up_start) * \
+            (pos - interpolate_up_start) + low_weight
+    elif pos >= interpolate_up_end and pos <= interpolate_down_start:
+        """
+           ___
+        __/   \__
+            |
+        """
+        return high_weight
+    elif pos > interpolate_down_start and pos < interpolate_down_end:
+        """
+           ___
+        __/   \__
+              |
+        """
+        return high_weight - \
+            (high_weight - low_weight) / float(interpolate_down_end - interpolate_down_start) * \
+            (pos - interpolate_down_start)
+    elif pos >= interpolate_down_end:
+        """
+           ___
+        __/   \__
+                |
+        """
+        return low_weight
