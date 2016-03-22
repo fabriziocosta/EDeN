@@ -282,9 +282,10 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
     dropdown between high and low levels is given by the distance of the positions
     with high and low levels.
 
-    The center position can be arbitrary set by adding a center parameter of format
-    center:integer to the graph id. For example, to set the center of a graph to
-    postion 10 one would add "center:10" to the graph id.
+    By default, the center of the sequence is set as the center of the trapezoid.
+    The center position can also be set by providing a dictionary of graph ids and
+    center positions. In that case the weighting will abort if this annotation is not
+    set for all graphs.
 
                 |rrrrr      - radius_high
                 |
@@ -294,6 +295,7 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
 
                       ddd   - distance_high2low
 
+    weighting with center set to sequence center
     >>> from GArDen.convert.sequence import SeqToPathGraph
     >>> graphs = SeqToPathGraph().transform([("ID0", "ACGUACGUAC")])
     >>> wst = WeightSymmetricTrapezoidal(
@@ -301,6 +303,19 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
     ...     low_weight=0,
     ...     radius_high=1,
     ...     distance_high2low=2)
+    >>> graphs = wst.transform(graphs)
+    >>> [ x["weight"] for x in graphs.next().node.values() ]
+    [0, 0, 0, 0.5, 1, 1, 1, 0.5, 0, 0]
+
+    weighting with centers set according to dictionary
+    >>> from GArDen.convert.sequence import SeqToPathGraph
+    >>> graphs = SeqToPathGraph().transform([("ID0", "ACGUACGUAC")])
+    >>> wst = WeightSymmetricTrapezoidal(
+    ...     high_weight=1,
+    ...     low_weight=0,
+    ...     radius_high=1,
+    ...     distance_high2low=2,
+    ...     center_dict={"ID0" : 4})
     >>> graphs = wst.transform(graphs)
     >>> [ x["weight"] for x in graphs.next().node.values() ]
     [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
@@ -312,14 +327,14 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
                  radius_high=10,
                  distance_high2low=10,
                  attribute='weight',
-                 centerpos_key='center',):
+                 center_dict=None):
         """Construct."""
         self.high_weight = high_weight
         self.low_weight = low_weight
         self.radius_high = radius_high
         self.distance_high2low = distance_high2low
         self.attribute = attribute
-        self.centerpos_key = centerpos_key
+        self.center_dict = center_dict
 
     def transform(self, graphs):
         """Transform."""
@@ -332,21 +347,13 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
             logger.debug('Exception', exc_info=True)
 
     def _symmetric_trapezoidal_reweighting(self, graph):
-        # TODO: get position from external data
-        # # parse center position from fasta header
-        # center_set = False
-        # center_position = -1
-        # for idsplits in graph.graph["id"].split()[1:]:
-        #     (key, value) = idsplits.split(":")
-        #     if key == self.centerpos_key:
-        #         try:
-        #             center_position = int(value)
-        #             center_set = True
-        #             break
-        #         except ValueError:
-        #             raise ValueError("Error: Center position not set to int in fasta header '{}'".format(graph.graph["id"]))
-        # assert center_set, "Error: Center annoation not set in fasta header '{}'".format(graph.graph["id"])
-        center_position = 4
+        if self.center_dict is None:
+            center_position = int(len(graph) / float(2))
+        else:
+            try:
+                center_position = self.center_dict[graph.graph["id"]]
+            except KeyError:
+                raise Exception("Center annotation not set for graph '{}'".format(graph.graph["id"]))
 
         # determine absolute positions from distances
         interpolate_up_start = center_position - self.radius_high - self.distance_high2low
