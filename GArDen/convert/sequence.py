@@ -98,7 +98,27 @@ class SeqWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
 
 
 class FastaToPathGraph(BaseEstimator, TransformerMixin):
-    """Transform FASTA files into path graphs."""
+    """Transform FASTA files into path graphs.
+
+    Transform fasta using defaults:
+    >>> graphs = FastaToPathGraph().transform('test/test_fasta_to_sequence.fa')
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+    >>> g.graph['id']
+    'ID0'
+
+    Transform fasta with normalization enabled:
+    >>> graphs = FastaToPathGraph(normalize=True).transform('test/test_fasta_to_sequence.fa')
+    >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta without normalization:
+    >>> graphs = FastaToPathGraph(normalize=False).transform('test/test_fasta_to_sequence.fa')
+    >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
+    'gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa'
+
+    """
 
     def __init__(self, normalize=True):
         """constructor."""
