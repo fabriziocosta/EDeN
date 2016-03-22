@@ -277,15 +277,15 @@ class MarkWithIntervals(BaseEstimator, TransformerMixin):
 
 
 class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
-    """Symmetric piecewise linear weight function between two levels. Size of the high
-    weights region is is given as the radius around the center position. The
-    dropdown between high and low levels is given by the distance of the positions
-    with high and low levels.
+    """Symmetric piecewise linear weight function between two levels. Size of
+    the high weights region is is given as the radius around the center
+    position. The dropdown between high and low levels is given by the distance
+    of the positions with high and low levels.
 
-    By default, the center of the sequence is set as the center of the trapezoid.
-    The center position can also be set by providing a dictionary of graph ids and
-    center positions. In that case the weighting will abort if this annotation is not
-    set for all graphs.
+    By default, the center of the sequence is set as the center of the
+    trapezoid. The center position can also be set by providing a dictionary of
+    graph ids and center positions. In that case the weighting will abort if
+    this annotation is not set for all graphs.
 
                 |rrrrr      - radius_high
                 |
