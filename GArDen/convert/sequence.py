@@ -101,7 +101,8 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
     """Transform FASTA files into path graphs.
 
     Transform fasta using defaults:
-    >>> graphs = FastaToPathGraph().transform('test/test_fasta_to_sequence.fa')
+    >>> fa_upper_lower = 'test/garden_convert_sequence_FastaToPathGraph_1.fa'
+    >>> graphs = FastaToPathGraph().transform(fa_upper_lower)
     >>> g = graphs.next()
     >>> ''.join([ x['label'] for x in g.node.values() ])
     'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
@@ -109,15 +110,21 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
     'ID0'
 
     Transform fasta with normalization enabled:
-    >>> graphs = FastaToPathGraph(normalize=True).transform('test/test_fasta_to_sequence.fa')
+    >>> graphs = FastaToPathGraph(normalize=True).transform(fa_upper_lower)
     >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
     'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
 
     Transform fasta without normalization:
-    >>> graphs = FastaToPathGraph(normalize=False).transform('test/test_fasta_to_sequence.fa')
+    >>> graphs = FastaToPathGraph(normalize=False).transform(fa_upper_lower)
     >>> ''.join([ x['label'] for x in graphs.next().node.values() ])
     'gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa'
 
+    Transform fasta containing 'N' nucleotides:
+    >>> fa_n = 'test/garden_convert_sequence_FastaToPathGraph_2.fa'
+    >>> graphs = FastaToPathGraph(normalize=False).transform(fa_n)
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
     """
 
     def __init__(self, normalize=True):
