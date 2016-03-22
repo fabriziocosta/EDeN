@@ -321,6 +321,7 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
     [0, 0, 0.5, 1, 1, 1, 0.5, 0, 0, 0]
 
     """
+
     def __init__(self,
                  high_weight=1,
                  low_weight=0.1,
@@ -353,13 +354,16 @@ class WeightSymmetricTrapezoidal(BaseEstimator, TransformerMixin):
             try:
                 center_position = self.center_dict[graph.graph["id"]]
             except KeyError:
-                raise Exception("Center annotation not set for graph '{}'".format(graph.graph["id"]))
+                raise Exception(
+                    "Center annotation not set for graph '{}'".format(graph.graph["id"]))
 
         # determine absolute positions from distances
-        interpolate_up_start = center_position - self.radius_high - self.distance_high2low
+        interpolate_up_start = center_position - \
+            self.radius_high - self.distance_high2low
         interpolate_up_end = center_position - self.radius_high
         interpolate_down_start = center_position + self.radius_high
-        interpolate_down_end = center_position + self.radius_high + self.distance_high2low
+        interpolate_down_end = center_position + \
+            self.radius_high + self.distance_high2low
 
         # iterate over nodes
         for n, d in graph.nodes_iter(data=True):
