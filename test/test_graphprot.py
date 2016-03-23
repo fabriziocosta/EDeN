@@ -32,5 +32,5 @@ def test_simple_fit():
         datadir_rel + "rndseqs_10_b.fa",
         outfile
     )
-    run = env.run(call)
-    assert cmp(testdir + outfile, datadir + outfile), "Error: trained models don't match"
+    env.run(call)
+    assert cmp(testdir + outfile, datadir + outfile), "Error: trained models don't match."
