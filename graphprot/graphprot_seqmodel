@@ -70,20 +70,6 @@ class ModelInitializer(ModelInitializerBase):
             'nbits': [14, 16, 18]}
         return vectorizer, vectorizer_parameters
 
-    def estimator_init(self, n_iter):
-        """Setup the estimator and set of matching parameter choices."""
-        estimator = SGDClassifier(average=True, class_weight='auto', shuffle=True)
-        estimator_parameters = {'n_iter': randint(5, 200, size=n_iter),
-                                'penalty': ['l1', 'l2', 'elasticnet'],
-                                'l1_ratio': uniform(0.1, 0.9, size=n_iter),
-                                'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
-                                'power_t': uniform(0.1, size=n_iter),
-                                'alpha': [10 ** x for x in range(-8, 0)],
-                                'eta0': [10 ** x for x in range(-4, -1)],
-                                'learning_rate': ["invscaling", "constant", "optimal"],
-                                'n_jobs': [-1]}
-        return estimator, estimator_parameters
-
     def add_arguments(self, parser):
         """Add arguments for the main call."""
         parser.add_argument('--version', action='version', version='0.1')
