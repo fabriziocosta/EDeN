@@ -36,20 +36,20 @@ Please cite:
 class ModelInitializer(ModelInitializerBase):
 
     def _load_data(self, input_file):
-        """Load sequence tuples from file."""
+        """Load fasta and convert to sequence graphs."""
         seqs = fasta_to_sequence(input_file)
         return seqs
 
     def load_data(self, args):
-        """Load positive class data from file."""
+        """Load and convert positive class data."""
         return self._load_data(args.input_file)
 
     def load_positive_data(self, args):
-        """Load positive class data from file."""
+        """Load and convert positive class data."""
         return self._load_data(args.positive_input_file)
 
     def load_negative_data(self, args):
-        """Load negative class data from file."""
+        """Load and convert negative class data."""
         return self._load_data(args.negative_input_file)
 
     def pre_processor_init(self, n_iter):
