@@ -1,8 +1,22 @@
-from eden.converter.fasta import fasta_to_sequence
-from eden.converter.fasta import sequence_to_eden
+from scripttest import TestFileEnvironment
+import re
+
+bindir = "graphprot/"
+script = "graphprot_seqmodel"
+# test file environment
+testdir = "test/testenv_graphprot_seqmodel"
+# directories relative to test file environment
+bindir_rel = "../../" + bindir
+datadir_rel = "../../test/"
+
+env = TestFileEnvironment(testdir)
 
 
-def test_fasta_to_sequence_graph():
-    fa_fn = "test/test_fasta_to_sequence.fa"
-    seq = fasta_to_sequence(fa_fn)
-    sequence_to_eden(seq)
+def test_invocation_no_params():
+    "Call without parameters should return usage information."
+    call = bindir_rel + script
+    run = env.run(
+        call,
+        expect_error=True)
+    assert run.returncode == 2
+    assert re.match("usage", run.stderr), "stderr should contain usage information: {}".format(run.stderr)
