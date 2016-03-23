@@ -7,8 +7,7 @@ from numpy.random import randint, uniform
 from sklearn.linear_model import SGDClassifier
 from eden.graph import Vectorizer
 from eden.model_base import ModelInitializerBase, main_script
-from eden.converter.fasta import fasta_to_sequence
-from eden.converter.fasta import sequence_to_eden
+from GArDen.convert.sequence import FastaToPathGraph
 
 DESCRIPTION = """
 GraphProt:
@@ -36,9 +35,9 @@ Please cite:
 class ModelInitializer(ModelInitializerBase):
 
     def _load_data(self, input_file):
-        """Load fasta and convert to sequence graphs."""
-        seqs = fasta_to_sequence(input_file)
-        return seqs
+        """Load fasta and convert to path graph generator."""
+        graphs = FastaToPathGraph().transform(input_file)
+        return graphs
 
     def load_data(self, args):
         """Load and convert positive class data."""
@@ -52,11 +51,13 @@ class ModelInitializer(ModelInitializerBase):
         """Load and convert negative class data."""
         return self._load_data(args.negative_input_file)
 
-    def pre_processor_init(self, n_iter):
-        """Setup conversion of sequence tuples to graphs."""
-        def pre_processor(seqs, **args):
-            """Convert sequence tuples to graphs."""
-            graphs = sequence_to_eden(seqs)
+    def pre_processor_init(self, args):
+        """Setup transformation of data prepared by load_data functions.
+
+        Returns the function used to process the data prepared by the load_data functions and
+        a set of matching parameter choices.
+        """
+        def pre_processor(graphs, **args):
             return graphs
         pre_processor_parameters = {}
         return pre_processor, pre_processor_parameters
