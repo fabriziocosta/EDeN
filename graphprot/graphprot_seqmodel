@@ -62,7 +62,7 @@ class ModelInitializer(ModelInitializerBase):
         pre_processor_parameters = {}
         return pre_processor, pre_processor_parameters
 
-    def vectorizer_init(self, n_iter):
+    def vectorizer_init(self, args):
         """Setup conversion of graphs to features."""
         vectorizer = Vectorizer()
         vectorizer_parameters = {
