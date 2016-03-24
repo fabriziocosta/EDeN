@@ -1,6 +1,5 @@
 from scripttest import TestFileEnvironment
 import re
-import os
 # from filecmp import cmp
 
 bindir = "graphprot/"
