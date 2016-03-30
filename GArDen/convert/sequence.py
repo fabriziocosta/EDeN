@@ -128,7 +128,13 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, normalize=True):
-        """constructor."""
+        """constructor.
+
+        Parameters
+        ----------
+        normalize : boolean (default: True)
+            If set, transform all sequences to uppercase and convert T to U.
+        """
         self.normalize = normalize
 
     def transform(self, data):
