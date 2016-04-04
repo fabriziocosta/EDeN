@@ -5,7 +5,6 @@ import math
 import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix
-from numpy.linalg import norm
 from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
 import itertools
@@ -366,11 +365,15 @@ class Vectorizer(AbstractVectorizer):
         reference_vec = \
             self._convert_dict_to_sparse_matrix(self._transform(0,
                                                                 ref_instance))
-        for G in graphs:
-            self._test_goodness(G)
+        for graph in graphs:
+            self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
-            yield norm(reference_vec - x)
+            x = self._convert_dict_to_sparse_matrix(self._transform(0, graph))
+            dist = reference_vec - x
+            norm = dist.dot(dist.T).todense()
+            norm = norm[0, 0]
+            norm = math.sqrt(norm)
+            yield norm
 
     def _test_goodness(self, graph):
         if graph.number_of_nodes() == 0:
@@ -680,8 +683,7 @@ class Vectorizer(AbstractVectorizer):
         # for all radii
         for radius in range(self.min_r, self.r + 2, 2):
             for label_index in range(graph.graph['label_size']):
-                if radius < len(graph.node[vertex_v]
-                                ['neigh_graph_hash'][label_index]) and \
+                if radius < len(graph.node[vertex_v]['neigh_graph_hash'][label_index]) and \
                         radius < len(graph.node[vertex_u]['neigh_graph_hash'][label_index]):
                     # feature as a pair of neighborhoods at a radius,distance
                     # canonicalization of pair of neighborhoods

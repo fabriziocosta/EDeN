@@ -136,7 +136,7 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
     reminder = size % n_blocks
     intervals = [(s * block_size, (s + 1) * block_size)
                  for s in range(n_blocks)]
-    if reminder > 1:
+    if reminder >= 1:
         intervals += [(n_blocks * block_size,
                        n_blocks * block_size + reminder)]
     return intervals

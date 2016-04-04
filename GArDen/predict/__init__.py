@@ -73,11 +73,13 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
                                     vectorizer=self.vectorizer,
                                     **self.params_vectorize)
             distances, indices = self.program.kneighbors(data_matrix)
-            for knn_ids, graph in izip(indices, graphs):
+            for knn_dists, knn_ids, graph in izip(distances, indices, graphs):
                 neighbor_graphs = []
                 for knn_id in knn_ids:
                     neighbor_graphs.append(self.graphs[knn_id])
                 graph.graph['neighbors'] = neighbor_graphs
+                graph.graph['ids'] = knn_ids
+                graph.graph['distances'] = knn_dists
                 yield graph
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
