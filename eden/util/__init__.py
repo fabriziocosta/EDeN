@@ -128,17 +128,19 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
         n_blocks = size / 10
     if n_blocks < 1:
         n_blocks = 1
-    # if one block will end up containing a single instance reduce the number
-    # of blocks to avoid the case
-    if size % n_blocks == 1:
-        n_blocks = max(1, n_blocks - 1)
     block_size = size / n_blocks
-    reminder = size % n_blocks
     intervals = [(s * block_size, (s + 1) * block_size)
                  for s in range(n_blocks)]
-    if reminder >= 1:
+    # handle the remainder
+    remainder = size % n_blocks
+    # create an additional block for the remainder
+    if remainder > 1:
         intervals += [(n_blocks * block_size,
-                       n_blocks * block_size + reminder)]
+                       n_blocks * block_size + remainder)]
+    # if the remainder is one, just add it to the last block
+    elif remainder == 1:
+        s, e = intervals[-1]
+        intervals[-1] = (s, e + 1)
     return intervals
 
 
