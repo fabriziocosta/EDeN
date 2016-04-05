@@ -314,9 +314,10 @@ class Vectorizer(AbstractVectorizer):
         """
         instance_id = None
         feature_dict = {}
-        for instance_id, G in enumerate(graphs):
-            self._test_goodness(G)
-            feature_dict.update(self._transform(instance_id, G))
+        for instance_id, graph in enumerate(graphs):
+            self._test_goodness(graph)
+            feature_dict.update(self._transform(instance_id, graph))
+            graph.clear()
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
@@ -907,7 +908,9 @@ class Vectorizer(AbstractVectorizer):
         self.relabel = relabel
 
         for graph in graphs:
-            yield self._annotate(graph)
+            annotated_graph = self._annotate(graph)
+            graph.clear()
+            yield annotated_graph
 
     def _annotate(self, original_graph):
         # pre-processing phase: compute caches
