@@ -313,14 +313,21 @@ class Vectorizer(AbstractVectorizer):
             Vector representation of input graphs.
         """
         instance_id = None
-        feature_dict = {}
+        row, col, data = [], [], []
         for instance_id, graph in enumerate(graphs):
             self._test_goodness(graph)
-            feature_dict.update(self._transform(instance_id, graph))
+            G_feature_dict = self._transform(instance_id, graph)
+            # move data from dict to lists to circumvent non-linear dictionary
+            # behaviour with extra large numbers of entries
+            data.extend(G_feature_dict.values())
+            for i, j in G_feature_dict.iterkeys():
+                row.append(i)
+                col.append(j)
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
-        return self._convert_dict_to_sparse_matrix(feature_dict)
+        shape = (instance_id + 1, self.feature_size)
+        return csr_matrix((data, (row, col)), shape=shape)
 
     def transform_single(self, graph):
         """Transform a single networkx graph into one sparse row."""
