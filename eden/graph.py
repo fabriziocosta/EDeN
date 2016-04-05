@@ -317,6 +317,7 @@ class Vectorizer(AbstractVectorizer):
         for instance_id, G in enumerate(graphs):
             self._test_goodness(G)
             feature_dict.update(self._transform(instance_id, G))
+            G.clear()
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
