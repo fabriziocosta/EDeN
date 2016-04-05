@@ -136,7 +136,13 @@ def draw_graph(graph,
     graph.remove_edges_from(tmp_edge_set)
 
     if layout == 'graphviz':
-        pos = nx.graphviz_layout(graph, prog=prog, args="-Gstart=rand")
+        graph_copy = graph.copy()
+        # remove all attributes for graphviz layout
+        for u, d in graph_copy.nodes(data=True):
+            graph_copy.node[u] = dict(label=d['label'])
+        for u, v, d in graph_copy.edges(data=True):
+            graph_copy.edge[u][v] = dict(label=d['label'])
+        pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gstart=rand")
     elif layout == "RNA":
         import RNA
         rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
