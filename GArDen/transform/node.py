@@ -463,6 +463,56 @@ class WeightWithIntervals(BaseEstimator, TransformerMixin):
 # ------------------------------------------------------------------------------
 
 
+class WeightWithIntervalsDict(BaseEstimator, TransformerMixin):
+    """WeightWithIntervals.
+
+    Assign weights according to a dictionary of lists of triplets: each triplet defines
+    the start, end position and the (uniform) weight of the region; the
+    order of the triplets matters: later triplets override the weight
+    specification of previous triplets. The special triplet (-1,-1,w)
+    assign a default weight to all nodes.
+
+    If listof_start_end_weight_list is available then each element in
+    listof_start_end_weight_list specifies the start_end_weight_list for a
+    single graph.
+    """
+
+    def __init__(self,
+                 attribute='weight',
+                 start_end_weight_dict=None):
+        """Construct."""
+        self.attribute = attribute
+        self.start_end_weight_dict = start_end_weight_dict
+
+    def transform(self, graphs):
+        """Transform."""
+        try:
+            for graph in graphs:
+                graph = self._start_end_weight_reweight(graph, self.start_end_weight_dict[graph.graph['id']])
+                yield graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _start_end_weight_reweight(self, graph, weightlist):
+        for start, end, weight in weightlist:
+            # iterate over nodes
+            for n, d in graph.nodes_iter(data=True):
+                if 'position' not in d:
+                    # assert nodes must have position attribute
+                    raise Exception('Nodes must have "position" attribute')
+                # given the 'position' attribute of node assign the weight
+                # accordingly
+                pos = d['position']
+                if pos >= start and pos < end:
+                    graph.node[n][self.attribute] = weight
+                if start == -1 and end == -1:
+                    graph.node[n][self.attribute] = weight
+        return graph
+
+# ------------------------------------------------------------------------------
+
+
 class RelabelWithLabelOfIncidentEdges(BaseEstimator, TransformerMixin):
     """RelabelWithLabelOfIncidentEdges.
 

@@ -821,6 +821,7 @@ class Vectorizer(AbstractVectorizer):
                     (edge_weight_list, weight_array_at_d))
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
+            # weight = np.max(node_weight_list)  # node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
         graph.node[root]['neigh_graph_weight'] = \
             neighborhood_graph_weight_list
