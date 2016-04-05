@@ -640,6 +640,7 @@ class Vectorizer(AbstractVectorizer):
             # only for vertices of type self.key_nesting
             if d.get(self.key_nesting, False):
                 self._transform_nesting_vertex(graph, v, feature_list)
+        graph.clear()
         return self._normalization(feature_list, instance_id)
 
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
