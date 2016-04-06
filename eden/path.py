@@ -39,16 +39,16 @@ class Vectorizer(AbstractVectorizer):
         """Set the parameters of the vectorizer."""
         if args.get('complexity', None) is not None:
             self.complexity = args['complexity']
-            self.r = self.complexity * 2
-            self.d = self.complexity * 2
+            self.r = self.complexity + 1
+            self.d = self.complexity + 1
         if args.get('r', None) is not None:
-            self.r = args['r'] * 2
+            self.r = args['r'] + 1
         if args.get('d', None) is not None:
-            self.d = args['d'] * 2
+            self.d = args['d'] + 1
         if args.get('min_r', None) is not None:
-            self.min_r = args['min_r'] * 2
+            self.min_r = args['min_r']
         if args.get('min_d', None) is not None:
-            self.min_d = args['min_d'] * 2
+            self.min_d = args['min_d']
         if args.get('nbits', None) is not None:
             self.nbits = args['nbits']
             self.bitmask = pow(2, self.nbits) - 1
