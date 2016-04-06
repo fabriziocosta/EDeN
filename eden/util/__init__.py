@@ -563,13 +563,14 @@ def load(output_dir_path='', out_file_name=''):
     return obj
 
 
-def report_base_statistics(vec):
+def report_base_statistics(vec, separator='\n'):
     from collections import Counter
     c = Counter(vec)
     msg = ''
     for k in c:
-        msg += "class: %s count:%d (%0.2f)\t" % (k,
-                                                 c[k], c[k] / float(len(vec)))
+        msg += "class: %s count:%d (%0.2f)%s" % (k,
+                                                 c[k], c[k] / float(len(vec)),
+                                                 separator)
     return msg
 
 

@@ -313,26 +313,26 @@ class Vectorizer(AbstractVectorizer):
             Vector representation of input graphs.
         """
         instance_id = None
-        feature_dict = {}
+        feature_rows = []
         for instance_id, graph in enumerate(graphs):
             self._test_goodness(graph)
-            feature_dict.update(self._transform(instance_id, graph))
+            feature_rows.append(self._transform(graph))
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
-        return self._convert_dict_to_sparse_matrix(feature_dict)
+        return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def transform_single(self, graph):
         """Transform a single networkx graph into one sparse row."""
         self._test_goodness(graph)
-        return self._convert_dict_to_sparse_matrix(self._transform(0, graph))
+        return self._convert_dict_to_sparse_matrix(self._transform([graph]))
 
     def predict(self, graphs, estimator=None):
         """Return an iterator over the decision function output."""
-        for G in graphs:
-            self._test_goodness(G)
+        for graph in graphs:
+            self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, G))
+            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
             if estimator.__class__.__name__ in ['SGDRegressor']:
                 margins = estimator.predict(x)
             else:
@@ -343,12 +343,11 @@ class Vectorizer(AbstractVectorizer):
     def similarity(self, graphs, ref_instance=None, estimator=None):
         """Iterator over the dot product between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix(self._transform(0,
-                                                                ref_instance))
+            self._convert_dict_to_sparse_matrix(self._transform([ref_instance]))
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, graph))
+            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
             # if an estimator is given then consider the transformed
             # feature vectors instead
             if estimator is not None:
@@ -363,12 +362,11 @@ class Vectorizer(AbstractVectorizer):
     def distance(self, graphs, ref_instance=None):
         """Iterator on euclidean distance between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix(self._transform(0,
-                                                                ref_instance))
+            self._convert_dict_to_sparse_matrix(self._transform([ref_instance]))
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, graph))
+            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
             dist = reference_vec - x
             norm = dist.dot(dist.T).todense()
             norm = norm[0, 0]
@@ -461,25 +459,26 @@ class Vectorizer(AbstractVectorizer):
         # convert into dict of numpy matrices
         return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
-    def _convert_dict_to_sparse_vector(self, feature_dict):
-        if len(feature_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty feature_dict.')
-        data = feature_dict.values()
-        row, col = [], []
-        for j in feature_dict.iterkeys():
+    def _convert_dict_to_sparse_vector(self, feature_row):
+        if len(feature_row) == 0:
+            raise Exception('ERROR: something went wrong, empty features.')
+        data, row, col = [], [], []
+        for feature in feature_row:
             row.append(0)
-            col.append(int(hash(j) & self.bitmask) + 1)
+            col.append(int(hash(feature) & self.bitmask) + 1)
+            data.append(feature_row[feature])
         vec = csr_matrix((data, (row, col)), shape=(1, self.feature_size))
         return vec
 
-    def _convert_dict_to_sparse_matrix(self, feature_dict):
-        if len(feature_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty feature_dict.')
-        data = feature_dict.values()
-        row, col = [], []
-        for i, j in feature_dict.iterkeys():
-            row.append(i)
-            col.append(j)
+    def _convert_dict_to_sparse_matrix(self, feature_rows):
+        if len(feature_rows) == 0:
+            raise Exception('ERROR: something went wrong, empty features.')
+        data, row, col = [], [], []
+        for i, feature_row in enumerate(feature_rows):
+            for feature in feature_row:
+                row.append(i)
+                col.append(feature)
+                data.append(feature_row[feature])
         shape = (max(row) + 1, self.feature_size)
         return csr_matrix((data, (row, col)), shape=shape)
 
@@ -629,7 +628,7 @@ class Vectorizer(AbstractVectorizer):
             self._compute_neighborhood_graph_weight_cache(graph)
         return graph
 
-    def _transform(self, instance_id, original_graph):
+    def _transform(self, original_graph):
         graph = self._graph_preprocessing(original_graph)
         # collect all features for all vertices for each label_index
         feature_list = defaultdict(lambda: defaultdict(float))
@@ -641,7 +640,7 @@ class Vectorizer(AbstractVectorizer):
             if d.get(self.key_nesting, False):
                 self._transform_nesting_vertex(graph, v, feature_list)
         graph.clear()
-        return self._normalization(feature_list, instance_id)
+        return self._normalization(feature_list)
 
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
         # extract endpoints
@@ -717,7 +716,7 @@ class Vectorizer(AbstractVectorizer):
                             graph.node[vertex_u]['neigh_graph_weight'][radius]
                         feature_list[key][half_feature] += half_val
 
-    def _normalization(self, feature_list, instance_id):
+    def _normalization(self, feature_list):
         # inner normalization per radius-distance
         feature_vector = {}
         for features in feature_list.itervalues():
@@ -726,7 +725,7 @@ class Vectorizer(AbstractVectorizer):
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
             for feature, count in features.iteritems():
-                feature_vector_key = (instance_id, feature)
+                feature_vector_key = feature
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
@@ -988,17 +987,14 @@ class Vectorizer(AbstractVectorizer):
         return graph
 
     def _compute_vertex_based_features(self, graph):
-        feature_dict = {}
-        vertex_id = 0
+        feature_rows = []
         for v, d in graph.nodes_iter(data=True):
             # only for vertices of type 'node', i.e. not for the 'edge' type
             if d.get('node', False):
                 feature_list = defaultdict(lambda: defaultdict(float))
                 self._transform_vertex(graph, v, feature_list)
-                feature_dict.update(self._normalization(feature_list,
-                                                        vertex_id))
-                vertex_id += 1
-        data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
+                feature_rows.append(feature_list)
+        data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
     def components(self,
