@@ -35,6 +35,30 @@ class Vectorizer(AbstractVectorizer):
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
 
+    def set_params(self, **args):
+        """Set the parameters of the vectorizer."""
+        if args.get('complexity', None) is not None:
+            self.complexity = args['complexity']
+            self.r = self.complexity + 1
+            self.d = self.complexity + 1
+        if args.get('r', None) is not None:
+            self.r = args['r'] + 1
+        if args.get('d', None) is not None:
+            self.d = args['d'] + 1
+        if args.get('min_r', None) is not None:
+            self.min_r = args['min_r']
+        if args.get('min_d', None) is not None:
+            self.min_d = args['min_d']
+        if args.get('nbits', None) is not None:
+            self.nbits = args['nbits']
+            self.bitmask = pow(2, self.nbits) - 1
+            self.feature_size = self.bitmask + 2
+        if args.get('normalization', None) is not None:
+            self.normalization = args['normalization']
+        if args.get('inner_normalization', None) is not None:
+            self.inner_normalization = args['inner_normalization']
+
+
     def __repr__(self):
         representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, \
             normalization = %s, inner_normalization = %s)""" % (
