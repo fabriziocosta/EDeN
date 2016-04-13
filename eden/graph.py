@@ -325,14 +325,14 @@ class Vectorizer(AbstractVectorizer):
     def transform_single(self, graph):
         """Transform a single networkx graph into one sparse row."""
         self._test_goodness(graph)
-        return self._convert_dict_to_sparse_matrix(self._transform([graph]))
+        return self._convert_dict_to_sparse_matrix([self._transform(graph)])
 
     def predict(self, graphs, estimator=None):
         """Return an iterator over the decision function output."""
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
+            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
             if estimator.__class__.__name__ in ['SGDRegressor']:
                 margins = estimator.predict(x)
             else:
@@ -343,11 +343,11 @@ class Vectorizer(AbstractVectorizer):
     def similarity(self, graphs, ref_instance=None, estimator=None):
         """Iterator over the dot product between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix(self._transform([ref_instance]))
+            self._convert_dict_to_sparse_matrix([self._transform(ref_instance)])
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
+            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
             # if an estimator is given then consider the transformed
             # feature vectors instead
             if estimator is not None:
@@ -362,11 +362,11 @@ class Vectorizer(AbstractVectorizer):
     def distance(self, graphs, ref_instance=None):
         """Iterator on euclidean distance between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix(self._transform([ref_instance]))
+            self._convert_dict_to_sparse_matrix([self._transform(ref_instance)])
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform([graph]))
+            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
             dist = reference_vec - x
             norm = dist.dot(dist.T).todense()
             norm = norm[0, 0]
@@ -639,7 +639,6 @@ class Vectorizer(AbstractVectorizer):
             # only for vertices of type self.key_nesting
             if d.get(self.key_nesting, False):
                 self._transform_nesting_vertex(graph, v, feature_list)
-        graph.clear()
         return self._normalization(feature_list)
 
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
@@ -969,7 +968,7 @@ class Vectorizer(AbstractVectorizer):
                 # annotate the 'importance' attribute with the margin
                 graph.node[v][self.key_importance] = margins[vertex_id]
                 # update the self.key_weight information as a linear
-                # combination of the previuous weight and the absolute margin
+                # combination of the previous weight and the absolute margin
                 if self.key_weight in graph.node[v] and self.reweight != 0:
                     graph.node[v][self.key_weight] = self.reweight * \
                         abs(margins[vertex_id]) +\
@@ -990,10 +989,10 @@ class Vectorizer(AbstractVectorizer):
         feature_rows = []
         for v, d in graph.nodes_iter(data=True):
             # only for vertices of type 'node', i.e. not for the 'edge' type
+            feature_list = defaultdict(lambda: defaultdict(float))
             if d.get('node', False):
-                feature_list = defaultdict(lambda: defaultdict(float))
                 self._transform_vertex(graph, v, feature_list)
-                feature_rows.append(feature_list)
+            feature_rows.append(self._normalization(feature_list))
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 

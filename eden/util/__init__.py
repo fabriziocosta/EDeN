@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import io
 from sklearn.externals import joblib
+import multiprocessing as mp
 import requests
 import os
 import sys
@@ -158,7 +159,6 @@ def multiprocess_pre_process(iterable,
                              block_size=None,
                              n_jobs=8):
     iterable = list(iterable)
-    import multiprocessing as mp
     size = len(iterable)
     intervals = compute_intervals(
         size=size, n_blocks=n_blocks, block_size=block_size)
@@ -234,7 +234,6 @@ def multiprocess_vectorize(iterators,
         else:
             graphs = iterators
         vectorizer.fit(graphs)
-    import multiprocessing as mp
     size = len(iterators)
     intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
