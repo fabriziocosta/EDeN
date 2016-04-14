@@ -139,9 +139,9 @@ def draw_graph(graph,
         graph_copy = graph.copy()
         # remove all attributes for graphviz layout
         for u, d in graph_copy.nodes(data=True):
-            graph_copy.node[u] = dict(label=d.get('label',''))
+            graph_copy.node[u] = dict(label=d.get('label', ''))
         for u, v, d in graph_copy.edges(data=True):
-            graph_copy.edge[u][v] = dict(label=d.get('label',''))
+            graph_copy.edge[u][v] = dict(label=d.get('label', ''))
         pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gstart=rand")
     elif layout == "RNA":
         import RNA
