@@ -16,10 +16,14 @@ class DeleteEdge(BaseEstimator, TransformerMixin):
     key=attribute.
     """
 
-    def __init__(self, attribute=None, value=None):
+    def __init__(self, attribute=None, value=None, mode='equal'):
         """Constructor."""
         self.attribute = attribute
         self.value = value
+        if mode in ['equal', 'less_equal', 'less', 'greater', 'greater_equal']:
+            self.mode = mode
+        else:
+            raise Exception('Unrecognized vale: %s' % mode)
 
     def transform(self, graphs):
         """Transform."""
@@ -33,9 +37,18 @@ class DeleteEdge(BaseEstimator, TransformerMixin):
 
     def _delete_edges(self, graph):
         for u, v in graph.edges():
-            if self.attribute in graph.edge[u][v] and \
-                    graph.edge[u][v].get(self.attribute, False) == self.value:
-                graph.remove_edge(u, v)
+            if self.attribute in graph.edge[u][v]:
+                value = graph.edge[u][v].get(self.attribute, False)
+                if self.mode == 'equal' and value == self.value:
+                    graph.remove_edge(u, v)
+                if self.mode == 'less_equal' and value <= self.value:
+                    graph.remove_edge(u, v)
+                if self.mode == 'less' and value < self.value:
+                    graph.remove_edge(u, v)
+                if self.mode == 'greater' and value > self.value:
+                    graph.remove_edge(u, v)
+                if self.mode == 'greater_equal' and value >= self.value:
+                    graph.remove_edge(u, v)
         return graph
 
 
