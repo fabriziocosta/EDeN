@@ -320,6 +320,8 @@ class Vectorizer(AbstractVectorizer):
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
+        else:
+            self._clean_graph(graph)
         return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def transform_single(self, graph):
@@ -596,7 +598,7 @@ class Vectorizer(AbstractVectorizer):
         if 'expanded' in original_graph.graph:
             # start from a copy of the original graph
             graph = nx.Graph(original_graph)
-            graph.graph.pop('expanded', None)
+            self._clean_graph(graph)
             # re-wire the endpoints of edge-vertices
             for n, d in original_graph.nodes_iter(data=True):
                 if 'edge' in d:
@@ -611,12 +613,19 @@ class Vectorizer(AbstractVectorizer):
                     graph.add_edge(u, v, d)
                     # remove the edge-vertex
                     graph.remove_node(n)
-                if 'node' in d:
-                    # remove stale information
-                    graph.node[n].pop('remote_neighbours', None)
             return graph
         else:
             return original_graph
+
+    def _clean_graph(self, graph):
+        graph.graph.pop('expanded', None)
+        for n, d in graph.nodes_iter(data=True):
+            if 'node' in d:
+                # remove stale information
+                graph.node[n].pop('remote_neighbours', None)
+                graph.node[n].pop('neigh_graph_hash', None)
+                graph.node[n].pop('neigh_graph_weight', None)
+                graph.node[n].pop('hlabel', None)
 
     def _graph_preprocessing(self, original_graph):
         graph = self._edge_to_vertex_transform(original_graph)
