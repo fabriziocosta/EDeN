@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import io
 from sklearn.externals import joblib
+import multiprocessing as mp
 import requests
 import os
 import sys
@@ -128,17 +129,19 @@ def compute_intervals(size=None, n_blocks=None, block_size=None):
         n_blocks = size / 10
     if n_blocks < 1:
         n_blocks = 1
-    # if one block will end up containing a single instance reduce the number
-    # of blocks to avoid the case
-    if size % n_blocks == 1:
-        n_blocks = max(1, n_blocks - 1)
     block_size = size / n_blocks
-    reminder = size % n_blocks
     intervals = [(s * block_size, (s + 1) * block_size)
                  for s in range(n_blocks)]
-    if reminder > 1:
+    # handle the remainder
+    remainder = size % n_blocks
+    # create an additional block for the remainder
+    if remainder > 1:
         intervals += [(n_blocks * block_size,
-                       n_blocks * block_size + reminder)]
+                       n_blocks * block_size + remainder)]
+    # if the remainder is one, just add it to the last block
+    elif remainder == 1:
+        s, e = intervals[-1]
+        intervals[-1] = (s, e + 1)
     return intervals
 
 
@@ -156,7 +159,6 @@ def multiprocess_pre_process(iterable,
                              block_size=None,
                              n_jobs=8):
     iterable = list(iterable)
-    import multiprocessing as mp
     size = len(iterable)
     intervals = compute_intervals(
         size=size, n_blocks=n_blocks, block_size=block_size)
@@ -194,7 +196,18 @@ def mp_pre_process(iterable,
                                         n_jobs=n_jobs)
 
 
-def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
+def serial_vectorize(iterators,
+                     vectorizer=None,
+                     pre_processor=None,
+                     pre_processor_args=None,
+                     fit_flag=False):
+    if pre_processor is not None:
+        if pre_processor_args is not None:
+            graphs = pre_processor(iterators, **pre_processor_args)
+        else:
+            graphs = pre_processor(iterators)
+    else:
+        graphs = iterators
     if fit_flag:
         data_matrix = vectorizer.fit_transform(graphs)
     else:
@@ -202,20 +215,37 @@ def serial_vectorize(graphs, vectorizer=None, fit_flag=False):
     return data_matrix
 
 
-def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
-    graphs = list(graphs)
+def multiprocess_vectorize(iterators,
+                           vectorizer=None,
+                           pre_processor=None,
+                           pre_processor_args=None,
+                           fit_flag=False,
+                           n_blocks=5,
+                           block_size=None,
+                           n_jobs=8):
+    iterators = list(iterators)
     # fitting happens in a serial fashion
     if fit_flag:
+        if pre_processor is not None:
+            if pre_processor_args is not None:
+                graphs = pre_processor(iterators, **pre_processor_args)
+            else:
+                graphs = pre_processor(iterators)
+        else:
+            graphs = iterators
         vectorizer.fit(graphs)
-    import multiprocessing as mp
-    size = len(graphs)
-    intervals = compute_intervals(
-        size=size, n_blocks=n_blocks, block_size=block_size)
+    size = len(iterators)
+    intervals = compute_intervals(size=size, n_blocks=n_blocks, block_size=block_size)
     if n_jobs == -1:
         pool = mp.Pool()
     else:
         pool = mp.Pool(n_jobs)
-    results = [apply_async(pool, serial_vectorize, args=(graphs[start:end], vectorizer, False))
+    results = [apply_async(pool, serial_vectorize,
+                           args=(iterators[start:end],
+                                 vectorizer,
+                                 pre_processor,
+                                 pre_processor_args,
+                                 False))
                for start, end in intervals]
     output = [p.get() for p in results]
     pool.close()
@@ -224,12 +254,25 @@ def multiprocess_vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, 
     return data_matrix
 
 
-def vectorize(graphs, vectorizer=None, fit_flag=False, n_blocks=5, block_size=None, n_jobs=8):
+def vectorize(iterators,
+              vectorizer=None,
+              pre_processor=None,
+              pre_processor_args=None,
+              fit_flag=False,
+              n_blocks=5,
+              block_size=None,
+              n_jobs=8):
     if n_jobs == 1:
-        return serial_vectorize(graphs, vectorizer=vectorizer, fit_flag=fit_flag)
+        return serial_vectorize(iterators,
+                                vectorizer=vectorizer,
+                                pre_processor=pre_processor,
+                                pre_processor_args=pre_processor_args,
+                                fit_flag=fit_flag)
     else:
-        return multiprocess_vectorize(graphs,
+        return multiprocess_vectorize(iterators,
                                       vectorizer=vectorizer,
+                                      pre_processor=pre_processor,
+                                      pre_processor_args=pre_processor_args,
                                       fit_flag=fit_flag,
                                       n_blocks=n_blocks,
                                       block_size=block_size,
@@ -519,13 +562,14 @@ def load(output_dir_path='', out_file_name=''):
     return obj
 
 
-def report_base_statistics(vec):
+def report_base_statistics(vec, separator='\n'):
     from collections import Counter
     c = Counter(vec)
     msg = ''
     for k in c:
-        msg += "class: %s count:%d (%0.2f)\t" % (k,
-                                                 c[k], c[k] / float(len(vec)))
+        msg += "class: %s count:%d (%0.2f)%s" % (k,
+                                                 c[k], c[k] / float(len(vec)),
+                                                 separator)
     return msg
 
 

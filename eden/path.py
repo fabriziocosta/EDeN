@@ -35,6 +35,28 @@ class Vectorizer(AbstractVectorizer):
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
 
+    def set_params(self, **args):
+        """Set the parameters of the vectorizer."""
+        if args.get('complexity', None) is not None:
+            self.r = args['complexity'] + 1
+            self.d = args['complexity'] + 1
+        if args.get('r', None) is not None:
+            self.r = args['r'] + 1
+        if args.get('d', None) is not None:
+            self.d = args['d'] + 1
+        if args.get('min_r', None) is not None:
+            self.min_r = args['min_r']
+        if args.get('min_d', None) is not None:
+            self.min_d = args['min_d']
+        if args.get('nbits', None) is not None:
+            self.nbits = args['nbits']
+            self.bitmask = pow(2, self.nbits) - 1
+            self.feature_size = self.bitmask + 2
+        if args.get('normalization', None) is not None:
+            self.normalization = args['normalization']
+        if args.get('inner_normalization', None) is not None:
+            self.inner_normalization = args['inner_normalization']
+
     def __repr__(self):
         representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, \
             normalization = %s, inner_normalization = %s)""" % (
@@ -53,29 +75,30 @@ class Vectorizer(AbstractVectorizer):
             seq_list: list of strings
         """
 
-        feature_dict = {}
+        feature_rows = []
         for instance_id, seq in enumerate(seq_list):
-            feature_dict.update(self._transform(instance_id, seq))
-        return self._convert_dict_to_sparse_matrix(feature_dict)
+            feature_rows.append(self._transform(seq))
+        return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def transform_iter(self, seq_list):
         for instance_id, seq in enumerate(seq_list):
-            yield self._convert_dict_to_sparse_matrix(self._transform(instance_id, seq))
+            yield self._convert_dict_to_sparse_matrix([self._transform(seq)])
 
-    def _convert_dict_to_sparse_matrix(self, feature_dict):
-        if len(feature_dict) == 0:
-            raise Exception('ERROR: something went wrong, empty feature_dict.')
-        data = feature_dict.values()
-        row, col = [], []
-        for i, j in feature_dict.iterkeys():
-            row.append(i)
-            col.append(j)
-        data_matrix = csr_matrix((data, (row, col)), shape=(max(row) + 1, self.feature_size))
-        return data_matrix
+    def _convert_dict_to_sparse_matrix(self, feature_rows):
+        if len(feature_rows) == 0:
+            raise Exception('ERROR: something went wrong, empty features.')
+        data, row, col = [], [], []
+        for i, feature_row in enumerate(feature_rows):
+            for feature in feature_row:
+                row.append(i)
+                col.append(feature)
+                data.append(feature_row[feature])
+        shape = (max(row) + 1, self.feature_size)
+        return csr_matrix((data, (row, col)), shape=shape)
 
-    def _transform(self, instance_id, seq):
+    def _transform(self, seq):
         if seq is None or len(seq) == 0:
-            raise Exception('ERROR: something went wrong, empty instance # %d.' % instance_id)
+            raise Exception('ERROR: something went wrong, empty instance.')
         if len(seq) == 2 and len(seq[1]) > 0:
             # assume the instance is a pair (header,seq) and extract only seq
             seq = seq[1]
@@ -97,32 +120,33 @@ class Vectorizer(AbstractVectorizer):
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
-        return self._normalization(feature_list, instance_id)
+        return self._normalization(feature_list)
 
-    def _normalization(self, feature_list, instance_id):
+    def _normalization(self, feature_list):
         # inner normalization per radius-distance
         feature_vector = {}
-        total_norm = 0.0
         for features in feature_list.itervalues():
             norm = 0
             for count in features.itervalues():
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
             for feature, count in features.iteritems():
-                feature_vector_key = (instance_id, feature)
+                feature_vector_key = feature
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
-                total_norm += feature_vector_value * feature_vector_value
         # global normalization
         if self.normalization:
-            normalization_feature_vector = {}
+            normalized_feature_vector = {}
+            total_norm = 0.0
+            for feature, value in feature_vector.iteritems():
+                total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
             for feature, value in feature_vector.iteritems():
-                normalization_feature_vector[feature] = value / sqrt_total_norm
-            return normalization_feature_vector
+                normalized_feature_vector[feature] = value / sqrt_total_norm
+            return normalized_feature_vector
         else:
             return feature_vector
 
@@ -144,7 +168,7 @@ class Vectorizer(AbstractVectorizer):
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq))
+            x = self._convert_dict_to_sparse_matrix(self._transform(seq))
             margins = estimator.decision_function(x)
             yield margins[0]
 
@@ -152,12 +176,12 @@ class Vectorizer(AbstractVectorizer):
         """Takes an iterator over graphs and a reference graph, and returns an iterator
         over similarity evaluations."""
 
-        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(0, ref_instance))
+        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(ref_instance))
         for seq in seqs:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
             # extract feature vector
-            x = self._convert_dict_to_sparse_matrix(self._transform(0, seq))
+            x = self._convert_dict_to_sparse_matrix(self._transform(seq))
             res = reference_vec.dot(x.T).todense()
             yield res[0, 0]
 
@@ -249,6 +273,6 @@ class Vectorizer(AbstractVectorizer):
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1
-            feature_dict.update(self._normalization(feature_list, pos))
+            feature_dict.update(self._normalization(feature_list))
         data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
         return data_matrix
