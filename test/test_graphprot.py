@@ -24,6 +24,21 @@ def test_invocation_no_params():
     assert re.match("usage", run.stderr), "stderr should contain usage information: {}".format(run.stderr)
 
 
+def test_invocation_nonexisting_input():
+    "Call with nonexisting input file."
+    outfile = "shouldcrash"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1".format(
+        datadir_rel + "does_not_exist",
+        datadir_rel + "does_not_exist",
+        outfile,
+    )
+    run = env.run(
+        call,
+        expect_error=True,
+    )
+    assert run.returncode != 0
+
+
 def test_simple_fit():
     "Train a model on 10 positive and 10 negative sequences using default paramters."
     outfile = "test_simple_fit.model"
