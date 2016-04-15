@@ -269,9 +269,10 @@ class ActiveLearningBinaryClassificationModel(object):
                                 lower_bound_threshold_negative=lower_bound_threshold_negative,
                                 upper_bound_threshold_negative=upper_bound_threshold_negative)
                     except Exception as e:
+                        logger.debug('Exception', exc_info=True)
                         delta_time = datetime.timedelta(seconds=(time.time() - start))
                         text = []
-                        text.append('\nFailed iteration: %d/%d (at %.1f sec; %s)' %
+                        text.append('\nFailed outer optimization iteration: %d/%d (at %.1f sec; %s)' %
                                     (i + 1, n_iter, time.time() - start, str(delta_time)))
                         text.append(e.__doc__)
                         text.append(e.message)
@@ -288,9 +289,10 @@ class ActiveLearningBinaryClassificationModel(object):
                         scores = cross_validation.cross_val_score(self.estimator, X, y, cv=cv,
                                                                   scoring=scoring, n_jobs=self.n_jobs)
                     except Exception as e:
+                        logger.debug('Exception', exc_info=True)
                         delta_time = datetime.timedelta(seconds=(time.time() - start))
                         text = []
-                        text.append('\nFailed iteration: (%d/%d) %d/%d (at %.1f sec; %s)' %
+                        text.append('\nFailed inner optimization iteration: (%d/%d) %d/%d (at %.1f sec; %s)' %
                                     (inner_i + 1, n_inner_iter_estimator, i + 1,
                                         n_iter, time.time() - start, str(delta_time)))
                         text.append(e.__doc__)
