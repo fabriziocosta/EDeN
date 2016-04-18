@@ -115,10 +115,10 @@ class Vectorizer(AbstractVectorizer):
             r = complexity
         if d is None:
             d = complexity
-        self.r = r * 2
-        self.d = d * 2
-        self.min_r = min_r * 2
-        self.min_d = min_d * 2
+        self.r = r
+        self.d = d
+        self.min_r = min_r
+        self.min_d = min_d
         self.n = n
         self.min_n = min_n
         # Note: if the discretization is active then the default label_size
@@ -149,16 +149,16 @@ class Vectorizer(AbstractVectorizer):
         """Set the parameters of the vectorizer."""
         if args.get('complexity', None) is not None:
             self.complexity = args['complexity']
-            self.r = self.complexity * 2
-            self.d = self.complexity * 2
+            self.r = self.complexity
+            self.d = self.complexity
         if args.get('r', None) is not None:
-            self.r = args['r'] * 2
+            self.r = args['r']
         if args.get('d', None) is not None:
-            self.d = args['d'] * 2
+            self.d = args['d']
         if args.get('min_r', None) is not None:
-            self.min_r = args['min_r'] * 2
+            self.min_r = args['min_r']
         if args.get('min_d', None) is not None:
-            self.min_d = args['min_d'] * 2
+            self.min_d = args['min_d']
         if args.get('nbits', None) is not None:
             self.nbits = args['nbits']
             self.bitmask = pow(2, self.nbits) - 1
@@ -320,8 +320,6 @@ class Vectorizer(AbstractVectorizer):
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
-        else:
-            self._clean_graph(graph)
         return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def transform_single(self, graph):
@@ -345,7 +343,8 @@ class Vectorizer(AbstractVectorizer):
     def similarity(self, graphs, ref_instance=None, estimator=None):
         """Iterator over the dot product between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix([self._transform(ref_instance)])
+            self._convert_dict_to_sparse_matrix(
+                [self._transform(ref_instance)])
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
@@ -364,7 +363,8 @@ class Vectorizer(AbstractVectorizer):
     def distance(self, graphs, ref_instance=None):
         """Iterator on euclidean distance between ref_instance and graphs."""
         reference_vec = \
-            self._convert_dict_to_sparse_matrix([self._transform(ref_instance)])
+            self._convert_dict_to_sparse_matrix(
+                [self._transform(ref_instance)])
         for graph in graphs:
             self._test_goodness(graph)
             # extract feature vector
@@ -631,7 +631,7 @@ class Vectorizer(AbstractVectorizer):
         graph = self._edge_to_vertex_transform(original_graph)
         self._weight_preprocessing(graph)
         self._label_preprocessing(graph)
-        self._compute_distant_neighbours(graph, max(self.r, self.d))
+        self._compute_distant_neighbours(graph, max(self.r, self.d) * 2)
         self._compute_neighborhood_graph_hash_cache(graph)
         if graph.graph.get('weighted', False):
             self._compute_neighborhood_graph_weight_cache(graph)
@@ -648,6 +648,7 @@ class Vectorizer(AbstractVectorizer):
             # only for vertices of type self.key_nesting
             if d.get(self.key_nesting, False):
                 self._transform_nesting_vertex(graph, v, feature_list)
+        self._clean_graph(graph)
         return self._normalization(feature_list)
 
     def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
@@ -671,7 +672,7 @@ class Vectorizer(AbstractVectorizer):
     def _transform_vertex(self, graph, vertex_v, feature_list):
         # for all distances
         root_dist_dict = graph.node[vertex_v]['remote_neighbours']
-        for distance in range(self.min_d, self.d + 2, 2):
+        for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
             if distance in root_dist_dict:
                 node_set = root_dist_dict[distance]
                 for vertex_u in node_set:
@@ -680,6 +681,22 @@ class Vectorizer(AbstractVectorizer):
                                                 vertex_u,
                                                 distance,
                                                 feature_list)
+        # find all edges that are of type nesting
+        # find second endpoints
+        # for all vertices at distance d from each such second endpoint
+
+    def _find_second_endpoint_of_nesting_edge(self, graph, vertex_v):
+        endpoints = []
+        # find all neighbors
+        for u in graph.neighbors(vertex_v):
+            # test for type
+            if graph.node[u].get(self.key_nesting, False):
+                # if type is nesting
+                # find endpoint that is not original vertex_v
+                vertices = [j for j in graph.neighbors(u) if j != vertex_v]
+                assert(len(vertices) == 1)
+                endpoints.append(vertices[0])
+        return endpoints
 
     def _transform_vertex_pair(self,
                                graph,
@@ -689,7 +706,7 @@ class Vectorizer(AbstractVectorizer):
                                feature_list,
                                connection_weight=1):
         # for all radii
-        for radius in range(self.min_r, self.r + 2, 2):
+        for radius in range(self.min_r * 2, (self.r + 1) * 2, 2):
             for label_index in range(graph.graph['label_size']):
                 if radius < len(graph.node[vertex_v]['neigh_graph_hash'][label_index]) and \
                         radius < len(graph.node[vertex_u]['neigh_graph_hash'][label_index]):
