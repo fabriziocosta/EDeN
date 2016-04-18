@@ -54,6 +54,7 @@ def draw_graph(graph,
                file_name=None,
                title_key='id',
                ignore_for_layout="edge_attribute",
+               nesting_edge_alpha=0.3,
                logscale=False):
     """Plot graph layout."""
     if size is not None:
@@ -192,7 +193,7 @@ def draw_graph(graph,
                            width=1,
                            edge_color='k',
                            style='dotted',
-                           alpha=0.3)
+                           alpha=nesting_edge_alpha)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph,
                                      pos,
