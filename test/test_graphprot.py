@@ -39,6 +39,24 @@ def test_invocation_nonexisting_input():
     assert run.returncode != 0
 
 
+def test_fit_optimization_fail():
+    outfile = "test_simple_fit.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 2 --n-inner-iter-estimator 2".format(
+        datadir_rel + "does_not_exist",
+        datadir_rel + "does_not_exist",
+        outfile,
+    )
+    # graphprot/graphprot_seqmodel -vvv fit -p test/graphprot_seqmodel_test_fit_no_solution.fa -n test/graphprot_seqmodel_test_fit_no_solution.fa --output-dir manualtest --n-iter 2 --n-inner-iter-estimator 2
+    run = env.run(
+        call,
+        expect_error=True
+    )
+    # script should give non-zero return code
+    assert run.returncode != 0
+    # script should not create any files
+    assert len(run.files_created.keys()) == 0
+
+
 def test_simple_fit():
     "Train a model on 10 positive and 10 negative sequences using default paramters."
     outfile = "test_simple_fit.model"

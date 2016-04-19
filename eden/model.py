@@ -355,10 +355,12 @@ class ActiveLearningBinaryClassificationModel(object):
             self.estimator = copy.deepcopy(best_estimator_)
 
         # save to disk
-        logger.info('Saved current best model in %s' % model_name)
-        self.save(model_name)
-        if n_failures >= n_iter:
+        if n_failures < n_iter * n_inner_iter_estimator:
+            self.save(model_name)
+            logger.info('Saved current best model in %s' % model_name)
+        else:
             logger.warning('ERROR: no iteration has produced any viable solution.')
+            exit(1)
 
     def _data_matrix(self, iterable, fit_vectorizer=False):
         assert(is_iterable(iterable)), 'Not iterable'
