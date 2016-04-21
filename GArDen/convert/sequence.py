@@ -64,7 +64,19 @@ def seq_to_networkx(header, seq, constr=None):
 # ------------------------------------------------------------------------------
 
 class SeqToPathGraph(BaseEstimator, TransformerMixin):
-    """Transform seq lists into path graphs."""
+    """Transform seq lists into path graphs.
+
+    Transform a single id and sequence tuple to path graph:
+    >>> id = 'ID0'
+    >>> seq = 'IamAniceSEQUENCE'
+    >>> graphs = SeqToPathGraph().transform([(id,seq)])
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'IamAniceSEQUENCE'
+    >>> g.graph['id']
+    'ID0'
+
+    """
 
     def transform(self, seqs):
         """transform."""
