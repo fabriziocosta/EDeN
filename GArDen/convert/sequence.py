@@ -189,6 +189,101 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
 # ------------------------------------------------------------------------------
 
 
+class FastaToSeq(BaseEstimator, TransformerMixin):
+    """Transform FASTA files into tuples of ids and sequences.
+
+    Transform fasta using defaults:
+    >>> fa_upper_lower = 'test/garden_convert_sequence_FastaToSeq_1.fa'
+    >>> seqs = FastaToSeq().transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> id
+    'ID0'
+    >>> seq
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta with normalization enabled:
+    >>> seqs = FastaToSeq(normalize=True).transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta without normalization:
+    >>> seqs = FastaToSeq(normalize=False).transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa'
+
+    Transform fasta containing 'N' nucleotides:
+    >>> fa_n = 'test/garden_convert_sequence_FastaToSeq_2.fa'
+    >>> seqs = FastaToSeq(normalize=False).transform(fa_n)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
+    """
+
+    def __init__(self, normalize=True):
+        """constructor.
+
+        Parameters
+        ----------
+        normalize : boolean (default: True)
+            If set, transform all sequences to uppercase and convert T to U.
+        """
+        self.normalize = normalize
+
+    def transform(self, data):
+        """Transform.
+
+        Parameters
+        ----------
+        data : filename or url or iterable
+            Data source containing sequences information in FASTA format.
+
+
+        Returns
+        -------
+        Iterator over tuples of ids and sequences.
+        """
+        try:
+            # seqs = self._fasta_to_seq(data)
+            # yield seqs.next()
+            # why not return iterator directly?
+            return self._fasta_to_seq(data)
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _fasta_to_seq(self, data):
+        iterable = self._fasta_to_fasta(data)
+        for line in iterable:
+            header = line
+            seq = iterable.next()
+            if self.normalize:
+                seq = seq.upper()
+                seq = seq.replace('T', 'U')
+            yield header, seq
+
+    def _fasta_to_fasta(self, data):
+        seq = ""
+        for line in util.read(data):
+            if line:
+                if line[0] == '>':
+                    line = line[1:]
+                    if seq:
+                        yield seq
+                        seq = ""
+                    line_str = str(line)
+                    yield line_str.strip()
+                else:
+                    line_str = line.split()
+                    if line_str:
+                        seq += str(line_str[0]).strip()
+        if seq:
+            yield seq
+
+# ------------------------------------------------------------------------------
+
+
 class FastaWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
     """Transform FASTA files with constraints into path graphs."""
 
