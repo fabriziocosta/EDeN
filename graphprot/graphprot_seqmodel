@@ -9,6 +9,8 @@ from eden.graph import Vectorizer
 from eden.model_base import ModelInitializerBase, main_script
 from GArDen.convert.sequence import FastaToPathGraph
 from GArDen.transform.node import WeightWithIntervalsDict
+from graphprot import WeightViewpointCapitalization
+
 
 DESCRIPTION = """
 GraphProt:
@@ -38,8 +40,7 @@ class ModelInitializer(ModelInitializerBase):
     def _load_data(self, input_file):
         """Load fasta and convert to path graph generator."""
         graphs = FastaToPathGraph(normalize=False).transform(input_file)
-        # TODO apply weights according to viewpoint information
-        # TODO normalize sequences of nodes
+        graphs = WeightViewpointCapitalization().transform(graphs)
         return graphs
 
     def load_data(self, args):
