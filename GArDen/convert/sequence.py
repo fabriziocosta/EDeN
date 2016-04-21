@@ -135,7 +135,7 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
         normalize : boolean (default: True)
             If set, transform all sequences to uppercase and convert T to U.
         """
-        self.normalize = normalize
+        self.fastatoseq = FastaToSeq(normalize=normalize)
 
     def transform(self, data):
         """Transform.
@@ -151,40 +151,13 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
         Iterator over networkx graphs.
         """
         try:
-            seqs = self._fasta_to_seq(data)
+            seqs = self.fastatoseq.transform(data)
             for header, seq in seqs:
                 yield seq_to_networkx(header, seq)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def _fasta_to_seq(self, data):
-        iterable = self._fasta_to_fasta(data)
-        for line in iterable:
-            header = line
-            seq = iterable.next()
-            if self.normalize:
-                seq = seq.upper()
-                seq = seq.replace('T', 'U')
-            yield header, seq
-
-    def _fasta_to_fasta(self, data):
-        seq = ""
-        for line in util.read(data):
-            if line:
-                if line[0] == '>':
-                    line = line[1:]
-                    if seq:
-                        yield seq
-                        seq = ""
-                    line_str = str(line)
-                    yield line_str.strip()
-                else:
-                    line_str = line.split()
-                    if line_str:
-                        seq += str(line_str[0]).strip()
-        if seq:
-            yield seq
 
 # ------------------------------------------------------------------------------
 
