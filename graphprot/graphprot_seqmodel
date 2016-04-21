@@ -35,36 +35,22 @@ Please cite:
 
 class ModelInitializer(ModelInitializerBase):
 
-    def _load_data(self, input_file, normalize, weight_regions_input_file):
+    def _load_data(self, input_file):
         """Load fasta and convert to path graph generator."""
-        graphs = FastaToPathGraph(normalize=normalize).transform(input_file)
-
-        if weight_regions_input_file is not None:
-            # load weights into dictionary
-            wdict = {}
-            weights_bg = open(weight_regions_input_file, "r")
-            for line in weights_bg:
-                id, start, stop, weight = line.strip().split("\t")
-                if id in wdict:
-                    wdict[id].append((int(start), int(stop), float(weight)))
-                else:
-                    wdict[id] = [(int(start), int(stop), float(weight))]
-            # add predefined weights
-            return WeightWithIntervalsDict(start_end_weight_dict=wdict).transform(graphs)
-
+        graphs = FastaToPathGraph().transform(input_file)
         return graphs
 
     def load_data(self, args):
         """Load and convert positive class data."""
-        return self._load_data(args.input_file, args.normalize, args.weight_regions_input_file)
+        return self._load_data(args.input_file)
 
     def load_positive_data(self, args):
         """Load and convert positive class data."""
-        return self._load_data(args.positive_input_file, args.normalize, args.weight_regions_input_file)
+        return self._load_data(args.positive_input_file)
 
     def load_negative_data(self, args):
         """Load and convert negative class data."""
-        return self._load_data(args.negative_input_file, args.normalize, args.weight_regions_input_file)
+        return self._load_data(args.negative_input_file)
 
     def pre_processor_init(self, args):
         """Setup transformation of data prepared by load_data functions.
@@ -101,14 +87,6 @@ class ModelInitializer(ModelInitializerBase):
                             dest="negative_input_file",
                             help="Path to FASTA file containing sequences on unbound sites.",
                             required=True)
-        parser.add_argument("--use-sequence-as-given",
-                            dest="normalize",
-                            action="store_false",
-                            help="use fasta sequence exactly as given")
-        parser.add_argument("--weight-regions",
-                            dest="weight_regions_input_file",
-                            default=None,
-                            help="Path to bedGraph file containing weights to be assigned to sequences.")
         return parser
 
     def add_arguments_estimate(self, parser):
