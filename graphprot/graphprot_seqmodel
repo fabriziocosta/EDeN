@@ -38,6 +38,8 @@ class ModelInitializer(ModelInitializerBase):
     def _load_data(self, input_file):
         """Load fasta and convert to path graph generator."""
         graphs = FastaToPathGraph(normalize=False).transform(input_file)
+        # TODO apply weights according to viewpoint information
+        # TODO normalize sequences of nodes
         return graphs
 
     def load_data(self, args):
@@ -59,8 +61,6 @@ class ModelInitializer(ModelInitializerBase):
         a set of matching parameter choices.
         """
         def pre_processor(graphs, **args):
-            # TODO apply weights according to viewpoint information
-            # TODO normalize sequences of nodes
             # TODO multiply weights according to table given in pre_processor_parameters and weight parameter
             # hint: access via args["key"]
             return graphs
