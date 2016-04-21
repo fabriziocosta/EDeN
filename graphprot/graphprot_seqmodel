@@ -37,7 +37,7 @@ class ModelInitializer(ModelInitializerBase):
 
     def _load_data(self, input_file):
         """Load fasta and convert to path graph generator."""
-        graphs = FastaToPathGraph().transform(input_file)
+        graphs = FastaToPathGraph(normalize=False).transform(input_file)
         return graphs
 
     def load_data(self, args):
@@ -53,13 +53,20 @@ class ModelInitializer(ModelInitializerBase):
         return self._load_data(args.negative_input_file)
 
     def pre_processor_init(self, args):
-        """Setup transformation of data prepared by load_data functions.
+        """Setup conversion of data prepared by load_data functions to graphs.
 
         Returns the function used to process the data prepared by the load_data functions and
         a set of matching parameter choices.
         """
         def pre_processor(graphs, **args):
+            # TODO apply weights according to viewpoint information
+            # TODO normalize sequences of nodes
+            # TODO multiply weights according to table given in pre_processor_parameters and weight parameter
+            # hint: access via args["key"]
             return graphs
+
+        # TODO load array of k-mer - probability pairs into dictionary
+        # TODO and put into pre_processor_parameters
         pre_processor_parameters = {}
         return pre_processor, pre_processor_parameters
 
