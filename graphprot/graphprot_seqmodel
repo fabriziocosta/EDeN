@@ -59,9 +59,11 @@ class ModelInitializer(ModelInitializerBase):
         a set of matching parameter choices.
         """
         def pre_processor(seqs, **args):
+            vp_weight = args["vp_weight"]
+            context_weight = args["context_weight"]
             for id, seq in seqs:
                 # calculate list of viewpoint weights
-                vpweights = map(lambda x: 1.0 if x.isupper() else 0.0, seq)
+                vpweights = map(lambda x: vp_weight if x.isupper() else context_weight, seq)
                 # normalize RNA sequence
                 seq = seq.upper().replace('T', 'U')
                 # TODO calculate list of RNase T1 probabilities
@@ -70,7 +72,8 @@ class ModelInitializer(ModelInitializerBase):
 
         # TODO load array of k-mer - probability pairs into dictionary
         # TODO and put into pre_processor_parameters
-        pre_processor_parameters = {}
+        pre_processor_parameters = {"vp_weight": [1.0],
+                                    "context_weight": [0.0]}
         return pre_processor, pre_processor_parameters
 
     def vectorizer_init(self, args):
