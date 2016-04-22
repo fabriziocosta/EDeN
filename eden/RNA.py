@@ -8,7 +8,7 @@ import random
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics.pairwise import pairwise_kernels
 
-from eden.path import Vectorizer as SeqVectorizer
+from eden.sequence import Vectorizer as SeqVectorizer
 from eden.graph import Vectorizer as GraphVectorizer
 from eden.converter.rna import sequence_dotbracket_to_graph
 from eden.converter.fasta import seq_to_networkx
