@@ -10,7 +10,7 @@ import joblib
 
 from eden import apply_async
 from eden.graph import Vectorizer
-from eden.path import Vectorizer as PathVectorizer
+from eden.sequence import Vectorizer as SeqVectorizer
 from eden.util import vectorize, mp_pre_process, compute_intervals
 from eden.converter.fasta import sequence_to_eden
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
@@ -56,7 +56,7 @@ class SequenceMotif(object):
         self.nbits = nbits
         # init vectorizer
         self.vectorizer = Vectorizer(complexity=self.complexity, nbits=self.nbits)
-        self.seq_vectorizer = PathVectorizer(complexity=self.complexity, nbits=self.nbits)
+        self.seq_vectorizer = SeqVectorizer(complexity=self.complexity, nbits=self.nbits)
         self.negative_ratio = negative_ratio
         self.shuffle_order = shuffle_order
         self.clustering_algorithm = clustering_algorithm

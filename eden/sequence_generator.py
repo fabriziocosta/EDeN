@@ -1,5 +1,5 @@
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
-from eden.path import Vectorizer
+from eden.sequence import Vectorizer
 from eden.util import fit, predict
 import numpy as np
 from itertools import combinations_with_replacement
