@@ -118,16 +118,13 @@ class Vectorizer(AbstractVectorizer):
         """
         feature_rows = []
         if weigts_list:
-            for instance_id, (seq, weights) in enumerate(izip(seq_list, weigts_list)):
+            for instance_id, (seq, weights) in enumerate(izip(seq_list,
+                                                              weigts_list)):
                 feature_rows.append(self._transform(seq, weights))
         else:
             for instance_id, seq in enumerate(seq_list):
                 feature_rows.append(self._transform(seq))
         return self._convert_dict_to_sparse_matrix(feature_rows)
-
-    def transform_iter(self, seq_list):
-        for instance_id, seq in enumerate(seq_list):
-            yield self._convert_dict_to_sparse_matrix([self._transform(seq)])
 
     def _convert_dict_to_sparse_matrix(self, feature_rows):
         if len(feature_rows) == 0:
@@ -158,28 +155,36 @@ class Vectorizer(AbstractVectorizer):
         seq = self._get_sequence(orig_seq)
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
-        neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
+        neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
+                            for pos in range(seq_len)]
         if weights:
             if len(weights) != seq_len:
-                raise Exception('ERROR: sequence and weights must be same length.')
-            neighborhood_weight_cache = [self._compute_neighborhood_weight(weights, pos) for pos in range(seq_len)]
-        # construct features as pairs of kmers up to distance d for all radii up to r
+                raise Exception('ERROR: sequence and weights \
+                    must be same length.')
+            neighborhood_weight_cache = \
+                [self._compute_neighborhood_weight(weights, pos)
+                 for pos in range(seq_len)]
+        # construct features as pairs of kmers up to distance d
+        # for all radii up to r
         feature_list = defaultdict(lambda: defaultdict(float))
         for pos in range(seq_len):
             for radius in range(self.min_r, self.r + 1 + 2):
-                if radius < len(neighborhood_hash_cache[pos]):
+                if radius < len(neigh_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 2):
-                        second_endpoint = pos + distance
-                        if second_endpoint + radius < seq_len:
-                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
-                                                       neighborhood_hash_cache[second_endpoint][radius],
-                                                       radius,
-                                                       distance,
-                                                       self.bitmask)
+                        end = pos + distance
+                        if end + radius < seq_len:
+                            feature_code = \
+                                fast_hash_4(neigh_hash_cache[pos][radius],
+                                            neigh_hash_cache[end][radius],
+                                            radius,
+                                            distance,
+                                            self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             if weights:
-                                feature_list[key][feature_code] += neighborhood_weight_cache[pos][radius]
-                                feature_list[key][feature_code] += neighborhood_weight_cache[second_endpoint][radius]
+                                feature_list[key][feature_code] += \
+                                    neighborhood_weight_cache[pos][radius]
+                                feature_list[key][feature_code] += \
+                                    neighborhood_weight_cache[end][radius]
                             else:
                                 feature_list[key][feature_code] += 1
         return self._normalization(feature_list)
@@ -213,10 +218,6 @@ class Vectorizer(AbstractVectorizer):
             return feature_vector
 
     def _compute_neighborhood_hash(self, seq, pos):
-        """
-        Given the seq and the pos, extract all kmers up to size r in a vector
-        at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc
-        """
         subseq = seq[pos:pos + self.r + 1]
         return fast_hash_vec(subseq, self.bitmask)
 
@@ -230,10 +231,11 @@ class Vectorizer(AbstractVectorizer):
         return weight_list
 
     def predict(self, seqs, estimator):
-        """
-        Takes an iterator over graphs and a fit estimator, and returns an iterator over predictions.
-        """
+        """Predict.
 
+        Takes an iterator over graphs and a fit estimator, and returns
+        an iterator over predictions.
+        """
         for seq in seqs:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
@@ -243,10 +245,13 @@ class Vectorizer(AbstractVectorizer):
             yield margins[0]
 
     def similarity(self, seqs, ref_instance=None):
-        """Takes an iterator over graphs and a reference graph, and returns an iterator
-        over similarity evaluations."""
+        """Similarity.
 
-        reference_vec = self._convert_dict_to_sparse_matrix(self._transform(ref_instance))
+        Takes an iterator over graphs and a reference graph, and returns
+        an iterator over similarity evaluations.
+        """
+        reference_vec = self._convert_dict_to_sparse_matrix(
+            self._transform(ref_instance))
         for seq in seqs:
             if len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance.')
@@ -256,7 +261,8 @@ class Vectorizer(AbstractVectorizer):
             yield res[0, 0]
 
     def annotate(self, seqs, estimator=None, relabel=False):
-        """
+        """Annotate.
+
         Given a list of sequences, and a fitted estimator, it computes a vector
         of importance values for each char in the sequence. The importance
         corresponds to the part of the score that is imputable  to the features
@@ -265,11 +271,12 @@ class Vectorizer(AbstractVectorizer):
         Args:
             sequences: iterable lists of strings
 
-            estimator: scikit-learn predictor trained on data sampled from the same distribution.
-            If None only relabeling is used.
+            estimator: scikit-learn predictor trained on data sampled from
+            the same distribution. If None only relabeling is used.
 
-            relabel: bool. If True replace the label attribute of each vertex with the
-            sparse vector encoding of all features that have that vertex as root.
+            relabel: bool. If True replace the label attribute of each vertex
+            with the sparse vector encoding of all features that have that
+            vertex as root.
 
         Returns:
             If relabel is False: for each input sequence a pair: 1) the input
@@ -279,11 +286,10 @@ class Vectorizer(AbstractVectorizer):
 
             If relabel is True: for each input sequence a triplet: 1) the input
             string, 2) a list of real  numbers with size equal to the number of
-            characters in each input sequence, 3) a list with  size equal to the
-            number of characters in each input sequence, of sparse vectors each
-            corresponding to the vertex induced features.
+            characters in each input sequence, 3) a list with  size equal to
+            the number of characters in each input sequence, of sparse vectors
+            each corresponding to the vertex induced features.
         """
-
         self.estimator = estimator
         self.relabel = relabel
 
@@ -291,7 +297,8 @@ class Vectorizer(AbstractVectorizer):
             if seq is None or len(seq) == 0:
                 raise Exception('ERROR: something went wrong, empty instance')
             if len(seq) == 2 and len(seq[1]) > 0:
-                # assume the instance is a pair (header,seq) and extract only seq
+                # assume the instance is a pair (header,seq)
+                # and extract only seq
                 seq = seq[1]
             yield self._annotate(seq)
 
@@ -328,16 +335,18 @@ class Vectorizer(AbstractVectorizer):
         # extract kmer hash codes for all kmers up to r in all positions in seq
         feature_dict = {}
         seq_len = len(seq)
-        neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
+        neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
+                            for pos in range(seq_len)]
         for pos in range(seq_len):
-            # construct features as pairs of kmers up to distance d for all radii up to r
+            # construct features as pairs of kmers up to distance d
+            # for all radii up to r
             feature_list = defaultdict(lambda: defaultdict(float))
             for radius in range(self.min_r, self.r + 2):
-                if radius < len(neighborhood_hash_cache[pos]):
+                if radius < len(neigh_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 2):
                         if pos + distance + radius < seq_len:
-                            feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
-                                                       neighborhood_hash_cache[pos + distance][radius],
+                            feature_code = fast_hash_4(neigh_hash_cache[pos][radius],
+                                                       neigh_hash_cache[pos + distance][radius],
                                                        radius,
                                                        distance,
                                                        self.bitmask)

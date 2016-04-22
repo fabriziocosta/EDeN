@@ -4,7 +4,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
-from eden.path import Vectorizer
+from eden.sequence import Vectorizer
 from eden.util import fit, predict
 import numpy as np
 from itertools import combinations_with_replacement
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 # product of the feature description of the transformed instance and the fit
 # weight vector.
 # take the max instance for improving.
-# when maximally inhibiting take the instance that potentially maximally reduces
-# the score, so minimize score - lambda 1/avg kernel knn.
+# when maximally inhibiting take the instance that potentially maximally
+# reduces the score, so minimize score - lambda 1/avg kernel knn.
 # ------------------------------------------------------------------------------
 
 
