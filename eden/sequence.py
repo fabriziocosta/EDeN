@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+"""Provides vectorization of sequences."""
+
 from collections import defaultdict
+from itertools import izip
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
@@ -9,8 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class Vectorizer(AbstractVectorizer):
-
-    """Transform strings into sparse vectors."""
+    """Transform real strings into sparse vectors."""
 
     def __init__(self,
                  complexity=None,
@@ -21,12 +24,46 @@ class Vectorizer(AbstractVectorizer):
                  nbits=20,
                  normalization=True,
                  inner_normalization=True):
+        """Constructor.
+
+        Parameters
+        ----------
+        complexity : int (default 3)
+            The complexity of the features extracted.
+            This is equivalent to setting r = complexity, d = complexity.
+
+        r : int
+            The maximal radius size.
+
+        d : int
+            The maximal distance size.
+
+        min_r : int
+            The minimal radius size.
+
+        min_d : int
+            The minimal distance size.
+
+        nbits : int (default 20)
+            The number of bits that defines the feature space size:
+            |feature space|=2^nbits.
+
+        normalization : bool (default True)
+            Flag to set the resulting feature vector to have unit euclidean
+            norm.
+
+        inner_normalization : bool (default True)
+            Flag to set the feature vector for a specific combination of the
+            radius and distance size to have unit euclidean norm.
+            When used together with the 'normalization' flag it will be applied
+            first and then the resulting feature vector will be normalized.
+        """
         if complexity is not None:
-            self.r = complexity + 1
-            self.d = complexity + 1
+            self.r = complexity
+            self.d = complexity
         else:
-            self.r = r + 1
-            self.d = d + 1
+            self.r = r
+            self.d = d
         self.min_r = min_r
         self.min_d = min_d
         self.nbits = nbits
@@ -38,12 +75,12 @@ class Vectorizer(AbstractVectorizer):
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
         if args.get('complexity', None) is not None:
-            self.r = args['complexity'] + 1
-            self.d = args['complexity'] + 1
+            self.r = args['complexity']
+            self.d = args['complexity']
         if args.get('r', None) is not None:
-            self.r = args['r'] + 1
+            self.r = args['r']
         if args.get('d', None) is not None:
-            self.d = args['d'] + 1
+            self.d = args['d']
         if args.get('min_r', None) is not None:
             self.min_r = args['min_r']
         if args.get('min_d', None) is not None:
@@ -58,10 +95,11 @@ class Vectorizer(AbstractVectorizer):
             self.inner_normalization = args['inner_normalization']
 
     def __repr__(self):
+        """Pretty print of vectorizer parameters."""
         representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, \
             normalization = %s, inner_normalization = %s)""" % (
-            self.r - 1,
-            self.d - 1,
+            self.r,
+            self.d,
             self.min_r,
             self.min_d,
             self.nbits,
@@ -69,15 +107,22 @@ class Vectorizer(AbstractVectorizer):
             self. inner_normalization)
         return representation
 
-    def transform(self, seq_list):
-        """
-        Args:
-            seq_list: list of strings
-        """
+    def transform(self, seq_list, weigts_list=None):
+        """Transform.
 
+        Parameters
+        ----------
+        seq_list: list of strings
+
+        weigts_list: list of real values
+        """
         feature_rows = []
-        for instance_id, seq in enumerate(seq_list):
-            feature_rows.append(self._transform(seq))
+        if weigts_list:
+            for instance_id, (seq, weights) in enumerate(izip(seq_list, weigts_list)):
+                feature_rows.append(self._transform(seq, weights))
+        else:
+            for instance_id, seq in enumerate(seq_list):
+                feature_rows.append(self._transform(seq))
         return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def transform_iter(self, seq_list):
@@ -96,30 +141,47 @@ class Vectorizer(AbstractVectorizer):
         shape = (max(row) + 1, self.feature_size)
         return csr_matrix((data, (row, col)), shape=shape)
 
-    def _transform(self, seq):
+    def _get_sequence(self, seq):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
-        if len(seq) == 2 and len(seq[1]) > 0:
+        if isinstance(seq, basestring):
+            return seq
+        elif isinstance(seq, tuple) and len(seq) == 2 and len(seq[1]) > 0:
             # assume the instance is a pair (header,seq) and extract only seq
             seq = seq[1]
+        else:
+            raise Exception('ERROR: something went wrong,\
+             unrecognized input type for: %s' % seq)
+        return seq
+
+    def _transform(self, orig_seq, weights=None):
+        seq = self._get_sequence(orig_seq)
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
         neighborhood_hash_cache = [self._compute_neighborhood_hash(seq, pos) for pos in range(seq_len)]
+        if weights:
+            if len(weights) != seq_len:
+                raise Exception('ERROR: sequence and weights must be same length.')
+            neighborhood_weight_cache = [self._compute_neighborhood_weight(weights, pos) for pos in range(seq_len)]
         # construct features as pairs of kmers up to distance d for all radii up to r
         feature_list = defaultdict(lambda: defaultdict(float))
         for pos in range(seq_len):
-            for radius in range(self.min_r, self.r + 1):
+            for radius in range(self.min_r, self.r + 1 + 2):
                 if radius < len(neighborhood_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 1):
+                    for distance in range(self.min_d, self.d + 2):
                         second_endpoint = pos + distance
                         if second_endpoint + radius < seq_len:
                             feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
+                                                       neighborhood_hash_cache[second_endpoint][radius],
                                                        radius,
                                                        distance,
-                                                       neighborhood_hash_cache[second_endpoint][radius],
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
-                            feature_list[key][feature_code] += 1
+                            if weights:
+                                feature_list[key][feature_code] += neighborhood_weight_cache[pos][radius]
+                                feature_list[key][feature_code] += neighborhood_weight_cache[second_endpoint][radius]
+                            else:
+                                feature_list[key][feature_code] += 1
         return self._normalization(feature_list)
 
     def _normalization(self, feature_list):
@@ -155,9 +217,17 @@ class Vectorizer(AbstractVectorizer):
         Given the seq and the pos, extract all kmers up to size r in a vector
         at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc
         """
-
-        subseq = seq[pos:pos + self.r]
+        subseq = seq[pos:pos + self.r + 1]
         return fast_hash_vec_char(subseq, self.bitmask)
+
+    def _compute_neighborhood_weight(self, weights, pos):
+        """TODO."""
+        weight_list = []
+        curr_weight = 0
+        for w in weights[pos:pos + self.r + 1]:
+            curr_weight += w
+            weight_list.append(curr_weight)
+        return weight_list
 
     def predict(self, seqs, estimator):
         """
@@ -262,14 +332,14 @@ class Vectorizer(AbstractVectorizer):
         for pos in range(seq_len):
             # construct features as pairs of kmers up to distance d for all radii up to r
             feature_list = defaultdict(lambda: defaultdict(float))
-            for radius in range(self.min_r, self.r + 1):
+            for radius in range(self.min_r, self.r + 2):
                 if radius < len(neighborhood_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 1):
+                    for distance in range(self.min_d, self.d + 2):
                         if pos + distance + radius < seq_len:
                             feature_code = fast_hash_4(neighborhood_hash_cache[pos][radius],
+                                                       neighborhood_hash_cache[pos + distance][radius],
                                                        radius,
                                                        distance,
-                                                       neighborhood_hash_cache[pos + distance][radius],
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
                             feature_list[key][feature_code] += 1

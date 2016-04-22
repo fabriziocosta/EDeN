@@ -17,8 +17,8 @@ model -vv fit --cv 5 --scoring 'f1'  --n-active-learning-iterations 3
 --size-negative 50 -p pos_train.nx -n neg_train.nx -j 8 -e 20 --model-file mod
  --output-dir out
 
--for predicting using a fit model:
-model -vv predict -i test.nx --model-file out/mod
+-for generating molecules using a fit model:
+model -vv sample -i test.nx --model-file out/mod
 
 
 
@@ -28,11 +28,11 @@ loss is estimated each sample at  a time and the model is updated along the way
 with a decreasing strength schedule (aka learning rate). """
 
 epilog = """
-Authors: Fabrizio Costa, Jose Luis Licon
+Authors: Fabrizio Costa
 Copyright: 2015
 License: GPL
 Maintainer: Fabrizio Costa
-Email: costa@informatik.uni-freiburg.de, liconj@informatik.uni-freiburg.de
+Email: costa@informatik.uni-freiburg.de
 Status: Production
 
 Cite:  Costa, Fabrizio, and Kurt De Grave, 'Fast neighborhood subgraph pairwise
