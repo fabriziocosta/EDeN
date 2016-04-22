@@ -662,25 +662,19 @@ class Vectorizer(AbstractVectorizer):
             u = nesting_endpoints[0]
             v = nesting_endpoints[1]
             distance = 1
-            self._transform_vertex_pair(graph,
-                                        v,
-                                        u,
-                                        distance,
-                                        feature_list,
+            self._transform_vertex_pair(graph, v, u, distance, feature_list,
                                         connection_weight=connection_weight)
 
-    def _transform_vertex(self, graph, vertex_v, feature_list):
+    def _transform_vertex(self, graph, vertex_v, feature_list,
+                          root_vertex=None):
         # for all distances
         root_dist_dict = graph.node[vertex_v]['remote_neighbours']
         for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
             if distance in root_dist_dict:
                 node_set = root_dist_dict[distance]
                 for vertex_u in node_set:
-                    self._transform_vertex_pair(graph,
-                                                vertex_v,
-                                                vertex_u,
-                                                distance,
-                                                feature_list)
+                    self._transform_vertex_pair(graph, vertex_v, vertex_u,
+                                                distance, feature_list)
         # find all edges that are of type nesting
         # find second endpoints
         # for all vertices at distance d from each such second endpoint
@@ -698,13 +692,8 @@ class Vectorizer(AbstractVectorizer):
                 endpoints.append(vertices[0])
         return endpoints
 
-    def _transform_vertex_pair(self,
-                               graph,
-                               vertex_v,
-                               vertex_u,
-                               distance,
-                               feature_list,
-                               connection_weight=1):
+    def _transform_vertex_pair(self, graph, vertex_v, vertex_u, distance,
+                               feature_list, connection_weight=1):
         # for all radii
         for radius in range(self.min_r * 2, (self.r + 1) * 2, 2):
             for label_index in range(graph.graph['label_size']):
