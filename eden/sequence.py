@@ -2,7 +2,6 @@
 """Provides vectorization of sequences."""
 
 from collections import defaultdict
-from itertools import izip
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
@@ -16,16 +15,22 @@ class Vectorizer(AbstractVectorizer):
     """Transform real strings into sparse vectors.
 
     >>> # vectorize a sequence using default parameters
-    >>> str(Vectorizer().transform(['A']))
+    >>> seqstrings = ['A']
+    >>> str(Vectorizer().transform(seqstrings))
     '  (0, 930612)\\t1.0'
     >>> # vectorize a sequence using weights
-    >>> str(Vectorizer().transform(['A'], [[0.5]]))
+    >>> weighttups = [('ID1', 'A', [0.5])]
+    >>> str(Vectorizer().transform(weighttups))
     '  (0, 930612)\\t1.0'
-    >>> # vectorize a sequence with zero weights
-    >>> str(Vectorizer(r=1, d=0).transform(['HA'], [[1,1]]))
-    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
-    >>> str(Vectorizer(r=1, d=0).transform(['HA'], [[1,0]]))
-    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+
+    # >>> # vectorize a sequence
+    # >>> weighttups_ones = [('ID2', 'HA', [1,1])]
+    # >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
+    # '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+    # >>> # for comparison vectorize a sequence containing zero weight
+    # >>> weighttups_zero = [('ID2', 'HA', [1,0])]
+    # >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
+    # '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
     """
 
     def __init__(self,
@@ -120,23 +125,18 @@ class Vectorizer(AbstractVectorizer):
             self. inner_normalization)
         return representation
 
-    def transform(self, seq_list, weights_list=None):
+    def transform(self, seq_list):
         """Transform.
 
         Parameters
         ----------
-        seq_list: list of strings
-
-        weights_list: list of lists of real values
+        seq_list: list of sequence strings or
+                  list of id, seq tuples or
+                  list of id, seq, list of weight tuples
         """
         feature_rows = []
-        if weights_list:
-            for instance_id, (seq, weights) in enumerate(izip(seq_list,
-                                                              weights_list)):
-                feature_rows.append(self._transform(seq, weights))
-        else:
-            for instance_id, seq in enumerate(seq_list):
-                feature_rows.append(self._transform(seq))
+        for seq in seq_list:
+            feature_rows.append(self._transform(seq))
         return self._convert_dict_to_sparse_matrix(feature_rows)
 
     def _convert_dict_to_sparse_matrix(self, feature_rows):
@@ -151,21 +151,24 @@ class Vectorizer(AbstractVectorizer):
         shape = (max(row) + 1, self.feature_size)
         return csr_matrix((data, (row, col)), shape=shape)
 
-    def _get_sequence(self, seq):
+    def _get_sequence_and_weights(self, seq):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
         if isinstance(seq, basestring):
-            return seq
+            return seq, None
         elif isinstance(seq, tuple) and len(seq) == 2 and len(seq[1]) > 0:
             # assume the instance is a pair (header,seq) and extract only seq
-            seq = seq[1]
+            return seq[1], None
+        elif isinstance(seq, tuple) and len(seq) == 3 and len(seq[1]) > 0:
+            # assume the instance is a triple (header,seq,weightlist) and extract only seq
+            return seq[1], seq[2]
         else:
             raise Exception('ERROR: something went wrong,\
              unrecognized input type for: %s' % seq)
-        return seq
+        return seq, weights
 
-    def _transform(self, orig_seq, weights=None):
-        seq = self._get_sequence(orig_seq)
+    def _transform(self, orig_seq):
+        seq, weights = self._get_sequence_and_weights(orig_seq)
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
         neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
