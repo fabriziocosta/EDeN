@@ -75,23 +75,15 @@ def fast_hash_4(dat_1, dat_2, dat_3, dat_4, bitmask=_bitmask_):
     return int(hash((dat_1, dat_2, dat_3, dat_4)) & bitmask) + 1
 
 
-def calc_running_hash(running_hash, list_item, counter):
-    return hash((running_hash, list_item, counter))
-
-
 def fast_hash(vec, bitmask=_bitmask_):
     return int(hash(tuple(vec)) & bitmask) + 1
 
 
 def fast_hash_vec(vec, bitmask=_bitmask_):
-    return fast_hash(vec, bitmask=bitmask)
-
-
-def fast_hash_vec_char(vec, bitmask=_bitmask_):
     hash_vec = []
     running_hash = 0xAAAAAAAA
-    for i, list_item in enumerate(vec):
-        running_hash ^= hash((running_hash, list_item, i))
+    for i, vec_item in enumerate(vec):
+        running_hash ^= hash((running_hash, vec_item, i))
         hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
 
