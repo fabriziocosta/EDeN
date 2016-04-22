@@ -22,15 +22,14 @@ class Vectorizer(AbstractVectorizer):
     >>> weighttups = [('ID1', 'A', [0.5])]
     >>> str(Vectorizer().transform(weighttups))
     '  (0, 930612)\\t1.0'
-
-    # >>> # vectorize a sequence
-    # >>> weighttups_ones = [('ID2', 'HA', [1,1])]
-    # >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
-    # '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
-    # >>> # for comparison vectorize a sequence containing zero weight
-    # >>> weighttups_zero = [('ID2', 'HA', [1,0])]
-    # >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
-    # '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+    >>> # vectorize a sequence
+    >>> weighttups_ones = [('ID2', 'HA', [1,1])]
+    >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
+    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+    >>> # for comparison vectorize a sequence containing zero weight
+    >>> weighttups_zero = [('ID2', 'HA', [1,0])]
+    >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
+    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
     """
 
     def __init__(self,
@@ -165,7 +164,6 @@ class Vectorizer(AbstractVectorizer):
         else:
             raise Exception('ERROR: something went wrong,\
              unrecognized input type for: %s' % seq)
-        return seq, weights
 
     def _transform(self, orig_seq):
         seq, weights = self._get_sequence_and_weights(orig_seq)
