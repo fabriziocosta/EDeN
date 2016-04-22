@@ -13,7 +13,20 @@ logger = logging.getLogger(__name__)
 
 
 class Vectorizer(AbstractVectorizer):
-    """Transform real strings into sparse vectors."""
+    """Transform real strings into sparse vectors.
+
+    >>> # vectorize a sequence using default parameters
+    >>> str(Vectorizer().transform(['A']))
+    '  (0, 930612)\\t1.0'
+    >>> # vectorize a sequence using weights
+    >>> str(Vectorizer().transform(['A'], [[0.5]]))
+    '  (0, 930612)\\t1.0'
+    >>> # vectorize a sequence with zero weights
+    >>> str(Vectorizer(r=1, d=0).transform(['HA'], [[1,1]]))
+    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+    >>> str(Vectorizer(r=1, d=0).transform(['HA'], [[1,0]]))
+    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+    """
 
     def __init__(self,
                  complexity=None,
@@ -107,19 +120,19 @@ class Vectorizer(AbstractVectorizer):
             self. inner_normalization)
         return representation
 
-    def transform(self, seq_list, weigts_list=None):
+    def transform(self, seq_list, weights_list=None):
         """Transform.
 
         Parameters
         ----------
         seq_list: list of strings
 
-        weigts_list: list of real values
+        weights_list: list of lists of real values
         """
         feature_rows = []
-        if weigts_list:
+        if weights_list:
             for instance_id, (seq, weights) in enumerate(izip(seq_list,
-                                                              weigts_list)):
+                                                              weights_list)):
                 feature_rows.append(self._transform(seq, weights))
         else:
             for instance_id, seq in enumerate(seq_list):
