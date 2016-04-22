@@ -64,7 +64,19 @@ def seq_to_networkx(header, seq, constr=None):
 # ------------------------------------------------------------------------------
 
 class SeqToPathGraph(BaseEstimator, TransformerMixin):
-    """Transform seq lists into path graphs."""
+    """Transform seq lists into path graphs.
+
+    Transform a single id and sequence tuple to path graph:
+    >>> id = 'ID0'
+    >>> seq = 'IamAniceSEQUENCE'
+    >>> graphs = SeqToPathGraph().transform([(id,seq)])
+    >>> g = graphs.next()
+    >>> ''.join([ x['label'] for x in g.node.values() ])
+    'IamAniceSEQUENCE'
+    >>> g.graph['id']
+    'ID0'
+
+    """
 
     def transform(self, seqs):
         """transform."""
@@ -128,8 +140,14 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
     """
 
     def __init__(self, normalize=True):
-        """constructor."""
-        self.normalize = normalize
+        """constructor.
+
+        Parameters
+        ----------
+        normalize : boolean (default: True)
+            If set, transform all sequences to uppercase and convert T to U.
+        """
+        self.fastatoseq = FastaToSeq(normalize=normalize)
 
     def transform(self, data):
         """Transform.
@@ -145,9 +163,77 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
         Iterator over networkx graphs.
         """
         try:
-            seqs = self._fasta_to_seq(data)
+            seqs = self.fastatoseq.transform(data)
             for header, seq in seqs:
                 yield seq_to_networkx(header, seq)
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+
+# ------------------------------------------------------------------------------
+
+
+class FastaToSeq(BaseEstimator, TransformerMixin):
+    """Transform FASTA files into tuples of ids and sequences.
+
+    Transform fasta using defaults:
+    >>> fa_upper_lower = 'test/garden_convert_sequence_FastaToSeq_1.fa'
+    >>> seqs = FastaToSeq().transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> id
+    'ID0'
+    >>> seq
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta with normalization enabled:
+    >>> seqs = FastaToSeq(normalize=True).transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA'
+
+    Transform fasta without normalization:
+    >>> seqs = FastaToSeq(normalize=False).transform(fa_upper_lower)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa'
+
+    Transform fasta containing 'N' nucleotides:
+    >>> fa_n = 'test/garden_convert_sequence_FastaToSeq_2.fa'
+    >>> seqs = FastaToSeq(normalize=False).transform(fa_n)
+    >>> id, seq = seqs.next()
+    >>> seq
+    'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
+    """
+
+    def __init__(self, normalize=True):
+        """constructor.
+
+        Parameters
+        ----------
+        normalize : boolean (default: True)
+            If set, transform all sequences to uppercase and convert T to U.
+        """
+        self.normalize = normalize
+
+    def transform(self, data):
+        """Transform.
+
+        Parameters
+        ----------
+        data : filename or url or iterable
+            Data source containing sequences information in FASTA format.
+
+
+        Returns
+        -------
+        Iterator over tuples of ids and sequences.
+        """
+        try:
+            # seqs = self._fasta_to_seq(data)
+            # yield seqs.next()
+            # why not return iterator directly?
+            return self._fasta_to_seq(data)
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)

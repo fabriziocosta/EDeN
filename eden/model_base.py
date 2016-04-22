@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+from sys import exit
 from time import time
 
 import argparse
@@ -523,6 +524,7 @@ def main_script(model_initializer=None, description=None, epilog=None, prog_name
         import datetime
         curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
         logger.exception("Program run failed on %s" % curr_time)
+        exit(1)
     finally:
         end_time = time()
         logger.info('Elapsed time: %.1f sec', end_time - start_time)
