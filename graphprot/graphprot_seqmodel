@@ -64,6 +64,7 @@ class ModelInitializer(ModelInitializerBase):
             context_weight = args["context_weight"]
             if "priors" in args:
                 priorstable = args["priors"]
+                priors_weight = args["priors_weight"]
             for id, seq in seqs:
                 # calculate list of viewpoint weights
                 weights = map(lambda x: vp_weight if x.isupper() else context_weight, seq)
@@ -85,7 +86,14 @@ class ModelInitializer(ModelInitializerBase):
                     # to the center positions of the kmers
                     priors.rotate(int(kmer_len / 2))
                     priors = list(priors)
-                    # TODO multiply weights according to table given in pre_processor_parameters and weight parameter
+                    # combine weights and priors
+                    comb = []
+                    for w, p in zip(weights, priors):
+                        if p is not None:
+                            comb.append(max(0, w - (priors_weight * p)))
+                        else:
+                            comb.append(0)
+                    weights = comb
                 yield id, seq, weights
 
         pre_processor_parameters = {"vp_weight": [1.0],
@@ -130,6 +138,7 @@ class ModelInitializer(ModelInitializerBase):
                             help="Path to tab separated file containing two columns of k-mers and associated probabilities.")
         parser.add_argument("--kmer-weight",
                             dest="priors_weight",
+                            type=float,
                             default=1.0,
                             help="Weight given to the k-mer probabilities.")
         return parser
