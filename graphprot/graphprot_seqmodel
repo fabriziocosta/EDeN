@@ -3,11 +3,12 @@
 import os
 import logging
 
-from numpy.random import randint, uniform
-from sklearn.linear_model import SGDClassifier
+from collections import deque
 from eden.model_base import ModelInitializerBase, main_script
 from eden.sequence import Vectorizer
 from GArDen.convert.sequence import FastaToSeq
+from numpy.random import randint, uniform
+from sklearn.linear_model import SGDClassifier
 
 
 DESCRIPTION = """
@@ -61,22 +62,41 @@ class ModelInitializer(ModelInitializerBase):
         def pre_processor(seqs, **args):
             vp_weight = args["vp_weight"]
             context_weight = args["context_weight"]
+            if "priors" in args:
+                priorstable = args["priors"]
             for id, seq in seqs:
                 # calculate list of viewpoint weights
-                vpweights = map(lambda x: vp_weight if x.isupper() else context_weight, seq)
+                weights = map(lambda x: vp_weight if x.isupper() else context_weight, seq)
                 # normalize RNA sequence
                 seq = seq.upper().replace('T', 'U')
-                # TODO calculate list of RNase T1 probabilities
-                # TODO multiply weights according to table given in pre_processor_parameters and weight parameter
-                yield id, seq, vpweights
+                # calculate list of RNase T1 cleavage probabilities
+                if "priors" in args:
+                    priors = deque()
+                    # sniff kmer length from first dictionary key
+                    kmer_len = len(priorstable.keys()[0])
+                    # look up probabilities
+                    for i in range(len(seq)):
+                        try:
+                            prob = priorstable[seq[i:(i + kmer_len)]]
+                        except KeyError:
+                            prob = None
+                        priors.append(prob)
+                    # compensate for the fact that the probabilities relate
+                    # to the center positions of the kmers
+                    priors.rotate(int(kmer_len / 2))
+                    priors = list(priors)
+                    # TODO multiply weights according to table given in pre_processor_parameters and weight parameter
+                yield id, seq, weights
 
         pre_processor_parameters = {"vp_weight": [1.0],
                                     "context_weight": [0.0]}
 
-        # add k-mer probabilities to parameters
-        csv = open("prior.txt", "r")
-        priors = dict(map(lambda s: s.split()[:2], csv))
-        pre_processor_parameters["priors"] = [priors]
+        if (args.priors_file is not None):
+            # add k-mer probabilities to parameters
+            csv = open(args.priors_file, "r")
+            priors = dict(map(lambda s: [s.split()[0], float(s.split()[1])], csv))
+            pre_processor_parameters["priors"] = [priors]
+            pre_processor_parameters["priors_weight"] = [args.priors_weight]
 
         return pre_processor, pre_processor_parameters
 
@@ -104,6 +124,14 @@ class ModelInitializer(ModelInitializerBase):
                             dest="negative_input_file",
                             help="Path to FASTA file containing sequences on unbound sites.",
                             required=True)
+        parser.add_argument("--kmer-probs",
+                            dest="priors_file",
+                            default=None,
+                            help="Path to tab separated file containing two columns of k-mers and associated probabilities.")
+        parser.add_argument("--kmer-weight",
+                            dest="priors_weight",
+                            default=1.0,
+                            help="Weight given to the k-mer probabilities.")
         return parser
 
     def add_arguments_estimate(self, parser):
