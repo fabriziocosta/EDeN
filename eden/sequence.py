@@ -6,7 +6,7 @@ from itertools import izip
 import numpy as np
 import math
 from scipy.sparse import csr_matrix
-from eden import fast_hash_vec_char, fast_hash_2, fast_hash_4
+from eden import fast_hash_vec, fast_hash_2, fast_hash_4
 from eden import AbstractVectorizer
 import logging
 logger = logging.getLogger(__name__)
@@ -218,7 +218,7 @@ class Vectorizer(AbstractVectorizer):
         at position 0 in the vector there will be the hash of a single char, in position 1 of 2 chars, etc
         """
         subseq = seq[pos:pos + self.r + 1]
-        return fast_hash_vec_char(subseq, self.bitmask)
+        return fast_hash_vec(subseq, self.bitmask)
 
     def _compute_neighborhood_weight(self, weights, pos):
         """TODO."""
