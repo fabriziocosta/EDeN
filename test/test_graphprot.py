@@ -81,15 +81,34 @@ def test_simple_fit():
     stdout.write(run.stdout)
 
 
+def test_predict():
+    "Predict class of some sequences."
+    model = "test_predict.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
+        model
+    )
+    # ../../graphprot/graphprot_seqmodel -vvv fit -p ../../test/PARCLIP_MOV10_Sievers_100seqs.train.positives.fa -n ../../test/PARCLIP_MOV10_Sievers_100seqs.train.negatives.fa --output-dir ./ --model-file test_simple_fit.model --n-iter 1
+    env.run(call)
+    call = bindir_rel + script + " -vvv predict --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        model,
+        "./",
+    )
+    run = env.run(call)
+    assert "predictions.txt" in run.files_created
+
+
 def test_priors_weight_fail_allzero():
     "Fit model reweighting by priors, set prior weight extra high to produce exclusively zero weights."
     # lowest prior is p=0.00031274442646757
     # weights w > 1/p are guaranteed to produce zero weights exclusively (-> 3.179)
-    outfile = "test_priors_weight_fail_allzero.model"
+    model = "test_priors_weight_fail_allzero.model"
     call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1 --kmer-probs {} --kmer-weight 3200".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
-        outfile,
+        model,
         datadir_rel + "test_graphprot_priors.txt",
     )
     run = env.run(
@@ -100,12 +119,12 @@ def test_priors_weight_fail_allzero():
 
 def test_priors_weight():
     "Fit model reweighting by priors, set prior weight extra high to produce exclusively zero weights."
-    outfile = "test_priors.model"
+    model = "test_priors.model"
     call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1 --kmer-probs {}".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
-        outfile,
+        model,
         datadir_rel + "test_graphprot_priors.txt",
     )
     run = env.run(call,)
-    assert outfile in run.files_created
+    assert model in run.files_created
