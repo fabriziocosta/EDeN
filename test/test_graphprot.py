@@ -100,7 +100,7 @@ def test_predict_simpletask():
     for line in run.files_created["test_predict_simpletask/predictions.txt"].bytes.split("\n"):
         try:
             prediction, margin, id = line.split()
-            assert float(margin) >= 1, "Error: all margins should be at leat 1, the margin for id {} is '{}'.".format(id, margin)
+            assert float(margin) >= 0.4, "Error: all margins should be at leat 0.4, the margin for id {} is '{}' in {}.".format(id, margin, run.files_created["test_predict_simpletask/predictions.txt"].bytes)
         except ValueError:
             pass
 
