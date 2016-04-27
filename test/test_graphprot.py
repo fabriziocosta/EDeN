@@ -81,6 +81,30 @@ def test_simple_fit():
     stdout.write(run.stdout)
 
 
+def test_predict_simpletask():
+    "Fit model and do prediction of training data using default parameters."
+    model = "test_predict_simpletask.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1".format(
+        datadir_rel + "simple_positives.fa",
+        datadir_rel + "simple_negatives.fa",
+        model,
+    )
+    env.run(call,)
+    call = bindir_rel + script + " -vvv predict --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "simple_positives.fa",
+        model,
+        "test_predict_simpletask",
+    )
+    run = env.run(call)
+    assert "test_predict_simpletask/predictions.txt" in run.files_created
+    for line in run.files_created["test_predict_simpletask/predictions.txt"].bytes.split("\n"):
+        try:
+            prediction, margin, id = line.split()
+            assert float(margin) >= 1, "Error: all margins should be at leat 1, the margin for id {} is '{}'.".format(id, margin)
+        except ValueError:
+            pass
+
+
 def test_predict():
     "Predict class of some sequences."
     model = "test_predict.model"
@@ -94,10 +118,10 @@ def test_predict():
     call = bindir_rel + script + " -vvv predict --input-file {} --model-file {} --output-dir {}".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
         model,
-        "./",
+        "test_predict",
     )
     run = env.run(call)
-    assert "predictions.txt" in run.files_created
+    assert "test_predict/predictions.txt" in run.files_created
 
 
 def test_priors_weight_fail_allzero():
