@@ -93,9 +93,17 @@ class ActiveLearningBinaryClassificationModel(object):
         return self.estimator.decision_function(data_matrix)
 
     def get_info(self, iterable, key='id'):
-        iterable_graph = self.pre_processor(iterable, **self.pre_processor_args)
-        for graph in iterable_graph:
-            yield graph.graph.get(key, 'N/A')
+        iterable = self.pre_processor(iterable, **self.pre_processor_args)
+        for item in iterable:
+            if isinstance(item, basestring):
+                # might be string
+                yield 'N/A'
+            elif isinstance(item, tuple):
+                # tuple, assume key on first position
+                yield item[0]
+            else:
+                # assume graph
+                yield item.graph.get(key, 'N/A')
 
     def decision_function_info(self, iterable, key='id'):
         iterable, iterable_ = tee(iterable)
