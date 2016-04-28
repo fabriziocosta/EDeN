@@ -128,7 +128,7 @@ class ModelInitializer(ModelInitializerBase):
                                 'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
                                 'power_t': [0.5] + list(uniform(0.1, size=args.n_iter)),
                                 'alpha': [0.0001] + [10 ** x for x in range(-8, 0)],
-                                'eta0': [0.0] + [10 ** x for x in range(-4, -1)],
+                                'eta0': [10 ** x for x in range(-4, -1)],
                                 'learning_rate': ["optimal", "invscaling", "constant"],
                                 'n_jobs': [-1]}
         return estimator, estimator_parameters
