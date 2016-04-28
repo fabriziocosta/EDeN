@@ -183,22 +183,27 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
     max_num : int (default 3)
         Is the maximum number of structures that are generated.
 
-    split_components : bool (default False)
-        If True each structure is yielded as an independent graph. Otherwise
-        all structures are part of the same graph that has therefore several
-        disconnectd components.
+    output_type : 'components', 'list_of_components', 'disjoint_union'
+        (default 'disjoint_union')
+        'components' yields each structure as an independent graph.
+        'disjoint_union' yields all structures as part of the same graph
+        that has therefore several disconnected components.
+        'list_of_components' yields a list of all components per sequence.
     """
 
     def __init__(self,
                  shape_type=5,
                  energy_range=10,
                  max_num=3,
-                 split_components=False):
+                 output_type='disjoint_union'):
         """Initialize object."""
         self.shape_type = shape_type
         self.energy_range = energy_range
         self.max_num = max_num
-        self.split_components = split_components
+        self.output_type = output_type
+        if self.output_type not in \
+                ['components', 'list_of_components', 'disjoint_union']:
+            raise Exception('Unrecognized type: %s' % output_type)
 
     def transform(self, graphs):
         """Transform.
@@ -230,7 +235,9 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
                                     shape_type=self.shape_type,
                                     energy_range=self.energy_range,
                                     max_num=self.max_num)
-        if self.split_components:
+        if self.output_type == 'components' or \
+                self.output_type == 'list_of_components':
+            components = []
             for seq_struct, struct in zip(seq_struct_list, struct_list):
                 graph = sequence_dotbracket_to_graph(header=header,
                                                      seq_info=seq_info,
@@ -243,8 +250,13 @@ class PathGraphToRNAShapes(BaseEstimator, TransformerMixin):
                 graph.graph['shape'] = struct
                 graph.graph['sequence'] = sequence
                 graph.graph['structure'] = seq_struct
-                yield graph
-        else:
+                components.append(graph)
+            if self.output_type == 'components':
+                for graph in components:
+                    yield graph
+            elif self.output_type == 'list_of_components':
+                yield components
+        elif self.output_type == 'disjoint_union':
             graph_global = nx.Graph()
             graph_global.graph['info'] = 'RNAshapes shape_type=%s \
             energy_range=%s max_num=%s' % (
@@ -302,12 +314,17 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
     no_lonely_bps : bool (default True)
         If True no lonely base pairs are allowed.
 
-    nesting : bool (default False)
-        If True the edge type is 'nesting'
+    nesting : bool (default True)
+        If True the edge type is 'nesting'.
+
+    hard_threshold : float (default 0.5)
+        If the edges with avg probability is greater than hard_threshold
+        then they are not of nesting type.
     """
 
     def __init__(self, max_num_edges=1, window_size=150, max_bp_span=100,
-                 avg_bp_prob_cutoff=0.2, no_lonely_bps=True, nesting=False):
+                 avg_bp_prob_cutoff=0.2, no_lonely_bps=True, nesting=True,
+                 hard_threshold=.5):
         """Constructor."""
         self.max_num_edges = max_num_edges
         self.window_size = window_size
@@ -315,6 +332,7 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
         self.avg_bp_prob_cutoff = avg_bp_prob_cutoff
         self.no_lonely_bps = no_lonely_bps
         self.nesting = nesting
+        self.hard_threshold = hard_threshold
 
     def transform(self, graphs):
         """Transform.
@@ -407,9 +425,14 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
                 pass
             else:
                 if self.nesting:
-                    graph.add_edge(source, dest,
-                                   label='=', type='basepair',
-                                   nesting=True, weight=avg_prob)
+                    if avg_prob >= self.hard_threshold:
+                        graph.add_edge(source, dest,
+                                       label='=', type='basepair',
+                                       weight=avg_prob)
+                    else:
+                        graph.add_edge(source, dest,
+                                       label='=', type='basepair',
+                                       nesting=True, weight=avg_prob)
                 else:
                     graph.add_edge(source, dest,
                                    label='=', type='basepair', weight=avg_prob)

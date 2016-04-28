@@ -58,3 +58,37 @@ class ClustererWrapper(BaseEstimator, ClusterMixin):
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
+
+
+# ------------------------------------------------------------------------------
+
+
+class ExplicitClusterer(BaseEstimator, ClusterMixin):
+    """ExplicitClusterer."""
+
+    def __init__(self, attribute=None):
+        """Construct."""
+        self.attribute = attribute
+
+    def set_params(self, **params):
+        """Set the parameters of this estimator.
+
+        The method.
+
+        Returns
+        -------
+        self
+        """
+        for param in params:
+            self.__dict__[param] = params[param]
+        return self
+
+    def fit_predict(self, graphs):
+        """fit_predict."""
+        try:
+            for graph in graphs:
+                prediction = graph.graph.get(self.attribute, None)
+                yield prediction
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)

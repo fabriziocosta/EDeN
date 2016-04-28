@@ -4,7 +4,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 from collections import Counter, namedtuple, defaultdict
-from eden.util import _serialize_list
+from eden.util import _serialize_list, is_iterable
 
 import logging
 logger = logging.getLogger(__name__)
@@ -209,7 +209,7 @@ class Minor(BaseEstimator, TransformerMixin):
                  part_name='part_name',
                  nesting=False,
                  weight_scaling_factor=1,
-                 modifiers=None):
+                 modifiers=modifiers):
         """Constructor."""
         self.part_id = part_id
         self.part_name = part_name
@@ -275,11 +275,12 @@ class Minor(BaseEstimator, TransformerMixin):
         part_name_dict = dict()
         part_id_dict = defaultdict(list)
         for u in graph.nodes_iter():
-            part_ids = graph.node[u][self.part_id]
-            part_names = graph.node[u][self.part_name]
-            for part_id, part_name in zip(part_ids, part_names):
-                part_id_dict[part_id].append(u)
-                part_name_dict[part_id] = part_name
+            if self.part_id in graph.node[u]:
+                part_ids = graph.node[u][self.part_id]
+                part_names = graph.node[u][self.part_name]
+                for part_id, part_name in zip(part_ids, part_names):
+                    part_id_dict[part_id].append(u)
+                    part_name_dict[part_id] = part_name
         m_graph = nx.Graph()
         # copy attributes
         m_graph.graph = graph.graph
@@ -294,12 +295,13 @@ class Minor(BaseEstimator, TransformerMixin):
         # create an edge between two part_id nodes if there existed such an
         # edge between two nodes that had that part_id
         for u, v in graph.edges():
-            p_id_us = graph.node[u][self.part_id]
-            p_id_vs = graph.node[v][self.part_id]
-            for p_id_u in p_id_us:
-                for p_id_v in p_id_vs:
-                    if p_id_u != p_id_v:
-                        if (p_id_u, p_id_v) not in m_graph.edges():
-                            m_graph.add_edge(p_id_u, p_id_v)
-                            m_graph.edge[p_id_u][p_id_v]['label'] = 'part_of'
+            if self.part_id in graph.node[u] and self.part_id in graph.node[v]:
+                p_id_us = graph.node[u][self.part_id]
+                p_id_vs = graph.node[v][self.part_id]
+                for p_id_u in p_id_us:
+                    for p_id_v in p_id_vs:
+                        if p_id_u != p_id_v:
+                            if (p_id_u, p_id_v) not in m_graph.edges():
+                                m_graph.add_edge(p_id_u, p_id_v)
+                                m_graph.edge[p_id_u][p_id_v]['label'] = 'part_of'
         return m_graph

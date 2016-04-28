@@ -53,6 +53,7 @@ def string_to_networkx(header, sequence, **options):
     avg_bp_prob_cutoff = options.get('avg_bp_prob_cutoff', 0.2)
     no_lonely_bps = options.get('no_lonely_bps', True)
     nesting = options.get('nesting', False)
+    hard_threshold = options.get('hard_threshold', False)
 
     plfold_bp_list = sorted(RNAplfold_wrapper(sequence,
                                               max_num_edges=max_num_edges,
@@ -79,9 +80,12 @@ def string_to_networkx(header, sequence, **options):
             pass
         else:
             if nesting:
-                graph.add_edge(source, dest, label='=', type='basepair', nesting=True, weight=avg_prob)
+                if avg_prob >= hard_threshold:
+                    graph.add_edge(source, dest, label='=', type='basepair', weight=avg_prob)
+                else:
+                    graph.add_edge(source, dest, label='=', type='basepair', nesting=True, weight=avg_prob)
             else:
-                graph.add_edge(source, dest, label='=', type='basepair', prob=avg_prob)
+                graph.add_edge(source, dest, label='=', type='basepair', weight=avg_prob)
     # Add backbone edges.
     for i, c in enumerate(sequence):
         if i > 0:
