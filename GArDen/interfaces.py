@@ -314,11 +314,24 @@ def transform(iterable, program=None, precondition=precondition,
         logger.debug('Exception', exc_info=True)
 
 
-def contruct(iterable, program=None, precondition=precondition,
-             postcondition=postcondition, parameters_priors=None):
+def construct(iterable, program=None, precondition=precondition,
+              postcondition=postcondition, parameters_priors=None):
     """Map a graph to iterator over similar but novel graphs.
 
     Example: learn probability distribution over graphs given a finite example
     set and sample a stream of graphs from the same probability distribution.
     """
-    pass
+    try:
+        parameters = sample_parameters_uniformly_at_random(parameters_priors)
+        if parameters:
+            program.set_params(**parameters)
+        if precondition(iterable=iterable, program=program) is False:
+            raise Exception('precondition failed')
+        out_iterable = program.transform(iterable)
+        if postcondition(iterable=out_iterable, program=program) is False:
+            raise Exception('postcondition failed')
+        for item in out_iterable:
+            yield item
+    except Exception as e:
+        logger.debug('Error. Reason: %s' % e)
+        logger.debug('Exception', exc_info=True)

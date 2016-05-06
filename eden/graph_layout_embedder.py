@@ -12,22 +12,9 @@ from collections import defaultdict
 import matplotlib
 import matplotlib.pyplot as plt
 import random
-
-import logging
-logger = logging.getLogger(__name__)
-
-
-#!/usr/bin/env python
-"""Provides layout in 2D of vector instances."""
-
-import numpy as np
-import networkx as nx
-from sklearn.preprocessing import scale
-from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.decomposition import PCA
-from sklearn.linear_model import LogisticRegression
-from sklearn.cross_validation import StratifiedKFold
-from collections import defaultdict
+
+from eden.util import serialize_dict
 
 import logging
 logger = logging.getLogger(__name__)
@@ -318,28 +305,30 @@ class Embedder(object):
 
     def __init__(self,
                  quick_shift_threshold=None,
-                 nearest_neighbors_threshold=3,
+                 nearest_neighbors_threshold=4,
                  repulsion=.1,
                  attraction=20,
                  iterations=100,
                  random_state=1,
-                 true_class_bias=3,
-                 multi_class_bias=3,
-                 multi_class_threshold=0.05,
-                 edge_weight_threshold=0.05,
+                 true_class_bias=1,
+                 multi_class_bias=1,
+                 multi_class_threshold=0.1,
+                 edge_weight_threshold=0.03,
+                 fixed_class_nodes=False,
                  cmap='rainbow',
                  metric='rbf', **kwds):
         """Constructor."""
+        self.random_state = random_state
         self.quick_shift_threshold = quick_shift_threshold
         self.nearest_neighbors_threshold = nearest_neighbors_threshold
         self.repulsion = repulsion
         self.attraction = attraction
         self.iterations = iterations
-        self.random_state = random_state
         self.true_class_bias = true_class_bias
         self.multi_class_bias = multi_class_bias
         self.multi_class_threshold = multi_class_threshold
         self.edge_weight_threshold = edge_weight_threshold
+        self.fixed_class_nodes = fixed_class_nodes
         self.cmap = cmap
         self.metric = metric
         self.kwds = kwds
@@ -349,6 +338,37 @@ class Embedder(object):
         self.graph = None
         self.knn_graph = None
         self.skeleton_graph = None
+
+    def __str__(self):
+        """String."""
+        return "%s:\n%s" % (self.__class__, serialize_dict(self.__dict__))
+
+    def randomize(self, random_state=1):
+        """Randomize."""
+        self.random_state = random_state
+        random.seed(self.random_state)
+        self.nearest_neighbors_threshold = \
+            int(random.triangular(0,
+                                  2 * self.nearest_neighbors_threshold,
+                                  self.nearest_neighbors_threshold))
+        self.true_class_bias = \
+            random.triangular(0,
+                              2 * self.true_class_bias,
+                              self.true_class_bias)
+        self.multi_class_bias = \
+            random.triangular(0,
+                              2 * self.multi_class_bias,
+                              self.multi_class_bias)
+        self.multi_class_threshold = \
+            random.triangular(0,
+                              2 * self.multi_class_threshold,
+                              self.multi_class_threshold)
+        self.edge_weight_threshold = \
+            random.triangular(0,
+                              2 * self.edge_weight_threshold,
+                              self.edge_weight_threshold)
+        self.fixed_class_nodes = random.random() > 0.5
+        logger.debug(self.__str__())
 
     def estimate_probability_distribution(self, data_matrix=None, target=None):
         """Estimate probability distribution of each instance."""
@@ -402,7 +422,8 @@ class Embedder(object):
         #     attraction=self.attraction,
         #     iterations=self.iterations,
         #     random_state=self.random_state)
-        self.unfix_fixed_nodes(class_graph)
+        if self.fixed_class_nodes is False:
+            self.unfix_fixed_nodes(class_graph)
         if display_class_graph:
             self.display_graph(
                 class_graph,
@@ -563,8 +584,7 @@ class Embedder(object):
         return union_graph
 
     def annotate_graph_with_graphviz_layout(self, graph, random_state=1):
-        """Annotate graph with layout information."""
-        random.seed(random_state)
+        """Annotate graph with layout infoqrmation."""
         for v in graph.nodes():
             if 'pos' in graph.node[v]:
                 if graph.node[v].get('fixed', False) is True:
@@ -572,7 +592,10 @@ class Embedder(object):
                     graph.node[v]['pos'] = '%.4f, %.4f' % (x, y)
                 else:
                     graph.node[v].pop('pos')
-        layout_pos = nx.graphviz_layout(graph, prog='neato')
+        layout_pos = nx.graphviz_layout(
+            graph,
+            prog='neato',
+            args='-Goverlap=False -Gstart=%d' % random_state)
         for v in graph.nodes():
             graph.node[v]['pos'] = layout_pos[v]
 
