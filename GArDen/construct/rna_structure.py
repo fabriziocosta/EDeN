@@ -92,9 +92,6 @@ class KNNManager(object):
 # ------------------------------------------------------------------------------
 
 
-# ------------------------------------------------------------------------------
-
-
 class RNAStructureGenerator(BaseEstimator, TransformerMixin):
     """RNAStructureGenerator."""
 
@@ -107,6 +104,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
                  exploration_vs_exploitation_tradeoff=.1,
                  n_proposals=10,
                  optimization_mode=False,
+                 seq_to_structure_prog=PathGraphToRNAFold(),
                  random_state=1):
         """Generate sequences.
 
@@ -147,6 +145,9 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
         optimization_mode : bool
             If True	use seed graphs as they are for selection.
 
+        seq_to_structure_prog : callable
+                Wrapped program to fold RNA sequences into structure.
+
         random_state: int (default 1)
             The random seed.
         """
@@ -159,6 +160,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
             exploration_vs_exploitation_tradeoff
         self.n_proposals = n_proposals
         self.optimization_mode = optimization_mode
+        self.seq_to_structure_prog = seq_to_structure_prog
         self.random_state = random_state
 
     def candidate_generator(self, seed_graphs):
@@ -199,7 +201,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
             attribute='selected', label_list=['A', 'C', 'G', 'U']))
 
         # refold the sequences to account for structural changes
-        graphs = transform(graphs, program=PathGraphToRNAFold())
+        graphs = transform(graphs, program=self.seq_to_structure_prog)
 
         # return the candidate graphs
         candidate_graphs = list(graphs)

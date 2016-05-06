@@ -114,6 +114,13 @@ class RandomSequencePermutation(BaseEstimator, TransformerMixin):
 class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
     """Transform path graph into structure graph according to RNAfold."""
 
+    def __init__(self,
+                 energy_param_file=None,
+                 temperature=None):
+        """Initialize object."""
+        self.energy_param_file = energy_param_file
+        self.temperature = temperature
+
     def transform(self, graphs):
         """Transform path graph into structure graph according to RNAfold."""
         try:
@@ -130,6 +137,10 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
     def _rnafold_wrapper(self, sequence):
         # defaults
         flags = '--noPS'
+        if self.energy_param_file is not None:
+            flags += ' -P ' + self.energy_param_file
+        if self.temperature is not None:
+            flags += ' -T %d' % self.temperature
         # command line
         cmd = 'echo "%s" | RNAfold %s' % (sequence, flags)
         out = sp.check_output(cmd, shell=True)

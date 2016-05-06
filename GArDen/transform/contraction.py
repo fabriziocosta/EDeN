@@ -4,7 +4,7 @@
 from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 from collections import Counter, namedtuple, defaultdict
-from eden.util import _serialize_list, is_iterable
+from eden.util import _serialize_list
 
 import logging
 logger = logging.getLogger(__name__)
