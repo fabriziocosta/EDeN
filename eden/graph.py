@@ -30,6 +30,7 @@ class Vectorizer(AbstractVectorizer):
                  min_r=0,
                  min_d=0,
                  min_n=2,
+                 weights_dict=None,
                  label_size=1,
                  nbits=20,
                  normalization=True,
@@ -68,6 +69,9 @@ class Vectorizer(AbstractVectorizer):
         min_n : int (default 2)
             The minimal number of clusters used to discretize real label
             vectors.
+
+        weights_dict : dict of floats
+            Dictionary with keys pairs of radius distance and value weights.
 
         label_size : int (default 1)
             the number of discretization steps used in the conversion from
@@ -121,6 +125,7 @@ class Vectorizer(AbstractVectorizer):
         self.min_d = min_d
         self.n = n
         self.min_n = min_n
+        self.weights_dict = weights_dict
         # Note: if the discretization is active then the default label_size
         # should be 5
         self.label_size = label_size
@@ -726,7 +731,9 @@ class Vectorizer(AbstractVectorizer):
                     # independently from the identity of the vertex itself
                     half_feature = fast_hash_3(vertex_u_hash,
                                                radius, distance, self.bitmask)
-                    key = fast_hash_2(radius, distance)
+                    # Note: to be compatible with external radius, distance
+                    # we need to revert to r/2 and d/2
+                    key = (radius / 2, distance / 2)
                     if graph.graph.get('weighted', False) is False:
                         feature_list[key][feature] += connection_weight
                         feature_list[key][half_feature] += connection_weight
@@ -743,27 +750,32 @@ class Vectorizer(AbstractVectorizer):
     def _normalization(self, feature_list):
         # inner normalization per radius-distance
         feature_vector = {}
-        for features in feature_list.itervalues():
+        for r_d_key in feature_list:
+            features = feature_list[r_d_key]
             norm = 0
             for count in features.itervalues():
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
-            for feature, count in features.iteritems():
-                feature_vector_key = feature
+            if self.weights_dict is not None:
+                # reweight using external weight dictionary
+                if self.weights_dict.get(r_d_key, None) is not None:
+                    sqrt_norm = sqrt_norm / math.sqrt(self.weights_dict[r_d_key])
+            for feature_id, count in features.iteritems():
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
                     feature_vector_value = count
-                feature_vector[feature_vector_key] = feature_vector_value
+                feature_vector[feature_id] = feature_vector_value
         # global normalization
         if self.normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
-            for feature, value in feature_vector.iteritems():
+            for value in feature_vector.itervalues():
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature, value in feature_vector.iteritems():
-                normalized_feature_vector[feature] = value / sqrt_total_norm
+            for feature_id, value in feature_vector.iteritems():
+                feature_vector_value = value / sqrt_total_norm
+                normalized_feature_vector[feature_id] = feature_vector_value
             return normalized_feature_vector
         else:
             return feature_vector

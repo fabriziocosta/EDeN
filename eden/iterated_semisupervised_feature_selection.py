@@ -68,7 +68,7 @@ def semisupervised_target(target=None,
 
 class IteratedSemiSupervisedFeatureSelection(object):
 
-    """Feature selection estimator that uses an iterated approach in a semisueprvised setting.
+    """Feature selection estimator that uses an iterated approach in a semi-supervised setting.
 
 
     Parameters
@@ -87,7 +87,7 @@ class IteratedSemiSupervisedFeatureSelection(object):
     def __init__(self,
                  estimator=SGDClassifier(average=True, shuffle=True, penalty='elasticnet'),
                  n_iter=30,
-                 step=0.1,
+                 step=.1,
                  cv=5,
                  min_feature_ratio=0.1,
                  n_neighbors=5):
@@ -193,6 +193,7 @@ class IteratedSemiSupervisedFeatureSelection(object):
             semi_supervised_estimator.fit(data_matrix, target)
             predicted_target = semi_supervised_estimator.predict(data_matrix)
             predicted_target = self._clamp(target, predicted_target)
+            predicted_target = predicted_target.T.tolist()[0]
             return predicted_target
         else:
             return target
@@ -209,7 +210,8 @@ class IteratedSemiSupervisedFeatureSelection(object):
     def _feature_selection(self, data_matrix, target):
         try:
             # perform recursive feature elimination
-            feature_selector = RFECV(self.estimator, step=self.step, cv=self.cv)
+            step = max(int(data_matrix.shape[1] * self.step), 1)
+            feature_selector = RFECV(self.estimator, step=step, cv=self.cv)
             data_matrix_out = feature_selector.fit_transform(data_matrix, target)
             self.feature_selectors.append(feature_selector)
             return data_matrix_out

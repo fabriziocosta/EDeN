@@ -105,6 +105,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
                  n_proposals=10,
                  optimization_mode=False,
                  seq_to_structure_prog=PathGraphToRNAFold(),
+                 label_list=['A', 'C', 'G', 'U'],
                  random_state=1):
         """Generate sequences.
 
@@ -148,6 +149,9 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
         seq_to_structure_prog : callable
                 Wrapped program to fold RNA sequences into structure.
 
+        label_list : list of chars (default: ['A', 'C', 'G', 'U'])
+            List of chars for the random replacement.
+
         random_state: int (default 1)
             The random seed.
         """
@@ -161,6 +165,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
         self.n_proposals = n_proposals
         self.optimization_mode = optimization_mode
         self.seq_to_structure_prog = seq_to_structure_prog
+        self.label_list = label_list
         self.random_state = random_state
 
     def candidate_generator(self, seed_graphs):
@@ -198,7 +203,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
         # generate graphs that have all possible combination of symbols in
         # the nodes marked by MarkTop
         graphs = transform(graphs, program=ReplaceWithAllCombinations(
-            attribute='selected', label_list=['A', 'C', 'G', 'U']))
+            attribute='selected', label_list=self.label_list))
 
         # refold the sequences to account for structural changes
         graphs = transform(graphs, program=self.seq_to_structure_prog)

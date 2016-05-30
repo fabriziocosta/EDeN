@@ -136,7 +136,7 @@ class PathGraphToRNAFold(BaseEstimator, TransformerMixin):
 
     def _rnafold_wrapper(self, sequence):
         # defaults
-        flags = '--noPS'
+        flags = '--noPS --noconv'
         if self.energy_param_file is not None:
             flags += ' -P ' + self.energy_param_file
         if self.temperature is not None:

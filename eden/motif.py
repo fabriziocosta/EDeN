@@ -16,6 +16,7 @@ from eden.converter.fasta import sequence_to_eden
 from eden.modifier.seq import seq_to_seq, shuffle_modifier
 from eden.util import fit
 from eden.util.iterated_maximum_subarray import compute_max_subarrays
+from eden.util.iterated_maximum_subarray import extract_sequence_and_score
 
 import esm
 
@@ -31,10 +32,12 @@ class SequenceMotif(object):
                  min_motif_count=1,
                  min_cluster_size=1,
                  training_size=None,
-                 negative_ratio=2,
+                 negative_ratio=1,
                  shuffle_order=2,
                  n_iter_search=1,
                  complexity=4,
+                 radius=None,
+                 distance=None,
                  nbits=20,
                  clustering_algorithm=None,
                  n_jobs=4,
@@ -55,8 +58,12 @@ class SequenceMotif(object):
         self.complexity = complexity
         self.nbits = nbits
         # init vectorizer
-        self.vectorizer = Vectorizer(complexity=self.complexity, nbits=self.nbits)
-        self.seq_vectorizer = SeqVectorizer(complexity=self.complexity, nbits=self.nbits)
+        self.vectorizer = Vectorizer(complexity=self.complexity,
+                                     r=radius, d=distance,
+                                     nbits=self.nbits)
+        self.seq_vectorizer = SeqVectorizer(complexity=self.complexity,
+                                            r=radius, d=distance,
+                                            nbits=self.nbits)
         self.negative_ratio = negative_ratio
         self.shuffle_order = shuffle_order
         self.clustering_algorithm = clustering_algorithm
@@ -71,6 +78,7 @@ class SequenceMotif(object):
         self.motives = []
         self.clusters = defaultdict(list)
         self.cluster_models = []
+        self.importances = []
 
     def save(self, model_name):
         self.clustering_algorithm = None  # NOTE: some algorithms cannot be pickled
@@ -212,7 +220,11 @@ class SequenceMotif(object):
         # make graphs
         iterable = sequence_to_eden(seqs)
         # use node importance and 'position' attribute to identify max_subarrays of a specific size
-        graphs = self.vectorizer.annotate(iterable, estimator=self.estimator)
+        graphs = list(self.vectorizer.annotate(iterable, estimator=self.estimator))
+
+        for graph in graphs:
+            seq, score = extract_sequence_and_score(graph)
+            self.importances.append((seq, score))
 
         # use compute_max_subarrays to return an iterator over motives
         motives = []

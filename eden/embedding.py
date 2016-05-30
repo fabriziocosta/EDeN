@@ -87,7 +87,8 @@ class Embedder2DSelector(object):
         return graph
 
     def _graph_embedding(self, graph):
-        two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+        # two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+        two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='neato')
         two_dimensional_data_list = [list(two_dimensional_data_matrix[i]) for i in range(len(graph))]
         embedded_data_matrix = scale(np.array(two_dimensional_data_list))
         return embedded_data_matrix
@@ -1053,7 +1054,8 @@ def quick_shift_tree_embedding(data_matrix,
             graph.add_edge(i, jd, weight=1)
 
     # use graph layout algorithm to determine coordinates
-    two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+    # two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='sfdp', args='-Goverlap=scale')
+    two_dimensional_data_matrix = nx.graphviz_layout(graph, prog='neato')
     two_dimensional_data_list = []
     for i in range(kernel_matrix.shape[0]):
         two_dimensional_data_list.append(list(two_dimensional_data_matrix[i]))

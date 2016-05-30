@@ -139,15 +139,19 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
     'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
     """
 
-    def __init__(self, normalize=True):
+    def __init__(self, normalize=True, dna=False):
         """constructor.
 
         Parameters
         ----------
         normalize : boolean (default: True)
             If set, transform all sequences to uppercase and convert T to U.
+
+        dna : boolean (default: False)
+            If set, transform U to T.
         """
-        self.fastatoseq = FastaToSeq(normalize=normalize)
+        self.normalize = normalize
+        self.dna = dna
 
     def transform(self, data):
         """Transform.
@@ -162,8 +166,9 @@ class FastaToPathGraph(BaseEstimator, TransformerMixin):
         -------
         Iterator over networkx graphs.
         """
+        fastatoseq = FastaToSeq(normalize=self.normalize, dna=self.dna)
         try:
-            seqs = self.fastatoseq.transform(data)
+            seqs = fastatoseq.transform(data)
             for header, seq in seqs:
                 yield seq_to_networkx(header, seq)
         except Exception as e:
@@ -206,15 +211,19 @@ class FastaToSeq(BaseEstimator, TransformerMixin):
     'NtNNcNtactcacNNccaCCTTANNACTCCNCNNACTTTATNCCCACCAAAAAAACNANCCNTTTCTACNCNTCCTCCNTCNCCTNtNtcNataaaNcaa'
     """
 
-    def __init__(self, normalize=True):
+    def __init__(self, normalize=True, dna=False):
         """constructor.
 
         Parameters
         ----------
         normalize : boolean (default: True)
             If set, transform all sequences to uppercase and convert T to U.
+
+        dna : boolean (default: False)
+            If set, transform U to T.
         """
         self.normalize = normalize
+        self.dna = dna
 
     def transform(self, data):
         """Transform.
@@ -246,6 +255,8 @@ class FastaToSeq(BaseEstimator, TransformerMixin):
             if self.normalize:
                 seq = seq.upper()
                 seq = seq.replace('T', 'U')
+            if self.dna:
+                seq = seq.replace('U', 'T')
             yield header, seq
 
     def _fasta_to_fasta(self, data):
