@@ -1,4 +1,5 @@
-"""
+"""EasyMKL is a Multiple Kernel Learning algorithm.
+
 @author: Michele Donini
 @email: mdonini@math.unipd.it
 
@@ -13,18 +14,19 @@ import numpy as np
 
 
 class GEasyMKL():
-    ''' EasyMKL is a Multiple Kernel Learning algorithm.
+    """EasyMKL is a Multiple Kernel Learning algorithm.
 
-        The parameter lam (lambda) has to be validated from 0 to 1.
+    The parameter lam (lambda) has to be validated from 0 to 1.
 
-        For more information:
-        EasyMKL: a scalable multiple kernel learning algorithm
-            by Fabio Aiolli and Michele Donini.
+    For more information:
+    EasyMKL: a scalable multiple kernel learning algorithm
+        by Fabio Aiolli and Michele Donini.
 
-        Paper @ http://www.math.unipd.it/~mdonini/publications.html
-    '''
+    Paper @ http://www.math.unipd.it/~mdonini/publications.html
+    """
 
     def __init__(self, lam=0.1, tracenorm=True):
+        """init."""
         self.lam = lam
         self.tracenorm = tracenorm
 
@@ -35,7 +37,7 @@ class GEasyMKL():
         self.traces = {}
 
     def sum_kernels(self, list_K, weights=None):
-        ''' Returns the kernel created by averaging of all the kernels '''
+        """Return the kernel created by averaging of all the kernels."""
         k = matrix(0.0, (list_K[0].size[0], list_K[0].size[1]))
         if weights is None:
             for ker in list_K:
@@ -46,14 +48,15 @@ class GEasyMKL():
         return k
 
     def traceN(self, k):
-        # print k
+        """traceN."""
         return sum([k[i, i] for i in range(k.size[0])]) / k.size[0]
 
     def train(self, dict_list_Ktr, labels):
-        ''' 
-            list_Ktr : dict of param:kernel of the training examples
-            labels : array of the labels of the training examples
-        '''
+        """Train.
+
+        list_Ktr : dict of param:kernel of the training examples
+        labels : array of the labels of the training examples
+        """
         self.list_Ktr = dict_list_Ktr
         for ik in self.list_Ktr:
             k = self.list_Ktr[ik]
@@ -71,7 +74,8 @@ class GEasyMKL():
             self.labels = labels
         else:
             poslab = max(set_labels)
-            self.labels = matrix(np.array([1. if i == poslab else -1. for i in labels]))
+            self.labels = matrix(np.array([1. if i == poslab else -1.
+                                           for i in labels]))
 
         # Sum of the kernels
         ker_matrix = matrix(self.sum_kernels(self.list_Ktr.values()))
@@ -83,7 +87,8 @@ class GEasyMKL():
         p = matrix([0.0] * len(self.labels))
         G = -matrix(np.diag([1.0] * len(self.labels)))
         h = matrix([0.0] * len(self.labels), (len(self.labels), 1))
-        A = matrix([[1.0 if lab == +1 else 0 for lab in self.labels], [1.0 if lab2 == -1 else 0 for lab2 in self.labels]]).T
+        A = matrix([[1.0 if lab == +1 else 0 for lab in self.labels],
+                    [1.0 if lab2 == -1 else 0 for lab2 in self.labels]]).T
         b = matrix([[1.0], [1.0]], (2, 1))
 
         solvers.options['show_progress'] = False  # True
@@ -118,15 +123,11 @@ if __name__ == "__main__":
 
     # REMARK: labels and kernels are "cvxopt.matrix"
     y = matrix([-1.0 if i == 0 else 1.0 for i in y])
-    K_dict = {('rbf', g): matrix(rbf_kernel(X, gamma=g)) for g in [2**i for i in range(-5, 2)]}
-    K_dict.update({('poly', d): matrix(polynomial_kernel(X, degree=d)) for d in range(1, 5)})
+    K_dict = {('rbf', g): matrix(rbf_kernel(X, gamma=g))
+              for g in [2**i for i in range(-5, 2)]}
+    K_dict.update({('poly', d): matrix(polynomial_kernel(X, degree=d))
+                   for d in range(1, 5)})
 
     easy = GEasyMKL()
     weights_dict = easy.train(K_dict, y)
     print weights_dict
-
-    # Comparison with the standard EasyMKL
-    #from EasyMKL import EasyMKL
-    #easy = EasyMKL()
-    #easy.train([K_dict[ik] for ik in weights_dict],y)
-    # print easy.weights
