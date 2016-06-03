@@ -467,13 +467,17 @@ class Vectorizer(AbstractVectorizer):
         return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
     def _convert_dict_to_sparse_vector(self, feature_row):
-        if len(feature_row) == 0:
-            raise Exception('ERROR: something went wrong, empty features.')
         data, row, col = [], [], []
-        for feature in feature_row:
+        if len(feature_row) == 0:
+            # case of empty feature set for a specific instance
             row.append(0)
-            col.append(int(hash(feature) & self.bitmask) + 1)
-            data.append(feature_row[feature])
+            col.append(0)
+            data.append(0)
+        else:
+            for feature in feature_row:
+                row.append(0)
+                col.append(int(hash(feature) & self.bitmask) + 1)
+                data.append(feature_row[feature])
         vec = csr_matrix((data, (row, col)), shape=(1, self.feature_size))
         return vec
 
@@ -482,12 +486,19 @@ class Vectorizer(AbstractVectorizer):
             raise Exception('ERROR: something went wrong, empty features.')
         data, row, col = [], [], []
         for i, feature_row in enumerate(feature_rows):
-            for feature in feature_row:
+            if len(feature_row) == 0:
+                # case of empty feature set for a specific instance
                 row.append(i)
-                col.append(feature)
-                data.append(feature_row[feature])
+                col.append(0)
+                data.append(0)
+            else:
+                for feature in feature_row:
+                    row.append(i)
+                    col.append(feature)
+                    data.append(feature_row[feature])
         shape = (max(row) + 1, self.feature_size)
-        return csr_matrix((data, (row, col)), shape=shape)
+        data_matrix = csr_matrix((data, (row, col)), shape=shape)
+        return data_matrix
 
     def _extract_entity_and_label(self, d):
         # determine the entity attribute

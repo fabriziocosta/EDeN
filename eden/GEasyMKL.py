@@ -78,6 +78,7 @@ class GEasyMKL():
                                            for i in labels]))
 
         # Sum of the kernels
+        # ker_matrix = matrix(self.sum_kernels(self.list_Ktr.values())) / float(len(dict_list_Ktr))
         ker_matrix = matrix(self.sum_kernels(self.list_Ktr.values()))
 
         YY = matrix(np.diag(list(matrix(self.labels))))
