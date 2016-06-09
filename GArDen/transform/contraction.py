@@ -76,7 +76,7 @@ label_modifier = contraction_modifier(attribute_in='type',
 weight_modifier = contraction_modifier(attribute_in='weight',
                                        attribute_out='weight',
                                        reduction='sum')
-modifiers = [label_modifier, weight_modifier]
+# modifiers = [label_modifier, weight_modifier]
 
 # ------------------------------------------------------------------------------
 
@@ -87,11 +87,13 @@ class Contract(BaseEstimator, TransformerMixin):
     def __init__(self,
                  contraction_attribute='label',
                  nesting=False,
+                 original_edges_to_nesting=False,
                  weight_scaling_factor=1,
-                 modifiers=modifiers):
+                 modifiers=None):
         """Constructor."""
         self.contraction_attribute = contraction_attribute
         self.nesting = nesting
+        self.original_edges_to_nesting = original_edges_to_nesting
         self.weight_scaling_factor = weight_scaling_factor
         self.modifiers = modifiers
 
@@ -114,7 +116,7 @@ class Contract(BaseEstimator, TransformerMixin):
         g_contracted = self._edge_contraction(graph=g)
         info = g_contracted.graph.get('info', '')
         g_contracted.graph['info'] = info + '\n' + \
-            serialize_modifiers(modifiers)
+            serialize_modifiers(self.modifiers)
         for n, d in g_contracted.nodes_iter(data=True):
             # get list of contracted node ids
             contracted = d.get('contracted', None)
@@ -122,7 +124,7 @@ class Contract(BaseEstimator, TransformerMixin):
                 raise Exception(
                     'Empty contraction list for: id %d data: %s' %
                     (n, d))
-            for modifier in modifiers:
+            for modifier in self.modifiers:
                 modifier_func = contraction_modifer_map[modifier.reduction]
                 g_contracted.node[n][modifier.attribute_out] = modifier_func(
                     input_attribute=modifier.attribute_in,
@@ -135,6 +137,9 @@ class Contract(BaseEstimator, TransformerMixin):
                 g_contracted.node[n]['weight'] = w
         # add nesting edges between the contraction graph and original graph
         if self.nesting:
+            if self.original_edges_to_nesting:
+                for u, v in g.edges():
+                    g.edge[u][v]['nesting'] = True
             g_nested = nx.disjoint_union(g, g_contracted)
             # rewire contracted graph to the original graph
             for n, d in g_nested.nodes_iter(data=True):
@@ -209,7 +214,7 @@ class Minor(BaseEstimator, TransformerMixin):
                  part_name='part_name',
                  nesting=False,
                  weight_scaling_factor=1,
-                 modifiers=modifiers):
+                 modifiers=None):
         """Constructor."""
         self.part_id = part_id
         self.part_name = part_name

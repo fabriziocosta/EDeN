@@ -180,7 +180,7 @@ class Embedder(object):
         # make a graph with instances as nodes
         graph = nx.Graph()
         for v in range(size):
-            graph.add_node(v, group=target[v], prob=probs[v])
+            graph.add_node(v, group=target[v], prob=list(probs[v]))
 
         # build shift tree
         if quick_shift_threshold != 0:
@@ -230,9 +230,11 @@ class Embedder(object):
             average_probabilities = \
                 np.mean(np.vstack(cum_prob_distrib[id_group]), axis=0)
             for i, average_probability in enumerate(average_probabilities):
-                graph.add_edge(id_group, i,
-                               weight=average_probability,
-                               len=self._weigth_to_len(average_probability))
+                if id_group != i:
+                    graph.add_edge(
+                        id_group, i,
+                        weight=average_probability,
+                        len=self._weigth_to_len(average_probability))
         return graph
 
     def filter_edges(self, graph, true_class_threshold=0.1):
@@ -248,7 +250,19 @@ class Embedder(object):
         for u, v in edges:
             weight = graph.edge[u][v]['weight'] * edge_weight_factor
             graph.edge[u][v]['weight'] = weight
-            graph.edge[u][v]['len'] = self._weigth_to_len(weight)
+
+    def set_edge_weight(self, graph, edge_weight=1):
+        """Filter edges."""
+        edges = graph.edges()
+        for u, v in edges:
+            graph.edge[u][v]['weight'] = edge_weight
+
+    def multiply_edge_length(self, graph, edge_length_factor=10):
+        """Filter edges."""
+        edges = graph.edges()
+        for u, v in edges:
+            length = graph.edge[u][v]['len'] * edge_length_factor
+            graph.edge[u][v]['len'] = length
 
     def combine_graphs(self, true_class_bias=1,
                        multi_class_bias=0, multi_class_threshold=0,

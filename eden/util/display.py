@@ -37,15 +37,22 @@ def draw_graph(graph,
                secondary_edge_label=None,
                vertex_color=None,
                vertex_alpha=0.6,
+               vertex_border=False,
+               vertex_size=600,
+
                edge_color=None,
                edge_alpha=0.5,
+
+               dark_edge_color=None,
+               dark_edge_dotted=True,
+               dark_edge_alpha=0.3,
+
                size=10,
                size_x_to_y_ratio=1,
-               node_size=600,
                font_size=9,
                layout='graphviz',
                prog='neato',
-               node_border=False,
+
                colormap='YlOrRd',
                vmin=0,
                vmax=1,
@@ -54,7 +61,7 @@ def draw_graph(graph,
                file_name=None,
                title_key='id',
                ignore_for_layout="edge_attribute",
-               nesting_edge_alpha=0.3,
+
                logscale=False):
     """Plot graph layout."""
     if size is not None:
@@ -85,11 +92,11 @@ def draw_graph(graph,
     if edge_label is not None:
         if secondary_edge_label:
             edge_labels = dict([((u, v,), '%s\n%s' %
-                                 (d.get(edge_label, 'N/A'),
-                                  d.get(secondary_edge_label, 'N/A')))
+                                 (d.get(edge_label, ''),
+                                  d.get(secondary_edge_label, '')))
                                 for u, v, d in graph.edges(data=True)])
         else:
-            edge_labels = dict([((u, v,), d.get(edge_label, 'N/A'))
+            edge_labels = dict([((u, v,), d.get(edge_label, ''))
                                 for u, v, d in graph.edges(data=True)])
 
     if vertex_color is None:
@@ -130,7 +137,12 @@ def draw_graph(graph,
             edge_colors = [d.get(edge_color, 0)
                            for u, v, d in graph.edges(data=True)
                            if 'nesting' not in d]
-
+    if dark_edge_color is None:
+        dark_edge_colors = 'black'
+    else:
+        dark_edge_colors = [d.get(dark_edge_color, 0)
+                            for u, v, d in graph.edges(data=True)
+                            if 'nesting' in d]
     tmp_edge_set = [(a, b, d)
                     for (a, b, d) in graph.edges(data=True)
                     if ignore_for_layout in d]
@@ -162,7 +174,7 @@ def draw_graph(graph,
     else:
         raise Exception('Unknown layout format: %s' % layout)
 
-    if node_border is False:
+    if vertex_border is False:
         linewidths = 0.001
     else:
         linewidths = 1
@@ -172,33 +184,37 @@ def draw_graph(graph,
     nx.draw_networkx_nodes(graph, pos,
                            node_color=node_color,
                            alpha=vertex_alpha,
-                           node_size=node_size,
+                           node_size=vertex_size,
                            linewidths=linewidths,
                            cmap=plt.get_cmap(colormap))
 
-    if vertex_label is not None:
-        nx.draw_networkx_labels(graph,
-                                pos,
-                                vertex_labels,
-                                font_size=font_size,
-                                font_color='black')
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=2,
                            edge_color=edge_colors,
                            cmap=plt.get_cmap(colormap),
                            alpha=edge_alpha)
+    if dark_edge_dotted:
+        style = 'dotted'
+    else:
+        style = 'solid'
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
-                           edge_color='k',
-                           style='dotted',
-                           alpha=nesting_edge_alpha)
+                           edge_color=dark_edge_colors,
+                           style=style,
+                           alpha=dark_edge_alpha)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph,
                                      pos,
                                      edge_labels=edge_labels,
                                      font_size=font_size)
+    if vertex_label is not None:
+        nx.draw_networkx_labels(graph,
+                                pos,
+                                vertex_labels,
+                                font_size=font_size,
+                                font_color='black')
     if title_key:
         title = str(graph.graph.get(title_key, ''))
         font = FontProperties()
