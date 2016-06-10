@@ -581,8 +581,8 @@ class Vectorizer(AbstractVectorizer):
             for n, d in graph.nodes_iter(data=True):
                 if self.key_weight not in d:
                     graph.node[n][self.key_weight] = 1
-
-    def _edge_to_vertex_transform(self, original_graph):
+    @staticmethod
+    def _edge_to_vertex_transform( original_graph):
         """Convert edges to nodes."""
         # if operating on graphs that have already been subject to the
         # edge_to_vertex transformation, then do not repeat the transformation
@@ -609,12 +609,13 @@ class Vectorizer(AbstractVectorizer):
                     new_node_id += 1
             return graph
 
-    def _revert_edge_to_vertex_transform(self, original_graph):
+    @staticmethod
+    def _revert_edge_to_vertex_transform( original_graph):
         """Convert nodes of type 'edge' to edges."""
         if 'expanded' in original_graph.graph:
             # start from a copy of the original graph
             graph = nx.Graph(original_graph)
-            self._clean_graph(graph)
+            Vectorizer._clean_graph(graph)
             # re-wire the endpoints of edge-vertices
             for n, d in original_graph.nodes_iter(data=True):
                 if 'edge' in d:
@@ -632,8 +633,8 @@ class Vectorizer(AbstractVectorizer):
             return graph
         else:
             return original_graph
-
-    def _clean_graph(self, graph):
+    @staticmethod
+    def _clean_graph( graph):
         graph.graph.pop('expanded', None)
         for n, d in graph.nodes_iter(data=True):
             if 'node' in d:
@@ -642,6 +643,7 @@ class Vectorizer(AbstractVectorizer):
                 graph.node[n].pop('neigh_graph_hash', None)
                 graph.node[n].pop('neigh_graph_weight', None)
                 graph.node[n].pop('hlabel', None)
+
 
     def _graph_preprocessing(self, original_graph):
         graph = self._edge_to_vertex_transform(original_graph)
