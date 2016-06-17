@@ -548,9 +548,10 @@ class Vectorizer(AbstractVectorizer):
                     node_set = endpoint_dist_dict[distance]
                     # for all nodes u at distance distance from endpoint
                     for vertex_u in node_set:
-                        self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                    distance, feature_list,
-                                                    connection_weight=connection_weight)
+                        self._transform_vertex_pair(
+                            graph, vertex_v, vertex_u,
+                            distance, feature_list,
+                            connection_weight=connection_weight)
 
     def _find_second_endpoint_of_nesting_edge(self, graph, vertex_v):
         endpoints = []
@@ -571,12 +572,16 @@ class Vectorizer(AbstractVectorizer):
         # for all radii
         for radius in range(self.min_r * 2, (self.r + 1) * 2, 2):
             for label_index in range(graph.graph['label_size']):
-                if radius < len(graph.node[vertex_v]['neigh_graph_hash'][label_index]) and \
-                        radius < len(graph.node[vertex_u]['neigh_graph_hash'][label_index]):
+                if radius < len(
+                    graph.node[vertex_v]['neigh_graph_hash'][label_index]) \
+                    and radius < len(
+                        graph.node[vertex_u]['neigh_graph_hash'][label_index]):
                     # feature as a pair of neighborhoods at a radius,distance
                     # canonicalization of pair of neighborhoods
-                    vertex_v_hash = graph.node[vertex_v]['neigh_graph_hash'][label_index][radius]
-                    vertex_u_hash = graph.node[vertex_u]['neigh_graph_hash'][label_index][radius]
+                    vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
+                    vertex_v_hash = vertex_v_labels[label_index][radius]
+                    vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
+                    vertex_u_hash = vertex_u_labels[label_index][radius]
                     if vertex_v_hash < vertex_u_hash:
                         first_hash, second_hash = (vertex_v_hash,
                                                    vertex_u_hash)
@@ -597,13 +602,12 @@ class Vectorizer(AbstractVectorizer):
                         feature_list[key][feature] += connection_weight
                         feature_list[key][half_feature] += connection_weight
                     else:
-                        val = connection_weight * \
-                            (graph.node[vertex_v]['neigh_graph_weight'][radius] +
-                             graph.node[vertex_u]['neigh_graph_weight'][radius])
+                        weight_v = graph.node[vertex_v]['neigh_graph_weight']
+                        weight_u = graph.node[vertex_u]['neigh_graph_weight']
+                        weight_vu_radius = weight_v[radius] + weight_u[radius]
+                        val = connection_weight * weight_vu_radius
                         feature_list[key][feature] += val
-                        half_val = \
-                            connection_weight * \
-                            graph.node[vertex_u]['neigh_graph_weight'][radius]
+                        half_val = connection_weight * weight_u[radius]
                         feature_list[key][half_feature] += half_val
 
     def _normalization(self, feature_list):
@@ -618,7 +622,8 @@ class Vectorizer(AbstractVectorizer):
             if self.weights_dict is not None:
                 # reweight using external weight dictionary
                 if self.weights_dict.get(r_d_key, None) is not None:
-                    sqrt_norm = sqrt_norm / math.sqrt(self.weights_dict[r_d_key])
+                    sqrtw = math.sqrt(self.weights_dict[r_d_key])
+                    sqrt_norm = sqrt_norm / sqrtw
             for feature_id, count in features.iteritems():
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
@@ -1002,8 +1007,8 @@ def _extract_entity_and_label(d, key_entity, key_label):
     return node_entity, data
 
 
-def _convert_dict_to_sparse_vector(feature_row, bitmask=2**20-1):
-    feature_size = bitmask+2
+def _convert_dict_to_sparse_vector(feature_row, bitmask=1048575):
+    feature_size = bitmask + 2
     data, row, col = [], [], []
     if len(feature_row) == 0:
         # case of empty feature set for a specific instance
