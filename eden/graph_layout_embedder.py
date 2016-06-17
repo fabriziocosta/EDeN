@@ -23,12 +23,31 @@ from sklearn.metrics.pairwise import pairwise_kernels
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import StratifiedKFold
 
-from numba import jit
-
-from eden.util import serialize_dict
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+def serialize_dict(the_dict, full=True, offset='small'):
+    if the_dict:
+        text = []
+        for key in sorted(the_dict):
+            if offset == 'small':
+                line = '%10s: %s' % (key, the_dict[key])
+            elif offset == 'large':
+                line = '%25s: %s' % (key, the_dict[key])
+            elif offset == 'very_large':
+                line = '%50s: %s' % (key, the_dict[key])
+            else:
+                raise Exception('unrecognized option: %s' % offset)
+            line = line.replace('\n', ' ')
+            if full is False:
+                if len(line) > 100:
+                    line = line[:100] + '  ...  ' + line[-20:]
+            text.append(line)
+        return '\n'.join(text)
+    else:
+        return ""
 
 # -----------------------------------------------------------------------------
 
@@ -74,7 +93,6 @@ class KKEmbedder(BaseEstimator, ClassifierMixin):
             np.linspace(0, 2 * math.pi * (1 - 1 / float(n)), num=n))}
         return pos
 
-    @jit
     def _compute_dE(self, pos=None, lengths=None, weights=None, m=None):
         dEx = 0
         dEy = 0
@@ -100,7 +118,6 @@ class KKEmbedder(BaseEstimator, ClassifierMixin):
                 d2Eyx += res
         return dEx, dEy, d2Ex2, d2Ey2, d2Exy, d2Eyx
 
-    @jit
     def _compute_dm(self, pos=None, lengths=None, weights=None, m=None):
         dEx = 0
         dEy = 0
