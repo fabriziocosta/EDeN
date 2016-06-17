@@ -1,0 +1,206 @@
+#!/usr/bin/env python
+
+
+"""GraphEmbed.
+
+Compute a 2D embedding of a data matrix given supervised class information.
+Instances are materialized as nodes in a graph where edges connect the
+nearest neighbors. Additional invisible nodes are placed to represent the
+supervised classes and instances are linked to their respective classes.
+The final embedding is obtained using the spring layout algorithm presented in:
+Tomihisa Kamada, and Satoru Kawai. "An algorithm for drawing general
+undirected graphs." Information processing letters 31, no. 1 (1989): 7-15.
+
+Version: 1.0
+Author: Fabrizio Costa [costa@informatik.uni-freiburg.de]
+
+Usage:
+  graph_embed -i FILE -t FILE  [-o NAME] [--fast] [--cmap_name=NAME]
+              [(-m N | --min_threshold=N)] [--multi_class_threshold=N]
+              [--multi_class_bias=N] [--true_class_threshold=N]
+              [--true_class_bias=N] [--nearest_neighbors_threshold=N]
+              [--display] [--verbose]
+  graph_embed (-h | --help)
+  graph_embed --version
+
+Options:
+  -i FILE                           Specify input data file.
+  -t FILE                           Specify target data file.
+  -o NAME                           Prefix for output files [default: draw].
+  --fast                            Use fast but approximate computation.
+  --display                         Display graphs.
+  -m N, --min_threshold=N           Minimum number of elements [default: 5].
+  --cmap_name=NAME                  String with color scheme [default: Set3].
+  --nearest_neighbors_threshold=N   Number of neighbors [default: 4].
+  --true_class_bias=N               Bias for clustering [default: 0.6].
+  --true_class_threshold=N          Threshold for clusters [default: 0.005].
+  --multi_class_bias=N              Multiclass bias [default: 0.6].
+  --multi_class_threshold=N         Multiclass threshold [default: 0.001].
+  -h --help                         Show this screen.
+  --version                         Show version.
+  --verbose                         Print more text.
+
+
+"""
+
+import collections
+from docopt import docopt
+import numpy as np
+
+from sklearn.preprocessing import LabelEncoder
+
+from eden.util import configure_logging
+from eden.util import serialize_dict
+from eden.graph_layout_embedder import Embedder
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def _load_data_matrix(fname):
+    print('Reading data from file: %s' % fname)
+    data_matrix_original = []
+    instance_names = []
+    gene_names = []
+    with open(fname) as f:
+        for i, line in enumerate(f):
+            if i == 0:
+                instance_names = line.strip().split()[1:]
+            if i > 0:
+                tokens = line.strip().split('\t')
+                gene_names.append(tokens[0])
+                value_list = tokens[1:]
+                vals = [float(j) for j in value_list]
+                data_matrix_original.append(vals)
+    data_matrix = np.array(data_matrix_original).T
+    rows, cols = data_matrix.shape
+    logger.info('#instances:%d  #features:%d' % (rows, cols))
+    return data_matrix, gene_names, instance_names
+
+
+def _load_target(fname):
+    logger.info('Reading data from file: %s' % fname)
+    targets = []
+    instance_names = []
+    with open(fname) as f:
+        for i, line in enumerate(f):
+            tokens = line.strip().split()
+            instance_names.append(tokens[0])
+            targets.append(tokens[1])
+    logger.info('read %d values ' % len(targets))
+    target_names = list(sorted(set(targets)))
+    lenc = LabelEncoder()
+    y = lenc.fit_transform(targets)
+    targets = np.array(y)
+    return targets, target_names
+
+
+def _select_targets(y, min_threshold=10, max_threshold=None):
+    """_select_targets.
+
+    Return the set of targets that are occurring a number of times bounded
+    by min_threshold and max_threshold.
+    """
+    c = collections.Counter(y)
+    y_sel = []
+    for y_id in c:
+        if c[y_id] > min_threshold:
+            if max_threshold:
+                if c[y_id] < max_threshold:
+                    y_sel.append(y_id)
+            else:
+                y_sel.append(y_id)
+    return y_sel
+
+
+def _filter_dataset(data_matrix, y, y_sel):
+    """_filter_dataset.
+
+    Filter data matrix and target vector selecting only instances that
+    belong to y_sel.
+    """
+    targets = []
+    instances = []
+    for target, instance in zip(y, data_matrix):
+        if target in y_sel:
+            targets.append(target)
+            instances.append(instance)
+    y = np.array(np.hstack(targets))
+    data_matrix = np.array(np.vstack(instances))
+    return data_matrix, y
+
+
+def main(args):
+    """Main."""
+    logger.debug(serialize_dict(args))
+
+    # setup variables
+    data_fname = args['-i']
+    target_fname = args['-t']
+    min_threshold = int(args['--min_threshold'])
+    cmap_name = args['--cmap_name']
+    fast = args['--fast']
+    name = args['-o']
+    display = args['--display']
+    nearest_neighbors_threshold = int(args['--nearest_neighbors_threshold'])
+    true_class_bias = float(args['--true_class_bias'])
+    true_class_threshold = float(args['--true_class_threshold'])
+    multi_class_bias = float(args['--multi_class_bias'])
+    multi_class_threshold = float(args['--multi_class_threshold'])
+
+    # load data
+    data_matrix, gene_names, instance_names = _load_data_matrix(data_fname)
+    y_orig, target_names = _load_target(target_fname)
+    y_sel = _select_targets(y_orig, min_threshold=min_threshold)
+    logger.info('selected %d classes with more than %d instances' %
+                (len(y_sel), min_threshold))
+    data_matrix, y_orig_sel = _filter_dataset(data_matrix, y_orig, y_sel)
+    rows, cols = data_matrix.shape
+    logger.info('#instances:%d  #features:%d' % (rows, cols))
+    logger.info('#targets: %d' % len(y_orig_sel))
+    logger.info('#instances:%d  #features:%d' % (rows, cols))
+    lenc = LabelEncoder()
+    y = lenc.fit_transform(y_orig_sel)
+    y = np.array(y)
+    target_dict = dict()
+    for i, c in enumerate(lenc.classes_):
+        target_dict[i] = target_names[c]
+        print '%d -> %d   %s' % (i, c, target_names[c])
+
+    # prepare data matrix
+    data_matrix_corrcoef = np.corrcoef(data_matrix)
+    rows, cols = data_matrix_corrcoef.shape
+    logger.info('#instances:%d  #features:%d' % (rows, cols))
+
+    # run embedder
+    if fast:
+        suffix = '_fast'
+    else:
+        suffix = ''
+    file_name = name + suffix
+    logger.info('Writing to files with prefix: %s' % file_name)
+
+    embedder = Embedder(
+        nearest_neighbors_threshold=nearest_neighbors_threshold,
+        true_class_bias=true_class_bias,
+        true_class_threshold=true_class_threshold,
+        multi_class_bias=multi_class_bias,
+        multi_class_threshold=multi_class_threshold)
+    data_matrix = embedder.fit_transform(
+        data_matrix=data_matrix_corrcoef, target=y, fast=fast)
+    embedder.display(target_dict=target_dict, display=display,
+                     display_class_graph=True, display_clean=True,
+                     cmap=cmap_name, file_name=file_name)
+
+
+if __name__ == '__main__':
+    args = docopt(__doc__, version='graph_embed 1.0')
+    if args['--verbose']:
+        verbosity = 2
+    else:
+        verbosity = 1
+    configure_logging(logger,
+                      verbosity=verbosity,
+                      filename='graph_embed.log')
+    main(args)

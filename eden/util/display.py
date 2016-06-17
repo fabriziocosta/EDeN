@@ -52,6 +52,7 @@ def draw_graph(graph,
                font_size=9,
                layout='graphviz',
                prog='neato',
+               pos=None,
 
                colormap='YlOrRd',
                vmin=0,
@@ -148,31 +149,32 @@ def draw_graph(graph,
                     if ignore_for_layout in d]
     graph.remove_edges_from(tmp_edge_set)
 
-    if layout == 'graphviz':
-        graph_copy = graph.copy()
-        # remove all attributes for graphviz layout
-        for u, d in graph_copy.nodes(data=True):
-            graph_copy.node[u] = {}
-        for u, v, d in graph_copy.edges(data=True):
-            graph_copy.edge[u][v] = {}
-        pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gstart=rand")
-    elif layout == "RNA":
-        import RNA
-        rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
-        pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
-               for i in range(len(graph.graph['structure']))}
-    elif layout == 'circular':
-        pos = nx.circular_layout(graph)
-    elif layout == 'random':
-        pos = nx.random_layout(graph)
-    elif layout == 'spring':
-        pos = nx.spring_layout(graph)
-    elif layout == 'shell':
-        pos = nx.shell_layout(graph)
-    elif layout == 'spectral':
-        pos = nx.spectral_layout(graph)
-    else:
-        raise Exception('Unknown layout format: %s' % layout)
+    if pos is None:
+        if layout == 'graphviz':
+            graph_copy = graph.copy()
+            # remove all attributes for graphviz layout
+            for u, d in graph_copy.nodes(data=True):
+                graph_copy.node[u] = {}
+            for u, v, d in graph_copy.edges(data=True):
+                graph_copy.edge[u][v] = {}
+            pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gstart=rand")
+        elif layout == "RNA":
+            import RNA
+            rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
+            pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
+                   for i in range(len(graph.graph['structure']))}
+        elif layout == 'circular':
+            pos = nx.circular_layout(graph)
+        elif layout == 'random':
+            pos = nx.random_layout(graph)
+        elif layout == 'spring':
+            pos = nx.spring_layout(graph)
+        elif layout == 'shell':
+            pos = nx.shell_layout(graph)
+        elif layout == 'spectral':
+            pos = nx.spectral_layout(graph)
+        else:
+            raise Exception('Unknown layout format: %s' % layout)
 
     if vertex_border is False:
         linewidths = 0.001

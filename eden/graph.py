@@ -667,20 +667,6 @@ class Vectorizer(AbstractVectorizer):
         self._clean_graph(graph)
         return self._normalization(feature_list)
 
-    # def _transform_nesting_vertex(self, graph, nesting_vertex, feature_list):
-    #     # extract endpoints
-    #     nesting_endpoints = [u for u in graph.neighbors(nesting_vertex)]
-    #     if self.key_weight in graph.node[nesting_vertex]:
-    #         connection_weight = graph.node[nesting_vertex][self.key_weight]
-    #     else:
-    #         connection_weight = 1
-    #     if len(nesting_endpoints) == 2:
-    #         u = nesting_endpoints[0]
-    #         v = nesting_endpoints[1]
-    #         distance = 1
-    #         self._transform_vertex_pair(graph, v, u, distance, feature_list,
-    #                                     connection_weight=connection_weight)
-
     def _transform_vertex(self, graph, vertex_v, feature_list):
         # for all distances
         root_dist_dict = graph.node[vertex_v]['remote_neighbours']
