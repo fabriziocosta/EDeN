@@ -40,6 +40,7 @@ class Vectorizer(AbstractVectorizer):
                  key_weight='weight',
                  key_nesting='nesting',
                  key_importance='importance',
+                 key_class='class',
                  key_original_label='original_label',
                  key_entity='entity'):
         """Constructor.
@@ -147,6 +148,7 @@ class Vectorizer(AbstractVectorizer):
         self.key_weight = key_weight
         self.key_nesting = key_nesting
         self.key_importance = key_importance
+        self.key_class = key_class
         self.key_original_label = key_original_label
         self.key_entity = key_entity
 
@@ -855,17 +857,21 @@ class Vectorizer(AbstractVectorizer):
             # 1/float(len(graph)) for all vertices
             margins = np.array([1 / float(len(graph))] * data_matrix.shape[0],
                                dtype=np.float64)
+            predictions = np.array([1] * data_matrix.shape[0])
         else:
             if self.estimator.__class__.__name__ in ['SGDRegressor']:
-                predictions = self.estimator.predict(data_matrix)
+                predicted_score = self.estimator.predict(data_matrix)
+                predictions = np.array([1 if v >= 0 else -1 for v in predicted_score])
             else:
-                predictions = self.estimator.decision_function(data_matrix)
-            margins = predictions - self.estimator.intercept_ + \
+                predicted_score = self.estimator.decision_function(data_matrix)
+                predictions = self.estimator.predict(data_matrix)
+            margins = predicted_score - self.estimator.intercept_ + \
                 self.estimator.intercept_ / float(len(graph))
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in graph.nodes_iter(data=True):
             if d.get('node', False):
+                graph.node[v][self.key_class] = predictions[vertex_id]
                 # annotate the 'importance' attribute with the margin
                 graph.node[v][self.key_importance] = margins[vertex_id]
                 # update the self.key_weight information as a linear
@@ -942,8 +948,9 @@ def _label_preprocessing(graph, label_size=1,
         graph.graph['label_size'] = label_size
         for n, d in graph.nodes_iter(data=True):
             # for dense or sparse vectors
-            if isinstance(d[key_label], list) or \
-                    isinstance(d[key_label], dict):
+            is_list = isinstance(d[key_label], list)
+            is_dict = isinstance(d[key_label], dict)
+            if is_list or is_dict:
                 node_entity, data = _extract_entity_and_label(d, key_entity, key_label)
                 if isinstance(d[key_label], list):
                     data = np.array(data, dtype=np.float64).reshape(1, -1)
