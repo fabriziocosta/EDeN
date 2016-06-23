@@ -32,7 +32,7 @@ Installation
 
 You can install EDeN with pip directly from github.
 
-```python
+```
 pip install git+https://github.com/fabriziocosta/EDeN.git --user
 ```
 
