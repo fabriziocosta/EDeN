@@ -13,6 +13,20 @@ The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel
 Among the novelties introduced in EDeN is the ability to take in input real vector labels and to process weighted and nested graphs.
 
 
+
+Examples
+========
+
+
+A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
+
+ * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
+ * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
+ * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
+ * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
+
+
+
 Installation
 ============
 
@@ -64,14 +78,3 @@ Gianluca Corrado, Toma Tebaldi, Giulio Bertamini, Fabrizio Costa, Alessandro Qua
 
 R. Ferrarese, G. R. 4th Harsh, A. K. Yadav, E. Bug, D. Maticzka, W. Reichardt, S. M. Dombrowski, T. E. Miller, A. P. Masilamani, F. Dai, H. Kim, M. Hadler, D. M. Scholtens, I. L. Y. Yu, J. Beck, V. Srinivasasainagendra, F. Costa, N. Baxan, D. Pfeifer, D. V. Elverfeldt, R. Backofen, A. Weyerbrock, C. W. Duarte, X. He, M. Prinz, J. P. Chandler, H. Vogel, A. Chakravarti, J. N. Rich, M. S. Carro, M. Bredel, "Lineage-specific splicing of a brain-enriched alternative exon promotes glioblastoma progression", J Clin Invest, 124 no. 7 pp. 2861-2876, 2014. ([ref](http://www.jci.org/articles/view/68836))
 
-
-Examples
-========
-
-
-A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
-
- * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
- * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
- * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
- * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
