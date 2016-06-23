@@ -3,7 +3,7 @@
 [![DOI](https://zenodo.org/badge/10054/fabriziocosta/EDeN.svg)](https://zenodo.org/badge/latestdoi/10054/fabriziocosta/EDeN)
 [![Build Status](https://travis-ci.org/fabriziocosta/EDeN.svg?branch=master)](https://travis-ci.org/fabriziocosta/EDeN)
 
-[![''](https://github.com/fabriziocosta/EDeN/blob/master/EDeN_logo.png)]
+<p align="center"><img src="EDeN_logo.png"></p>
 
 [EDeN](http://fabriziocosta.github.io/EDeN)
 ====
