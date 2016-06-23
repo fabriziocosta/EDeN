@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import os
+import sys
 import logging
+import argparse
 
 from collections import deque
 from eden.model_base import ModelInitializerBase, main_script
@@ -184,9 +186,37 @@ class ModelInitializer(ModelInitializerBase):
 
 
 if __name__ == "__main__":
-    model_initializer = ModelInitializer()
-    main_script(model_initializer=model_initializer,
-                description=DESCRIPTION,
-                epilog=EPILOG,
-                prog_name=os.path.basename(__file__),
-                logger=logging.getLogger())
+    if "predict_profile" in sys.argv:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-v", "--verbosity",
+                            action="count",
+                            help="Increase output verbosity")
+        parser.add_argument("-x", "--no-logging",
+                            dest="no_logging",
+                            help="If set, do not log on file.",
+                            action="store_true")
+        parser.add_argument(
+            "action",
+            help="What to do.")
+        parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to file containing input.",
+                            required=True)
+        parser.add_argument("-m", "--model-file",
+                            dest="model_file",
+                            help="Model file name. Note: it will be located in the output directory.",
+                            default="model")
+        parser.add_argument("-o", "--output-dir",
+                            dest="output_dir_path",
+                            help="Path to output directory.",
+                            default="out")
+        args = parser.parse_args()
+        assert args.action == "predict_profile"
+        exit(0)
+    else:
+        model_initializer = ModelInitializer()
+        main_script(model_initializer=model_initializer,
+                    description=DESCRIPTION,
+                    epilog=EPILOG,
+                    prog_name=os.path.basename(__file__),
+                    logger=logging.getLogger())
