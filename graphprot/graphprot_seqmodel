@@ -199,14 +199,14 @@ def main_predict_profile(model_initializer, args):
     model.load(args.model_file)
     logger.info(model.get_parameters())
 
-    text = []
-    for margin, graph_info in model.decision_function_info(iterator, key='id'):
-        if margin > 0:
-            prediction = 1
-        else:
-            prediction = -1
-        text.append("%d\t%s\t%s\n" % (prediction, margin, graph_info))
-    save_output(text=text, output_dir_path=args.output_dir_path, out_file_name='profile.txt')
+    output = []
+    g = model.get_vectorizer().annotate(iterator, model.get_estimator())
+    from itertools import izip
+    for (header, seq), (vertices, scores) in izip(iterator_, g):
+        assert(seq == "".join(vertices))
+        for pos, score in enumerate(scores):
+            output.append("{}\t{}\t{}\n".format(header, pos, score))
+    save_output(text=output, output_dir_path=args.output_dir_path, out_file_name='profile.txt')
 
 
 if __name__ == "__main__":
