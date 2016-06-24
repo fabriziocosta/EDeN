@@ -18,18 +18,25 @@ class Vectorizer(AbstractVectorizer):
     >>> seqstrings = ['A']
     >>> str(Vectorizer().transform(seqstrings))
     '  (0, 930612)\\t1.0'
+
     >>> # vectorize a sequence using weights
     >>> weighttups = [('ID1', 'A', [0.5])]
     >>> str(Vectorizer().transform(weighttups))
     '  (0, 930612)\\t1.0'
+
     >>> # vectorize a sequence
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+
     >>> # for comparison vectorize a sequence containing zero weight
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+
+    >>> # annotate importance of positions
+    >>> str(list(Vectorizer(r=0, d=0).annotate(['GATTACA'])))
+    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
     """
 
     def __init__(self,
