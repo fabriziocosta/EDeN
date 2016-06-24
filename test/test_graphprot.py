@@ -157,17 +157,17 @@ def test_priors_weight():
 def test_predictprofile():
     "Predict nucleotide-wise margins of some sequences."
     model = "test_predict_profile.model"
-    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1".format(
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir {} --model-file {} --n-iter 1".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
+        "test_predict_profile",
         model
     )
-    # ../../graphprot/graphprot_seqmodel -vvv fit -p ../../test/PARCLIP_MOV10_Sievers_100seqs.train.positives.fa -n ../../test/PARCLIP_MOV10_Sievers_100seqs.train.negatives.fa --output-dir ./ --model-file test_simple_fit.model --n-iter 1
     env.run(call)
     call = bindir_rel + script + " -vvv predict_profile --input-file {} --model-file {} --output-dir {}".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
-        model,
+        "test_predict_profile/" + model,
         "test_predict_profile",
     )
     run = env.run(call)
-    assert "test_predict/profile.txt" in run.files_created
+    assert "test_predict_profile/profile.txt" in run.files_created
