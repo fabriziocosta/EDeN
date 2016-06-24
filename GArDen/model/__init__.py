@@ -16,6 +16,67 @@ logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
+class TransformerWrapper(BaseEstimator, ClassifierMixin):
+    """TransformerWrapper."""
+
+    def __init__(self, program=None):
+        """Construct."""
+        self.program = program
+        self.vectorizer = Vectorizer()
+        self.params_vectorize = dict()
+
+    def set_params(self, **params):
+        """Set the parameters of this estimator.
+
+        The method.
+
+        Returns
+        -------
+        self
+        """
+        # finds parameters for the vectorizer as those that contain "__"
+        params_vectorizer = dict()
+        params_clusterer = dict()
+        for param in params:
+            if "vectorizer__" in param:
+                key = param.split('__')[1]
+                val = params[param]
+                params_vectorizer[key] = val
+            elif "vectorize__" in param:
+                key = param.split('__')[1]
+                val = params[param]
+                self.params_vectorize[key] = val
+            else:
+                params_clusterer[param] = params[param]
+        self.program.set_params(**params_clusterer)
+        self.vectorizer.set_params(**params_vectorizer)
+        return self
+
+    def fit(self, graphs):
+        """fit."""
+        try:
+            self.program.fit(graphs)
+            return self
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def transform(self, graphs):
+        """predict."""
+        try:
+            for graph in graphs:
+                transformed_graph = self._transform(graph)
+                yield transformed_graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def _transform(self, graph):
+        return graph
+
+# ------------------------------------------------------------------------------
+
+
 class KNNWrapper(BaseEstimator, ClassifierMixin):
     """KNNWrapper."""
 

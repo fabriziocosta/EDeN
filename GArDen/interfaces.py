@@ -5,8 +5,6 @@ from eden.util import is_iterable
 import random
 from itertools import tee, izip
 from collections import defaultdict
-# from GArDen.partition import ClustererWrapper
-# from GArDen.predict import ClassifierWrapper, RegressorWrapper, KNNWrapper
 from GArDen.order import OrdererWrapper
 
 import logging
@@ -124,21 +122,6 @@ def model(iterable, program=None, precondition=precondition,
     Return a biased program that can be used in the other operators.
     """
     try:
-        # the wrapper provides the vectorization support
-        # the wrapping has to be done externally so to allow programs
-        # that work on graphs to act directly
-        # the wrapper provides the vectorization support
-        # if precond_is_classifier(iterable=iterable, program=program):
-        #     wprogram = ClassifierWrapper(program=program)
-        # elif precond_is_regressor(iterable=iterable, program=program):
-        #     wprogram = RegressorWrapper(program=program)
-        # elif precond_is_knn(iterable=iterable, program=program):
-        #     wprogram = KNNWrapper(program=program)
-        # elif precond_is_wrapped(iterable=iterable, program=program):
-        #     wprogram = program
-        # else:
-        #     Exception('program type is unknown')
-
         parameters = sample_parameters_uniformly_at_random(parameters_priors)
         if parameters:
             program.set_params(**parameters)
@@ -157,21 +140,6 @@ def predict(iterable, program=None, precondition=precondition,
             postcondition=postcondition, parameters_priors=None):
     """Map a graph to an output data type."""
     try:
-        # the wrapper provides the vectorization support
-        # the wrapping has to be done externally so to allow programs
-        # that work on graphs to act directly
-        # the wrapper provides the vectorization support
-        # if precond_is_classifier(iterable=iterable, program=program):
-        #     wprogram = ClassifierWrapper(program=program)
-        # elif precond_is_regressor(iterable=iterable, program=program):
-        #     wprogram = RegressorWrapper(program=program)
-        # elif precond_is_knn(iterable=iterable, program=program):
-        #     wprogram = KNNWrapper(program=program)
-        # elif precond_is_wrapped(iterable=iterable, program=program):
-        #     wprogram = program
-        # else:
-        #     Exception('program type is unknown')
-
         parameters = sample_parameters_uniformly_at_random(parameters_priors)
         if parameters:
             program.set_params(**parameters)
