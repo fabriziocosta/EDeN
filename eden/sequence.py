@@ -18,18 +18,25 @@ class Vectorizer(AbstractVectorizer):
     >>> seqstrings = ['A']
     >>> str(Vectorizer().transform(seqstrings))
     '  (0, 930612)\\t1.0'
+
     >>> # vectorize a sequence using weights
     >>> weighttups = [('ID1', 'A', [0.5])]
     >>> str(Vectorizer().transform(weighttups))
     '  (0, 930612)\\t1.0'
+
     >>> # vectorize a sequence
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+
     >>> # for comparison vectorize a sequence containing zero weight
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+
+    >>> # annotate importance of positions
+    >>> str(list(Vectorizer(r=0, d=0).annotate(['GATTACA'])))
+    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
     """
 
     def __init__(self,
@@ -347,14 +354,14 @@ class Vectorizer(AbstractVectorizer):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
         # extract kmer hash codes for all kmers up to r in all positions in seq
-        feature_dict = {}
+        vertex_based_features = []
         seq_len = len(seq)
         neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
                             for pos in range(seq_len)]
         for pos in range(seq_len):
             # construct features as pairs of kmers up to distance d
             # for all radii up to r
-            feature_list = defaultdict(lambda: defaultdict(float))
+            local_features = defaultdict(lambda: defaultdict(float))
             for radius in range(self.min_r, self.r + 2):
                 if radius < len(neigh_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 2):
@@ -365,7 +372,7 @@ class Vectorizer(AbstractVectorizer):
                                                        distance,
                                                        self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
-                            feature_list[key][feature_code] += 1
-            feature_dict.update(self._normalization(feature_list))
-        data_matrix = self._convert_dict_to_sparse_matrix(feature_dict)
+                            local_features[key][feature_code] += 1
+            vertex_based_features.append(self._normalization(local_features))
+        data_matrix = self._convert_dict_to_sparse_matrix(vertex_based_features)
         return data_matrix
