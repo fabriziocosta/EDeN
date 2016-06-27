@@ -20,11 +20,10 @@ Examples
 
 A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
 
- * [General introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
+ * [Introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
  * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
- * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
  * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
-
+ * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
 
 
 Installation
@@ -36,8 +35,7 @@ You can install EDeN with pip directly from github.
 pip install git+https://github.com/fabriziocosta/EDeN.git --user
 ```
 
-Docker
-======
+### Docker
 
 You can create a docker image containing your versions of EDeN with all necessary dependencies installed using the command
 
