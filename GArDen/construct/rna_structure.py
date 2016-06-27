@@ -6,7 +6,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.neighbors import NearestNeighbors
 from eden.graph import Vectorizer
 from eden.util import vectorize
-from GArDen.predict import KNNWrapper
+from GArDen.model import KNNWrapper
 from sklearn import metrics
 import time
 import datetime
