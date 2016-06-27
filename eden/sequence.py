@@ -37,6 +37,10 @@ class Vectorizer(AbstractVectorizer):
     >>> # annotate importance of positions
     >>> str(list(Vectorizer(r=0, d=0).annotate(['GATTACA'])))
     "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+    >>> str(list(Vectorizer(r=0, d=0).annotate([('seq_id', 'GATTACA')])))
+    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+    >>> str(list(Vectorizer(r=0, d=0).annotate([('seq_id', 'GATTACA', [0,1,2,3,4,5,6,7])])))
+    ""
     """
 
     def __init__(self,
@@ -314,13 +318,8 @@ class Vectorizer(AbstractVectorizer):
         self.estimator = estimator
         self.relabel = relabel
 
-        for seq in seqs:
-            if seq is None or len(seq) == 0:
-                raise Exception('ERROR: something went wrong, empty instance')
-            if len(seq) == 2 and len(seq[1]) > 0:
-                # assume the instance is a pair (header,seq)
-                # and extract only seq
-                seq = seq[1]
+        for orig_seq in seqs:
+            seq, weights = self._get_sequence_and_weights(orig_seq)
             yield self._annotate(seq)
 
     def _annotate(self, seq):
