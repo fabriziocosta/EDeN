@@ -27,12 +27,12 @@ class Vectorizer(AbstractVectorizer):
     >>> # vectorize a sequence
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
-    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.408248290464\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.408248290464'
+    '  (0, 304234)\\t0.5\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.5'
 
     >>> # for comparison vectorize a sequence containing zero weight
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
-    '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
+    '  (0, 304234)\\t0.707106781187\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.0'
     """
 
     def __init__(self,
@@ -331,8 +331,8 @@ class Vectorizer(AbstractVectorizer):
         >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
         array([1, 1, 1, 1, 1, 1, 1])
         >>> # access single feature of position 0
-        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)]
-        0.70710678118654746
+        >>> str(vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0])
+        '  (0, 584224)\\t1.0'
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
@@ -346,8 +346,9 @@ class Vectorizer(AbstractVectorizer):
         2
         >>> # access annotation of position 0
         >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
-        array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
-                3.17034376, -0.58648517])
+        array([  2.20464994e-03,  -1.07586432e+00,   4.47379743e+00,
+                 4.47379743e+00,  -1.07586432e+00,   4.83241431e+00,
+                -1.07586432e+00])
 
         >>> ## annotation with weights
         >>> from sklearn.linear_model import SGDClassifier
@@ -362,18 +363,10 @@ class Vectorizer(AbstractVectorizer):
         >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
         >>> # annotation should be the same
         >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
-        [True, True]
+        [True, True, True]
         >>> # annotation should differ
         >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
-        [False, False]
-
-        >>> ## debug
-        >>> annot_A
-        "A"
-        >>> annot_B
-        B
-        >>> annot_C
-        C
+        [True, False, True]
         """
         self.estimator = estimator
         self.relabel = relabel
