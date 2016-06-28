@@ -312,7 +312,7 @@ class Vectorizer(AbstractVectorizer):
         "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
         >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA')])))
         "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
-        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA', [0,1,2,3,4,5,6,7])])))
+        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA', [1,2,3,4,5,6,7])])))
         "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
 
         >>> ## annotate importance with relabeling
