@@ -360,19 +360,19 @@ class Vectorizer(AbstractVectorizer):
         >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
         [True, True]
         >>> # annotation should differ
-        >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
+        >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
         [False, False]
         """
         self.estimator = estimator
         self.relabel = relabel
 
-        for orig_seq in seqs:
-            seq, weights = self._get_sequence_and_weights(orig_seq)
+        for seq in seqs:
             yield self._annotate(seq)
 
     def _annotate(self, seq):
+        seq, weights = self._get_sequence_and_weights(seq)
         # extract per vertex feature representation
-        data_matrix = self._compute_vertex_based_features(seq)
+        data_matrix = self._compute_vertex_based_features(seq, weights)
         # extract importance information
         score, vec = self._annotate_importance(seq, data_matrix)
         # extract list of chars
@@ -397,12 +397,19 @@ class Vectorizer(AbstractVectorizer):
             vec.append(data_matrix.getrow(i))
         return margins, vec
 
-    def _compute_vertex_based_features(self, seq):
+    def _compute_vertex_based_features(self, seq, weights=None):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
         # extract kmer hash codes for all kmers up to r in all positions in seq
         vertex_based_features = []
         seq_len = len(seq)
+        if weights:
+            if len(weights) != seq_len:
+                raise Exception('ERROR: sequence and weights \
+                    must be same length.')
+            neighborhood_weight_cache = \
+                [self._compute_neighborhood_weight(weights, pos)
+                 for pos in range(seq_len)]
         neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
                             for pos in range(seq_len)]
         for pos in range(seq_len):
@@ -412,14 +419,22 @@ class Vectorizer(AbstractVectorizer):
             for radius in range(self.min_r, self.r + 2):
                 if radius < len(neigh_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 2):
-                        if pos + distance + radius < seq_len:
-                            feature_code = fast_hash_4(neigh_hash_cache[pos][radius],
-                                                       neigh_hash_cache[pos + distance][radius],
-                                                       radius,
-                                                       distance,
-                                                       self.bitmask)
+                        end = pos + distance
+                        if end + radius < seq_len:
+                            feature_code = \
+                                fast_hash_4(neigh_hash_cache[pos][radius],
+                                            neigh_hash_cache[end][radius],
+                                            radius,
+                                            distance,
+                                            self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
-                            local_features[key][feature_code] += 1
+                            if weights:
+                                local_features[key][feature_code] += \
+                                    neighborhood_weight_cache[pos][radius]
+                                local_features[key][feature_code] += \
+                                    neighborhood_weight_cache[end][radius]
+                            else:
+                                local_features[key][feature_code] += 1
             vertex_based_features.append(self._normalization(local_features))
         data_matrix = self._convert_dict_to_sparse_matrix(vertex_based_features)
         return data_matrix
