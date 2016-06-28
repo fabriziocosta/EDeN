@@ -33,65 +33,7 @@ class Vectorizer(AbstractVectorizer):
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
-
-    >>> # annotate importance of positions
-    >>> vectorizer = Vectorizer(r=0, d=0)
-    >>> str(list(vectorizer.annotate(['GATTACA'])))
-    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
-    >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA')])))
-    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
-    >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA', [0,1,2,3,4,5,6,7])])))
-    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
-
-    >>> ## annotate importance with relabeling
-    >>> vectorizer = Vectorizer(r=0, d=0)
-    >>> # check length of returned tuple
-    >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next())
-    3
-    >>> # check length of feature list
-    >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
-    7
-    >>> # access importance of position 0
-    >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
-    array([1, 1, 1, 1, 1, 1, 1])
-    >>> # access single feature of position 0
-    >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)]
-    0.70710678118654746
-
-    >>> ## annotate importance using simple estimator
-    >>> from sklearn.linear_model import SGDClassifier
-    >>> from eden.util import fit
-    >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
-    >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
-    >>> vectorizer = Vectorizer(r=0, d=0)
-    >>> estimator=fit(pos, neg, vectorizer)
-    >>> # check result size
-    >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
-    2
-    >>> # access annotation of position 0
-    >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
-    array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
-            3.17034376, -0.58648517])
-
-    >>> ## annotation with weights
-    >>> from sklearn.linear_model import SGDClassifier
-    >>> from eden.util import fit
-    >>> vectorizer = Vectorizer(r=0, d=0)
-    >>> estimator=fit(pos, neg, vectorizer)
-    >>> weighttups_A = [('IDA', 'HA', [1,1])]
-    >>> weighttups_B = [('IDB', 'HA', [2,2])]
-    >>> weighttups_C = [('IDC', 'HA', [1,0])]
-    >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
-    >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
-    >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
-    >>> # annotation should be the same
-    >>> [True for x in annot_A[1] if x in annot_B[1]]
-    [True, True]
-    >>> # annotation should differ
-    >>> [True for x in annot_A[1] if x in annot_C[1]]
-    [False, False]
     """
-
     def __init__(self,
                  complexity=None,
                  r=3,
@@ -363,6 +305,63 @@ class Vectorizer(AbstractVectorizer):
             characters in each input sequence, 3) a list with  size equal to
             the number of characters in each input sequence, of sparse vectors
             each corresponding to the vertex induced features.
+
+        >>> # annotate importance of positions
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> str(list(vectorizer.annotate(['GATTACA'])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA')])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA', [0,1,2,3,4,5,6,7])])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+
+        >>> ## annotate importance with relabeling
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> # check length of returned tuple
+        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next())
+        3
+        >>> # check length of feature list
+        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
+        7
+        >>> # access importance of position 0
+        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
+        array([1, 1, 1, 1, 1, 1, 1])
+        >>> # access single feature of position 0
+        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)]
+        0.70710678118654746
+
+        >>> ## annotate importance using simple estimator
+        >>> from sklearn.linear_model import SGDClassifier
+        >>> from eden.util import fit
+        >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
+        >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> estimator=fit(pos, neg, vectorizer)
+        >>> # check result size
+        >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
+        2
+        >>> # access annotation of position 0
+        >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
+        array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
+                3.17034376, -0.58648517])
+
+        >>> ## annotation with weights
+        >>> from sklearn.linear_model import SGDClassifier
+        >>> from eden.util import fit
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> estimator=fit(pos, neg, vectorizer)
+        >>> weighttups_A = [('IDA', 'HA', [1,1])]
+        >>> weighttups_B = [('IDB', 'HA', [2,2])]
+        >>> weighttups_C = [('IDC', 'HA', [1,0])]
+        >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
+        >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
+        >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
+        >>> # annotation should be the same
+        >>> [True for x in annot_A[1] if x in annot_B[1]]
+        [True, True]
+        >>> # annotation should differ
+        >>> [True for x in annot_A[1] if x in annot_C[1]]
+        [False, False]
         """
         self.estimator = estimator
         self.relabel = relabel
