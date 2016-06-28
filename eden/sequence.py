@@ -51,17 +51,27 @@ class Vectorizer(AbstractVectorizer):
     >>> # check length of feature list
     >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
     7
-    >>> # access feature of position 0
-    >>> str(vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)])
-    '0.707106781187'
+    >>> # access importance of position 0
+    >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
+    array([1, 1, 1, 1, 1, 1, 1])
+    >>> # access single feature of position 0
+    >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)]
+    0.70710678118654746
 
     >>> ## annotate importance using simple estimator
     >>> from sklearn.linear_model import SGDClassifier
-    >>> estimator = SGDClassifier()
-    >>> vectorizer = Vectorizer(r=0, d=0)
+    >>> from eden.util import fit
     >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
     >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
-
+    >>> vectorizer = Vectorizer(r=0, d=0)
+    >>> estimator=fit(pos, neg, vectorizer)
+    >>> # check result size
+    >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
+    2
+    >>> # access annotation of position 0
+    >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
+    array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
+            3.17034376, -0.58648517])
     """
 
     def __init__(self,

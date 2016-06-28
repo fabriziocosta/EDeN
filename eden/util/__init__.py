@@ -393,7 +393,7 @@ def fit_estimator(estimator,
 
 def fit(iterable_pos, iterable_neg=None,
         vectorizer=None,
-        estimator=SGDClassifier(average=True, class_weight='balanced', shuffle=True),
+        estimator=None,
         fit_flag=False,
         n_jobs=-1,
         cv=10,
@@ -401,6 +401,7 @@ def fit(iterable_pos, iterable_neg=None,
         random_state=1,
         n_blocks=5,
         block_size=None):
+    estimator = SGDClassifier(average=True, class_weight='balanced', shuffle=True, random_state=random_state)
     start = time()
     positive_data_matrix = vectorize(iterable_pos,
                                      vectorizer=vectorizer,
