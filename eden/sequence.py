@@ -40,7 +40,25 @@ class Vectorizer(AbstractVectorizer):
     >>> str(list(Vectorizer(r=0, d=0).annotate([('seq_id', 'GATTACA')])))
     "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
     >>> str(list(Vectorizer(r=0, d=0).annotate([('seq_id', 'GATTACA', [0,1,2,3,4,5,6,7])])))
-    ""
+    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+
+    >>> ## annotate importance with relabeling
+    >>> # check length of returned tuple
+    >>> len(Vectorizer(r=0, d=0).annotate(['GATTACA'], relabel=True).next())
+    3
+    >>> # check length of feature list
+    >>> len(Vectorizer(r=0, d=0).annotate(['GATTACA'], relabel=True).next()[2])
+    7
+    >>> # access feature of position 0
+    >>> str(Vectorizer(r=0, d=0).annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)])
+    '0.707106781187'
+
+    >>> ## annotate importance using simple estimator
+    >>> from sklearn.linear_model import SGDClassifier
+    >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
+    >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
+    >>> # estimator = SGDClassifier()
+
     """
 
     def __init__(self,
