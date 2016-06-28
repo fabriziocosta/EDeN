@@ -357,10 +357,10 @@ class Vectorizer(AbstractVectorizer):
         >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
         >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
         >>> # annotation should be the same
-        >>> [True for x in annot_A[1] if x in annot_B[1]]
+        >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
         [True, True]
         >>> # annotation should differ
-        >>> [True for x in annot_A[1] if x in annot_C[1]]
+        >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
         [False, False]
         """
         self.estimator = estimator
