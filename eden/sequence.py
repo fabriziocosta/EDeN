@@ -72,6 +72,24 @@ class Vectorizer(AbstractVectorizer):
     >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
     array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
             3.17034376, -0.58648517])
+
+    >>> ## annotation with weights
+    >>> from sklearn.linear_model import SGDClassifier
+    >>> from eden.util import fit
+    >>> vectorizer = Vectorizer(r=0, d=0)
+    >>> estimator=fit(pos, neg, vectorizer)
+    >>> weighttups_A = [('IDA', 'HA', [1,1])]
+    >>> weighttups_B = [('IDB', 'HA', [2,2])]
+    >>> weighttups_C = [('IDC', 'HA', [1,0])]
+    >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
+    >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
+    >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
+    >>> # annotation should be the same
+    >>> [True for x in annot_A[1] if x in annot_B[1]]
+    [True, True]
+    >>> # annotation should differ
+    >>> [True for x in annot_A[1] if x in annot_C[1]]
+    [False, False]
     """
 
     def __init__(self,
