@@ -33,12 +33,7 @@ class Vectorizer(AbstractVectorizer):
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
-
-    >>> # annotate importance of positions
-    >>> str(list(Vectorizer(r=0, d=0).annotate(['GATTACA'])))
-    "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
     """
-
     def __init__(self,
                  complexity=None,
                  r=3,
@@ -310,22 +305,82 @@ class Vectorizer(AbstractVectorizer):
             characters in each input sequence, 3) a list with  size equal to
             the number of characters in each input sequence, of sparse vectors
             each corresponding to the vertex induced features.
+
+        >>> # annotate importance of positions
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> str(list(vectorizer.annotate(['GATTACA'])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA')])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+        >>> str(list(vectorizer.annotate([('seq_id', 'GATTACA', [1,2,3,4,5,6,7])])))
+        "[(['G', 'A', 'T', 'T', 'A', 'C', 'A'], array([1, 1, 1, 1, 1, 1, 1]))]"
+
+        >>> ## annotate importance with relabeling
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> # check length of returned tuple
+        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next())
+        3
+        >>> # check length of feature list
+        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
+        7
+        >>> # access importance of position 0
+        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
+        array([1, 1, 1, 1, 1, 1, 1])
+        >>> # access single feature of position 0
+        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0][(0, 467181)]
+        0.70710678118654746
+
+        >>> ## annotate importance using simple estimator
+        >>> from sklearn.linear_model import SGDClassifier
+        >>> from eden.util import fit
+        >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
+        >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
+        >>> vectorizer = Vectorizer(r=0, d=0)
+        >>> estimator=fit(pos, neg, vectorizer)
+        >>> # check result size
+        >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
+        2
+        >>> # access annotation of position 0
+        >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
+        array([ 3.17034376, -0.48375362,  3.03291631,  1.02070335,  1.52845935,
+                3.17034376, -0.58648517])
+
+        >>> ## annotation with weights
+        >>> from sklearn.linear_model import SGDClassifier
+        >>> from eden.util import fit
+        >>> vectorizer = Vectorizer(r=1, d=1)
+        >>> estimator=fit(pos, neg, vectorizer)
+        >>> weighttups_A = [('IDA', 'HAM', [1,1,1])]
+        >>> weighttups_B = [('IDB', 'HAM', [2,2,2])]
+        >>> weighttups_C = [('IDC', 'HAM', [1,2,3])]
+        >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
+        >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
+        >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
+        >>> # annotation should be the same
+        >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
+        [True, True]
+        >>> # annotation should differ
+        >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
+        [False, False]
+
+        >>> ## debug
+        >>> annot_A
+        "A"
+        >>> annot_B
+        B
+        >>> annot_C
+        C
         """
         self.estimator = estimator
         self.relabel = relabel
 
         for seq in seqs:
-            if seq is None or len(seq) == 0:
-                raise Exception('ERROR: something went wrong, empty instance')
-            if len(seq) == 2 and len(seq[1]) > 0:
-                # assume the instance is a pair (header,seq)
-                # and extract only seq
-                seq = seq[1]
             yield self._annotate(seq)
 
     def _annotate(self, seq):
+        seq, weights = self._get_sequence_and_weights(seq)
         # extract per vertex feature representation
-        data_matrix = self._compute_vertex_based_features(seq)
+        data_matrix = self._compute_vertex_based_features(seq, weights)
         # extract importance information
         score, vec = self._annotate_importance(seq, data_matrix)
         # extract list of chars
@@ -350,12 +405,19 @@ class Vectorizer(AbstractVectorizer):
             vec.append(data_matrix.getrow(i))
         return margins, vec
 
-    def _compute_vertex_based_features(self, seq):
+    def _compute_vertex_based_features(self, seq, weights=None):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
         # extract kmer hash codes for all kmers up to r in all positions in seq
         vertex_based_features = []
         seq_len = len(seq)
+        if weights:
+            if len(weights) != seq_len:
+                raise Exception('ERROR: sequence and weights \
+                    must be same length.')
+            neighborhood_weight_cache = \
+                [self._compute_neighborhood_weight(weights, pos)
+                 for pos in range(seq_len)]
         neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
                             for pos in range(seq_len)]
         for pos in range(seq_len):
@@ -365,14 +427,22 @@ class Vectorizer(AbstractVectorizer):
             for radius in range(self.min_r, self.r + 2):
                 if radius < len(neigh_hash_cache[pos]):
                     for distance in range(self.min_d, self.d + 2):
-                        if pos + distance + radius < seq_len:
-                            feature_code = fast_hash_4(neigh_hash_cache[pos][radius],
-                                                       neigh_hash_cache[pos + distance][radius],
-                                                       radius,
-                                                       distance,
-                                                       self.bitmask)
+                        end = pos + distance
+                        if end + radius < seq_len:
+                            feature_code = \
+                                fast_hash_4(neigh_hash_cache[pos][radius],
+                                            neigh_hash_cache[end][radius],
+                                            radius,
+                                            distance,
+                                            self.bitmask)
                             key = fast_hash_2(radius, distance, self.bitmask)
-                            local_features[key][feature_code] += 1
+                            if weights:
+                                local_features[key][feature_code] += \
+                                    neighborhood_weight_cache[pos][radius]
+                                local_features[key][feature_code] += \
+                                    neighborhood_weight_cache[end][radius]
+                            else:
+                                local_features[key][feature_code] += 1
             vertex_based_features.append(self._normalization(local_features))
         data_matrix = self._convert_dict_to_sparse_matrix(vertex_based_features)
         return data_matrix
