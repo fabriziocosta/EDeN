@@ -218,7 +218,7 @@ def compose(iterable, program=None, precondition=precondition,
             postcondition=postcondition, parameters_priors=None):
     """Map iterator over graphs to a graph.
 
-    Example: receive two iterators on corresponding graphs and yield an
+    Example: receive iterator over pairs (or lists) of graphs and yield an
     iterator over a composite graph.
     """
     try:
