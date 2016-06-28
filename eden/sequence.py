@@ -34,6 +34,7 @@ class Vectorizer(AbstractVectorizer):
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
     '  (0, 8188)\\t0.57735026919\\n  (0, 304234)\\t0.57735026919\\n  (0, 431837)\\t0.57735026919\\n  (0, 930612)\\t0.0'
     """
+
     def __init__(self,
                  complexity=None,
                  r=3,
@@ -184,9 +185,9 @@ class Vectorizer(AbstractVectorizer):
         # for all radii up to r
         feature_list = defaultdict(lambda: defaultdict(float))
         for pos in range(seq_len):
-            for radius in range(self.min_r, self.r + 1 + 2):
+            for radius in range(self.min_r, self.r + 1):
                 if radius < len(neigh_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 2):
+                    for distance in range(self.min_d, self.d + 1):
                         end = pos + distance
                         if end + radius < seq_len:
                             feature_code = \
@@ -203,9 +204,12 @@ class Vectorizer(AbstractVectorizer):
                                     neighborhood_weight_cache[end][radius]
                             else:
                                 feature_list[key][feature_code] += 1
-        return self._normalization(feature_list)
+        return self._normalization(feature_list,
+                                   inner_normalization=self.inner_normalization,
+                                   normalization=self.normalization)
 
-    def _normalization(self, feature_list):
+    def _normalization(self, feature_list,
+                       inner_normalization=False, normalization=False):
         # inner normalization per radius-distance
         feature_vector = {}
         for features in feature_list.itervalues():
@@ -215,13 +219,13 @@ class Vectorizer(AbstractVectorizer):
             sqrt_norm = math.sqrt(norm)
             for feature, count in features.iteritems():
                 feature_vector_key = feature
-                if self.inner_normalization:
+                if inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
                     feature_vector_value = count
                 feature_vector[feature_vector_key] = feature_vector_value
         # global normalization
-        if self.normalization:
+        if normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
             for feature, value in feature_vector.iteritems():
@@ -424,9 +428,9 @@ class Vectorizer(AbstractVectorizer):
             # construct features as pairs of kmers up to distance d
             # for all radii up to r
             local_features = defaultdict(lambda: defaultdict(float))
-            for radius in range(self.min_r, self.r + 2):
+            for radius in range(self.min_r, self.r + 1):
                 if radius < len(neigh_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 2):
+                    for distance in range(self.min_d, self.d + 1):
                         end = pos + distance
                         if end + radius < seq_len:
                             feature_code = \
@@ -443,6 +447,8 @@ class Vectorizer(AbstractVectorizer):
                                     neighborhood_weight_cache[end][radius]
                             else:
                                 local_features[key][feature_code] += 1
-            vertex_based_features.append(self._normalization(local_features))
+            vertex_based_features.append(self._normalization(local_features,
+                                                             inner_normalization=False,
+                                                             normalization=self.normalization))
         data_matrix = self._convert_dict_to_sparse_matrix(vertex_based_features)
         return data_matrix
