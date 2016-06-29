@@ -171,3 +171,23 @@ def test_predictprofile():
     )
     run = env.run(call)
     assert "test_predict_profile/profile.txt" in run.files_created
+
+
+def test_predictprofile_with_priors():
+    "Predict nucleotide-wise margins of some sequences."
+    model = "test_predict_profile_with_priors.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir {} --model-file {} --n-iter 1 --kmer-probs {} --kmer-weight 200".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
+        "test_predict_profile_with_priors",
+        model,
+        datadir_rel + "test_graphprot_priors.txt",
+    )
+    env.run(call)
+    call = bindir_rel + script + " -vvv predict_profile --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        "test_predict_profile_with_priors/" + model,
+        "test_predict_profile_with_priors",
+    )
+    run = env.run(call)
+    assert "test_predict_profile_with_priors/profile.txt" in run.files_created
