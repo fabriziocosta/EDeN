@@ -21,7 +21,7 @@ def make_edge_type_into_nesting(graphs, edge_type_key='basepair'):
         yield graph
 
 
-def edge_contraction(graph=None, node_attribute=None,except_symbol=None):
+def edge_contraction(graph=None, node_attribute=None, except_symbol=None):
     g = graph.copy()
     # add a 'contracted' attribute in each node
     for n, d in g.nodes_iter(data=True):
@@ -36,12 +36,12 @@ def edge_contraction(graph=None, node_attribute=None,except_symbol=None):
             g.node[n]['label'] = g.node[n][node_attribute]
             if node_attribute in d and 'position' in d:
                 neighbors = g.neighbors(n)
-                if len(neighbors) > 0 and d[node_attribute]!=except_symbol:
+                if len(neighbors) > 0 and d[node_attribute] != except_symbol:
                     # identify neighbors that have a greater 'position' attribute and that have
                     # the same node_attribute
                     greater_position_neighbors = [v for v in neighbors if 'position' in g.node[v] and
                                                   node_attribute in g.node[v] and
-                                                  g.node[v][node_attribute] == d[node_attribute]  and
+                                                  g.node[v][node_attribute] == d[node_attribute] and
                                                   g.node[v]['position'] > d['position']]
                     if len(greater_position_neighbors) > 0:
                         # contract all neighbors
@@ -149,7 +149,8 @@ def contraction(graphs=None,
             if d.get('position', None) is None:
                 g.node[n]['position'] = i
         # compute contraction
-        g_contracted = edge_contraction(graph=g, node_attribute=contraction_attribute, except_symbol=dont_contract_attribute_symbol)
+        g_contracted = edge_contraction(graph=g, node_attribute=contraction_attribute,
+                                        except_symbol=dont_contract_attribute_symbol)
         info = g_contracted.graph.get('info', '')
         g_contracted.graph['info'] = info + '\n' + serialize_modifiers(modifiers)
         for n, d in g_contracted.nodes_iter(data=True):
