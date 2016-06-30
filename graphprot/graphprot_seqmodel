@@ -103,7 +103,7 @@ class ModelInitializer(ModelInitializerBase):
                 yield id, seq, weights
 
         pre_processor_parameters = {"vp_weight": [1.0],
-                                    "context_weight": [0.0]}
+                                    "context_weight": [sys.float_info.epsilon]}
 
         if (args.priors_file is not None):
             # add k-mer probabilities to parameters
@@ -203,8 +203,7 @@ def main_predict_profile(model_initializer, args):
     g = model.annotate(iterator)
     from itertools import izip
     for (header, seq), (vertices, scores) in izip(iterator_, g):
-        assert(seq == "".join(vertices))
-        assert seq == seq.upper().replace('T', 'U'), "error: pre_processor was not applied. got raw sequence '{}'".format(seq)
+        assert "".join(vertices) == seq.upper().replace('T', 'U'), "error: pre_processor was not applied. got raw sequence '{}'".format(seq)
         for pos, score in enumerate(scores):
             output.append("{}\t{}\t{}\n".format(header, pos, score))
     save_output(text=output, output_dir_path=args.output_dir_path, out_file_name='profile.txt')
