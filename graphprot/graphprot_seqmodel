@@ -204,6 +204,7 @@ def main_predict_profile(model_initializer, args):
     from itertools import izip
     for (header, seq), (vertices, scores) in izip(iterator_, g):
         assert(seq == "".join(vertices))
+        assert seq == seq.upper().replace('T', 'U'), "error: pre_processor was not applied. got raw sequence '{}'".format(seq)
         for pos, score in enumerate(scores):
             output.append("{}\t{}\t{}\n".format(header, pos, score))
     save_output(text=output, output_dir_path=args.output_dir_path, out_file_name='profile.txt')
