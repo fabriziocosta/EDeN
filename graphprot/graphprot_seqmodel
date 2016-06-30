@@ -82,14 +82,16 @@ class ModelInitializer(ModelInitializerBase):
                     # sniff kmer length from first dictionary key
                     kmer_len = len(priorstable.keys()[0])
                     # look up probabilities
-                    for i in range(len(seq)):
+                    for i in range(len(seq) - kmer_len + 1):
                         try:
                             prob = priorstable[seq[i:(i + kmer_len)]]
                         except KeyError:
-                            prob = None
+                            raise Exception("error, no prior assigned to kmer '{}'".format(seq[i:(i + kmer_len)]))
                         priors.append(prob)
-                    # compensate for the fact that the probabilities relate
-                    # to the center positions of the kmers
+                    # fill in values for positions without kmer score
+                    priors += [None] * (kmer_len - 1)
+                    # scores relate to the center positions of the kmers, so
+                    # we shift the values accordingly
                     priors.rotate(int(kmer_len / 2))
                     priors = list(priors)
                     # combine weights and priors
@@ -98,7 +100,7 @@ class ModelInitializer(ModelInitializerBase):
                         if p is not None:
                             comb.append(max(0.0000000001, w - (priors_weight * p)))
                         else:
-                            comb.append(0.0000000001)
+                            comb.append(w)
                     weights = comb
                 yield id, seq, weights
 
