@@ -200,7 +200,7 @@ def main_predict_profile(model_initializer, args):
     logger.info(model.get_parameters())
 
     output = []
-    g = model.get_vectorizer().annotate(iterator, model.get_estimator())
+    g = model.annotate(iterator)
     from itertools import izip
     for (header, seq), (vertices, scores) in izip(iterator_, g):
         assert(seq == "".join(vertices))

@@ -88,6 +88,16 @@ class ActiveLearningBinaryClassificationModel(object):
         data_matrix = self._data_matrix(iterable)
         return self.estimator.predict(data_matrix)
 
+    def annotate(self, iterable):
+        assert(is_iterable(iterable)), 'Not iterable'
+        graphs = mp_pre_process(iterable,
+                                pre_processor=self.pre_processor,
+                                pre_processor_args=self.pre_processor_args,
+                                n_blocks=self.pre_processor_n_blocks,
+                                block_size=self.pre_processor_block_size,
+                                n_jobs=self.pre_processor_n_jobs)
+        return self.vectorizer.annotate(graphs, self.estimator)
+
     def decision_function(self, iterable):
         data_matrix = self._data_matrix(iterable)
         return self.estimator.decision_function(data_matrix)
