@@ -125,7 +125,7 @@ def test_predict():
 
 
 def test_priors_weight_fail_allzero():
-    "Fit model reweighting by priors, set prior weight extra high to produce exclusively zero weights."
+    "Fit model reweighting by priors, set prior weight extra high to produce very low weights."
     # lowest prior is p=0.00031274442646757
     # weights w > 1/p are guaranteed to produce zero weights exclusively (-> 3.179)
     model = "test_priors_weight_fail_allzero.model"
@@ -135,10 +135,7 @@ def test_priors_weight_fail_allzero():
         model,
         datadir_rel + "test_graphprot_priors.txt",
     )
-    run = env.run(
-        call,
-        expect_error=True)
-    assert run.returncode != 0
+    env.run(call)
 
 
 def test_priors_weight():

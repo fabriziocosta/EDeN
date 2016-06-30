@@ -96,14 +96,14 @@ class ModelInitializer(ModelInitializerBase):
                     comb = []
                     for w, p in zip(weights, priors):
                         if p is not None:
-                            comb.append(max(0, w - (priors_weight * p)))
+                            comb.append(max(0.0000000001, w - (priors_weight * p)))
                         else:
-                            comb.append(0)
+                            comb.append(0.0000000001)
                     weights = comb
                 yield id, seq, weights
 
         pre_processor_parameters = {"vp_weight": [1.0],
-                                    "context_weight": [sys.float_info.epsilon]}
+                                    "context_weight": [0.0000000001]}
 
         if (args.priors_file is not None):
             # add k-mer probabilities to parameters
