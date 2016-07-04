@@ -31,6 +31,7 @@ class Vectorizer(AbstractVectorizer):
                  min_d=0,
                  min_n=2,
                  weights_dict=None,
+                 auto_weights=False,
                  label_size=1,
                  nbits=20,
                  normalization=True,
@@ -73,6 +74,10 @@ class Vectorizer(AbstractVectorizer):
 
         weights_dict : dict of floats
             Dictionary with keys pairs of radius distance and value weights.
+
+        auto_weights : bool (default False)
+            Flag to set to 1 the weight of the kernels for r=i, d=i
+            for i in range(complexity)
 
         label_size : int (default 1)
             the number of discretization steps used in the conversion from
@@ -127,6 +132,8 @@ class Vectorizer(AbstractVectorizer):
         self.n = n
         self.min_n = min_n
         self.weights_dict = weights_dict
+        if auto_weights:
+            self.weights_dict = {(i, i): 1 for i in range(complexity)}
         # Note: if the discretization is active then the default label_size
         # should be 5
         self.label_size = label_size
