@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def needleman_wunsh(sequence_a, sequence_b, score_matrix, gap_penalty):
+def needleman_wunsh(sequence_a, sequence_b, score_matrix, gap_penalty=1):
     # initialization
     n = len(sequence_a) + 1
     m = len(sequence_b) + 1
@@ -39,7 +39,7 @@ def is_approx(first, second, tolerance=0.0001):
         return False
 
 
-def trace_back(sequence_a, sequence_b, score_matrix, gap_penalty, needleman_wunsh_matrix):
+def trace_back(sequence_a, sequence_b, score_matrix, needleman_wunsh_matrix, gap_penalty=1):
     alignment_a = ""
     alignment_b = ""
     i = len(sequence_a)

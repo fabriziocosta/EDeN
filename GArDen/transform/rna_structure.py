@@ -81,7 +81,7 @@ def sequence_dotbracket_to_graph(header=None, seq_info=None, seq_struct=None):
 class RandomSequencePermutation(BaseEstimator, TransformerMixin):
     """Permute the order of the nodes in a path graph."""
 
-    def __init__(self, times=None, order=None):
+    def __init__(self, times=1, order=2):
         """Constructor."""
         self.times = times
         self.order = order

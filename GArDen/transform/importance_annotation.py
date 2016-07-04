@@ -13,9 +13,13 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
     """Annotate minimal cycles."""
 
     def __init__(self,
-                 program=None):
+                 program=None,
+                 relabel=False,
+                 reweight=1.0):
         """Construct."""
         self.program = program
+        self.relabel = relabel
+        self.reweight = reweight
         self.vectorizer = Vectorizer()
         self.params_vectorize = dict()
 
@@ -48,8 +52,8 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
             annotated_graphs = self.vectorizer.annotate(
                 graphs,
                 estimator=self.program,
-                reweight=1.0,
-                relabel=False)
+                reweight=self.reweight,
+                relabel=self.relabel)
             for graph in annotated_graphs:
                 yield graph
         except Exception as e:

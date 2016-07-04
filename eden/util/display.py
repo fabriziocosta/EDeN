@@ -157,7 +157,7 @@ def draw_graph(graph,
                 graph_copy.node[u] = {}
             for u, v, d in graph_copy.edges(data=True):
                 graph_copy.edge[u][v] = {}
-            pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gstart=rand")
+            pos = nx.graphviz_layout(graph_copy, prog=prog, args="-Gmode=KK")
         elif layout == "RNA":
             import RNA
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])

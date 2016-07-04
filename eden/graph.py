@@ -525,9 +525,6 @@ class Vectorizer(AbstractVectorizer):
             # only for vertices of type 'node', i.e. not for the 'edge' type
             if d.get('node', False):
                 self._transform_vertex(graph, v, feature_list)
-            # only for vertices of type self.key_nesting
-            # if d.get(self.key_nesting, False):
-            #    self._transform_nesting_vertex(graph, v, feature_list)
         _clean_graph(graph)
         return self._normalization(feature_list)
 
@@ -540,6 +537,9 @@ class Vectorizer(AbstractVectorizer):
                 for vertex_u in node_set:
                     self._transform_vertex_pair(graph, vertex_v, vertex_u,
                                                 distance, feature_list)
+        self._transform_vertex_nesting(graph, vertex_v, feature_list)
+
+    def _transform_vertex_nesting(self, graph, vertex_v, feature_list):
         # find all vertices, if any, that are second point of nesting edge
         endpoints = self._find_second_endpoint_of_nesting_edge(graph, vertex_v)
         for endpoint, connection_weight in endpoints:
@@ -569,48 +569,83 @@ class Vectorizer(AbstractVectorizer):
                 endpoints.append((vertices[0], connection_weight))
         return endpoints
 
-    def _transform_vertex_pair(self, graph, vertex_v, vertex_u,
-                               distance, feature_list, connection_weight=1):
+    def _transform_vertex_pair(self,
+                               graph,
+                               vertex_v,
+                               vertex_u,
+                               distance,
+                               feature_list,
+                               connection_weight=1):
+        cw = connection_weight
         # for all radii
         for radius in range(self.min_r * 2, (self.r + 1) * 2, 2):
-            for label_index in range(graph.graph['label_size']):
-                if radius < len(
-                    graph.node[vertex_v]['neigh_graph_hash'][label_index]) \
-                    and radius < len(
-                        graph.node[vertex_u]['neigh_graph_hash'][label_index]):
-                    # feature as a pair of neighborhoods at a radius,distance
-                    # canonicalization of pair of neighborhoods
-                    vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
-                    vertex_v_hash = vertex_v_labels[label_index][radius]
-                    vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
-                    vertex_u_hash = vertex_u_labels[label_index][radius]
-                    if vertex_v_hash < vertex_u_hash:
-                        first_hash, second_hash = (vertex_v_hash,
-                                                   vertex_u_hash)
-                    else:
-                        first_hash, second_hash = (vertex_u_hash,
-                                                   vertex_v_hash)
-                    feature = fast_hash_4(first_hash, second_hash,
-                                          radius, distance, self.bitmask)
-                    # half features are those that ignore the central vertex v
-                    # the reason to have those is to help model the context
-                    # independently from the identity of the vertex itself
-                    half_feature = fast_hash_3(vertex_u_hash,
-                                               radius, distance, self.bitmask)
-                    # Note: to be compatible with external radius, distance
-                    # we need to revert to r/2 and d/2
-                    key = (radius / 2, distance / 2)
-                    if graph.graph.get('weighted', False) is False:
-                        feature_list[key][feature] += connection_weight
-                        feature_list[key][half_feature] += connection_weight
-                    else:
-                        weight_v = graph.node[vertex_v]['neigh_graph_weight']
-                        weight_u = graph.node[vertex_u]['neigh_graph_weight']
-                        weight_vu_radius = weight_v[radius] + weight_u[radius]
-                        val = connection_weight * weight_vu_radius
-                        feature_list[key][feature] += val
-                        half_val = connection_weight * weight_u[radius]
-                        feature_list[key][half_feature] += half_val
+            # Note: to be compatible with external radius, distance
+            # we need to revert to r/2 and d/2
+            radius_dist_key = (radius / 2, distance / 2)
+            if self.weights_dict is not None:
+                # if non null weight
+                if self.weights_dict.get(radius_dist_key, 0) != 0:
+                    self._transform_vertex_pair_valid(graph,
+                                                      vertex_v,
+                                                      vertex_u,
+                                                      radius,
+                                                      distance,
+                                                      feature_list,
+                                                      connection_weight=cw)
+            else:
+                # if there is no notion of weights
+                self._transform_vertex_pair_valid(graph,
+                                                  vertex_v,
+                                                  vertex_u,
+                                                  radius,
+                                                  distance,
+                                                  feature_list,
+                                                  connection_weight=cw)
+
+    def _transform_vertex_pair_valid(self,
+                                     graph,
+                                     vertex_v,
+                                     vertex_u,
+                                     radius,
+                                     distance,
+                                     feature_list,
+                                     connection_weight=1):
+        cw = connection_weight
+        # we need to revert to r/2 and d/2
+        radius_dist_key = (radius / 2, distance / 2)
+        # reweight using external weight dictionary
+        for label_index in range(graph.graph['label_size']):
+            len_v = len(graph.node[vertex_v]['neigh_graph_hash'][label_index])
+            len_u = len(graph.node[vertex_u]['neigh_graph_hash'][label_index])
+            if radius < len_v and radius < len_u:
+                # feature as a pair of neighborhoods at a radius,distance
+                # canonicalization of pair of neighborhoods
+                vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
+                vertex_v_hash = vertex_v_labels[label_index][radius]
+                vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
+                vertex_u_hash = vertex_u_labels[label_index][radius]
+                if vertex_v_hash < vertex_u_hash:
+                    first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
+                else:
+                    first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
+                feature = fast_hash_4(
+                    first_hash, second_hash, radius, distance, self.bitmask)
+                # half features are those that ignore the central vertex v
+                # the reason to have those is to help model the context
+                # independently from the identity of the vertex itself
+                half_feature = fast_hash_3(vertex_u_hash,
+                                           radius, distance, self.bitmask)
+                if graph.graph.get('weighted', False) is False:
+                    feature_list[radius_dist_key][feature] += cw
+                    feature_list[radius_dist_key][half_feature] += cw
+                else:
+                    weight_v = graph.node[vertex_v]['neigh_graph_weight']
+                    weight_u = graph.node[vertex_u]['neigh_graph_weight']
+                    weight_vu_radius = weight_v[radius] + weight_u[radius]
+                    val = cw * weight_vu_radius
+                    feature_list[radius_dist_key][feature] += val
+                    half_val = cw * weight_u[radius]
+                    feature_list[radius_dist_key][half_feature] += half_val
 
     def _normalization(self, feature_list):
         # inner normalization per radius-distance
@@ -835,18 +870,10 @@ class Vectorizer(AbstractVectorizer):
             if d.get('node', False):
                 # annotate 'vector' information
                 row = data_matrix.getrow(vertex_id)
+                graph.node[v]['features'] = row
                 vec_dict = {str(index): value
                             for index, value in zip(row.indices, row.data)}
-                # if an original label does not exist then save it, else do
-                # nothing and preserve the information in original label
-                if graph.node[v].get(self.key_original_label, False) is False:
-                    graph.node[v][self.key_original_label] = \
-                        graph.node[v][self.key_label]
-                graph.node[v][self.key_label] = vec_dict
-                # if a node does not have a 'entity' attribute then assign one
-                # called 'vector' by default
-                if graph.node[v].get(self.key_entity, False) is False:
-                    graph.node[v][self.key_entity] = 'vector'
+                graph.node[v]['vector'] = vec_dict
                 vertex_id += 1
         return graph
 
@@ -861,7 +888,8 @@ class Vectorizer(AbstractVectorizer):
         else:
             if self.estimator.__class__.__name__ in ['SGDRegressor']:
                 predicted_score = self.estimator.predict(data_matrix)
-                predictions = np.array([1 if v >= 0 else -1 for v in predicted_score])
+                predictions = np.array([1 if v >= 0 else -1
+                                        for v in predicted_score])
             else:
                 predicted_score = self.estimator.decision_function(data_matrix)
                 predictions = self.estimator.predict(data_matrix)
@@ -951,7 +979,9 @@ def _label_preprocessing(graph, label_size=1,
             is_list = isinstance(d[key_label], list)
             is_dict = isinstance(d[key_label], dict)
             if is_list or is_dict:
-                node_entity, data = _extract_entity_and_label(d, key_entity, key_label)
+                node_entity, data = _extract_entity_and_label(d,
+                                                              key_entity,
+                                                              key_label)
                 if isinstance(d[key_label], list):
                     data = np.array(data, dtype=np.float64).reshape(1, -1)
                 if isinstance(d[key_label], dict):
