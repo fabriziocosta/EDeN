@@ -286,8 +286,8 @@ def describe(data_matrix):
 
 
 def iterator_size(iterable):
-    iterable, iterable_ = tee(iterable)
-    return sum(1 for x in iterable_)
+    size = sum(1 for _ in iterable)
+    return size
 
 
 def random_bipartition(int_range, relative_size=.7, random_state=1):
