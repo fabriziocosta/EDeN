@@ -5,6 +5,7 @@ import multiprocessing as mp
 import requests
 import os
 import sys
+from collections import deque
 from sklearn.linear_model import SGDClassifier
 from sklearn.grid_search import RandomizedSearchCV
 from sklearn import cross_validation
@@ -286,8 +287,15 @@ def describe(data_matrix):
 
 
 def iterator_size(iterable):
-    size = sum(1 for _ in iterable)
-    return size
+    """Length of an iterator."""
+    if hasattr(iterable, '__len__'):
+        return len(iterable)
+
+    d = deque(enumerate(iterable, 1), maxlen=1)
+    if d:
+        return d[0][0]
+    else:
+        return 0
 
 
 def random_bipartition(int_range, relative_size=.7, random_state=1):
