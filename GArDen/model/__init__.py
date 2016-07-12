@@ -9,9 +9,12 @@ import numpy as np
 from itertools import tee, izip
 from sklearn.neighbors import NearestNeighbors
 from sklearn.linear_model import SGDClassifier, SGDRegressor
+from sklearn.calibration import CalibratedClassifierCV
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 # ------------------------------------------------------------------------------
 
@@ -73,6 +76,7 @@ class TransformerWrapper(BaseEstimator, ClassifierMixin):
 
     def _transform(self, graph):
         return graph
+
 
 # ------------------------------------------------------------------------------
 
@@ -243,8 +247,80 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
         y = np.ravel(y)
         return y
 
+
 # ------------------------------------------------------------------------------
 
+class OneClassClassifierWrapper(ClassifierWrapper):
+    """Classifier."""
+
+    def __init__(self,
+                 program=SGDClassifier(average=True,
+                                       class_weight='balanced',
+                                       shuffle=True),
+                 nu=0.5):
+        """Construct."""
+        super(OneClassClassifierWrapper, self).__init__(program)
+        self.nu = nu
+
+    def fit(self, graphs):
+        """fit."""
+        try:
+
+            # make matrix
+            data_matrix = vectorize(graphs,
+                                    vectorizer=self.vectorizer,
+                                    **self.params_vectorize)
+            data_matrix_neg = data_matrix.multiply(-1)
+            data_matrix_both = vstack([data_matrix, data_matrix_neg], format="csr")
+            # make labels
+            length = data_matrix.shape[0]
+            y = [-1] * length + [1] * length
+            y = np.ravel(y)
+            # fit:
+            estimator = self.program.fit(data_matrix_both, y)
+            # moving intercept:
+            # this is an obvious possible performance issue
+            score_vector_pairs = [(estimator.decision_function(sparse_vector)[0], sparse_vector)
+                                  for sparse_vector in data_matrix]
+            score_vector_pairs.sort(key=lambda x: x[0])
+            pivot = int(len(score_vector_pairs) * self.nu)
+            estimator.intercept_ -= score_vector_pairs[pivot][0]
+            # calibration:
+            data_matrix_binary = vstack([a[1] for a in score_vector_pairs])
+            data_y = np.asarray([0] * pivot + [1] * (len(score_vector_pairs) - pivot))
+            self.program = CalibratedClassifierCV(estimator, method='sigmoid')
+            self.program.fit(data_matrix_binary, data_y)
+            return self
+
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def predict(self, graphs):
+        """predict.
+        only overwrite is this:
+        decision_function -> predict_proba
+
+        graph.graph['score'] will be a (len 2) list
+        """
+        try:
+            graphs, graphs_ = tee(graphs)
+            data_matrix = vectorize(graphs_,
+                                    vectorizer=self.vectorizer,
+                                    **self.params_vectorize)
+            predictions = self.program.predict(data_matrix)
+            # scores = self.program.decision_function(data_matrix)
+            scores = self.program.predict_proba(data_matrix)
+            for score, prediction, graph in izip(scores, predictions, graphs):
+                graph.graph['prediction'] = prediction
+                graph.graph['score'] = score
+                yield graph
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+
+# ------------------------------------------------------------------------------
 
 class RegressorWrapper(BaseEstimator, RegressorMixin):
     """Regressor."""
