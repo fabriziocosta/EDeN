@@ -42,7 +42,7 @@ class Vectorizer(AbstractVectorizer):
                  min_r=0,
                  min_d=0,
                  weights_dict=None,
-                 auto_weights=False,
+                 auto_weights=True,
                  nbits=20,
                  normalization=True,
                  inner_normalization=True):
@@ -69,7 +69,7 @@ class Vectorizer(AbstractVectorizer):
         weights_dict : dict of floats
             Dictionary with keys pairs of radius distance and value weights.
 
-        auto_weights : bool (default False)
+        auto_weights : bool (default True)
             Flag to set to 1 the weight of the kernels for r=i, d=i
             for i in range(complexity)
 
