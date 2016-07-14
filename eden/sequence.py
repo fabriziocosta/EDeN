@@ -41,6 +41,8 @@ class Vectorizer(AbstractVectorizer):
                  d=3,
                  min_r=0,
                  min_d=0,
+                 weights_dict=None,
+                 auto_weights=False,
                  nbits=20,
                  normalization=True,
                  inner_normalization=True):
@@ -64,6 +66,13 @@ class Vectorizer(AbstractVectorizer):
         min_d : int
             The minimal distance size.
 
+        weights_dict : dict of floats
+            Dictionary with keys pairs of radius distance and value weights.
+
+        auto_weights : bool (default False)
+            Flag to set to 1 the weight of the kernels for r=i, d=i
+            for i in range(complexity)
+
         nbits : int (default 20)
             The number of bits that defines the feature space size:
             |feature space|=2^nbits.
@@ -86,6 +95,9 @@ class Vectorizer(AbstractVectorizer):
             self.d = d
         self.min_r = min_r
         self.min_d = min_d
+        self.weights_dict = weights_dict
+        if auto_weights:
+            self.weights_dict = {(i, i): 1 for i in range(complexity)}
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -162,13 +174,14 @@ class Vectorizer(AbstractVectorizer):
             # assume the instance is a pair (header,seq) and extract only seq
             return seq[1], None
         elif isinstance(seq, tuple) and len(seq) == 3 and len(seq[1]) > 0:
-            # assume the instance is a triple (header,seq,weightlist) and extract only seq
+            # assume the instance is a triple (header,seq,weightlist)
+            # and extract only seq
             return seq[1], seq[2]
         else:
             raise Exception('ERROR: something went wrong,\
              unrecognized input type for: %s' % seq)
 
-    def _transform(self, orig_seq):
+    def _transform_bkp(self, orig_seq):
         seq, weights = self._get_sequence_and_weights(orig_seq)
         # extract kmer hash codes for all kmers up to r in all positions in seq
         seq_len = len(seq)
@@ -207,6 +220,63 @@ class Vectorizer(AbstractVectorizer):
         return self._normalization(feature_list,
                                    inner_normalization=self.inner_normalization,
                                    normalization=self.normalization)
+
+    def _transform(self, orig_seq):
+        seq, weights = self._get_sequence_and_weights(orig_seq)
+        # extract kmer hash codes for all kmers up to r in all positions in seq
+        seq_len = len(seq)
+        neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
+                            for pos in range(seq_len)]
+        neighborhood_weight_cache = None
+        if weights:
+            if len(weights) != seq_len:
+                raise Exception('ERROR: sequence and weights \
+                    must be same length.')
+            neighborhood_weight_cache = \
+                [self._compute_neighborhood_weight(weights, pos)
+                 for pos in range(seq_len)]
+        # construct features as pairs of kmers up to distance d
+        # for all radii up to r
+        feature_list = defaultdict(lambda: defaultdict(float))
+        for pos in range(seq_len):
+            for radius in range(self.min_r, self.r + 1):
+                if radius < len(neigh_hash_cache[pos]):
+                    self._transform_distance(feature_list,
+                                             pos,
+                                             radius,
+                                             seq_len,
+                                             neigh_hash_cache,
+                                             neighborhood_weight_cache)
+        return self._normalization(feature_list,
+                                   inner_normalization=self.inner_normalization,
+                                   normalization=self.normalization)
+
+    def _transform_distance(self,
+                            feature_list,
+                            pos,
+                            radius,
+                            seq_len,
+                            neigh_hash_cache,
+                            neighborhood_weight_cache):
+        for distance in range(self.min_d, self.d + 1):
+            end = pos + distance
+            if self.weights_dict is None or \
+                    self.weights_dict.get((radius, distance), 0) != 0:
+                if end + radius < seq_len:
+                    feature_code = \
+                        fast_hash_4(neigh_hash_cache[pos][radius],
+                                    neigh_hash_cache[end][radius],
+                                    radius,
+                                    distance,
+                                    self.bitmask)
+                    key = fast_hash_2(radius, distance, self.bitmask)
+                    if neighborhood_weight_cache:
+                        feature_list[key][feature_code] += \
+                            neighborhood_weight_cache[pos][radius]
+                        feature_list[key][feature_code] += \
+                            neighborhood_weight_cache[end][radius]
+                    else:
+                        feature_list[key][feature_code] += 1
 
     def _normalization(self, feature_list,
                        inner_normalization=False, normalization=False):

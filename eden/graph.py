@@ -589,18 +589,8 @@ class Vectorizer(AbstractVectorizer):
             # Note: to be compatible with external radius, distance
             # we need to revert to r/2 and d/2
             radius_dist_key = (radius / 2, distance / 2)
-            if self.weights_dict is not None:
-                # if non null weight
-                if self.weights_dict.get(radius_dist_key, 0) != 0:
-                    self._transform_vertex_pair_valid(graph,
-                                                      vertex_v,
-                                                      vertex_u,
-                                                      radius,
-                                                      distance,
-                                                      feature_list,
-                                                      connection_weight=cw)
-            else:
-                # if there is no notion of weights
+            if self.weights_dict is None or \
+                    self.weights_dict.get(radius_dist_key, 0) != 0:
                 self._transform_vertex_pair_valid(graph,
                                                   vertex_v,
                                                   vertex_u,

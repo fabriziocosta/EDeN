@@ -435,6 +435,8 @@ class PathGraphToRNAPlfold(BaseEstimator, TransformerMixin):
                     len(graph.edges(dest)) >= self.max_num_edges:
                 pass
             else:
+                graph.node[source]['paired'] = True
+                graph.node[dest]['paired'] = True
                 if self.nesting:
                     if avg_prob >= self.hard_threshold:
                         graph.add_edge(source, dest,
