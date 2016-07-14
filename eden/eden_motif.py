@@ -171,7 +171,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         self.pos_block_size = pos_block_size
         self.neg_block_size = neg_block_size
         self.n_jobs = n_jobs
-        self.vectorizer = Vectorizer(complexity=complexity)
+        self.vectorizer = Vectorizer(complexity=complexity, auto_weights=True, nbits=15)
         self.estimator = estimator
         self.clusterer = clusterer
 
