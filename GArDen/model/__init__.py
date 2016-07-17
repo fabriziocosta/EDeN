@@ -279,17 +279,17 @@ class OneClassClassifierWrapper(ClassifierWrapper):
             # fit:
             estimator = self.program.fit(data_matrix_both, y)
             # moving intercept:
-            # this is an obvious possible performance issue
-            score_vector_pairs = [(estimator.decision_function(sparse_vector)[0], sparse_vector)
-                                  for sparse_vector in data_matrix]
-            score_vector_pairs.sort(key=lambda x: x[0])
-            pivot = int(len(score_vector_pairs) * self.nu)
-            estimator.intercept_ -= score_vector_pairs[pivot][0]
+
+            scores = [estimator.decision_function(sparse_vector)[0]
+                      for sparse_vector in data_matrix]
+            scores_sorted = sorted(scores)
+            pivot = scores_sorted[int(len(scores_sorted) * self.nu)]
+            estimator.intercept_ -= pivot
+
             # calibration:
-            data_matrix_binary = vstack([a[1] for a in score_vector_pairs])
-            data_y = np.asarray([0] * pivot + [1] * (len(score_vector_pairs) - pivot))
+            data_y = np.asarray([1 if score >= pivot else -1 for score in scores])
             self.program = CalibratedClassifierCV(estimator, method='sigmoid')
-            self.program.fit(data_matrix_binary, data_y)
+            self.program.fit(data_matrix, data_y)
             return self
 
         except Exception as e:
