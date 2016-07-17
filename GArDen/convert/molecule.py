@@ -140,7 +140,7 @@ def set_coordinates(chemlist):
             m.UpdatePropertyCache(strict=False)
             tmp = AllChem.Compute2DCoords(m)
         else:
-            print '''set coordinates failed..'''
+            raise Exception('''set coordinates failed..''')
 
 
 def get_smiles_strings(graphs):
@@ -151,7 +151,7 @@ def get_smiles_strings(graphs):
 def draw(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
     # we want a list of graphs
     if isinstance(graphs, nx.Graph):
-        print "give me a list of graphs"
+        raise Exception("give me a list of graphs")
     # make molecule objects
     compounds = map(nx_to_rdkit, graphs)
     # print compounds
