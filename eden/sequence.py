@@ -181,46 +181,6 @@ class Vectorizer(AbstractVectorizer):
             raise Exception('ERROR: something went wrong,\
              unrecognized input type for: %s' % seq)
 
-    def _transform_bkp(self, orig_seq):
-        seq, weights = self._get_sequence_and_weights(orig_seq)
-        # extract kmer hash codes for all kmers up to r in all positions in seq
-        seq_len = len(seq)
-        neigh_hash_cache = [self._compute_neighborhood_hash(seq, pos)
-                            for pos in range(seq_len)]
-        if weights:
-            if len(weights) != seq_len:
-                raise Exception('ERROR: sequence and weights \
-                    must be same length.')
-            neighborhood_weight_cache = \
-                [self._compute_neighborhood_weight(weights, pos)
-                 for pos in range(seq_len)]
-        # construct features as pairs of kmers up to distance d
-        # for all radii up to r
-        feature_list = defaultdict(lambda: defaultdict(float))
-        for pos in range(seq_len):
-            for radius in range(self.min_r, self.r + 1):
-                if radius < len(neigh_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 1):
-                        end = pos + distance
-                        if end + radius < seq_len:
-                            feature_code = \
-                                fast_hash_4(neigh_hash_cache[pos][radius],
-                                            neigh_hash_cache[end][radius],
-                                            radius,
-                                            distance,
-                                            self.bitmask)
-                            key = fast_hash_2(radius, distance, self.bitmask)
-                            if weights:
-                                feature_list[key][feature_code] += \
-                                    neighborhood_weight_cache[pos][radius]
-                                feature_list[key][feature_code] += \
-                                    neighborhood_weight_cache[end][radius]
-                            else:
-                                feature_list[key][feature_code] += 1
-        return self._normalization(feature_list,
-                                   inner_normalization=self.inner_normalization,
-                                   normalization=self.normalization)
-
     def _transform(self, orig_seq):
         seq, weights = self._get_sequence_and_weights(orig_seq)
         # extract kmer hash codes for all kmers up to r in all positions in seq
@@ -247,34 +207,41 @@ class Vectorizer(AbstractVectorizer):
                                              seq_len,
                                              neigh_hash_cache,
                                              neighborhood_weight_cache)
-        return self._normalization(feature_list,
-                                   inner_normalization=self.inner_normalization,
-                                   normalization=self.normalization)
+        return self._normalization(
+            feature_list,
+            inner_normalization=self.inner_normalization,
+            normalization=self.normalization)
 
     def _transform_distance(self,
-                            feature_list,
-                            pos,
-                            radius,
-                            seq_len,
-                            neigh_hash_cache,
-                            neighborhood_weight_cache):
-        for distance in range(self.min_d, self.d + 1):
+                            feature_list=None,
+                            pos=None,
+                            radius=None,
+                            seq_len=None,
+                            neigh_hash_cache=None,
+                            neighborhood_weight_cache=None):
+        distances = range(self.min_d, self.d + 1)
+        distances += range(-self.d, -self.min_d)
+        for distance in distances:
             end = pos + distance
-            if self.weights_dict is None or \
-                    self.weights_dict.get((radius, distance), 0) != 0:
-                if end + radius < seq_len:
-                    feature_code = \
-                        fast_hash_4(neigh_hash_cache[pos][radius],
-                                    neigh_hash_cache[end][radius],
-                                    radius,
-                                    distance,
-                                    self.bitmask)
+            # Note: after having computed pos, we now treat
+            # distance as the positive value only
+            distance = abs(distance)
+            cond1 = self.weights_dict is None
+            if cond1 or self.weights_dict.get((radius, distance), 0) != 0:
+                if end >= 0 and end + radius < seq_len:
+                    pfeat = neigh_hash_cache[pos][radius]
+                    efeat = neigh_hash_cache[end][radius]
+                    feature_code = fast_hash_4(pfeat,
+                                               efeat,
+                                               radius,
+                                               distance,
+                                               self.bitmask)
                     key = fast_hash_2(radius, distance, self.bitmask)
                     if neighborhood_weight_cache:
-                        feature_list[key][feature_code] += \
-                            neighborhood_weight_cache[pos][radius]
-                        feature_list[key][feature_code] += \
-                            neighborhood_weight_cache[end][radius]
+                        pw = neighborhood_weight_cache[pos][radius]
+                        feature_list[key][feature_code] += pw
+                        ew = neighborhood_weight_cache[end][radius]
+                        feature_list[key][feature_code] += ew
                     else:
                         feature_list[key][feature_code] += 1
 
@@ -476,8 +443,9 @@ class Vectorizer(AbstractVectorizer):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
         # extract kmer hash codes for all kmers up to r in all positions in seq
-        vertex_based_features = []
+        vertex_features = []
         seq_len = len(seq)
+        neighborhood_weight_cache = None
         if weights:
             if len(weights) != seq_len:
                 raise Exception('ERROR: sequence and weights \
@@ -493,25 +461,24 @@ class Vectorizer(AbstractVectorizer):
             local_features = defaultdict(lambda: defaultdict(float))
             for radius in range(self.min_r, self.r + 1):
                 if radius < len(neigh_hash_cache[pos]):
-                    for distance in range(self.min_d, self.d + 1):
-                        end = pos + distance
-                        if end + radius < seq_len:
-                            feature_code = \
-                                fast_hash_4(neigh_hash_cache[pos][radius],
-                                            neigh_hash_cache[end][radius],
-                                            radius,
-                                            distance,
-                                            self.bitmask)
-                            key = fast_hash_2(radius, distance, self.bitmask)
-                            if weights:
-                                local_features[key][feature_code] += \
-                                    neighborhood_weight_cache[pos][radius]
-                                local_features[key][feature_code] += \
-                                    neighborhood_weight_cache[end][radius]
-                            else:
-                                local_features[key][feature_code] += 1
-            vertex_based_features.append(self._normalization(local_features,
-                                                             inner_normalization=False,
-                                                             normalization=self.normalization))
-        data_matrix = self._convert_dict_to_sparse_matrix(vertex_based_features)
+                    self._transform_distance(local_features,
+                                             pos,
+                                             radius,
+                                             seq_len,
+                                             neigh_hash_cache,
+                                             neighborhood_weight_cache)
+                    # Note: we must consider also kmers that are on
+                    # the left of pos
+                    if pos - radius >= 0:
+                        self._transform_distance(local_features,
+                                                 pos - radius,
+                                                 radius,
+                                                 seq_len,
+                                                 neigh_hash_cache,
+                                                 neighborhood_weight_cache)
+            vertex_features.append(self._normalization(
+                local_features,
+                inner_normalization=False,
+                normalization=self.normalization))
+        data_matrix = self._convert_dict_to_sparse_matrix(vertex_features)
         return data_matrix
