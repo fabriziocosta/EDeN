@@ -392,9 +392,9 @@ class Vectorizer(AbstractVectorizer):
         >>> from eden.util import fit
         >>> vectorizer = Vectorizer(r=1, d=1)
         >>> estimator=fit(pos, neg, vectorizer)
-        >>> weighttups_A = [('IDA', 'HAM', [1,1,1])]
-        >>> weighttups_B = [('IDB', 'HAM', [2,2,2])]
-        >>> weighttups_C = [('IDC', 'HAM', [1,2,3])]
+        >>> weighttups_A = [('IDA', 'BAM', [1,1,1])]
+        >>> weighttups_B = [('IDB', 'BAM', [2,2,2])]
+        >>> weighttups_C = [('IDC', 'BAM', [1,2,3])]
         >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
         >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
         >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
@@ -403,7 +403,7 @@ class Vectorizer(AbstractVectorizer):
         [True, True, True]
         >>> # annotation should differ
         >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
-        [True, False, True]
+        [True, False, False]
         """
         self.estimator = estimator
         self.relabel = relabel
