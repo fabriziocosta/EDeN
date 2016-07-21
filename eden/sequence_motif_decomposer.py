@@ -30,7 +30,7 @@ from corebio.seq import Alphabet, SeqList
 import weblogolib as wbl
 from scipy.cluster.hierarchy import linkage
 from collections import Counter
-from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn import metrics
 
 
 logger = logging.getLogger(__name__)
@@ -136,6 +136,61 @@ def multiprocess_fit(pos_iterable, neg_iterable,
     return estimator
 
 
+def multiprocess_performance(pos_iterable, neg_iterable,
+                             vectorizer=None,
+                             estimator=None,
+                             pos_block_size=100,
+                             neg_block_size=100,
+                             n_jobs=-1):
+    """multiprocess_performance."""
+    start_time = time.time()
+    if n_jobs == -1:
+        pool = mp.Pool()
+    else:
+        pool = mp.Pool(n_jobs)
+
+    pos_results = [apply_async(
+        pool, serial_pre_process,
+        args=(seqs, vectorizer))
+        for seqs in chunks(pos_iterable, pos_block_size)]
+    neg_results = [apply_async(
+        pool, serial_pre_process,
+        args=(seqs, vectorizer))
+        for seqs in chunks(neg_iterable, neg_block_size)]
+    logging.debug('Setup %.2f secs' % (time.time() - start_time))
+    logging.debug('Performance evaluation')
+
+    start_time = time.time()
+    preds = []
+    binary_preds = []
+    true_targets = []
+    for i, (p, n) in enumerate(izip(pos_results, neg_results)):
+        loc_start_time = time.time()
+        pos_data_matrix = p.get()
+        y = [1] * pos_data_matrix.shape[0]
+        neg_data_matrix = n.get()
+        y += [-1] * neg_data_matrix.shape[0]
+        y = np.array(y)
+        true_targets.append(y)
+        data_matrix = vstack([pos_data_matrix, neg_data_matrix])
+        pred = estimator.decision_function(data_matrix)
+        preds.append(pred)
+        binary_pred = estimator.predict(data_matrix)
+        binary_preds.append(binary_pred)
+        d_time = time.time() - start_time
+        d_loc_time = time.time() - loc_start_time
+        size = pos_data_matrix.shape
+        logging.debug('%d %s (%.2f secs) (delta: %.2f)' %
+                      (i, size, d_time, d_loc_time))
+
+    pool.close()
+    pool.join()
+    preds = np.hstack(preds)
+    binary_preds = np.hstack(binary_preds)
+    true_targets = np.hstack(true_targets)
+    return preds, binary_preds, true_targets
+
+
 def serial_subarray(iterable,
                     vectorizer=None,
                     estimator=None,
@@ -144,13 +199,21 @@ def serial_subarray(iterable,
     """serial_subarray."""
     annotated_seqs = vectorizer.annotate(iterable, estimator=estimator)
     subarrays_items = []
-    for seq, score in annotated_seqs:
+    for (orig_header, orig_seq), (seq, score) in zip(iterable, annotated_seqs):
         subarrays = compute_max_subarrays_sequence(
             seq=seq, score=score,
             min_subarray_size=min_subarray_size,
             max_subarray_size=max_subarray_size,
-            margin=1)
-        subseqs = [subarray['subarray_string'] for subarray in subarrays]
+            margin=1,
+            output='all')
+        subseqs = []
+        for subarray in subarrays:
+            seq = subarray['subarray_string']
+            begin = subarray['begin']
+            end = subarray['end']
+            header = orig_header + '*%d:%d' % (begin, end)
+            subseq = (header, seq)
+            subseqs.append(subseq)
         subarrays_items += subseqs
     return subarrays_items
 
@@ -450,17 +513,46 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                                      nbits=15)
         self.estimator = estimator
         self.clusterer = clusterer
+        self.clusterer_is_fit = False
 
     def fit(self, pos_seqs=None, neg_seqs=None):
         """fit."""
         try:
-            self.model = multiprocess_fit(pos_seqs, neg_seqs,
-                                          vectorizer=self.vectorizer,
-                                          estimator=self.estimator,
-                                          pos_block_size=self.pos_block_size,
-                                          neg_block_size=self.neg_block_size,
-                                          n_jobs=self.n_jobs)
+            self.estimator = multiprocess_fit(
+                pos_seqs, neg_seqs,
+                vectorizer=self.vectorizer,
+                estimator=self.estimator,
+                pos_block_size=self.pos_block_size,
+                neg_block_size=self.neg_block_size,
+                n_jobs=self.n_jobs)
             return self
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def performance(self, pos_seqs=None, neg_seqs=None):
+        """performance."""
+        try:
+            y_pred, y_binary, y_test = multiprocess_performance(
+                pos_seqs, neg_seqs,
+                vectorizer=self.vectorizer,
+                estimator=self.estimator,
+                pos_block_size=self.pos_block_size,
+                neg_block_size=self.neg_block_size,
+                n_jobs=self.n_jobs)
+            # confusion matrix
+            cm = metrics.confusion_matrix(y_test, y_binary)
+            np.set_printoptions(precision=2)
+            logger.info('Confusion matrix:')
+            logger.info(cm)
+
+            # classification
+            logger.info('Classification:')
+            logger.info(metrics.classification_report(y_test, y_binary))
+
+            # roc
+            logger.info('ROC: %.3f' % (metrics.roc_auc_score(y_test, y_pred)))
+
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
@@ -471,7 +563,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             subarrays_items = multiprocess_subarray(
                 pos_seqs,
                 vectorizer=self.vectorizer,
-                estimator=self.model,
+                estimator=self.estimator,
                 min_subarray_size=self.min_subarray_size,
                 max_subarray_size=self.max_subarray_size,
                 block_size=self.pos_block_size,
@@ -485,7 +577,11 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             logging.debug('Clustering')
             start_time = time.time()
             self.clusterer.set_params(n_clusters=self.n_clusters)
-            preds = self.clusterer.fit_predict(data_matrix)
+            if self.clusterer_is_fit:
+                preds = self.clusterer.predict(data_matrix)
+            else:
+                preds = self.clusterer.fit_predict(data_matrix)
+                self.clusterer_is_fit = True
             dtime = time.time() - start_time
             logger.debug('...done  in %.2f secs' % (dtime))
 
@@ -515,12 +611,17 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         sep = ' ' * (complexity * 2)
         # join all sequences in a cluster with enough space that
         # kmers dont interfere
-        cluster_seqs = [sep.join(clusters[cluster_id])
-                        for cluster_id in clusters
-                        if len(clusters[cluster_id]) > 0]
+        cluster_seqs = []
+        for cluster_id in clusters:
+            if len(clusters[cluster_id]) > 0:
+                seqs = [s for h, s in clusters[cluster_id]]
+                seq = sep.join(seqs)
+                cluster_seqs.append(seq)
+
         # vectorize the seqs and compute their gram matrix K
         cluster_vecs = Vectorizer(complexity).transform(cluster_seqs)
-        gram_matrix = pairwise_kernels(cluster_vecs, metric='linear')
+        gram_matrix = metrics.pairwise.pairwise_kernels(
+            cluster_vecs, metric='linear')
         c = linkage(gram_matrix, method='single')
         orders = []
         for id1, id2 in c[:, 0:2]:
@@ -530,10 +631,10 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 orders.append(int(id2))
         return orders
 
-    def _compute_most_freq_seq(self, aseqs):
+    def _compute_most_freq_seq(self, align_seqs):
         cluster = []
-        for h, aseq in aseqs:
-            str_list = [c for c in aseq]
+        for h, align_seq in align_seqs:
+            str_list = [c for c in align_seq]
             concat_str = np.array(str_list, dtype=np.dtype('a'))
             cluster.append(concat_str)
         cluster = np.vstack(cluster)
@@ -544,11 +645,11 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             seq += k[0][0]
         return seq
 
-    def _compute_score(self, aseqs, min_freq=0.8):
-        dim = len(aseqs)
+    def _compute_score(self, align_seqs, min_freq=0.8):
+        dim = len(align_seqs)
         cluster = []
-        for h, aseq in aseqs:
-            str_list = [c for c in aseq]
+        for h, align_seq in align_seqs:
+            str_list = [c for c in align_seq]
             concat_str = np.array(str_list, dtype=np.dtype('a'))
             cluster.append(concat_str)
         cluster = np.vstack(cluster)
@@ -564,12 +665,12 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 val = k[0][1]
             if float(val) / dim >= min_freq:
                 score += 1
-        trimmed_aseqs = []
-        for h, aseq in aseqs:
-            trimmed_aseq = [a for i, a in enumerate(aseq)
-                            if i not in to_be_removed]
-            trimmed_aseqs.append(('ID', ''.join(trimmed_aseq)))
-        return score, trimmed_aseqs
+        trimmed_align_seqs = []
+        for h, align_seq in align_seqs:
+            trimmed_align_seq = [a for i, a in enumerate(align_seq)
+                                 if i not in to_be_removed]
+            trimmed_align_seqs.append((h, ''.join(trimmed_align_seq)))
+        return score, trimmed_align_seqs
 
     def compute_motives(self,
                         clusters,
@@ -588,17 +689,21 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         self.motives = []
         for cluster_id in order:
             start_time = time.time()
-            seqs = [('ID', seq) for seq in clusters[cluster_id]]
             # align with muscle
-            aseqs = ma.transform(seqs=seqs)
-            score, trimmed_aseqs = self._compute_score(aseqs,
-                                                       min_freq=min_freq)
-            if score >= min_score and len(aseqs) > mcs:
-                seq = self._compute_most_freq_seq(trimmed_aseqs)
-                self.motives.append((seq, trimmed_aseqs, aseqs, seqs))
+            align_seqs = ma.transform(seqs=clusters[cluster_id])
+            score, trimmed_align_seqs = self._compute_score(align_seqs,
+                                                            min_freq=min_freq)
+            if score >= min_score and len(align_seqs) > mcs:
+                consensus_seq = self._compute_most_freq_seq(trimmed_align_seqs)
+                self.motives.append((cluster_id,
+                                     consensus_seq,
+                                     trimmed_align_seqs,
+                                     align_seqs,
+                                     clusters[cluster_id]))
                 dtime = time.time() - start_time
-                logger.debug('Cluster %d (#%d) (%.2f secs)  score: %d > %.2f' %
-                             (cluster_id, len(aseqs), dtime, score, min_freq))
+                logger.debug(
+                    'Cluster %d (#%d) (%.2f secs)  score: %d > %.2f' %
+                    (cluster_id, len(align_seqs), dtime, score, min_freq))
         return self.motives
 
     def display_logos(self,
@@ -613,9 +718,11 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                      units='bits',
                      color_scheme=color_scheme)
         logos = []
-        for seq, trimmed_aseqs, aseqs, seqs in motives:
-            logo_image = wb.create_logo(seqs=trimmed_aseqs)
+        for m in motives:
+            cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs = m
+            logo_image = wb.create_logo(seqs=trimmed_align_seqs)
             logos.append(logo_image)
-            logger.info(seq)
+            logger.info('Cluster id: %d' % cluster_id)
+            logger.info(consensus_seq)
             display(Image(logo_image))
         return logos
