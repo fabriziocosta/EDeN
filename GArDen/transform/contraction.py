@@ -7,6 +7,7 @@ from collections import Counter, namedtuple, defaultdict
 from eden.util import _serialize_list
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,11 +58,12 @@ def serialize_modifiers(modifiers):
     if modifiers:
         for modifier in modifiers:
             line = "attribute_in:%s attribute_out:%s reduction:%s" % \
-                (modifier.attribute_in,
-                 modifier.attribute_out,
-                 modifier.reduction)
+                   (modifier.attribute_in,
+                    modifier.attribute_out,
+                    modifier.reduction)
             lines += line + "\n"
     return lines
+
 
 contraction_modifer_map = {'histogram': contraction_histogram,
                            'sum': contraction_sum,
@@ -76,6 +78,8 @@ label_modifier = contraction_modifier(attribute_in='type',
 weight_modifier = contraction_modifier(attribute_in='weight',
                                        attribute_out='weight',
                                        reduction='sum')
+
+
 # modifiers = [label_modifier, weight_modifier]
 
 # ------------------------------------------------------------------------------
@@ -89,13 +93,15 @@ class Contract(BaseEstimator, TransformerMixin):
                  nesting=False,
                  original_edges_to_nesting=False,
                  weight_scaling_factor=1,
-                 modifiers=None):
+                 modifiers=None,
+                 except_symbol=None):
         """Constructor."""
         self.contraction_attribute = contraction_attribute
         self.nesting = nesting
         self.original_edges_to_nesting = original_edges_to_nesting
         self.weight_scaling_factor = weight_scaling_factor
         self.modifiers = modifiers
+        self.except_symbol = except_symbol
 
     def transform(self, graphs=None):
         """transform."""
@@ -168,13 +174,14 @@ class Contract(BaseEstimator, TransformerMixin):
                 g.node[n]['label'] = g.node[n][self.contraction_attribute]
                 if self.contraction_attribute in d and 'position' in d:
                     neighbors = g.neighbors(n)
-                    if len(neighbors) > 0:
+                    if len(neighbors) > 0 and d[self.contraction_attribute] != self.except_symbol:
                         # identify neighbors that have a greater 'position'
                         # attribute and that have the same
                         # self.contraction_attribute
                         greater_position_neighbors = [v for v in neighbors if 'position' in g.node[v] and
                                                       self.contraction_attribute in g.node[v] and
-                                                      g.node[v][self.contraction_attribute] == d[self.contraction_attribute] and
+                                                      g.node[v][self.contraction_attribute] == d[
+                                                          self.contraction_attribute] and
                                                       g.node[v]['position'] > d['position']]
                         if len(greater_position_neighbors) > 0:
                             # contract all neighbors
@@ -202,6 +209,7 @@ class Contract(BaseEstimator, TransformerMixin):
             if change_has_occured is False:
                 break
         return g
+
 
 # ------------------------------------------------------------------------------
 
