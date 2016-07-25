@@ -441,7 +441,9 @@ class Vectorizer(AbstractVectorizer):
         graph = _edge_to_vertex_transform(original_graph)
         for n, d in graph.nodes_iter(data=True):
             if isinstance(d[self.key_label], dict):
-                node_entity, data = self._extract_entity_and_label(d)
+                node_entity, data = _extract_entity_and_label(d,
+                                                              self.key_entity,
+                                                              self.key_label)
                 label_data_dict[node_entity] += [data]
         return label_data_dict
 
@@ -451,15 +453,17 @@ class Vectorizer(AbstractVectorizer):
         label_matrix_dict = dict()
         for node_entity in label_data_dict:
             list_of_dicts = label_data_dict[node_entity]
-            feature_vector = {}
+            feature_list = []
             for instance_id, vertex_dict in enumerate(list_of_dicts):
+                feature_vector = {}
                 for feature in vertex_dict:
                     code = (int(hash(feature) & self.bitmask) + 1)
-                    feature_vector_key = (instance_id, code)
+                    feature_vector_key = code
                     feature_vector_value = vertex_dict[feature]
                     feature_vector[feature_vector_key] = feature_vector_value
+                feature_list.append(feature_vector)
             label_matrix_dict[node_entity] = \
-                self._convert_dict_to_sparse_matrix(feature_vector)
+                self._convert_dict_to_sparse_matrix(feature_list)
         return label_matrix_dict
 
     def _assemble_sparse_data_matrices(self, graphs):

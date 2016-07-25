@@ -1,6 +1,17 @@
 import numpy as np
 
 
+def make_score_matrix(seq_a, seq_b, match_score=1, mismatch_score=0):
+    score_matrix = np.zeros((len(seq_a), len(seq_b)))
+    for i, a in enumerate(seq_a):
+        for j, b in enumerate(seq_b):
+            if a == b:
+                score_matrix[i, j] = match_score
+            else:
+                score_matrix[i, j] = mismatch_score
+    return score_matrix
+
+
 def needleman_wunsh(sequence_a, sequence_b, score_matrix, gap_penalty=1):
     # initialization
     n = len(sequence_a) + 1
@@ -59,3 +70,24 @@ def trace_back(sequence_a, sequence_b, score_matrix, needleman_wunsh_matrix, gap
             alignment_b = sequence_b[j - 1] + alignment_b
             j = j - 1
     return alignment_a, alignment_b
+
+
+def edit_distance(seq_a, seq_b, gap_penalty=-1):
+    score_matrix = make_score_matrix(seq_a, seq_b)
+    needleman_wunsh_matrix = needleman_wunsh(seq_a, seq_b, score_matrix, gap_penalty)
+    nw_score = needleman_wunsh_matrix[-1, -1]
+    return nw_score
+
+
+def align_sequences(seq_a, seq_b, gap_penalty=-1):
+    score_matrix = make_score_matrix(seq_a, seq_b)
+    needleman_wunsh_matrix = needleman_wunsh(seq_a, seq_b, score_matrix, gap_penalty)
+    alignment_a, alignment_b = trace_back(seq_a, seq_b, score_matrix, needleman_wunsh_matrix, gap_penalty)
+    return alignment_a, alignment_b
+
+
+def print_alignment(alignment_a, alignment_b):
+    connector = ''.join(['_' if a == b else ' ' for a, b in zip(alignment_a, alignment_b)])
+    print connector
+    print alignment_a
+    print alignment_b

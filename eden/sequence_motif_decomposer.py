@@ -31,6 +31,7 @@ import weblogolib as wbl
 from scipy.cluster.hierarchy import linkage
 from collections import Counter
 from sklearn import metrics
+from eden.util.NeedlemanWunsh import edit_distance, align_sequences
 
 
 logger = logging.getLogger(__name__)
@@ -496,6 +497,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                  min_subarray_size=5,
                  max_subarray_size=10,
                  estimator=SGDClassifier(warm_start=True),
+                 class_estimator=SGDClassifier(),
                  clusterer=MiniBatchKMeans(),
                  pos_block_size=300,
                  neg_block_size=300,
@@ -512,6 +514,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                                      auto_weights=True,
                                      nbits=15)
         self.estimator = estimator
+        self.class_estimator = class_estimator
         self.clusterer = clusterer
         self.clusterer_is_fit = False
 
@@ -575,12 +578,14 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 pos_block_size=self.pos_block_size,
                 n_jobs=self.n_jobs)
             logging.debug('Clustering')
+            logging.debug('working on %d instances' % data_matrix.shape[0])
             start_time = time.time()
             self.clusterer.set_params(n_clusters=self.n_clusters)
             if self.clusterer_is_fit:
-                preds = self.clusterer.predict(data_matrix)
+                preds = self.class_estimator.predict(data_matrix)
             else:
                 preds = self.clusterer.fit_predict(data_matrix)
+                self.class_estimator.fit(data_matrix, preds)
                 self.clusterer_is_fit = True
             dtime = time.time() - start_time
             logger.debug('...done  in %.2f secs' % (dtime))
@@ -672,18 +677,38 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             trimmed_align_seqs.append((h, ''.join(trimmed_align_seq)))
         return score, trimmed_align_seqs
 
+    def _is_high_quality(self,
+                         seqs,
+                         min_score=4,
+                         min_freq=0.6,
+                         min_cluster_size=10):
+        mcs = min_cluster_size
+        ma = MuscleAlignWrapper(alphabet='rna')
+        align_seqs = ma.transform(seqs=seqs)
+        score, trimmed_align_seqs = self._compute_score(align_seqs,
+                                                        min_freq=min_freq)
+        if score >= min_score and len(align_seqs) > mcs:
+            return True
+        else:
+            return False
+
     def compute_motives(self,
                         clusters,
                         min_score=4,
                         min_freq=0.6,
-                        min_cluster_size=10):
+                        min_cluster_size=10,
+                        order=False):
         """compute_motives."""
         mcs = min_cluster_size
         ma = MuscleAlignWrapper(alphabet='rna')
-        start_time = time.time()
-        order = self._order_clusters(clusters, complexity=3)
-        dtime = time.time() - start_time
-        logger.debug('Order determined  in %.2f secs' % (dtime))
+
+        if order is True and len(clusters) > 2:
+            start_time = time.time()
+            order = self._order_clusters(clusters, complexity=3)
+            dtime = time.time() - start_time
+            logger.debug('Order determined  in %.2f secs' % (dtime))
+        else:
+            order = [i for i in clusters]
         logging.debug('Alignment')
 
         self.motives = []
@@ -695,16 +720,68 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                                                             min_freq=min_freq)
             if score >= min_score and len(align_seqs) > mcs:
                 consensus_seq = self._compute_most_freq_seq(trimmed_align_seqs)
-                self.motives.append((cluster_id,
-                                     consensus_seq,
-                                     trimmed_align_seqs,
-                                     align_seqs,
-                                     clusters[cluster_id]))
+                motif = (cluster_id,
+                         consensus_seq,
+                         trimmed_align_seqs,
+                         align_seqs,
+                         clusters[cluster_id])
+                self.motives.append(motif)
                 dtime = time.time() - start_time
                 logger.debug(
                     'Cluster %d (#%d) (%.2f secs)  score: %d > %.2f' %
                     (cluster_id, len(align_seqs), dtime, score, min_freq))
         return self.motives
+
+    def _identify_mergeable_clusters(self, motives, threshold=0.8):
+        consensus_seq_dict = {cid: cseq for cid, cseq, _, _, _ in motives}
+        for i in consensus_seq_dict:
+            for j in consensus_seq_dict:
+                if j > i:
+                    seq_i = consensus_seq_dict[i]
+                    seq_j = consensus_seq_dict[j]
+                    nw_score = edit_distance(seq_i, seq_j, gap_penalty=-1)
+                    rel_nw_score = 2 * nw_score / (len(seq_i) + len(seq_j))
+                    if rel_nw_score > threshold:
+                        alig_a, alig_b = align_sequences(seq_i,
+                                                         seq_j,
+                                                         gap_penalty=-1)
+                        yield rel_nw_score, nw_score, i, j, alig_a, alig_b
+
+    def merge(self,
+              clusters,
+              similarity_threshold=0.7,
+              min_score=4,
+              min_freq=0.6,
+              min_cluster_size=10):
+        """merge."""
+        _clusters = clusters.copy()
+        for i in range(10):
+            motives = self.compute_motives(_clusters,
+                                           min_score=min_score,
+                                           min_freq=min_freq,
+                                           min_cluster_size=min_cluster_size)
+            ms = sorted([m for m in self._identify_mergeable_clusters(
+                motives, threshold=similarity_threshold)], reverse=True)
+            for m in ms:
+                rel_nw_score, nw_score, i, j, alignment_a, alignment_b = m
+                n_i = len(_clusters[i])
+                n_j = len(_clusters[j])
+                if n_i > 0 and n_j > 0:
+                    seqs = _clusters[i] + _clusters[j]
+                    if self._is_high_quality(
+                            seqs,
+                            min_score=min_score,
+                            min_freq=min_freq,
+                            min_cluster_size=min_cluster_size):
+                        logger.info(
+                            'Joining: %d (#%d), %d (#%d) with score: %.2f deleting: %d  [%d is now #%d]' %
+                            (i, n_i, j, n_j, rel_nw_score, j, i, n_i + n_j))
+                        # update cluster
+                        _clusters[i] += _clusters[j]
+                        del _clusters[j]
+            else:
+                # TODO: run the predictor to learn the new class definition
+                return _clusters, motives
 
     def display_logos(self,
                       motives):
@@ -717,12 +794,12 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                      stacks_per_line=60,
                      units='bits',
                      color_scheme=color_scheme)
-        logos = []
+        logos = dict()
         for m in motives:
             cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs = m
             logo_image = wb.create_logo(seqs=trimmed_align_seqs)
-            logos.append(logo_image)
-            logger.info('Cluster id: %d' % cluster_id)
+            logos[cluster_id] = logo_image
+            logger.info('Cluster id: %d  (# %d)' % (cluster_id, len(seqs)))
             logger.info(consensus_seq)
             display(Image(logo_image))
         return logos
