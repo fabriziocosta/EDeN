@@ -29,12 +29,76 @@ from IPython.display import Image, display
 from corebio.seq import Alphabet, SeqList
 import weblogolib as wbl
 from scipy.cluster.hierarchy import linkage
+import regex as re
 from collections import Counter
 from sklearn import metrics
 from eden.util.NeedlemanWunsh import edit_distance, align_sequences
 
 
 logger = logging.getLogger(__name__)
+
+
+def letter_regex(k, size, regex_th=0.3):
+    code = []
+    for letter, count in k:
+        if count / float(size) > regex_th:
+            if letter != '-':
+                code.append(letter)
+    if len(code) == 1:
+        code_str = code[0]
+    else:
+        code_str = '(' + '|'.join(code) + ')'
+    return code_str
+
+
+def consensus_regex(trimmed_align_seqs, regex_th):
+    cluster = []
+    for h, align_seq in trimmed_align_seqs:
+        str_list = [c for c in align_seq]
+        concat_str = np.array(str_list, dtype=np.dtype('a'))
+        cluster.append(concat_str)
+    cluster = np.vstack(cluster)
+    size = len(trimmed_align_seqs)
+    for i, row in enumerate(cluster.T):
+        c = Counter(row)
+        k = c.most_common()
+    code = ''
+    for i, row in enumerate(cluster.T):
+        c = Counter(row)
+        k = c.most_common()
+        code += letter_regex(k, size, regex_th=regex_th)
+    return code
+
+
+def find_occurrences(needle, haystack):
+    for h, s in haystack:
+        matches = re.findall(needle, s, overlapped=True)
+        if len(matches):
+            yield 1
+        else:
+            yield 0
+
+
+def num_occurrences(needle, haystack):
+    s = sum(find_occurrences(needle, haystack))
+    return s
+
+
+def freq_occurrences(needle, haystack):
+    s = sum(find_occurrences(needle, haystack))
+    size = len(haystack)
+    return float(s) / size
+
+
+def extract_consensus(test_pos_seqs, motives, regex_th):
+    tot_num = len(test_pos_seqs)
+    for cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs in motives:
+        c_regex = consensus_regex(trimmed_align_seqs, regex_th)
+        counts = num_occurrences(c_regex, test_pos_seqs)
+        freq = float(counts) / tot_num
+        yield freq, cluster_id, c_regex, counts, consensus_seq
+
+# ------------------------------------------------------------------------------
 
 
 def serial_pre_process(iterable, vectorizer=None):
@@ -304,6 +368,7 @@ def multiprocess_score(iterable,
     pool.close()
     pool.join()
     return scores_items
+
 # ------------------------------------------------------------------------------
 
 
@@ -636,7 +701,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 orders.append(int(id2))
         return orders
 
-    def _compute_most_freq_seq(self, align_seqs):
+    def _compute_consensus_seq(self, align_seqs):
         cluster = []
         for h, align_seq in align_seqs:
             str_list = [c for c in align_seq]
@@ -697,6 +762,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                         min_score=4,
                         min_freq=0.6,
                         min_cluster_size=10,
+                        regex_th=.3,
                         order=False):
         """compute_motives."""
         mcs = min_cluster_size
@@ -720,9 +786,11 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             score, trimmed_align_seqs = self._compute_score(align_seqs,
                                                             min_freq=min_freq)
             if score >= min_score and len(align_seqs) > mcs:
-                consensus_seq = self._compute_most_freq_seq(trimmed_align_seqs)
+                consensus_seq = self._compute_consensus_seq(trimmed_align_seqs)
+                regex_seq = consensus_regex(trimmed_align_seqs, regex_th)
                 motif = (cluster_id,
                          consensus_seq,
+                         regex_seq,
                          trimmed_align_seqs,
                          align_seqs,
                          clusters[cluster_id])
@@ -734,7 +802,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         return self.motives
 
     def _identify_mergeable_clusters(self, motives, threshold=0.8):
-        consensus_seq_dict = {cid: cseq for cid, cseq, _, _, _ in motives}
+        consensus_seq_dict = {cid: cseq for cid, cseq, _, _, _, _ in motives}
         for i in consensus_seq_dict:
             for j in consensus_seq_dict:
                 if j > i:
@@ -753,14 +821,16 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
               similarity_threshold=0.5,
               min_score=4,
               min_freq=0.5,
-              min_cluster_size=10):
+              min_cluster_size=10,
+              regex_th=.3):
         """merge."""
         _clusters = dict(clusters)
         for i in range(10):
             motives = self.compute_motives(_clusters,
                                            min_score=min_score,
                                            min_freq=min_freq,
-                                           min_cluster_size=min_cluster_size)
+                                           min_cluster_size=min_cluster_size,
+                                           regex_th=regex_th)
             ms = sorted([m for m in self._identify_mergeable_clusters(
                 motives, threshold=similarity_threshold)], reverse=True)
             success = False
@@ -787,6 +857,18 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         # TODO: run the predictor to learn the new class definition
         return _clusters, motives
 
+    def frequency_filter(self, seqs=None, motives=None, freq_threshold=0.05):
+        """frequency_filter."""
+        clusters = dict()
+        _motives = []
+        for motif in motives:
+            cluster_id, consensus_seq, regex_seq, trimmed_align_seqs, align_seqs, cluster_seqs = motif
+            freq = freq_occurrences(regex_seq, seqs)
+            if freq >= freq_threshold:
+                clusters[cluster_id] = cluster_seqs
+                _motives.append(motif)
+        return clusters, _motives
+
     def display_logos(self,
                       motives,
                       ids=None):
@@ -800,15 +882,15 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                      units='bits',
                      color_scheme=color_scheme)
         if ids is None:
-            ids = [cluster_id for cluster_id, _, _, _, _ in motives]
-        motives_dict = {cluster_id: (cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs)
-                        for cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs in motives}
+            ids = [cluster_id for cluster_id, _, _, _, _, _ in motives]
+        motives_dict = {cluster_id: (cluster_id, consensus_seq, regex_seq, trimmed_align_seqs, align_seqs, seqs)
+                        for cluster_id, consensus_seq, regex_seq, trimmed_align_seqs, align_seqs, seqs in motives}
         logos = dict()
         for id in ids:
-            cluster_id, consensus_seq, trimmed_align_seqs, align_seqs, seqs = motives_dict[id]
+            cluster_id, consensus_seq, regex_seq, trimmed_align_seqs, align_seqs, seqs = motives_dict[id]
             logo_image = wb.create_logo(seqs=trimmed_align_seqs)
             logos[cluster_id] = logo_image
-            logger.info('Cluster id: %d  (# %d)' % (cluster_id, len(seqs)))
+            logger.info('Cluster id: %d  (# seqs: %d) cons: %s  regex: %s' % (cluster_id, len(seqs), consensus_seq, regex_seq))
             logger.info(consensus_seq)
             display(Image(logo_image))
         return logos
