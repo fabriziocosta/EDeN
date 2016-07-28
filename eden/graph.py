@@ -497,7 +497,7 @@ class Vectorizer(AbstractVectorizer):
                     col.append(feature)
                     data.append(feature_row[feature])
         shape = (max(row) + 1, self.feature_size)
-        data_matrix = csr_matrix((data, (row, col)), shape=shape)
+        data_matrix = csr_matrix((data, (row, col)), shape=shape, dtype=np.float64)
         return data_matrix
 
     def _weight_preprocessing(self, graph):
@@ -1058,7 +1058,7 @@ def _convert_dict_to_sparse_vector(feature_row, bitmask=1048575):
             row.append(0)
             col.append(int(hash(feature) & bitmask) + 1)
             data.append(feature_row[feature])
-    vec = csr_matrix((data, (row, col)), shape=(1, feature_size))
+    vec = csr_matrix((data, (row, col)), shape=(1, feature_size), dtype=np.float64)
     return vec
 
 
