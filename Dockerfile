@@ -9,6 +9,8 @@ MAINTAINER Daniel Maticzka (maticzkd@informatik.uni-freiburg.de), Björn A. Grü
 ADD requirements.txt .
 RUN pip install -r requirements.txt
 
+RUN apt-get -qq update && apt-get install -y  python-rdkit librdkit1 rdkit-data
+
 RUN mkdir /opt/EDeN
 ADD . /opt/EDeN/
 ENV PYTHONPATH $PYTHONPATH:/opt/EDeN/
