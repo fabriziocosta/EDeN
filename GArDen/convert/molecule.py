@@ -138,7 +138,7 @@ def set_coordinates(chemlist):
         if m:
             # updateprops fixes "RuntimeError: Pre-condition Violation"
             m.UpdatePropertyCache(strict=False)
-            tmp = AllChem.Compute2DCoords(m)
+            AllChem.Compute2DCoords(m)
         else:
             raise Exception('''set coordinates failed..''')
 
