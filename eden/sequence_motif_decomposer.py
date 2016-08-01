@@ -137,7 +137,7 @@ def hits(motives, ids=None):
     """hits."""
     for i in ids:
         for h, s in motives[i]['seqs']:
-            tokens = h.split('*')
+            tokens = h.split('<loc>')
             seq_id = tokens[0]
             begin, end = tokens[1].split(':')
             yield (seq_id, int(begin), int(end), i)
@@ -379,7 +379,7 @@ def serial_subarray(iterable,
             seq = subarray['subarray_string']
             begin = subarray['begin']
             end = subarray['end']
-            header = orig_header + '*%d:%d' % (begin, end)
+            header = orig_header + '<loc>%d:%d' % (begin, end)
             subseq = (header, seq)
             subseqs.append(subseq)
         subarrays_items += subseqs
