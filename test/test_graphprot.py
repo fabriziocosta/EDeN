@@ -81,6 +81,30 @@ def test_simple_fit():
     stdout.write(run.stdout)
 
 
+def test_predict_simpletask():
+    "Fit model and do prediction of training data using default parameters."
+    model = "test_predict_simpletask.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir ./ --model-file {} --n-iter 1".format(
+        datadir_rel + "simple_positives.fa",
+        datadir_rel + "simple_negatives.fa",
+        model,
+    )
+    env.run(call,)
+    call = bindir_rel + script + " -vvv predict --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "simple_positives.fa",
+        model,
+        "test_predict_simpletask",
+    )
+    run = env.run(call)
+    assert "test_predict_simpletask/predictions.txt" in run.files_created
+    for line in run.files_created["test_predict_simpletask/predictions.txt"].bytes.split("\n"):
+        try:
+            prediction, margin, id = line.split()
+            assert float(margin) >= 0.4, "Error: all margins should be at leat 0.4, the margin for id {} is '{}' in {}.".format(id, margin, run.files_created["test_predict_simpletask/predictions.txt"].bytes)
+        except ValueError:
+            pass
+
+
 def test_predict():
     "Predict class of some sequences."
     model = "test_predict.model"
@@ -94,14 +118,14 @@ def test_predict():
     call = bindir_rel + script + " -vvv predict --input-file {} --model-file {} --output-dir {}".format(
         datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
         model,
-        "./",
+        "test_predict",
     )
     run = env.run(call)
-    assert "predictions.txt" in run.files_created
+    assert "test_predict/predictions.txt" in run.files_created
 
 
 def test_priors_weight_fail_allzero():
-    "Fit model reweighting by priors, set prior weight extra high to produce exclusively zero weights."
+    "Fit model reweighting by priors, set prior weight extra high to produce very low weights."
     # lowest prior is p=0.00031274442646757
     # weights w > 1/p are guaranteed to produce zero weights exclusively (-> 3.179)
     model = "test_priors_weight_fail_allzero.model"
@@ -111,10 +135,7 @@ def test_priors_weight_fail_allzero():
         model,
         datadir_rel + "test_graphprot_priors.txt",
     )
-    run = env.run(
-        call,
-        expect_error=True)
-    assert run.returncode != 0
+    env.run(call)
 
 
 def test_priors_weight():
@@ -128,3 +149,42 @@ def test_priors_weight():
     )
     run = env.run(call,)
     assert model in run.files_created
+
+
+def test_predictprofile():
+    "Predict nucleotide-wise margins of some sequences."
+    model = "test_predict_profile.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir {} --model-file {} --n-iter 1".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
+        "test_predict_profile",
+        model
+    )
+    env.run(call)
+    call = bindir_rel + script + " -vvv predict_profile --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        "test_predict_profile/" + model,
+        "test_predict_profile",
+    )
+    run = env.run(call)
+    assert "test_predict_profile/profile.txt" in run.files_created
+
+
+def test_predictprofile_with_priors():
+    "Predict nucleotide-wise margins of some sequences."
+    model = "test_predict_profile_with_priors.model"
+    call = bindir_rel + script + " -vvv fit -p {} -n {} --output-dir {} --model-file {} --n-iter 1 --kmer-probs {} --kmer-weight 200".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.negatives.fa",
+        "test_predict_profile_with_priors",
+        model,
+        datadir_rel + "test_graphprot_priors.txt",
+    )
+    env.run(call)
+    call = bindir_rel + script + " -vvv predict_profile --input-file {} --model-file {} --output-dir {}".format(
+        datadir_rel + "PARCLIP_MOV10_Sievers_10seqs.train.positives.fa",
+        "test_predict_profile_with_priors/" + model,
+        "test_predict_profile_with_priors",
+    )
+    run = env.run(call)
+    assert "test_predict_profile_with_priors/profile.txt" in run.files_created

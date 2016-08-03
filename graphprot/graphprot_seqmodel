@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 
-import os
+import argparse
 import logging
-
+import os
+import sys
 from collections import deque
 from eden.model_base import ModelInitializerBase, main_script
 from eden.sequence import Vectorizer
+from eden.util import configure_logging
+from eden.util import save_output
+from eden.util import serialize_dict
 from GArDen.convert.sequence import FastaToSeq
 from numpy.random import randint, uniform
 from sklearn.linear_model import SGDClassifier
+from time import time
 
+logger = logging.getLogger(__name__)
 
 DESCRIPTION = """
 GraphProt:
@@ -76,28 +82,30 @@ class ModelInitializer(ModelInitializerBase):
                     # sniff kmer length from first dictionary key
                     kmer_len = len(priorstable.keys()[0])
                     # look up probabilities
-                    for i in range(len(seq)):
+                    for i in range(len(seq) - kmer_len + 1):
                         try:
                             prob = priorstable[seq[i:(i + kmer_len)]]
                         except KeyError:
-                            prob = None
+                            raise Exception("error, no prior assigned to kmer '{}'".format(seq[i:(i + kmer_len)]))
                         priors.append(prob)
-                    # compensate for the fact that the probabilities relate
-                    # to the center positions of the kmers
+                    # fill in values for positions without kmer score
+                    priors += [None] * (kmer_len - 1)
+                    # scores relate to the center positions of the kmers, so
+                    # we shift the values accordingly
                     priors.rotate(int(kmer_len / 2))
                     priors = list(priors)
                     # combine weights and priors
                     comb = []
                     for w, p in zip(weights, priors):
                         if p is not None:
-                            comb.append(max(0, w - (priors_weight * p)))
+                            comb.append(max(0.0000000001, w - (priors_weight * p)))
                         else:
-                            comb.append(0)
+                            comb.append(w)
                     weights = comb
                 yield id, seq, weights
 
         pre_processor_parameters = {"vp_weight": [1.0],
-                                    "context_weight": [0.0]}
+                                    "context_weight": [0.0000000001]}
 
         if (args.priors_file is not None):
             # add k-mer probabilities to parameters
@@ -116,6 +124,22 @@ class ModelInitializer(ModelInitializerBase):
             'd': [4, 0, 1, 2, 3, 4, 5, 6],
             'nbits': [14, 16, 18]}
         return vectorizer, vectorizer_parameters
+
+    def estimator_init(self, args):
+        """Setup the estimator and set of matching parameter choices."""
+        # defaults to first entry of each list if no parameter optimization is done
+        # set to defaults of SGDClassifier here
+        estimator = SGDClassifier(average=True, class_weight='balanced', shuffle=True)
+        estimator_parameters = {'n_iter': [5] + list(randint(5, 200, size=args.n_iter)),
+                                'penalty': ['l2', 'l1', 'elasticnet'],
+                                'l1_ratio': [0.15] + list(uniform(0.1, 0.9, size=args.n_iter)),
+                                'loss': ['hinge', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
+                                'power_t': [0.5] + list(uniform(0.1, size=args.n_iter)),
+                                'alpha': [0.0001] + [10 ** x for x in range(-8, 0)],
+                                'eta0': [10 ** x for x in range(-4, -1)],
+                                'learning_rate': ["optimal", "invscaling", "constant"],
+                                'n_jobs': [-1]}
+        return estimator, estimator_parameters
 
     def add_arguments(self, parser):
         """Add arguments for the main call."""
@@ -167,10 +191,81 @@ class ModelInitializer(ModelInitializerBase):
         return parser
 
 
+def main_predict_profile(model_initializer, args):
+    iterator = model_initializer.load_data(args)
+    from itertools import tee
+    iterator, iterator_ = tee(iterator)
+
+    from eden.model import ActiveLearningBinaryClassificationModel
+    model = ActiveLearningBinaryClassificationModel()
+    model.load(args.model_file)
+    logger.info(model.get_parameters())
+
+    output = []
+    g = model.annotate(iterator)
+    from itertools import izip
+    for (header, seq), (vertices, scores) in izip(iterator_, g):
+        assert "".join(vertices) == seq.upper().replace('T', 'U'), "error: pre_processor was not applied. got raw sequence '{}'".format(seq)
+        for pos, score in enumerate(scores):
+            output.append("{}\t{}\t{}\n".format(header, pos, score))
+    save_output(text=output, output_dir_path=args.output_dir_path, out_file_name='profile.txt')
+
+
 if __name__ == "__main__":
-    model_initializer = ModelInitializer()
-    main_script(model_initializer=model_initializer,
-                description=DESCRIPTION,
-                epilog=EPILOG,
-                prog_name=os.path.basename(__file__),
-                logger=logging.getLogger())
+    if "predict_profile" in sys.argv:
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-v", "--verbosity",
+                            action="count",
+                            help="Increase output verbosity")
+        parser.add_argument("-x", "--no-logging",
+                            dest="no_logging",
+                            help="If set, do not log on file.",
+                            action="store_true")
+        parser.add_argument(
+            "action",
+            help="What to do.")
+        parser.add_argument("-i", "--input-file",
+                            dest="input_file",
+                            help="Path to file containing input.",
+                            required=True)
+        parser.add_argument("-m", "--model-file",
+                            dest="model_file",
+                            help="Model file name. Note: it will be located in the output directory.",
+                            default="model")
+        parser.add_argument("-o", "--output-dir",
+                            dest="output_dir_path",
+                            help="Path to output directory.",
+                            default="out")
+        args = parser.parse_args()
+        assert args.action == "predict_profile"
+        model_initializer = ModelInitializer()
+
+        prog_name = "graphprot_seqmodel"
+        if args.no_logging:
+            configure_logging(logger, verbosity=args.verbosity)
+        else:
+            configure_logging(logger, verbosity=args.verbosity, filename=prog_name + '.log')
+
+        logger.debug('-' * 80)
+        logger.debug('Program: %s' % prog_name)
+        logger.debug('Called with parameters:\n %s' % serialize_dict(args.__dict__))
+
+        start_time = time()
+        try:
+            main_predict_profile(model_initializer, args)
+        except Exception:
+            import datetime
+            curr_time = datetime.datetime.now().strftime("%A, %d. %B %Y %I:%M%p")
+            logger.exception("Program run failed on %s" % curr_time)
+            exit(1)
+        finally:
+            end_time = time()
+            logger.info('Elapsed time: %.1f sec', end_time - start_time)
+        exit(0)
+    else:
+        model_initializer = ModelInitializer()
+        main_script(model_initializer=model_initializer,
+                    description=DESCRIPTION,
+                    epilog=EPILOG,
+                    prog_name=os.path.basename(__file__),
+                    logger=logging.getLogger())
