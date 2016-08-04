@@ -8,6 +8,7 @@
 
 import logging
 import multiprocessing as mp
+import os
 from collections import defaultdict
 from eden import apply_async
 import numpy as np
@@ -25,7 +26,6 @@ from Bio.Align.Applications import MuscleCommandline
 from Bio.Alphabet import IUPAC
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from IPython.display import Image, display
 from corebio.seq import Alphabet, SeqList
 import weblogolib as wbl
 from scipy.cluster.hierarchy import linkage
@@ -35,9 +35,23 @@ from sklearn import metrics
 from eden.util.NeedlemanWunsh import edit_distance
 import random
 import pylab as plt
+import joblib
+from scipy.optimize import curve_fit
 
 
 logger = logging.getLogger(__name__)
+
+
+def sigmoid(x, a, b):
+    """sigmoid."""
+    return 1 / (1 + np.exp(-(x - a) / b))
+
+
+def ecdf(x):
+    """Empirical cumulative distribution function."""
+    xs = np.sort(x)
+    ys = np.arange(1, len(xs) + 1) / float(len(xs))
+    return xs, ys
 
 
 def letter_regex(k, size, regex_th=0.3):
@@ -103,7 +117,8 @@ def extract_consensus(seqs, motives, regex_th):
         yield freq, id, c_regex, counts, motives[id]['consensus_seq']
 
 
-def plot_location(needle, haystack, nbins=20, size=(17, 2)):
+def plot_location(needle, haystack,
+                  cluster_id=None, nbins=20, size=(17, 2), fname=None):
     """plot_location."""
     locs = []
     for h, s in haystack:
@@ -116,7 +131,19 @@ def plot_location(needle, haystack, nbins=20, size=(17, 2)):
     n, bins, patches = plt.hist(
         locs, nbins, normed=0, facecolor='blue', alpha=0.3)
     plt.grid()
-    plt.show()
+    plt.title(needle)
+    plt.xlabel('Position')
+    plt.ylabel('Num occurrences')
+    if fname:
+        plt.draw()
+        figname = '%s_loc_%d.png' % (fname, cluster_id)
+        plt.savefig(
+            figname, bbox_inches='tight', transparent=True, pad_inches=0)
+    else:
+        figname = None
+        plt.show()
+    plt.close()
+    return figname
 
 
 def extract_location(needle, haystack):
@@ -128,8 +155,12 @@ def extract_location(needle, haystack):
             e = match.end()
             m = s + (e - s) / 2
             locs.append(m)
-    avg_loc = np.percentile(locs, 50)
-    std_loc = np.percentile(locs, 75) - np.percentile(locs, 25)
+    if locs:
+        avg_loc = np.percentile(locs, 50)
+        std_loc = np.percentile(locs, 70) - np.percentile(locs, 30)
+    else:
+        avg_loc = -1
+        std_loc = 0
     return avg_loc, std_loc
 
 
@@ -191,16 +222,34 @@ def compute_cooccurence(motives, ids=None):
     return orig_cooccurence_mtx, norm_cooccurence_mtx, distances
 
 
-def plot_distance(cluster_id_i, cluster_id_j, distances, nbins=5, size=(6, 2)):
+def plot_distance(cluster_id_i,
+                  cluster_id_j,
+                  regex_i,
+                  regex_j,
+                  distances,
+                  nbins=5,
+                  size=(6, 2),
+                  fname=None):
     """plot_distance."""
     ds = distances[(cluster_id_i, cluster_id_j)]
-    print 'Clust %d vs clust %d (# %d)' % (cluster_id_i, cluster_id_j, len(ds))
-
     plt.figure(figsize=size)
     n, bins, patches = plt.hist(
         ds, nbins, normed=0, facecolor='green', alpha=0.3)
     plt.grid()
-    plt.show()
+    plt.title('%s vs %s' % (regex_i, regex_j))
+    plt.xlabel('Relative position')
+    plt.ylabel('Num occurrences')
+    if fname:
+        plt.draw()
+        figname = '%s_dist_%d_vs_%d.png' % (fname, cluster_id_i, cluster_id_j)
+        plt.savefig(
+            figname, bbox_inches='tight', transparent=True, pad_inches=0)
+    else:
+        figname = None
+        plt.show()
+    plt.close()
+    return figname
+
 # ------------------------------------------------------------------------------
 
 
@@ -376,10 +425,14 @@ def serial_subarray(iterable,
             output='all')
         subseqs = []
         for subarray in subarrays:
-            seq = subarray['subarray_string']
+            subseq_seq = subarray['subarray_string']
             begin = subarray['begin']
             end = subarray['end']
-            header = orig_header + '<loc>%d:%d' % (begin, end)
+            score = subarray['score']
+            header = orig_header
+            header += '<loc>%d:%d<loc>' % (begin, end)
+            header += '<score>%.4f<score>' % (score)
+            header += '<subseq>%s<subseq>' % (subseq_seq)
             subseq = (header, seq)
             subseqs.append(subseq)
         subarrays_items += subseqs
@@ -568,7 +621,6 @@ class Weblogo(object):
     """A wrapper of weblogolib for creating sequence."""
 
     def __init__(self,
-
                  output_format='png',  # ['eps','png','png_print','jpeg']
                  stacks_per_line=40,
                  sequence_type='dna',  # ['protein','dna','rna']
@@ -660,9 +712,9 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
     """SequenceMotifDecomposer."""
 
     def __init__(self,
-                 complexity=None,
+                 complexity=5,
                  n_clusters=10,
-                 min_subarray_size=5,
+                 min_subarray_size=4,
                  max_subarray_size=10,
                  estimator=SGDClassifier(warm_start=True),
                  class_estimator=SGDClassifier(),
@@ -686,6 +738,14 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         self.clusterer = clusterer
         self.clusterer_is_fit = False
 
+    def save(self, model_name):
+        """save."""
+        joblib.dump(self, model_name, compress=1)
+
+    def load(self, obj):
+        """load."""
+        self.__dict__.update(joblib.load(obj).__dict__)
+
     def fit(self, pos_seqs=None, neg_seqs=None):
         """fit."""
         try:
@@ -696,6 +756,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 pos_block_size=self.pos_block_size,
                 neg_block_size=self.neg_block_size,
                 n_jobs=self.n_jobs)
+            self.fit_decomposition(neg_seqs)
             return self
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
@@ -728,11 +789,22 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def predict(self, pos_seqs=None):
-        """predict."""
+    def _decompose_header(self, header):
+        score = header.split('<score>')[1]
+        score = float(score)
+        loc = header.split('<loc>')[1]
+        begin, end = loc.split(':')
+        begin = int(begin)
+        end = int(end)
+        subseq = header.split('<subseq>')[1]
+        orig_header = header.split('<loc>')[0]
+        return orig_header, score, begin, end, subseq
+
+    def decompose(self, seqs=None, p_value=0.05):
+        """decomposition_scores."""
         try:
             subarrays_items = multiprocess_subarray(
-                pos_seqs,
+                seqs,
                 vectorizer=self.vectorizer,
                 estimator=self.estimator,
                 min_subarray_size=self.min_subarray_size,
@@ -740,8 +812,66 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 block_size=self.pos_block_size,
                 n_jobs=self.n_jobs)
 
+            for header, seq in subarrays_items:
+                components = self._decompose_header(header)
+                orig_header, score, begin, end, subseq = components
+                p = self.compute_p_value(score)
+                if p <= p_value:
+                    yield orig_header, begin, end, p, subseq
+
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def decomposition_scores(self, seqs=None):
+        """decomposition_scores."""
+        try:
+            subarrays_items = multiprocess_subarray(
+                seqs,
+                vectorizer=self.vectorizer,
+                estimator=self.estimator,
+                min_subarray_size=self.min_subarray_size,
+                max_subarray_size=self.max_subarray_size,
+                block_size=self.pos_block_size,
+                n_jobs=self.n_jobs)
+
+            for header, seq in subarrays_items:
+                yield self._decompose_header(header)
+
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+    def fit_decomposition(self, seqs=None):
+        """fit_decomposition."""
+        scores = [score for header, score, begin, end, subseq in
+                  self.decomposition_scores(seqs)]
+        xs, ys = ecdf(scores)
+        popt, pcov = curve_fit(sigmoid, xs, ys)
+        self.a, self.b = popt
+        logger.debug('ECDF fit on %d values' % (len(scores)))
+        logger.debug('Optimal param: a:%.2f  b:%.2f' % (self.a, self.b))
+
+    def compute_p_value(self, value):
+        """p_value."""
+        y = sigmoid(value, self.a, self.b)
+        p_val = 1 - y
+        return p_val
+
+    def compute_clusters(self, seqs=None, p_value=0.05):
+        """compute_clusters."""
+        try:
+            subsequences = []
+            iterable = self.decompose(seqs, p_value=p_value)
+            for header, begin, end, p, subseq in iterable:
+                new_header = header
+                new_header += '<loc>' + str(begin) + ':'
+                new_header += str(end) + '<loc>'
+                subsequences.append((new_header, subseq))
+            if not subsequences:
+                raise Exception('No subarray was selected. Increase p_value.')
             data_matrix = multiprocess_vectorize(
-                subarrays_items,
+                subsequences,
                 vectorizer=self.vectorizer,
                 pos_block_size=self.pos_block_size,
                 n_jobs=self.n_jobs)
@@ -759,9 +889,9 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             logger.debug('...done  in %.2f secs' % (dtime))
 
             self.clusters = defaultdict(list)
-            for pred, seq in zip(preds, subarrays_items):
+            for pred, seq in zip(preds, subsequences):
                 self.clusters[pred].append(seq)
-
+            logger.debug('After clustering, %d motives' % len(self.clusters))
             return self.clusters
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
@@ -853,7 +983,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                          sample_size=200):
         ma = MuscleAlignWrapper(alphabet='rna')
         if len(seqs) > sample_size:
-            sample_seqs = random.sample(seqs, 100)
+            sample_seqs = random.sample(seqs, sample_size)
         else:
             sample_seqs = seqs
         align_seqs = ma.transform(seqs=sample_seqs)
@@ -874,7 +1004,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         """compute_motif."""
         ma = MuscleAlignWrapper(alphabet='rna')
         if len(seqs) > sample_size:
-            sample_seqs = random.sample(seqs, 100)
+            sample_seqs = random.sample(seqs, sample_size)
         else:
             sample_seqs = seqs
         align_seqs = ma.transform(seqs=sample_seqs)
@@ -900,13 +1030,14 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                         regex_th=.3,
                         sample_size=200):
         """compute_motives."""
+        if not clusters:
+            raise Exception('Error: No clusters.')
         mcs = min_cluster_size
         logging.debug('Alignment')
         motives = dict()
         for cluster_id in clusters:
             start_time = time.time()
             # align with muscle
-            assert(len(clusters[cluster_id])), 'Unkn id: %d' % cluster_id
             is_high_quality, motif = self.compute_motif(
                 seqs=clusters[cluster_id],
                 min_score=min_score,
@@ -920,6 +1051,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 logger.debug(
                     'Cluster %d (#%d) (%.2f secs)' %
                     (cluster_id, len(clusters[cluster_id]), dtime))
+        logger.debug('After motives computation, %d motives' % len(motives))
         return motives
 
     def _identify_mergeable_clusters(self, motives, similarity_th=0.8):
@@ -934,7 +1066,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                         yield rel_nw_score, i, j
 
     def merge(self,
-              clusters,
+              motives,
               similarity_th=0.5,
               min_score=4,
               min_freq=0.5,
@@ -942,12 +1074,6 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
               regex_th=.3,
               sample_size=200):
         """merge."""
-        motives = self.compute_motives(clusters,
-                                       min_score=min_score,
-                                       min_freq=min_freq,
-                                       min_cluster_size=min_cluster_size,
-                                       regex_th=regex_th,
-                                       sample_size=sample_size)
         while True:
             ms = sorted([m for m in self._identify_mergeable_clusters(
                 motives, similarity_th=similarity_th)], reverse=True)
@@ -977,13 +1103,14 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             if success is False:
                 break
         # TODO: run the predictor to learn the new class definition
+        logger.debug('After merge, %d motives' % len(motives))
         return motives
 
     def quality_filter(self,
                        seqs=None,
                        motives=None,
-                       freq_threshold=None,
-                       std_threshold=None):
+                       freq_th=None,
+                       std_th=None):
         """quality_filter."""
         _motives = dict()
         for cluster_id in motives:
@@ -994,15 +1121,55 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             avg, std = extract_location(regex_seq, seqs)
             motives[cluster_id]['avg_pos'] = avg
             motives[cluster_id]['std_pos'] = std
-            if freq_threshold is None or freq >= freq_threshold:
-                if std_threshold is None or std <= std_threshold:
+            if freq_th is None or freq >= freq_th:
+                if std_th is None or std <= std_th:
                     _motives[cluster_id] = motives[cluster_id]
-        return _motives
+        if len(_motives) == 0:
+            logger.warning('Quality filter is too strict. Reverting.')
+            return motives
+        else:
+            logger.debug('After quality filter, %d motives' % len(_motives))
+            return _motives
 
-    def display_logo(self,
+    def select_motives(self,
+                       seqs=None,
+                       p_value=0.05,
+                       similarity_th=0.5,
+                       min_score=4,
+                       min_freq=0.5,
+                       min_cluster_size=10,
+                       regex_th=.3,
+                       sample_size=200,
+                       freq_th=None,
+                       std_th=None):
+        """select_motives."""
+        orig_clusters = self.compute_clusters(seqs, p_value=p_value)
+        motives = self.compute_motives(
+            orig_clusters,
+            min_score=min_score,
+            min_freq=min_freq,
+            min_cluster_size=min_cluster_size,
+            regex_th=regex_th,
+            sample_size=sample_size)
+        motives = self.merge(
+            motives,
+            similarity_th=similarity_th,
+            min_score=min_score,
+            min_freq=min_freq,
+            min_cluster_size=min_cluster_size,
+            regex_th=regex_th,
+            sample_size=sample_size)
+        motives = self.quality_filter(
+            seqs,
+            motives,
+            freq_th=freq_th,
+            std_th=std_th)
+        return motives
+
+    def compute_logo(self,
                      cluster_id=None,
                      motif=None):
-        """display_logo."""
+        """compute_logo."""
         alphabet = 'rna'
         color_scheme = 'classic'
         wb = Weblogo(output_format='png',
@@ -1012,42 +1179,101 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                      units='bits',
                      color_scheme=color_scheme)
         logo_image = wb.create_logo(seqs=motif['trimmed_align_seqs'])
-        info1 = 'Cluster id: %d  (# seqs: %d)' % \
-            (cluster_id, len(motif['seqs']))
-        info2 = ' cons: %s  regex: %s' % \
-            (motif['consensus_seq'], motif['regex_seq'])
-        logger.info(info1 + info2)
-        display(Image(logo_image))
-        return logo_image
+        logo_txt = []
+        info = '-  num subarrays: %d' % len(motif['seqs'])
+        logo_txt.append(info)
+        info = '-  consensus sequence: %s' % motif['consensus_seq']
+        logo_txt.append(info)
+        info = '-  consensus regex: %s' % motif['regex_seq']
+        logo_txt.append(info)
+        return logo_image, logo_txt
 
-    def display_logos(self,
+    def compute_logos(self,
                       motives,
                       ids=None):
-        """display_logos."""
-        if ids is None:
-            ids = [cluster_id for cluster_id in motives]
-        logos = dict()
-        for cluster_id in ids:
-            logos[cluster_id] = self.display_logo(
-                cluster_id=cluster_id,
-                motif=motives[cluster_id])
-        return logos
+        """compute_logos."""
+        if motives:
+            if ids is None:
+                ids = [cluster_id for cluster_id in motives]
+            logos = dict()
+            for cluster_id in ids:
+                logo_image, logo_txt = self.compute_logo(
+                    cluster_id=cluster_id,
+                    motif=motives[cluster_id])
+                logos[cluster_id] = (logo_image, logo_txt)
+            return logos
+        else:
+            logger.warning(
+                'No logo to compute. Try more permissive parameters.')
 
-    def report(self, all_seqs, motives, nbins=40, size=(17, 2)):
-        """report."""
-        _, norm_cooccurence_mtx, distances = compute_cooccurence(motives)
-        for freq, cluster_id in sorted([(motives[i]['freq'], i)
-                                        for i in motives], reverse=True):
-            self.display_logo(cluster_id, motif=motives[cluster_id])
-            co = motives[cluster_id]['counts']
-            fr = motives[cluster_id]['freq']
-            print '# occurrences or regex seq: %d  freq:%.2f' % (co, fr)
-            av = motives[cluster_id]['avg_pos']
-            st = motives[cluster_id]['std_pos']
-            print 'loc:%.1f +- %.1f' % (av, st)
-            rg = motives[cluster_id]['regex_seq']
-            plot_location(rg, all_seqs, nbins=nbins, size=size)
-            for j in motives:
-                if j != cluster_id:
-                    plot_distance(cluster_id, j, distances,
-                                  nbins=nbins, size=size)
+    def _save_logo(self, logo, cluster_id, fname):
+        imagename = '%s_logo_cl_%d.png' % (fname, cluster_id)
+        with open(imagename, 'wb') as f:
+            f.write(logo)
+        return imagename
+
+    def _wrap_image(self, fname, fill_width=True):
+        pwd = os.getcwd()
+        url = pwd + '/' + fname
+        txt = []
+        if fill_width:
+            txt.append('<p align="left"><img src="file://' + url +
+                       '" style="width: 100%"></p>')
+            txt.append('<p align="left"><img src="' + fname +
+                       '" style="width: 100%"></p>')
+        else:
+            txt.append('<p align="left"><img src="file://' + url +
+                       '"></p>')
+            txt.append('<p align="left"><img src="' + fname +
+                       '"></p>')
+        return '\n'.join(txt)
+
+    def report(self, all_seqs, motives, nbins=40, size=(17, 2), fname=None):
+        """Report in markdown format."""
+        txt = []
+        if motives:
+            _, norm_cooccurence_mtx, distances = compute_cooccurence(motives)
+            for freq, cluster_id in sorted([(motives[i]['freq'], i)
+                                            for i in motives], reverse=True):
+                info = 'Motif id: %d' % cluster_id
+                txt.append(info)
+                logo_image, logo_txts = self.compute_logo(
+                    cluster_id, motif=motives[cluster_id])
+                figname = self._save_logo(logo_image, cluster_id, fname)
+                for logo_txt in logo_txts:
+                    txt.append(logo_txt)
+                co = motives[cluster_id]['counts']
+                fr = motives[cluster_id]['freq']
+                info = '-  num occurrences of regex: %d' % (co)
+                txt.append(info)
+                info = '-  freq of occurrences of regex: %.2f' % (fr)
+                txt.append(info)
+                av = motives[cluster_id]['avg_pos']
+                st = motives[cluster_id]['std_pos']
+                info = '-  average location: %.1f +- %.1f' % (av, st)
+                txt.append(info)
+                txt.append(self._wrap_image(figname, fill_width=False))
+                regex_i = motives[cluster_id]['regex_seq']
+                figname = plot_location(
+                    regex_i, all_seqs, cluster_id=cluster_id,
+                    nbins=nbins, size=size, fname=fname)
+                txt.append(self._wrap_image(figname))
+                for j in motives:
+                    if j != cluster_id:
+                        regex_j = motives[j]['regex_seq']
+                        ds = distances[(cluster_id, j)]
+                        info = '-  num co-occurences of motif %d vs %d: %d' % \
+                            (cluster_id, j, len(ds))
+                        txt.append(info)
+                        figname = plot_distance(
+                            cluster_id, j,
+                            regex_i, regex_j,
+                            distances,
+                            nbins=nbins, size=size, fname=fname)
+                        txt.append(self._wrap_image(figname))
+                txt.append('_' * 100)
+        else:
+            logger.warning(
+                'No motives to report. Try more permissive parameters.')
+        txt = '\n'.join(txt)
+        return txt
