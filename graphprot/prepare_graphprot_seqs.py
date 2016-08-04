@@ -12,6 +12,10 @@
 #   * check if seq length and core length arguments match or handle properly
 #   * handle input/output error gracefully
 #   * check if input bed coordinates are stranded
+#   * seq_len == core_len does not work
+#   * have to set default output prefix
+#   * negatives may be shuffled onto the wrong strand. investigate if this is a recent bedtools thing. otherwise shuffle separately for both strands
+#   * handle "crazy" bed formats (eg 7 fields from piranha)
 
 from __future__ import print_function
 import argparse
@@ -94,7 +98,7 @@ if (args.core_length + flank_upstream_length + flank_downstream_length != args.s
     raise Exception("Error: bad length calculation.")
 
 
-def dbg_head(sites, description="", n=npeek, run=args.debug):
+def dbg_head(sites, description="", n=npeek, run=True):
     """Print the first few bed entries."""
     if run:
         logging.debug(description)
@@ -153,7 +157,7 @@ def get_flanks(cores,
     if cores.count() == flanks_upstream.count() == flanks_downstream.count():
         return flanks_upstream, flanks_downstream
     else:
-        if args.debug:
+        if True:
             cores.saveas("debug_cores.bed")
             flanks_upstream.saveas("debug_upstream.bed")
             flanks_downstream.saveas("debug_downstream.bed")
