@@ -285,8 +285,8 @@ def multiprocess_vectorize(iterable,
         pool, serial_pre_process,
         args=(seqs, vectorizer))
         for seqs in chunks(iterable, pos_block_size)]
-    logging.debug('Setup %.2f secs' % (time.time() - start_time))
-    logging.debug('Vectorizing')
+    logger.debug('Setup %.2f secs' % (time.time() - start_time))
+    logger.debug('Vectorizing')
 
     start_time = time.time()
     matrices = []
@@ -297,8 +297,8 @@ def multiprocess_vectorize(iterable,
         d_time = time.time() - start_time
         d_loc_time = time.time() - loc_start_time
         size = pos_data_matrix.shape
-        logging.debug('%d %s (%.2f secs) (delta: %.2f)' %
-                      (i, size, d_time, d_loc_time))
+        logger.debug('%d %s (%.2f secs) (delta: %.2f)' %
+                     (i, size, d_time, d_loc_time))
 
     pool.close()
     pool.join()
@@ -328,8 +328,8 @@ def multiprocess_fit(pos_iterable, neg_iterable,
         pool, serial_pre_process,
         args=(seqs, vectorizer))
         for seqs in chunks(neg_iterable, neg_block_size)]
-    logging.debug('Setup %.2f secs' % (time.time() - start_time))
-    logging.debug('Fitting')
+    logger.debug('Setup %.2f secs' % (time.time() - start_time))
+    logger.debug('Fitting')
 
     start_time = time.time()
     for i, (p, n) in enumerate(izip(pos_results, neg_results)):
@@ -344,8 +344,8 @@ def multiprocess_fit(pos_iterable, neg_iterable,
         d_time = time.time() - start_time
         d_loc_time = time.time() - loc_start_time
         size = pos_data_matrix.shape
-        logging.debug('%d %s (%.2f secs) (delta: %.2f)' %
-                      (i, size, d_time, d_loc_time))
+        logger.debug('%d %s (%.2f secs) (delta: %.2f)' %
+                     (i, size, d_time, d_loc_time))
 
     pool.close()
     pool.join()
@@ -374,8 +374,8 @@ def multiprocess_performance(pos_iterable, neg_iterable,
         pool, serial_pre_process,
         args=(seqs, vectorizer))
         for seqs in chunks(neg_iterable, neg_block_size)]
-    logging.debug('Setup %.2f secs' % (time.time() - start_time))
-    logging.debug('Performance evaluation')
+    logger.debug('Setup %.2f secs' % (time.time() - start_time))
+    logger.debug('Performance evaluation')
 
     start_time = time.time()
     preds = []
@@ -397,8 +397,8 @@ def multiprocess_performance(pos_iterable, neg_iterable,
         d_time = time.time() - start_time
         d_loc_time = time.time() - loc_start_time
         size = pos_data_matrix.shape
-        logging.debug('%d %s (%.2f secs) (delta: %.2f)' %
-                      (i, size, d_time, d_loc_time))
+        logger.debug('%d %s (%.2f secs) (delta: %.2f)' %
+                     (i, size, d_time, d_loc_time))
 
     pool.close()
     pool.join()
@@ -461,8 +461,8 @@ def multiprocess_subarray(iterable,
               min_subarray_size,
               max_subarray_size))
         for seqs in chunks(iterable, block_size)]
-    logging.debug('Setup %.2f secs' % (time.time() - start_time))
-    logging.debug('Annotating')
+    logger.debug('Setup %.2f secs' % (time.time() - start_time))
+    logger.debug('Annotating')
 
     start_time = time.time()
     subarrays_items = []
@@ -472,8 +472,8 @@ def multiprocess_subarray(iterable,
         subarrays_items += subarrays_item
         d_time = time.time() - start_time
         d_loc_time = time.time() - loc_start_time
-        logging.debug('%d (%.2f secs) (delta: %.2f)' %
-                      (i, d_time, d_loc_time))
+        logger.debug('%d (%.2f secs) (delta: %.2f)' %
+                     (i, d_time, d_loc_time))
 
     pool.close()
     pool.join()
@@ -507,8 +507,8 @@ def multiprocess_score(iterable,
               vectorizer,
               estimator))
         for seqs in chunks(iterable, block_size)]
-    logging.debug('Setup %.2f secs' % (time.time() - start_time))
-    logging.debug('Predicting')
+    logger.debug('Setup %.2f secs' % (time.time() - start_time))
+    logger.debug('Predicting')
 
     start_time = time.time()
     scores_items = []
@@ -518,8 +518,8 @@ def multiprocess_score(iterable,
         scores_items += scores
         d_time = time.time() - start_time
         d_loc_time = time.time() - loc_start_time
-        logging.debug('%d (%.2f secs) (delta: %.2f)' %
-                      (i, d_time, d_loc_time))
+        logger.debug('%d (%.2f secs) (delta: %.2f)' %
+                     (i, d_time, d_loc_time))
 
     pool.close()
     pool.join()
@@ -875,8 +875,8 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 vectorizer=self.vectorizer,
                 pos_block_size=self.pos_block_size,
                 n_jobs=self.n_jobs)
-            logging.debug('Clustering')
-            logging.debug('working on %d instances' % data_matrix.shape[0])
+            logger.debug('Clustering')
+            logger.debug('working on %d instances' % data_matrix.shape[0])
             start_time = time.time()
             self.clusterer.set_params(n_clusters=self.n_clusters)
             if self.clusterer_is_fit:
@@ -1033,7 +1033,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
         if not clusters:
             raise Exception('Error: No clusters.')
         mcs = min_cluster_size
-        logging.debug('Alignment')
+        logger.debug('Alignment')
         motives = dict()
         for cluster_id in clusters:
             start_time = time.time()
@@ -1125,7 +1125,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 if std_th is None or std <= std_th:
                     _motives[cluster_id] = motives[cluster_id]
         if len(_motives) == 0:
-            logger.warning('Quality filter is too strict. Reverting.')
+            logger.warning('Quality filter is too strict. Ignoring filter.')
             return motives
         else:
             logger.debug('After quality filter, %d motives' % len(_motives))
@@ -1180,11 +1180,11 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                      color_scheme=color_scheme)
         logo_image = wb.create_logo(seqs=motif['trimmed_align_seqs'])
         logo_txt = []
-        info = '-  num subarrays: %d' % len(motif['seqs'])
+        info = '  - num subarrays: %d' % len(motif['seqs'])
         logo_txt.append(info)
-        info = '-  consensus sequence: %s' % motif['consensus_seq']
+        info = '  - consensus sequence: %s' % motif['consensus_seq']
         logo_txt.append(info)
-        info = '-  consensus regex: %s' % motif['regex_seq']
+        info = '  - consensus regex: %s' % motif['regex_seq']
         logo_txt.append(info)
         return logo_image, logo_txt
 
@@ -1235,7 +1235,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             _, norm_cooccurence_mtx, distances = compute_cooccurence(motives)
             for freq, cluster_id in sorted([(motives[i]['freq'], i)
                                             for i in motives], reverse=True):
-                info = 'Motif id: %d' % cluster_id
+                info = '#### Motif id: %d' % cluster_id
                 txt.append(info)
                 logo_image, logo_txts = self.compute_logo(
                     cluster_id, motif=motives[cluster_id])
@@ -1244,13 +1244,13 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                     txt.append(logo_txt)
                 co = motives[cluster_id]['counts']
                 fr = motives[cluster_id]['freq']
-                info = '-  num occurrences of regex: %d' % (co)
+                info = '  - num occurrences of regex: %d' % (co)
                 txt.append(info)
-                info = '-  freq of occurrences of regex: %.2f' % (fr)
+                info = '  - freq of occurrences of regex: %.2f' % (fr)
                 txt.append(info)
                 av = motives[cluster_id]['avg_pos']
                 st = motives[cluster_id]['std_pos']
-                info = '-  average location: %.1f +- %.1f' % (av, st)
+                info = '  - average location: %.1f +- %.1f' % (av, st)
                 txt.append(info)
                 txt.append(self._wrap_image(figname, fill_width=False))
                 regex_i = motives[cluster_id]['regex_seq']
@@ -1262,15 +1262,16 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                     if j != cluster_id:
                         regex_j = motives[j]['regex_seq']
                         ds = distances[(cluster_id, j)]
-                        info = '-  num co-occurences of motif %d vs %d: %d' % \
+                        info = '  - num co-occurences of motif %d vs %d: %d' % \
                             (cluster_id, j, len(ds))
                         txt.append(info)
-                        figname = plot_distance(
-                            cluster_id, j,
-                            regex_i, regex_j,
-                            distances,
-                            nbins=nbins, size=size, fname=fname)
-                        txt.append(self._wrap_image(figname))
+                        if len(ds):
+                            figname = plot_distance(
+                                cluster_id, j,
+                                regex_i, regex_j,
+                                distances,
+                                nbins=nbins, size=size, fname=fname)
+                            txt.append(self._wrap_image(figname))
                 txt.append('_' * 100)
         else:
             logger.warning(
