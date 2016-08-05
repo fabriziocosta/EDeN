@@ -20,7 +20,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import Draw
-from IPython.core.display import display
 import networkx as nx
 import logging
 
@@ -118,7 +117,7 @@ def nx_to_rdkit(graph):
         elif bond_type == '2':
             mw.AddBond(start, end, Chem.BondType.DOUBLE)
         elif bond_type == '3':
-            mw.AddBond(start, end, Chem.BondType.TRIPPLE)
+            mw.AddBond(start, end, Chem.BondType.TRIPLE)
         # more options:
         # http://www.rdkit.org/Python_Docs/rdkit.Chem.rdchem.BondType-class.html
         else:
@@ -148,7 +147,7 @@ def get_smiles_strings(graphs):
     return map(Chem.MolToSmiles, compounds)
 
 
-def draw(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
+def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
     # we want a list of graphs
     if isinstance(graphs, nx.Graph):
         raise Exception("give me a list of graphs")
@@ -163,13 +162,11 @@ def draw(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
         legend = titles
     else:
         legend = map(str, range(len(graphs)))
-    draw_compounds(compounds, n_graphs_per_line=n_graphs_per_line, size=size, legend=legend)
+    return compounds_to_image(compounds, n_graphs_per_line=n_graphs_per_line, size=size, legend=legend)
 
 
-def draw_compounds(compounds, n_graphs_per_line=5, size=250, legend=None):
+def compounds_to_image(compounds, n_graphs_per_line=5, size=250, legend=None):
     # calculate coordinates:
     set_coordinates(compounds)
     # make the image
-    image = Draw.MolsToGridImage(compounds, molsPerRow=n_graphs_per_line, subImgSize=(size, size), legends=legend)
-    # display on the spot
-    display(image)
+    return Draw.MolsToGridImage(compounds, molsPerRow=n_graphs_per_line, subImgSize=(size, size), legends=legend)
