@@ -141,9 +141,11 @@ def set_coordinates(chemlist):
         else:
             raise Exception('''set coordinates failed..''')
 
+
 def get_smiles_strings(graphs):
     compounds = map(nx_to_rdkit, graphs)
     return map(Chem.MolToSmiles, compounds)
+
 
 def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
     # we want a list of graphs
@@ -162,9 +164,9 @@ def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=No
         legend = map(str, range(len(graphs)))
     return compounds_to_image(compounds, n_graphs_per_line=n_graphs_per_line, size=size, legend=legend)
 
+
 def compounds_to_image(compounds, n_graphs_per_line=5, size=250, legend=None):
     # calculate coordinates:
     set_coordinates(compounds)
     # make the image
-    return  Draw.MolsToGridImage(compounds, molsPerRow=n_graphs_per_line, subImgSize=(size, size), legends=legend)
-
+    return Draw.MolsToGridImage(compounds, molsPerRow=n_graphs_per_line, subImgSize=(size, size), legends=legend)
