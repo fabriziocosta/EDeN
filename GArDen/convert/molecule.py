@@ -20,7 +20,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from rdkit.Chem import Draw
-from IPython.core.display import display
 import networkx as nx
 import logging
 
@@ -172,4 +171,4 @@ def draw_compounds(compounds, n_graphs_per_line=5, size=250, legend=None):
     # make the image
     image = Draw.MolsToGridImage(compounds, molsPerRow=n_graphs_per_line, subImgSize=(size, size), legends=legend)
     # display on the spot
-    display(image)
+    image.show()
