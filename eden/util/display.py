@@ -272,9 +272,13 @@ def draw_graph_set(graphs,
                    n_graphs_per_line=5,
                    size=4,
                    edge_label=None,
+                   pos=None,
                    **args):
     """draw_graph_set."""
     graphs = list(graphs)
+    for g, p in zip(graphs, pos):
+        g.graph['positiondictionary'] = p
+
     while graphs:
         draw_graph_row(graphs[:n_graphs_per_line],
                        n_graphs_per_line=n_graphs_per_line,
@@ -295,7 +299,8 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, **args):
     for i in range(count):
         plt.subplot(1, n_graphs_per_line, i + 1)
         g = graphs[i]
-        draw_graph(g, size=None, **args)
+        draw_graph(g, size=None, pos=g.graph.get('positiondictionary', None),
+                   **args)
     plt.show()
 
 
