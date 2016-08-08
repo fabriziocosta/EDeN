@@ -276,8 +276,9 @@ def draw_graph_set(graphs,
                    **args):
     """draw_graph_set."""
     graphs = list(graphs)
-    for g, p in zip(graphs, pos):
-        g.graph['positiondictionary'] = p
+    if pos:
+        for g, p in zip(graphs, pos):
+            g.graph['positiondictionary'] = p
 
     while graphs:
         draw_graph_row(graphs[:n_graphs_per_line],
