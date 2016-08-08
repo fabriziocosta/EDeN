@@ -325,6 +325,23 @@ class Vectorizer(AbstractVectorizer):
         -------
         data_matrix : array-like, shape = [n_samples, n_features]
             Vector representation of input graphs.
+
+        >>>import networkx as nx
+        >>>def get_path_graph(length=4):
+        >>>    g=nx.path_graph(length)
+        >>>    for n,d in g.nodes(data=True):
+        >>>        d['label']='C'
+        >>>    for a,b,d in g.edges(data=True):
+        >>>        d['label']='1'
+        >>>    return g
+        >>>g = get_path_graph(4)
+        >>>g2 = get_path_graph(5)
+        >>>g2.remove_node(0)
+        >>>g[1][2]['label']='2'
+        >>>g2[2][3]['label']='2'
+        >>>v=Vectorizer()
+        >>>hash(v.transform([g])) == hash(v.transform([g2]))
+        True
         """
         instance_id = None
         feature_rows = []
