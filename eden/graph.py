@@ -341,7 +341,7 @@ class Vectorizer(AbstractVectorizer):
         >>> g[1][2]['label']='2'
         >>> g2[2][3]['label']='2'
         >>> v = Vectorizer()
-        >>> hash(v.transform([g])) == hash(v.transform([g2]))
+        >>> v.transform([g]) == v.transform([g2])
         True
         """
         instance_id = None
