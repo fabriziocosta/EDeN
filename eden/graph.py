@@ -341,7 +341,7 @@ class Vectorizer(AbstractVectorizer):
         >>> g[1][2]['label']='2'
         >>> g2[2][3]['label']='2'
         >>> v = Vectorizer()
-        >>> v.transform([g]) == v.transform([g2])
+        >>> np.sum( v.transform([g]) - v.transform([g2]) ) == 0
         True
         """
         instance_id = None
