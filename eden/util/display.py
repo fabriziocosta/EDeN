@@ -293,7 +293,7 @@ def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, **args):
     """draw_graph_row."""
     count = len(graphs)
     size_y = size
-    size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio',1)
+    size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio', 1)
     plt.figure(figsize=(size_x, size_y))
     plt.xlim(xmax=3)
 
