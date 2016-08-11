@@ -37,6 +37,7 @@ import random
 import pylab as plt
 import joblib
 from scipy.optimize import curve_fit
+import multiprocessing
 
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,87 @@ def plot_distance(cluster_id_i,
     plt.close()
     return figname
 
+
+def mean_shift_decomposition(sig, half_windw_size=5):
+    """mean_shift_decomposition."""
+    sig_len = len(sig)
+    for i in range(half_windw_size, sig_len - half_windw_size):
+        min_sig = np.min(sig[i - half_windw_size:i + half_windw_size])
+        if min_sig == sig[i]:
+            yield i
+
+
+def box_decomposition(sig, half_windw_size=5):
+    """box_decomposition."""
+    ids = list(mean_shift_decomposition(sig, half_windw_size))
+    for i in range(len(ids) - 1):
+        start = ids[i]
+        end = ids[i + 1]
+        width = end - start
+        val = sum(sig[start:end])
+        yield val, start, end, width
+
+
+def cumulative_score(seqs, smod):
+    """cumulative_score."""
+    median_len = np.median([len(s) for h, s in seqs])
+    sigs = None
+    for scores in smod.score(seqs):
+        sig = np.array(scores)
+        if len(sig) != median_len:
+            logger.debug('Length mismatch: %d != %d' % (len(sig), median_len))
+        if sigs is None:
+            if len(sig) >= median_len:
+                sigs = sig[:median_len]
+        else:
+            if len(sig) >= median_len:
+                sigs = sigs + sig[:median_len]
+    sig = np.array(sigs) / float(len(seqs))
+    return sig
+
+
+def trim_seqs(seqs, smod, half_windw_size=7):
+    """trim_seqs."""
+    sig = cumulative_score(seqs, smod)
+    val, start, end, width = max(box_decomposition(sig, half_windw_size))
+    logger.debug('val:%.1f beg:%s end:%s width:%s' % (val, start, end, width))
+    for h, s in seqs:
+        if s[start:end]:
+            yield (h, s[start:end])
+
+
+def plot_cumulative_score(smod,
+                          seqs,
+                          half_windw_size=7,
+                          size=(6, 2),
+                          fname=None):
+    """plot_cumulative_score."""
+    sig = cumulative_score(seqs, smod)
+    vals, starts, ends, widths = zip(*box_decomposition(sig, half_windw_size))
+    max_val = max(vals)
+    vals = vals / max_val
+
+    plt.figure(figsize=size)
+    sigp = np.copy(sig)
+    sigp[sigp < 0] = 0
+    plt.bar(range(len(sigp)), sigp, alpha=0.3, color='g')
+    sign = np.copy(sig)
+    sign[sign >= 0] = 0
+    plt.bar(range(len(sign)), sign, alpha=0.3, color='r')
+    plt.bar(starts, vals, widths, alpha=0.2, color='y')
+    plt.grid()
+    plt.xlabel('Position')
+    plt.ylabel('Importance score')
+    if fname:
+        plt.draw()
+        figname = '%s_importance.png' % (fname)
+        plt.savefig(
+            figname, bbox_inches='tight', transparent=True, pad_inches=0)
+    else:
+        figname = None
+        plt.show()
+    plt.close()
+    return figname
 # ------------------------------------------------------------------------------
 
 
@@ -844,13 +926,17 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
 
     def fit_decomposition(self, seqs=None):
         """fit_decomposition."""
+        self.a, self.b = -4, 1
         scores = [score for header, score, begin, end, subseq in
                   self.decomposition_scores(seqs)]
-        xs, ys = ecdf(scores)
-        popt, pcov = curve_fit(sigmoid, xs, ys)
-        self.a, self.b = popt
+        if scores:
+            xs, ys = ecdf(scores)
+            popt, pcov = curve_fit(sigmoid, xs, ys)
+            self.a, self.b = popt
+        else:
+            logger.debug('Warning: reverting to default values')
         logger.debug('ECDF fit on %d values' % (len(scores)))
-        logger.debug('Optimal param: a:%.2f  b:%.2f' % (self.a, self.b))
+        logger.debug('Optimal params: a:%.2f  b:%.2f' % (self.a, self.b))
 
     def compute_p_value(self, value):
         """p_value."""
@@ -870,10 +956,13 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 subsequences.append((new_header, subseq))
             if not subsequences:
                 raise Exception('No subarray was selected. Increase p_value.')
+            logger.debug('Working on: %d fragments' % len(subsequences))
+            n = multiprocessing.cpu_count()
+            pos_block_size = len(subsequences) / n
             data_matrix = multiprocess_vectorize(
                 subsequences,
                 vectorizer=self.vectorizer,
-                pos_block_size=self.pos_block_size,
+                pos_block_size=pos_block_size,
                 n_jobs=self.n_jobs)
             logger.debug('Clustering')
             logger.debug('working on %d instances' % data_matrix.shape[0])
@@ -1228,11 +1317,29 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                        '"></p>')
         return '\n'.join(txt)
 
-    def report(self, all_seqs, motives, nbins=40, size=(17, 2), fname=None):
+    def report(self,
+               pos_seqs,
+               all_seqs,
+               motives,
+               nbins=40,
+               size=(17, 2),
+               box_decomposition=True,
+               fname=None):
         """Report in markdown format."""
         txt = []
         if motives:
             _, norm_cooccurence_mtx, distances = compute_cooccurence(motives)
+            info = '### Summary: %d motives' % len(motives)
+            txt.append(info)
+            if box_decomposition:
+                figname = plot_cumulative_score(
+                    self, pos_seqs, size=size, fname=fname)
+                txt.append(self._wrap_image(figname))
+            for freq, cluster_id in sorted([(motives[i]['freq'], i)
+                                            for i in motives], reverse=True):
+                info = '  - %.2s %s' % \
+                    (cluster_id, motives[cluster_id]['consensus_seq'])
+                txt.append(info)
             for freq, cluster_id in sorted([(motives[i]['freq'], i)
                                             for i in motives], reverse=True):
                 info = '#### Motif id: %d' % cluster_id
@@ -1259,11 +1366,12 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                     nbins=nbins, size=size, fname=fname)
                 txt.append(self._wrap_image(figname))
                 for j in motives:
+                    regex_i = motives[i]['regex_seq']
                     if j != cluster_id:
                         regex_j = motives[j]['regex_seq']
                         ds = distances[(cluster_id, j)]
-                        info = '  - num co-occurences of motif %d vs %d: %d' % \
-                            (cluster_id, j, len(ds))
+                        info = '  - num co-occurences %d %s vs %d %s: %d' % \
+                            (cluster_id, regex_i, j, regex_j, len(ds))
                         txt.append(info)
                         if len(ds):
                             figname = plot_distance(
