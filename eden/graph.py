@@ -341,7 +341,8 @@ class Vectorizer(AbstractVectorizer):
         >>> g[1][2]['label']='2'
         >>> g2[2][3]['label']='2'
         >>> v = Vectorizer()
-        >>> np.sum( v.transform([g]) - v.transform([g2]) ) == 0
+        >>> vec_to_hash = lambda vec: hash(tuple(vec.data + vec.indices))
+        >>> vec_to_hash(v.transform([g])) == vec_to_hash (v.transform([g2]) ))
         True
         """
         instance_id = None
