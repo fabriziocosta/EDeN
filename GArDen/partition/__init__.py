@@ -119,7 +119,8 @@ class IsomorphicClusterer(BaseEstimator, ClusterMixin):
 
     def fit_predict(self, graphs):
         """fit_predict."""
-        def vec_to_hash(vec): return hash(tuple(vec.data + vec.indices))
+        def vec_to_hash(vec):
+            return hash(tuple(vec.data + vec.indices))
         try:
             for graph in graphs:
                 prediction = vec_to_hash(self.vectorizer.transform([graph]))
