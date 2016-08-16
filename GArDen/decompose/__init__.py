@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import networkx as nx
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +15,8 @@ logger = logging.getLogger(__name__)
 class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
     """ThresholdedConnectedComponents."""
 
-    def __init__(self, attribute='importance', threshold=0, min_size=3,
+    def __init__(self, attribute='importance', threshold=0, min_size=3, max_size=20,
+                 shrink_graphs=False,
                  less_then=True, more_than=True):
         """Construct."""
         self.attribute = attribute
@@ -22,7 +24,9 @@ class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
         self.min_size = min_size
         self.less_then = less_then
         self.more_than = more_than
-        self.counter = 0
+        self.max_size = max_size
+        self.shrink_graphs = shrink_graphs
+        self.counter = 0  # this guy looks like hes doing nothing?
 
     def transform(self, graphs):
         """Transform."""
@@ -32,14 +36,15 @@ class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
                 ccomponents = self._extract_ccomponents(
                     graph,
                     threshold=self.threshold,
-                    min_size=self.min_size)
+                    min_size=self.min_size,
+                    max_size=self.max_size)
                 yield ccomponents
             pass
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
             logger.debug('Exception', exc_info=True)
 
-    def _extract_ccomponents(self, graph, threshold=0, min_size=2):
+    def _extract_ccomponents(self, graph, threshold=0, min_size=2, max_size=20):
         # remove all vertices that have a score less then threshold
         cc_list = []
 
@@ -50,8 +55,10 @@ class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
                     if d[self.attribute] < threshold:
                         less_component_graph.remove_node(v)
             for cc in nx.connected_component_subgraphs(less_component_graph):
-                if len(cc) >= min_size:
+                if len(cc) >= min_size and len(cc) <= max_size:
                     cc_list.append(cc)
+                if len(cc) > max_size and self.shrink_graphs:
+                    cc_list += list(self.enforce_max_size(cc, min_size, max_size))
 
         # remove all vertices that have a score more then threshold
         if self.more_than:
@@ -62,9 +69,29 @@ class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
                         more_component_graph.remove_node(v)
 
             for cc in nx.connected_component_subgraphs(more_component_graph):
-                if len(cc) >= min_size:
+                if len(cc) >= min_size and len(cc) <= max_size:
                     cc_list.append(cc)
+
+                if len(cc) > max_size and self.shrink_graphs:
+                    cc_list += list(self.enforce_max_size(cc, min_size, max_size, choose_cut_node=max))
+
         return cc_list
+
+    def enforce_max_size(self, graph, min_size, max_size, choose_cut_node=min):
+        # checklist contains graphs that are too large.
+        checklist = [graph]
+        while checklist:
+            # remove lowest scoring node:
+            graph = checklist.pop()
+            scores = [(d[self.attribute], n) for n, d in graph.nodes(data=True)]
+            graph.remove_node(choose_cut_node(scores)[1])
+            # check the resulting components
+            for g in nx.connected_component_subgraphs(graph):
+                if len(g) > max_size:
+                    checklist.append(g)
+                elif len(g) >= min_size:
+                    yield g
+
 
 # ------------------------------------------------------------------------------
 
