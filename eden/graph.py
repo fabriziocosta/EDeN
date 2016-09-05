@@ -36,7 +36,8 @@ class Vectorizer(AbstractVectorizer):
                  key_weight='weight',
                  key_nesting='nesting',
                  key_importance='importance',
-                 key_vec='vec'):
+                 key_vec='vec',
+                 key_svec='svec'):
         """Constructor.
 
         Parameters
@@ -96,6 +97,10 @@ class Vectorizer(AbstractVectorizer):
 
         key_vec : string (default 'vec')
             The key used to indicate the vector label information in nodes.
+
+        key_svec : string (default 'svec')
+            The key used to indicate the sparse vector label information
+            in nodes.
         """
         self.name = self.__class__.__name__
         self.complexity = complexity
@@ -121,6 +126,7 @@ class Vectorizer(AbstractVectorizer):
         self.key_nesting = key_nesting
         self.key_importance = key_importance
         self.key_vec = key_vec
+        self.key_svec = key_svec
 
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
@@ -283,6 +289,9 @@ class Vectorizer(AbstractVectorizer):
         node_feature_list = self._add_vector_labes(
             graph, vertex_v, node_feature_list)
         self._update_feature_list(node_feature_list, feature_list)
+        node_sparse_feature_list = self._add_sparse_vector_labes(
+            graph, vertex_v, node_feature_list)
+        self._update_feature_list(node_sparse_feature_list, feature_list)
 
     def _add_vector_labes(self, graph, vertex_v, node_feature_list):
         # add the vector with an offset given by the feature, multiplied by val
@@ -294,6 +303,23 @@ class Vectorizer(AbstractVectorizer):
                     val = node_feature_list[radius_dist_key][feature]
                     for i, vec_val in enumerate(vec):
                         key = feature + i
+                        vec_feature_list[radius_dist_key][key] += val * vec_val
+            node_feature_list = vec_feature_list
+        return node_feature_list
+
+    def _add_sparse_vector_labes(self, graph, vertex_v, node_feature_list):
+        # add the vector with a feature resulting from hashing
+        # the discrete labeled graph sparse encoding with the sparse vector
+        # feature, the val is then multiplied.
+        svec = graph.node[vertex_v].get(self.key_svec, None)
+        if svec:
+            vec_feature_list = defaultdict(lambda: defaultdict(float))
+            for radius_dist_key in node_feature_list:
+                for feature in node_feature_list[radius_dist_key]:
+                    val = node_feature_list[radius_dist_key][feature]
+                    for i in svec:
+                        vec_val = svec[i]
+                        key = fast_hash_2(feature, i, self.bitmask)
                         vec_feature_list[radius_dist_key][key] += val * vec_val
             node_feature_list = vec_feature_list
         return node_feature_list
@@ -548,16 +574,21 @@ class Vectorizer(AbstractVectorizer):
             if d.get('node', False):
                 self._single_vertex_breadth_first_visit(graph, n, max_depth)
 
-    def annotate(self, graphs, estimator=None, reweight=1.0, relabel=False):
-        """Write importance and weight attribute according to estimator.
+    def annotate(self,
+                 graphs,
+                 estimator=None,
+                 reweight=1.0,
+                 vertex_features=False):
+        """Return graphs with extra attributes: importance and features.
 
-        Given a list of networkx graphs, and a fitted estimator, return a list
-        of networkx graphs where each vertex has an additional attribute with
-        key 'importance'. The importance value of a vertex corresponds to the
+        Given a list of networkx graphs, if the given estimator is not None and
+        is fitted, return a list of networkx graphs where each vertex has
+        additional attributes with key 'importance' and 'weight'.
+        The importance value of a vertex corresponds to the
         part of the score that is imputable to the neighborhood of radius r+d
-        of the vertex.
-        It can overwrite the label attribute with the sparse vector
-        corresponding to the vertex induced features.
+        of the vertex. The weight value is the absolute value of importance.
+        If vertex_features is True then each vertex has additional attributes
+        with key 'features' and 'vector'.
 
         Parameters
         ----------
@@ -575,17 +606,16 @@ class Vectorizer(AbstractVectorizer):
             If reweight = 0.5 then update with the arithmetic mean of the
             current weight information and the abs( score )
 
-        relabel : bool (default false)
-            Flag to replace the label attribute of each vertex with the sparse
-            vector encoding of all features that have that vertex as root.
-            Create a new attribute 'original_label' to store the previous
-            label. If the 'original_label' attribute is already present then
-            it is left untouched: this allows an iterative application of the
-            relabeling procedure while preserving the original information.
+        vertex_features : bool (default false)
+            Flag to compute the sparse vector encoding of all features that
+            have that vertex as root. An attribute with key 'features' is
+            created for each node that contains a CRS scipy sparse vector,
+            and an attribute with key 'vector' is created that contains a
+            python dictionary to store the key, values pairs.
         """
         self.estimator = estimator
         self.reweight = reweight
-        self.relabel = relabel
+        self.vertex_features = vertex_features
 
         for graph in graphs:
             annotated_graph = self._annotate(graph)
@@ -601,7 +631,7 @@ class Vectorizer(AbstractVectorizer):
             # add or update weight and importance information
             graph = self._annotate_importance(graph, data_matrix)
         # add or update label information
-        if self.relabel:
+        if self.vertex_features:
             graph = self._annotate_vector(graph, data_matrix)
         annotated_graph = _revert_edge_to_vertex_transform(graph)
         annotated_graph.graph = graph_dict
