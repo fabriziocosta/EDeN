@@ -5,9 +5,7 @@ import math
 import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix
-from sklearn.cluster import MiniBatchKMeans
 from collections import defaultdict, deque
-import itertools
 import joblib
 import networkx as nx
 from eden import fast_hash, fast_hash_vec
@@ -26,13 +24,10 @@ class Vectorizer(AbstractVectorizer):
                  complexity=3,
                  r=None,
                  d=None,
-                 n=1,
                  min_r=0,
                  min_d=0,
-                 min_n=2,
                  weights_dict=None,
                  auto_weights=False,
-                 label_size=1,
                  nbits=20,
                  normalization=True,
                  inner_normalization=True,
@@ -41,9 +36,7 @@ class Vectorizer(AbstractVectorizer):
                  key_weight='weight',
                  key_nesting='nesting',
                  key_importance='importance',
-                 key_class='class',
-                 key_original_label='original_label',
-                 key_entity='entity'):
+                 key_vec='vec'):
         """Constructor.
 
         Parameters
@@ -58,19 +51,11 @@ class Vectorizer(AbstractVectorizer):
         d : int
             The maximal distance size.
 
-        n : int (default 1)
-            The maximal number of clusters used to discretize real label
-            vectors.
-
         min_r : int
             The minimal radius size.
 
         min_d : int
             The minimal distance size.
-
-        min_n : int (default 2)
-            The minimal number of clusters used to discretize real label
-            vectors.
 
         weights_dict : dict of floats
             Dictionary with keys pairs of radius distance and value weights.
@@ -78,10 +63,6 @@ class Vectorizer(AbstractVectorizer):
         auto_weights : bool (default False)
             Flag to set to 1 the weight of the kernels for r=i, d=i
             for i in range(complexity)
-
-        label_size : int (default 1)
-            the number of discretization steps used in the conversion from
-            real valued labels to discrete labels.
 
         nbits : int (default 20)
             The number of bits that defines the feature space size:
@@ -113,11 +94,8 @@ class Vectorizer(AbstractVectorizer):
         key_importance : string (default 'importance')
             The key used to indicate the importance information in nodes.
 
-        key_original_label : string (default 'original_label')
-            The key used to indicate the original label information in nodes.
-
-        key_entity : string (default 'entity')
-            The key used to indicate the entity information in nodes.
+        key_vec : string (default 'vec')
+            The key used to indicate the vector label information in nodes.
         """
         self.name = self.__class__.__name__
         self.complexity = complexity
@@ -129,35 +107,20 @@ class Vectorizer(AbstractVectorizer):
         self.d = d
         self.min_r = min_r
         self.min_d = min_d
-        self.n = n
-        self.min_n = min_n
         self.weights_dict = weights_dict
         if auto_weights:
             self.weights_dict = {(i, i): 1 for i in range(complexity)}
-        # Note: if the discretization is active then the default label_size
-        # should be 5
-        self.label_size = label_size
-        if self.n > 1 and self.label_size == 1:
-            self.label_size = min(self.n, 5)
-        # Note: if the discretization is active then label_size cannot be
-        # larger than n-min_n
-        if self.n > 1:
-            self.label_size = min(self.n - self.min_n, self.label_size)
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.positional = positional
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
-        self.discretizers = dict()
-        self.fit_status = None
         self.key_label = key_label
         self.key_weight = key_weight
         self.key_nesting = key_nesting
         self.key_importance = key_importance
-        self.key_class = key_class
-        self.key_original_label = key_original_label
-        self.key_entity = key_entity
+        self.key_vec = key_vec
 
     def set_params(self, **args):
         """Set the parameters of the vectorizer."""
@@ -183,20 +146,6 @@ class Vectorizer(AbstractVectorizer):
             self.inner_normalization = args['inner_normalization']
         if args.get('positional', None) is not None:
             self.positional = args['positional']
-        if args.get('n', None) is not None:
-            self.n = args['n']
-        if args.get('min_n', None) is not None:
-            self.min_n = args['min_n']
-        if args.get('label_size', None) is not None:
-            self.label_size = args['label_size']
-        else:
-            self.label_size = 1
-        if self.n > 1 and self.label_size == 1:
-            self.label_size = min(self.n, 5)
-        # Note: if the discretization is active then label_size cannot be
-        # larger than n-min_n
-        if self.n > 1:
-            self.label_size = min(self.n - self.min_n, self.label_size)
 
     def __repr__(self):
         """string."""
@@ -209,109 +158,6 @@ class Vectorizer(AbstractVectorizer):
     def load(self, obj):
         """load."""
         self.__dict__.update(joblib.load(obj).__dict__)
-
-    def fit(self, graphs):
-        """Fit to the real valued vector data stored in the nodes of the graphs.
-
-        Parameters
-        ----------
-        graphs : list[graphs]
-            The input list of networkx graphs.
-
-        Returns
-        -------
-        self
-
-        """
-        if self.n == 1:
-            # fit is meaningful only when n>1
-            logger.debug('Warning: fit was asked with n=1')
-        else:
-            n_clusters_list = self._compute_n_clusters_list()
-            label_data_matrixs = dict()
-            graphs, graphs_ = itertools.tee(graphs)
-            label_data_matrixs = self._assemble_dense_data_matrices(graphs_)
-            label_data_matrixs.update(
-                self._assemble_sparse_data_matrices(graphs))
-            for node_entity in label_data_matrixs:
-                self.discretizers[node_entity] = []
-                for m in n_clusters_list:
-                    discretization_model = MiniBatchKMeans(n_clusters=m,
-                                                           init='k-means++',
-                                                           max_iter=10,
-                                                           n_init=10,
-                                                           random_state=m)
-                    discretization_model.fit(label_data_matrixs[node_entity])
-                    self.discretizers[node_entity] += \
-                        [discretization_model]
-            self.fit_status = 'fit'
-        return self
-
-    def _compute_n_clusters_list(self):
-        # compute a log spaced sequence (label_size elements) of number of
-        # clusters in this way when asked for max 1000 clusters and min 4
-        # clusters and 5 levels we produce the sequence of cluster sizes:
-        # 4,16,64,256,1024
-        c_start = math.log10(self.min_n)
-        c_end = math.log10(self.n)
-        n_clusters_list = [int(x)
-                           for x in
-                           np.ceil(np.logspace(c_start,
-                                               c_end,
-                                               num=self.label_size))]
-        # remove repeated values; this manages artifacts resulting from very
-        # large values of label_size
-        n_clusters_list = sorted(list(set(n_clusters_list)))
-        n_trailing = self.label_size - len(n_clusters_list)
-        if n_trailing > 0:
-            n_clusters_list += [n_clusters_list[-1]] * n_trailing
-        return n_clusters_list
-
-    def partial_fit(self, graphs):
-        """Update the discretizer of the real valued vector data.
-
-        Parameters
-        ----------
-        graphs : list[graphs]
-            The input list of networkx graphs.
-
-        Returns
-        -------
-        self
-        """
-        # if partial_fit is invoked prior to a fit invocation then run fit
-        # instead
-        if self.fit_status != 'fit':
-            self.fit(graphs)
-        else:
-            label_data_matrixs = self._assemble_dense_data_matrices(graphs)
-            label_data_matrixs.update(
-                self._assemble_sparse_data_matrices(graphs))
-            for node_entity in label_data_matrixs:
-                self.discretizers[node_entity] = []
-                for i in range(self.label_size):
-                    d = label_data_matrixs[node_entity]
-                    self.discretizers[node_entity][i].partial_fit(d)
-        return self
-
-    def fit_transform(self, graphs):
-        """Fit the discretizer to the real valued vector data.
-
-        Then transform a list of networkx graphs into a sparse matrix.
-
-        Parameters
-        ----------
-        graphs : list[graphs]
-            The input list of networkx graphs.
-
-        Returns
-        -------
-        data_matrix : array-like, shape = [n_samples, n_features]
-            Vector representation of input graphs.
-        """
-        graphs, graphs_ = itertools.tee(graphs)
-        self.fit(graphs_)
-        return self.transform(graphs)
 
     def transform(self, graphs):
         """Transform a list of networkx graphs into a sparse matrix.
@@ -336,150 +182,9 @@ class Vectorizer(AbstractVectorizer):
                 no graphs are present in current iterator.')
         return self._convert_dict_to_sparse_matrix(feature_rows)
 
-    def transform_single(self, graph):
-        """Transform a single networkx graph into one sparse row."""
-        self._test_goodness(graph)
-        return self._convert_dict_to_sparse_matrix([self._transform(graph)])
-
-    def predict(self, graphs, estimator=None):
-        """Return an iterator over the decision function output."""
-        for graph in graphs:
-            self._test_goodness(graph)
-            # extract feature vector
-            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
-            if estimator.__class__.__name__ in ['SGDRegressor']:
-                margins = estimator.predict(x)
-            else:
-                margins = estimator.decision_function(x)
-            prediction = margins[0]
-            yield prediction
-
-    def similarity(self, graphs, ref_instance=None, estimator=None):
-        """Iterator over the dot product between ref_instance and graphs."""
-        reference_vec = \
-            self._convert_dict_to_sparse_matrix(
-                [self._transform(ref_instance)])
-        for graph in graphs:
-            self._test_goodness(graph)
-            # extract feature vector
-            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
-            # if an estimator is given then consider the transformed
-            # feature vectors instead
-            if estimator is not None:
-                reference_vec_ = reference_vec.multiply(estimator.coef_)
-                x = x.multiply(estimator.coef_)
-                res = reference_vec_.dot(x.T)
-            else:
-                res = reference_vec.dot(x.T).todense()
-            prediction = res[0, 0]
-            yield prediction
-
-    def distance(self, graphs, ref_instance=None):
-        """Iterator on euclidean distance between ref_instance and graphs."""
-        reference_vec = \
-            self._convert_dict_to_sparse_matrix(
-                [self._transform(ref_instance)])
-        for graph in graphs:
-            self._test_goodness(graph)
-            # extract feature vector
-            x = self._convert_dict_to_sparse_matrix([self._transform(graph)])
-            dist = reference_vec - x
-            norm = dist.dot(dist.T).todense()
-            norm = norm[0, 0]
-            norm = math.sqrt(norm)
-            yield norm
-
     def _test_goodness(self, graph):
         if graph.number_of_nodes() == 0:
             raise Exception('ERROR: something went wrong, empty graph.')
-
-    def _extract_dense_vectors_from_labels(self, original_graph):
-        # from each vertex extract the node_entity and the label as a list and
-        # return a dict with node_entity as key and the vector associated to
-        # each vertex
-        label_data_dict = defaultdict(lambda: list(list()))
-        # transform edges to vertices to capture labels on edges too
-        graph = _edge_to_vertex_transform(original_graph)
-        # for all types in every node of every graph
-        for n, d in graph.nodes_iter(data=True):
-            if isinstance(d[self.key_label], list):
-                node_entity, data = _extract_entity_and_label(d,
-                                                              self.key_entity,
-                                                              self.key_label)
-                label_data_dict[node_entity].append(data)
-        return label_data_dict
-
-    def _assemble_dense_data_matrix_dict(self, label_data_dict):
-        # given a dict with node_entity as keys and lists of vectors,
-        # return a dict of numpy dense matrices
-        label_matrix_dict = dict()
-        for node_entity in label_data_dict:
-            label_matrix_dict[node_entity] = \
-                np.array(label_data_dict[node_entity], dtype=np.float64)
-        return label_matrix_dict
-
-    def _assemble_dense_data_matrices(self, graphs):
-        # take a list of graphs and extract the dictionaries of node_entityes
-        # with all the dense vectors associated to each vertex
-        # then convert, for each node_entity, the list of lists into a dense
-        # numpy matrix
-        label_data_dict = defaultdict(lambda: list(list()))
-        # for every node of every graph
-        for instance_id, G in enumerate(graphs):
-            label_data = self._extract_dense_vectors_from_labels(G)
-            # for all node_entityes, add the list of dense vectors to the dict
-            for node_entity in label_data:
-                label_data_dict[node_entity] += label_data[node_entity]
-        # convert into dict of numpy matrices
-        return self._assemble_dense_data_matrix_dict(label_data_dict)
-
-    def _extract_sparse_vectors_from_labels(self, original_graph):
-        # from each vertex extract the node_entity and the label
-        # if the label is of type dict
-        # then
-        label_data_dict = defaultdict(lambda: list(dict()))
-        graph = _edge_to_vertex_transform(original_graph)
-        for n, d in graph.nodes_iter(data=True):
-            if isinstance(d[self.key_label], dict):
-                node_entity, data = _extract_entity_and_label(d,
-                                                              self.key_entity,
-                                                              self.key_label)
-                label_data_dict[node_entity] += [data]
-        return label_data_dict
-
-    def _assemble_sparse_data_matrix_dict(self, label_data_dict):
-        # given a dict with node_entity as keys and lists of dicts,
-        # return a dict of compressed sparse row matrices
-        label_matrix_dict = dict()
-        for node_entity in label_data_dict:
-            list_of_dicts = label_data_dict[node_entity]
-            feature_list = []
-            for instance_id, vertex_dict in enumerate(list_of_dicts):
-                feature_vector = {}
-                for feature in vertex_dict:
-                    code = (int(hash(feature) & self.bitmask) + 1)
-                    feature_vector_key = code
-                    feature_vector_value = vertex_dict[feature]
-                    feature_vector[feature_vector_key] = feature_vector_value
-                feature_list.append(feature_vector)
-            label_matrix_dict[node_entity] = \
-                self._convert_dict_to_sparse_matrix(feature_list)
-        return label_matrix_dict
-
-    def _assemble_sparse_data_matrices(self, graphs):
-        # take a list of graphs and extract the dictionaries of node_entityes
-        # with all the sparse vectors associated to each vertex
-        # then convert, for each node_entity, the list of lists into a
-        # compressed sparse row matrix
-        label_data_dict = defaultdict(lambda: list(dict()))
-        # for every node of every graph
-        for instance_id, G in enumerate(graphs):
-            label_data = self._extract_sparse_vectors_from_labels(G)
-            # for all node_entityes, update the list of dicts
-            for node_entity in label_data:
-                label_data_dict[node_entity] += label_data[node_entity]
-        # convert into dict of numpy matrices
-        return self._assemble_sparse_data_matrix_dict(label_data_dict)
 
     def _convert_dict_to_sparse_matrix(self, feature_rows):
         if len(feature_rows) == 0:
@@ -497,7 +202,8 @@ class Vectorizer(AbstractVectorizer):
                     col.append(feature)
                     data.append(feature_row[feature])
         shape = (max(row) + 1, self.feature_size)
-        data_matrix = csr_matrix((data, (row, col)), shape=shape, dtype=np.float64)
+        data_matrix = csr_matrix((data, (row, col)),
+                                 shape=shape, dtype=np.float64)
         return data_matrix
 
     def _weight_preprocessing(self, graph):
@@ -517,10 +223,8 @@ class Vectorizer(AbstractVectorizer):
     def _graph_preprocessing(self, original_graph):
         graph = _edge_to_vertex_transform(original_graph)
         self._weight_preprocessing(graph)
-        _label_preprocessing(graph, label_size=self.label_size,
+        _label_preprocessing(graph,
                              key_label=self.key_label,
-                             key_entity=self.key_entity,
-                             discretizers=self.discretizers,
                              bitmask=self.bitmask)
         self._compute_distant_neighbours(graph, max(self.r, self.d) * 2)
         self._compute_neighborhood_graph_hash_cache(graph)
@@ -539,7 +243,14 @@ class Vectorizer(AbstractVectorizer):
         _clean_graph(graph)
         return self._normalization(feature_list)
 
+    def _update_feature_list(self, node_feature_list, feature_list):
+        for radius_dist_key in node_feature_list:
+            for feature in node_feature_list[radius_dist_key]:
+                val = node_feature_list[radius_dist_key][feature]
+                feature_list[radius_dist_key][feature] += val
+
     def _transform_vertex(self, graph, vertex_v, feature_list):
+        node_feature_list = defaultdict(lambda: defaultdict(float))
         # for all distances
         root_dist_dict = graph.node[vertex_v]['remote_neighbours']
         for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
@@ -547,8 +258,25 @@ class Vectorizer(AbstractVectorizer):
                 node_set = root_dist_dict[distance]
                 for vertex_u in node_set:
                     self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                distance, feature_list)
-        self._transform_vertex_nesting(graph, vertex_v, feature_list)
+                                                distance, node_feature_list)
+        self._transform_vertex_nesting(graph, vertex_v, node_feature_list)
+        node_feature_list = self._add_vector_labes(
+            graph, vertex_v, node_feature_list)
+        self._update_feature_list(node_feature_list, feature_list)
+
+    def _add_vector_labes(self, graph, vertex_v, node_feature_list):
+        # add the vector with an offset given by the feature, multiplied by val
+        vec = graph.node[vertex_v].get(self.key_vec, None)
+        if vec:
+            vec_feature_list = defaultdict(lambda: defaultdict(float))
+            for radius_dist_key in node_feature_list:
+                for feature in node_feature_list[radius_dist_key]:
+                    val = node_feature_list[radius_dist_key][feature]
+                    for i, vec_val in enumerate(vec):
+                        key = feature + i
+                        vec_feature_list[radius_dist_key][key] += val * vec_val
+            node_feature_list = vec_feature_list
+        return node_feature_list
 
     def _transform_vertex_nesting(self, graph, vertex_v, feature_list):
         # find all vertices, if any, that are second point of nesting edge
@@ -615,38 +343,37 @@ class Vectorizer(AbstractVectorizer):
         # we need to revert to r/2 and d/2
         radius_dist_key = (radius / 2, distance / 2)
         # reweight using external weight dictionary
-        for label_index in range(graph.graph['label_size']):
-            len_v = len(graph.node[vertex_v]['neigh_graph_hash'][label_index])
-            len_u = len(graph.node[vertex_u]['neigh_graph_hash'][label_index])
-            if radius < len_v and radius < len_u:
-                # feature as a pair of neighborhoods at a radius,distance
-                # canonicalization of pair of neighborhoods
-                vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
-                vertex_v_hash = vertex_v_labels[label_index][radius]
-                vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
-                vertex_u_hash = vertex_u_labels[label_index][radius]
-                if vertex_v_hash < vertex_u_hash:
-                    first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
-                else:
-                    first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
-                feature = fast_hash_4(
-                    first_hash, second_hash, radius, distance, self.bitmask)
-                # half features are those that ignore the central vertex v
-                # the reason to have those is to help model the context
-                # independently from the identity of the vertex itself
-                half_feature = fast_hash_3(vertex_u_hash,
-                                           radius, distance, self.bitmask)
-                if graph.graph.get('weighted', False) is False:
-                    feature_list[radius_dist_key][feature] += cw
-                    feature_list[radius_dist_key][half_feature] += cw
-                else:
-                    weight_v = graph.node[vertex_v]['neigh_graph_weight']
-                    weight_u = graph.node[vertex_u]['neigh_graph_weight']
-                    weight_vu_radius = weight_v[radius] + weight_u[radius]
-                    val = cw * weight_vu_radius
-                    feature_list[radius_dist_key][feature] += val
-                    half_val = cw * weight_u[radius]
-                    feature_list[radius_dist_key][half_feature] += half_val
+        len_v = len(graph.node[vertex_v]['neigh_graph_hash'])
+        len_u = len(graph.node[vertex_u]['neigh_graph_hash'])
+        if radius < len_v and radius < len_u:
+            # feature as a pair of neighborhoods at a radius,distance
+            # canonicalization of pair of neighborhoods
+            vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
+            vertex_v_hash = vertex_v_labels[radius]
+            vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
+            vertex_u_hash = vertex_u_labels[radius]
+            if vertex_v_hash < vertex_u_hash:
+                first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
+            else:
+                first_hash, second_hash = (vertex_u_hash, vertex_v_hash)
+            feature = fast_hash_4(
+                first_hash, second_hash, radius, distance, self.bitmask)
+            # half features are those that ignore the central vertex v
+            # the reason to have those is to help model the context
+            # independently from the identity of the vertex itself
+            half_feature = fast_hash_3(vertex_u_hash,
+                                       radius, distance, self.bitmask)
+            if graph.graph.get('weighted', False) is False:
+                feature_list[radius_dist_key][feature] += cw
+                feature_list[radius_dist_key][half_feature] += cw
+            else:
+                weight_v = graph.node[vertex_v]['neigh_graph_weight']
+                weight_u = graph.node[vertex_u]['neigh_graph_weight']
+                weight_vu_radius = weight_v[radius] + weight_u[radius]
+                val = cw * weight_vu_radius
+                feature_list[radius_dist_key][feature] += val
+                half_val = cw * weight_u[radius]
+                feature_list[radius_dist_key][half_feature] += half_val
 
     def _normalization(self, feature_list):
         # inner normalization per radius-distance
@@ -689,43 +416,39 @@ class Vectorizer(AbstractVectorizer):
                 self._compute_neighborhood_graph_hash(u, graph)
 
     def _compute_neighborhood_graph_hash(self, root, graph):
-        hash_neighborhood_list = []
-        # for all labels
-        for label_index in range(graph.graph['label_size']):
-            # list all hashed labels at increasing distances
-            hash_list = []
-            # for all distances
-            root_dist_dict = graph.node[root]['remote_neighbours']
-            for node_set in root_dist_dict.itervalues():
-                # create a list of hashed labels
-                hash_label_list = []
-                for v in node_set:
-                    # compute the vertex hashed label by hashing the hlabel
-                    # field of position label_index
-                    # with the degree of the vertex (obtained as the size of
-                    # the adjacency dictionary for the vertex v)
-                    # or, in case positional is set, using the relative
-                    # position of the vertex v w.r.t. the root vertex
-                    if self.positional:
-                        vhlabel = fast_hash_2(
-                            graph.node[v]['hlabel'][label_index],
-                            root - v)
-                    else:
-                        vhlabel = \
-                            fast_hash_2(graph.node[v]['hlabel'][label_index],
-                                        len(graph[v]))
-                    hash_label_list.append(vhlabel)
-                # sort it
-                hash_label_list.sort()
-                # hash it
-                hashed_nodes_at_distance_d_in_neighborhood = fast_hash(
-                    hash_label_list)
-                hash_list.append(hashed_nodes_at_distance_d_in_neighborhood)
-            # hash the sequence of hashes of the node set at increasing
-            # distances into a list of features
-            hash_neighborhood = fast_hash_vec(hash_list)
-            hash_neighborhood_list.append(hash_neighborhood)
-        graph.node[root]['neigh_graph_hash'] = hash_neighborhood_list
+        # list all hashed labels at increasing distances
+        hash_list = []
+        # for all distances
+        root_dist_dict = graph.node[root]['remote_neighbours']
+        for node_set in root_dist_dict.itervalues():
+            # create a list of hashed labels
+            hash_label_list = []
+            for v in node_set:
+                # compute the vertex hashed label by hashing the hlabel
+                # field
+                # with the degree of the vertex (obtained as the size of
+                # the adjacency dictionary for the vertex v)
+                # or, in case positional is set, using the relative
+                # position of the vertex v w.r.t. the root vertex
+                if self.positional:
+                    vhlabel = fast_hash_2(
+                        graph.node[v]['hlabel'],
+                        root - v)
+                else:
+                    vhlabel = \
+                        fast_hash_2(graph.node[v]['hlabel'],
+                                    len(graph[v]))
+                hash_label_list.append(vhlabel)
+            # sort it
+            hash_label_list.sort()
+            # hash it
+            hashed_nodes_at_distance_d_in_neighborhood = fast_hash(
+                hash_label_list)
+            hash_list.append(hashed_nodes_at_distance_d_in_neighborhood)
+        # hash the sequence of hashes of the node set at increasing
+        # distances into a list of features
+        hash_neighborhood = fast_hash_vec(hash_list)
+        graph.node[root]['neigh_graph_hash'] = hash_neighborhood
 
     def _compute_neighborhood_graph_weight_cache(self, graph):
         assert (len(graph) > 0), 'ERROR: Empty graph'
@@ -932,134 +655,12 @@ class Vectorizer(AbstractVectorizer):
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
-    def components(self,
-                   graphs,
-                   estimator=None,
-                   score_threshold=0,
-                   min_size=2):
-        """Iterator over the connected components.
 
-        The nodes that have  a key_importance value below the score_threshold
-        are deleted. The resulting components are returned.
-        """
-        annotated_graphs = self.annotate(graphs,
-                                         estimator=estimator,
-                                         reweight=1.0,
-                                         relabel=False)
-        for graph in annotated_graphs:
-            connected_components = \
-                self._extract_connected_components(
-                    graph, score_threshold=score_threshold, min_size=min_size)
-            for connected_component in connected_components:
-                yield connected_component
-
-    def _extract_connected_components(self,
-                                      graph,
-                                      score_threshold=0,
-                                      min_size=2):
-        # remove all vertices that have an importance score less then
-        # score_threshold
-        for v, d in graph.nodes_iter(data=True):
-            if d.get(self.key_importance, False):
-                if d[self.key_importance] < score_threshold:
-                    graph.remove_node(v)
-        for cc in nx.connected_component_subgraphs(graph):
-            if len(cc) >= min_size:
-                yield cc
-
-
-def _label_preprocessing(graph, label_size=1,
+def _label_preprocessing(graph,
                          key_label='label',
-                         key_entity='entity',
-                         discretizers={'entity': []},
                          bitmask=2 ** 20 - 1):
-    try:
-        graph.graph['label_size'] = label_size
-        for n, d in graph.nodes_iter(data=True):
-            # for dense or sparse vectors
-            is_list = isinstance(d[key_label], list)
-            is_dict = isinstance(d[key_label], dict)
-            if is_list or is_dict:
-                node_entity, data = _extract_entity_and_label(d,
-                                                              key_entity,
-                                                              key_label)
-                if isinstance(d[key_label], list):
-                    data = np.array(data, dtype=np.float64).reshape(1, -1)
-                if isinstance(d[key_label], dict):
-                    data = _convert_dict_to_sparse_vector(data)
-                # create a list of integer codes of size: label_size
-                # each integer code is determined as follows:
-                # for each entity, use the correspondent
-                # discretizers[node_entity] to extract
-                # the id of the nearest cluster centroid, return the
-                # centroid id as the integer code
-                hlabel = []
-                for i in range(label_size):
-                    if len(discretizers[node_entity]) < i:
-                        len_mod = \
-                            len(discretizers[node_entity])
-                        raise Exception('Error: discretizers for node entity: %s \
-                            has length: %d but component %d was required'
-                                        % (node_entity, len_mod, i))
-                    predictions = \
-                        discretizers[node_entity][i].predict(data)
-                    if len(predictions) != 1:
-                        raise Exception('Error: discretizer has not \
-                            returned an individual prediction but\
-                            %d predictions' % len(predictions))
-                    discretization_code = predictions[0] + 1
-                    code = fast_hash_2(hash(node_entity),
-                                       discretization_code,
-                                       bitmask)
-                    hlabel.append(code)
-                graph.node[n]['hlabel'] = hlabel
-            elif isinstance(d[key_label], basestring):
-                # copy a hashed version of the string for a number of times
-                # equal to self.label_size in this way qualitative
-                # ( i.e. string ) labels can be compared to the
-                # discretized labels
-                hlabel = int(hash(d[key_label]) & bitmask) + 1
-                graph.node[n]['hlabel'] = [hlabel] * label_size
-            else:
-                raise Exception('ERROR: something went wrong, type of node label is unknown: \
-                    %s' % d[key_label])
-    except Exception as e:
-        logger.debug('Failed iteration. Reason: %s' % e)
-        logger.debug('Exception', exc_info=True)
-
-
-def _extract_entity_and_label(d, key_entity, key_label):
-    # determine the entity attribute
-    # if the vertex does not have a 'entity' attribute then provide a
-    # default one
-    if d.get(key_entity, False):
-        node_entity = d[key_entity]
-    else:
-        if isinstance(d[key_label], list):
-            node_entity = 'vector'
-        elif isinstance(d[key_label], dict):
-            node_entity = 'sparse_vector'
-        else:
-            node_entity = 'default'
-    data = d[key_label]
-    return node_entity, data
-
-
-def _convert_dict_to_sparse_vector(feature_row, bitmask=1048575):
-    feature_size = bitmask + 2
-    data, row, col = [], [], []
-    if len(feature_row) == 0:
-        # case of empty feature set for a specific instance
-        row.append(0)
-        col.append(0)
-        data.append(0)
-    else:
-        for feature in feature_row:
-            row.append(0)
-            col.append(int(hash(feature) & bitmask) + 1)
-            data.append(feature_row[feature])
-    vec = csr_matrix((data, (row, col)), shape=(1, feature_size), dtype=np.float64)
-    return vec
+    for n, d in graph.nodes_iter(data=True):
+        graph.node[n]['hlabel'] = int(hash(d[key_label]) & bitmask) + 1
 
 
 def _edge_to_vertex_transform(original_graph):
