@@ -32,6 +32,7 @@ class Vectorizer(AbstractVectorizer):
                  normalization=True,
                  inner_normalization=True,
                  positional=False,
+                 discrete=False,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -83,6 +84,11 @@ class Vectorizer(AbstractVectorizer):
             Flag to make the relative position be sorted by the node ID value.
             This is useful for ensuring isomorphism for sequences.
 
+        discrete: bool (default False)
+            Flag to activate more efficient computation of vectorization
+            under the guarantee that nodes only poses discrete labels and
+            do not have vector attributes.
+
         key_label : string (default 'label')
             The key used to indicate the label information in nodes.
 
@@ -119,6 +125,7 @@ class Vectorizer(AbstractVectorizer):
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.positional = positional
+        self.discrete = discrete
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.key_label = key_label
@@ -276,22 +283,34 @@ class Vectorizer(AbstractVectorizer):
                 feature_list[radius_dist_key][feature] += val
 
     def _transform_vertex(self, graph, vertex_v, feature_list):
-        node_feature_list = defaultdict(lambda: defaultdict(float))
-        # for all distances
-        root_dist_dict = graph.node[vertex_v]['remote_neighbours']
-        for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
-            if distance in root_dist_dict:
-                node_set = root_dist_dict[distance]
-                for vertex_u in node_set:
-                    self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                distance, node_feature_list)
-        self._transform_vertex_nesting(graph, vertex_v, node_feature_list)
-        node_feature_list = self._add_vector_labes(
-            graph, vertex_v, node_feature_list)
-        self._update_feature_list(node_feature_list, feature_list)
-        node_sparse_feature_list = self._add_sparse_vector_labes(
-            graph, vertex_v, node_feature_list)
-        self._update_feature_list(node_sparse_feature_list, feature_list)
+        if self.discrete:
+            # for all distances
+            root_dist_dict = graph.node[vertex_v]['remote_neighbours']
+            for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
+                if distance in root_dist_dict:
+                    node_set = root_dist_dict[distance]
+                    for vertex_u in node_set:
+                        self._transform_vertex_pair(graph, vertex_v, vertex_u,
+                                                    distance, feature_list)
+            self._transform_vertex_nesting(graph, vertex_v, feature_list)
+        else:
+            node_feature_list = defaultdict(lambda: defaultdict(float))
+            # for all distances
+            root_dist_dict = graph.node[vertex_v]['remote_neighbours']
+            for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
+                if distance in root_dist_dict:
+                    node_set = root_dist_dict[distance]
+                    for vertex_u in node_set:
+                        self._transform_vertex_pair(graph, vertex_v, vertex_u,
+                                                    distance,
+                                                    node_feature_list)
+            self._transform_vertex_nesting(graph, vertex_v, node_feature_list)
+            node_feature_list = self._add_vector_labes(
+                graph, vertex_v, node_feature_list)
+            self._update_feature_list(node_feature_list, feature_list)
+            node_sparse_feature_list = self._add_sparse_vector_labes(
+                graph, vertex_v, node_feature_list)
+            self._update_feature_list(node_sparse_feature_list, feature_list)
 
     def _add_vector_labes(self, graph, vertex_v, node_feature_list):
         # add the vector with an offset given by the feature, multiplied by val
