@@ -6,7 +6,9 @@ from eden.graph import Vectorizer
 from sklearn.base import BaseEstimator, ClusterMixin
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 # ------------------------------------------------------------------------------
 
@@ -88,6 +90,40 @@ class ExplicitClusterer(BaseEstimator, ClusterMixin):
         try:
             for graph in graphs:
                 prediction = graph.graph.get(self.attribute, None)
+                yield prediction
+        except Exception as e:
+            logger.debug('Failed iteration. Reason: %s' % e)
+            logger.debug('Exception', exc_info=True)
+
+
+class IsomorphicClusterer(BaseEstimator, ClusterMixin):
+    """IsomorphismClusterer.
+    """
+
+    def __init__(self):
+        """Construct."""
+        self.vectorizer = Vectorizer()
+
+    def set_params(self, **params):
+        """Set the parameters of this estimator.
+
+        The method.
+
+        Returns
+        -------
+        self
+        """
+        for param in params:
+            self.__dict__[param] = params[param]
+        return self
+
+    def fit_predict(self, graphs):
+        """fit_predict."""
+        def vec_to_hash(vec):
+            return hash(tuple(vec.data + vec.indices))
+        try:
+            for graph in graphs:
+                prediction = vec_to_hash(self.vectorizer.transform([graph]))
                 yield prediction
         except Exception as e:
             logger.debug('Failed iteration. Reason: %s' % e)
