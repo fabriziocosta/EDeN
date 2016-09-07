@@ -321,7 +321,7 @@ class Vectorizer(AbstractVectorizer):
                 for feature in node_feature_list[radius_dist_key]:
                     val = node_feature_list[radius_dist_key][feature]
                     for i, vec_val in enumerate(vec):
-                        key = feature + i
+                        key = (feature + i) % self.bitmask
                         vec_feature_list[radius_dist_key][key] += val * vec_val
             node_feature_list = vec_feature_list
         return node_feature_list
