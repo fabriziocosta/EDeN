@@ -42,7 +42,7 @@ class Embedder(object):
     """
 
     def __init__(self,
-                 knn=10,
+                 knn=5,
                  k_quick_shift=3,
                  class_bias=1,
                  knn_outlier=7,
@@ -354,14 +354,15 @@ class Embedder(object):
             cmap=cmap,
             node_size=40,
             display_edge=False,
-            display_outliers=False,
+            display_outliers=display_outliers,
             file_name=file_name + '_1_clean.pdf')
         if display_links:
             self.display_graph(
                 self.instance_graph,
                 target_dict=target_dict,
                 true_target=true_target,
-                display_edge=True,
+                display_edge=False,
+                display_edges=True,
                 display_hull=False,
                 figure_size=figure_size,
                 cmap=cmap,
@@ -369,6 +370,19 @@ class Embedder(object):
                 edge_thickness=.01,
                 display_outliers=display_outliers,
                 file_name=file_name + '_2_links.pdf')
+            self.display_graph(
+                self.instance_graph,
+                target_dict=target_dict,
+                true_target=true_target,
+                display_edge=True,
+                display_edges=False,
+                display_hull=False,
+                figure_size=figure_size,
+                cmap=cmap,
+                node_size=40,
+                edge_thickness=.01,
+                display_outliers=display_outliers,
+                file_name=file_name + '_3_link.pdf')
         if display_hull:
             self.display_graph(
                 self.instance_graph,
@@ -380,13 +394,14 @@ class Embedder(object):
                 figure_size=figure_size,
                 node_size=40,
                 display_outliers=display_outliers,
-                display_edge=False,
-                file_name=file_name + '_3_hull.pdf')
+                display_edge=True,
+                file_name=file_name + '_4_hull.pdf')
         if display:
             plt.show()
 
     def display_graph(self, graph, target_dict=None, true_target=None,
                       display_label=False, display_edge=True,
+                      display_edges=False,
                       display_outliers=False,
                       display_hull=True, remove_outer_layer=False,
                       edge_thickness=40,
@@ -434,7 +449,13 @@ class Embedder(object):
                                    node_color=node_color,
                                    nodelist=nodelist,
                                    node_size=node_size,
-                                   markeredgecolor='w',
+                                   alpha=.2,
+                                   linewidths=0)
+            nx.draw_networkx_nodes(graph, layout_pos,
+                                   node_color=node_color,
+                                   nodelist=nodelist,
+                                   node_size=node_size / 2,
+                                   alpha=.45,
                                    linewidths=0)
             non_outliers = [(u, col)
                             for u, col in zip(graph.nodes(), instance_cols)
@@ -452,7 +473,7 @@ class Embedder(object):
                                    node_color=instance_cols,
                                    cmap=cmap, node_size=node_size,
                                    linewidths=1)
-        if display_edge:
+        if display_edges:
             # knn edges
             knn_edges = [(u, v) for u, v in graph.edges()
                          if graph[u][v].get('edge_type', '') == 'knn']
@@ -472,6 +493,7 @@ class Embedder(object):
                 nx.draw_networkx_edges(
                     graph, layout_pos, edgelist=shift_edges, alpha=0.2,
                     edge_color='cornflowerblue')
+        if display_edge:
             # principal shift edges
             qs_th = 1
             shift_edges = [
