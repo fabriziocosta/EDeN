@@ -419,8 +419,11 @@ def plot_embeddings(data_matrix, y,
     plt.figure(figsize=(size, size))
 
     start = time.time()
-    from sklearn.decomposition import TruncatedSVD
-    data_matrix_ = TruncatedSVD(n_components=2).fit_transform(data_matrix)
+    if data_matrix.shape[1] > 2:
+        from sklearn.decomposition import TruncatedSVD
+        data_matrix_ = TruncatedSVD(n_components=2).fit_transform(data_matrix)
+    else:
+        data_matrix_ = data_matrix
     duration = time.time() - start
     plt.subplot(221)
     plot_embedding(data_matrix_, y,

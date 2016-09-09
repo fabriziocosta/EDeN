@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Provides selector transformation of vector instances."""
 
 from collections import defaultdict
 import random
@@ -16,6 +17,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.linear_model import SGDClassifier
 from scipy.stats import entropy
 from sklearn.random_projection import SparseRandomProjection
+from sklearn.preprocessing import StandardScaler
 
 from eden.util import serialize_dict
 
@@ -25,15 +27,14 @@ logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------
 
 class CompositeSelector(object):
-
-    """
-    Takes a list of selectors and returns the disjoint union of all selections.
-    """
+    """Takes a list of selectors and returns the disjoint union."""
 
     def __init__(self, selectors):
+        """init."""
         self.selectors = selectors
 
     def __repr__(self):
+        """repr."""
         serial = []
         serial.append('CompositeSelector')
         serial.append('selectors [%d]:' % len(self.selectors))
@@ -56,7 +57,8 @@ class CompositeSelector(object):
         Note
         ----
         The target array can be used to store the ids of the samples.
-        The selection operation is applied to the samples and the congruent targets.
+        The selection operation is applied to the samples and the congruent
+        targets.
 
         Returns
         -------
@@ -67,7 +69,9 @@ class CompositeSelector(object):
         return self
 
     def fit_transform(self, data_matrix, target=None):
-        """Fit all selectors on the same samples and then transform, i.e. select
+        """Fit all selectors on the same samples and then transform.
+
+        I.e. select
         a subset of samples and return the reduced data matrix.
 
         Parameters
@@ -81,7 +85,8 @@ class CompositeSelector(object):
         Note
         ----
         The target array can be used to store the ids of the samples.
-        The selection operation is applied to the samples and the congruent targets.
+        The selection operation is applied to the samples and the congruent
+        targets.
 
         Returns
         -------
@@ -104,7 +109,8 @@ class CompositeSelector(object):
         Note
         ----
         The target array can be used to store the ids of the samples.
-        The selection operation is applied to the samples and the congruent targets.
+        The selection operation is applied to the samples and the congruent
+        targets.
 
         Returns
         -------
@@ -128,9 +134,10 @@ class CompositeSelector(object):
         return data_matrix_out
 
     def _collect_selected_instances_ids(self):
-        selected_instances_ids = [np.array(selector.selected_instances_ids)
-                                  for selector in self.selectors
-                                  if selector.selected_instances_ids is not None]
+        selected_instances_ids = [
+            np.array(selector.selected_instances_ids)
+            for selector in self.selectors
+            if selector.selected_instances_ids is not None]
         self.selected_instances_ids = np.hstack(selected_instances_ids)
 
     def _collect_target(self):
@@ -144,8 +151,10 @@ class CompositeSelector(object):
 
     def randomize(self, data_matrix, amount=1.0):
         """Set all the (hyper) parameters of the method to a random value.
-        A configuration is created that is in the neighborhood of the current configuration,
-        where the size of the neighborhood is parametrized by the variable 'amount'.
+
+        A configuration is created that is in the neighborhood of the current
+        configuration, where the size of the neighborhood is parametrized by
+        the variable 'amount'.
 
         Parameters
         ----------
@@ -154,8 +163,8 @@ class CompositeSelector(object):
 
         amount : float (default 1.0)
             The size of the neighborhood of the parameters' configuration.
-            A value of 0 means no change, while a value of 1.0 means that the new configuration
-            can be anywhere in the parameter space.
+            A value of 0 means no change, while a value of 1.0 means that the
+            new configuration can be anywhere in the parameter space.
 
         Returns
         -------
@@ -166,8 +175,9 @@ class CompositeSelector(object):
         return self
 
     def optimize(self, data_matrix, target=None, score_func=None, n_iter=20):
-        """Set the values of the (hyper) parameters so that the score_func achieves maximal value
-        on data_matrix.
+        """Set the values of the (hyper) parameters.
+
+        In this way the score_func achieves maximal value on data_matrix.
 
         Parameters
         ----------
@@ -180,11 +190,16 @@ class CompositeSelector(object):
         score_func : callable
             Function to compute the score to maximize.
         """
-        score, index, obj_dict = max(self._optimize(self, data_matrix, target, score_func, n_iter))
+        score, index, obj_dict = max(self._optimize(
+            self, data_matrix, target, score_func, n_iter))
         self.__dict__.update(obj_dict)
         self.score = score
 
-    def _optimize(self, data_matrix, target=None, score_func=None, n_iter=None):
+    def _optimize(self,
+                  data_matrix,
+                  target=None,
+                  score_func=None,
+                  n_iter=None):
         for i in range(n_iter):
             self.randomize(data_matrix)
             data_matrix_out = self.fit_transform(data_matrix, target)
@@ -195,19 +210,20 @@ class CompositeSelector(object):
 
 
 class AbstractSelector(object):
-
     """Interface declaration for the Selector classes."""
 
     def _auto_n_instances(self, data_size):
         # TODO [fabrizio]: reconstruct Gram matrix using approximation
         # find optimal num points for a reconstruction with small error
-        # trade off with a cost C (hyperparameter) to pay per point so not to choose all points
+        # trade off with a cost C (hyperparameter) to pay per point so not to
+        # choose all points.
         min_n = 3
         max_n = 2 * int(math.sqrt(data_size))
         n_instances = random.randint(min_n, max_n)
         return n_instances
 
     def __repr__(self):
+        """repr."""
         serial = []
         serial.append(self.name)
         serial.append('n_instances: %d' % (self.n_instances))
@@ -215,41 +231,49 @@ class AbstractSelector(object):
         return '\n'.join(serial)
 
     def fit(self, data_matrix, target=None):
+        """fit."""
         return self
 
     def fit_transform(self, data_matrix, target=None):
+        """fit_transform."""
         return self.fit(data_matrix, target).transform(data_matrix, target)
 
     def transform(self, data_matrix, target=None):
+        """transform."""
         self.selected_instances_ids = self.select(data_matrix, target)
         if target is not None:
-            self.selected_targets = np.array(target)[self.selected_instances_ids]
+            self.selected_targets = np.array(target)[
+                self.selected_instances_ids]
         else:
             self.selected_targets = None
         return data_matrix[self.selected_instances_ids]
 
     def select(self, data_matrix, target=None):
+        """select."""
         raise NotImplementedError("Should have implemented this")
 
     def randomize(self, data_matrix, amount=1.0):
+        """randomize."""
         raise NotImplementedError("Should have implemented this")
 
 # -----------------------------------------------------------------------------
 
 
 class AllSelector(AbstractSelector):
-
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
+
     Selection is performed choosing all instances as landmarks.
     """
 
     def __init__(self, n_instances=None, random_state=1):
+        """init."""
         self.name = 'AllSelector'
         self.n_instances = n_instances
         self.random_state = random_state
 
     def __repr__(self):
+        """repr."""
         serial = []
         serial.append(self.name)
         if self.n_instances:
@@ -260,6 +284,7 @@ class AllSelector(AbstractSelector):
         return '\n'.join(serial)
 
     def select(self, data_matrix, target=None):
+        """select."""
         self.n_instances = data_matrix.shape[0]
         selected_instances_ids = list(range(self.n_instances))
         return selected_instances_ids
@@ -268,10 +293,11 @@ class AllSelector(AbstractSelector):
 
 
 class SparseSelector(AbstractSelector):
-
     """
     Transform a set of sparse high dimensional vectors to a smaller set.
-    Selection is performed choosing instances that maximizes instances pairwise difference.
+
+    Selection is performed choosing instances that maximizes instances pairwise
+    difference.
     """
 
     def __init__(self, n_instances=20, random_state=1, metric='rbf', **kwds):
@@ -499,6 +525,7 @@ class QuickShiftSelector(AbstractSelector):
         self.kwds = kwds
 
     def __repr__(self):
+        """repr."""
         serial = []
         serial.append(self.name)
         serial.append('n_instances: %d' % (self.n_instances))
@@ -720,3 +747,160 @@ class DecisionSurfaceSelector(AbstractSelector):
             kwds = dict(n_neighbors=random.randint(3, 100))
         self.estimator.set_params(**kwds)
         self.random_state = self.random_state ^ random.randint(1, 1e9)
+
+
+# -----------------------------------------------------------------------------
+
+class Projector(object):
+    """Constructs features as the instance similarity to a set of instances as
+    defined by the selector.
+
+    Parameters
+    ----------
+    selector : Selector
+        TODO.
+
+    scale : bool (default True)
+        If true then the data matrix returned is standardized to have 0 mean
+        and unit variance
+
+    scaling_factor : float (default 0.8)
+        Multiplicative factor applied after normalization. This can be useful
+        when data needs to be post-processed by neural networks and one wishes
+        to push data in a linear region.
+
+    random_state : int (default 1)
+        The seed used for the pseudo-random generator.
+
+    metric : string, or callable
+        The metric to use when calculating kernel between instances in a
+        feature array. If metric is a string, it must be one of the metrics
+        in pairwise.PAIRWISE_KERNEL_FUNCTIONS.
+        If metric is "precomputed", X is assumed to be a kernel matrix.
+        Alternatively, if metric is a callable function, it is called on each
+        pair of instances (rows) and the resulting value recorded. The callable
+        should take two arrays from X as input and return a value indicating
+        the distance between them.
+
+    **kwds : optional keyword parameters
+        Any further parameters are passed directly to the kernel function.
+    """
+
+    def __init__(self, selector=AllSelector(),
+                 scale=True,
+                 scaling_factor=0.8,
+                 random_state=1,
+                 metric='rbf', **kwds):
+        self.selector = selector
+        self.scale = scale
+        self.scaling_factor = scaling_factor
+        self.scaler = StandardScaler()
+        self.metric = metric
+        self.kwds = kwds
+        self.random_state = random_state
+
+    def __repr__(self):
+        serial = []
+        serial.append('Projector:')
+        serial.append('metric: %s' % self.metric)
+        if self.kwds is None or len(self.kwds) == 0:
+            pass
+        else:
+            serial.append('params:')
+            serial.append(serialize_dict(self.kwds))
+        serial.append(str(self.selector))
+        return '\n'.join(serial)
+
+    def fit(self, data_matrix, target=None):
+        """Fit the estimator on the samples.
+
+        Parameters
+        ----------
+        data_matrix : array-like, shape = (n_samples, n_features)
+            Samples.
+
+        Returns
+        -------
+        self
+        """
+        self.selected_instances = self.selector.fit_transform(data_matrix, target=target)
+        if self.scale:
+            self.scale = False
+            self.scaler.fit(self.transform(data_matrix))
+            self.scale = True
+        return self
+
+    def fit_transform(self, data_matrix, target=None):
+        """Fit the estimator on the samples and transforms features as the instance
+        similarity to a set of instances as defined by the selector.
+
+        Parameters
+        ----------
+        data_matrix : array, shape = (n_samples, n_features)
+          Samples.
+
+        target : TODO
+
+        Returns
+        -------
+        data_matrix : array, shape = (n_samples, n_features_new)
+            Transformed array.
+        """
+        self.fit(data_matrix, target)
+        return self.transform(data_matrix)
+
+    def transform(self, data_matrix):
+        """Transforms features as the instance similarity to a set of instances as
+        defined by the selector.
+
+        Parameters
+        ----------
+        data_matrix : array, shape = (n_samples, n_features)
+          Samples.
+
+        Returns
+        -------
+        data_matrix : array, shape = (n_samples, n_features_new)
+            Transformed array.
+        """
+        if self.selected_instances is None:
+            raise Exception('Error: attempt to use transform on non fit model')
+        if self.selected_instances.shape[0] == 0:
+            raise Exception('Error: attempt to use transform using 0 selectors')
+        # TODO: the first instance is more important than others in a selector, so it should
+        # receive a weight proportional to the rank e.g. 1/rank^p
+        # the selector should return also a rank information for each feature, note: for the
+        # composite selector it is important to distinguish the rank of multiple selectors
+        data_matrix_out = pairwise_kernels(data_matrix,
+                                           Y=self.selected_instances,
+                                           metric=self.metric,
+                                           **self.kwds)
+        if self.scale:
+            data_matrix_out = self.scaler.transform(data_matrix_out) * self.scaling_factor
+        return data_matrix_out
+
+    def randomize(self, data_matrix, amount=.5):
+        random.seed(self.random_state)
+        inclusion_threshold = random.uniform(amount, 1)
+        selectors = []
+        if random.random() > inclusion_threshold:
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(DecisionSurfaceSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(SparseSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(MaxVolSelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(DensitySelector(random_state=random.randint(1, 1e9)))
+        if random.random() > inclusion_threshold:
+            selectors.append(OnionSelector(random_state=random.randint(1, 1e9)))
+        if not selectors:
+            selectors.append(QuickShiftSelector(random_state=random.randint(1, 1e9)))
+        self.selector = CompositeSelector(selectors=selectors)
+        self.selector.randomize(data_matrix, amount=amount)
+        self.metric = 'rbf'
+        self.kwds = {'gamma': random.choice([10 ** x for x in range(-3, 3)])}
+        self.random_state = self.random_state ^ random.randint(1, 1e9)
+
+# -----------------------------------------------------------------------------
