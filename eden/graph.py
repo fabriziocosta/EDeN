@@ -248,7 +248,23 @@ class Vectorizer(AbstractVectorizer):
         return data_matrix
 
     def vertex_transform(self, graphs):
-        """"Transform."""
+        """Transform a list of networkx graphs into a list of sparse matrices.
+
+        Each matrix has dimension n_nodes x n_features, i.e. each vertex is
+        associated to a sparse vector that encodes the neighborhood of the
+        vertex up to radius + distance.
+
+        Parameters
+        ----------
+        graphs : list[graphs]
+            The input list of networkx graphs.
+
+        Returns
+        -------
+        matrix_list : array-like, shape = [n_samples, [n_nodes, n_features]]
+            Vector representation of each vertex in the input graphs.
+
+        """
         if self.n_jobs == 1:
             return self._vertex_transform_serial(graphs)
 
