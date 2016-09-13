@@ -24,7 +24,8 @@ class Embedder(object):
     of edges: the 'knn' edges and the 'k_shift' edges.
     A knn edge is an edge to the k-th nearest instance that has the same
     label.
-    A k_shift edge is an edge to the k-th nearest instance that is denser.
+    A k_shift edge is an edge to the k-th nearest instance that is denser
+    and has a different label.
     The density is defined as the sum of the pairwise cosine similarity between
     an instance and all the other instances.
     The desired edge length is the euclidean distance between the instances.
@@ -42,10 +43,10 @@ class Embedder(object):
     """
 
     def __init__(self,
-                 knn=5,
+                 knn=3,
                  k_quick_shift=3,
                  class_bias=1,
-                 knn_outlier=7,
+                 knn_outlier=3,
                  random_state=1,
                  metric='cosine', **kwds):
         """Constructor."""
@@ -90,6 +91,8 @@ class Embedder(object):
 
     def transform(self, data_matrix=None, target=None):
         """transform."""
+        if target is None:
+            target = np.array([1] * data_matrix.shape[0])
         instance_graph = self.build_instance_graph(
             data_matrix=data_matrix,
             target=target,
@@ -149,7 +152,8 @@ class Embedder(object):
                 kernel_matrix=kernel_matrix,
                 density_matrix=density_matrix,
                 kernel_matrix_sorted_ids=kernel_matrix_sorted_ids,
-                k_quick_shift=th)
+                k_quick_shift=th,
+                target=target)
             # use the links from the closest denser neighbor to
             # build a tree and annotate each node with the size
             # of the subtree that it dominates
@@ -177,6 +181,8 @@ class Embedder(object):
                 pz = data_matrix[dest_id]
                 dist = np.linalg.norm(px - pz)
                 desired_dist = dist / _max_dist
+                if desired_dist == 0:
+                    desired_dist = _max_dist / float(data_matrix.shape[0])
                 # if endpoints of an edge have the same
                 # class then contract teh desired edge length
                 if target[src_id] == target[dest_id]:
@@ -197,7 +203,11 @@ class Embedder(object):
     def _kernel_shift_links(self, kernel_matrix=None,
                             density_matrix=None,
                             kernel_matrix_sorted_ids=None,
-                            k_quick_shift=None):
+                            k_quick_shift=None,
+                            target=None):
+        num_targets = len(set(target))
+        # if there are fewer targets than  k_quick_shift then reduce
+        effective_threshold = min(k_quick_shift, num_targets)
         size = kernel_matrix.shape[0]
         # if a denser neighbor cannot be found then assign link to the
         # instance itself
@@ -206,18 +216,22 @@ class Embedder(object):
         for i, densities in enumerate(density_matrix):
             i_density = densities[0]
             counter = 0
+            classes = set()
+            classes.add(target[i])
             # for all neighbors from the closest to the furthest
             for jj, j_density in enumerate(densities):
                 j = kernel_matrix_sorted_ids[i, jj]
                 if jj > 0:
                     # if the density of the neighbor is higher than the
-                    # density of the instance count +1
-                    if j_density > i_density:
+                    # density of the instance and the class is different
+                    # from previous classes then count +1
+                    if j_density > i_density and target[j] not in classes:
                         counter += 1
-                        # proceed until counter reaches k_quick_shift
-                        if counter >= k_quick_shift:
-                            link_ids[i] = j
-                            break
+                        classes.add(target[j])
+                # proceed until counter reaches k_quick_shift
+                if counter >= effective_threshold:
+                    link_ids[i] = j
+                    break
         return link_ids
 
     def _add_knn_links(self, graph, target, nneighbors_th=1,
@@ -477,22 +491,27 @@ class Embedder(object):
             # knn edges
             knn_edges = [(u, v) for u, v in graph.edges()
                          if graph[u][v].get('edge_type', '') == 'knn']
-            knn_widths = [graph[u][v]['weight'] * edge_thickness
-                          for u, v in knn_edges]
-            if knn_edges and knn_widths:
+            knn_colors = [- graph[u][v]['rank'] for u, v in knn_edges]
+            if knn_edges and knn_colors:
                 nx.draw_networkx_edges(
-                    graph, layout_pos, edgelist=knn_edges, alpha=0.2,
-                    edge_color='red')
+                    graph, layout_pos, edgelist=knn_edges,
+                    edge_cmap=plt.get_cmap('OrRd'),
+                    edge_color=knn_colors, alpha=.4)
             # shift edges
             shift_edges = [
                 (u, v) for u, v in graph.edges()
                 if graph[u][v].get('edge_type', '') == 'shift']
-            shift_widths = [graph[u][v]['weight'] * edge_thickness
-                            for u, v in shift_edges]
-            if shift_edges and shift_widths:
-                nx.draw_networkx_edges(
-                    graph, layout_pos, edgelist=shift_edges, alpha=0.2,
-                    edge_color='cornflowerblue')
+            shift_colors = [-graph[u][v]['rank'] for u, v in shift_edges]
+            if shift_edges and shift_colors:
+                if len(set(shift_colors)) > 2:
+                    nx.draw_networkx_edges(
+                        graph, layout_pos, edgelist=shift_edges,
+                        edge_cmap=plt.get_cmap('YlGnBu'),
+                        edge_color=shift_colors, alpha=.2)
+                else:
+                    nx.draw_networkx_edges(
+                        graph, layout_pos, edgelist=shift_edges,
+                        edge_color='cornflowerblue', alpha=.2)
         if display_edge:
             # principal shift edges
             qs_th = 1
@@ -500,12 +519,10 @@ class Embedder(object):
                 (u, v) for u, v in graph.edges()
                 if graph[u][v].get('edge_type', '') == 'shift' and
                 graph[u][v].get('rank', 0) == qs_th]
-            shift_widths = [graph[u][v]['weight'] * edge_thickness
-                            for u, v in shift_edges]
-            if shift_edges and shift_widths:
+            if shift_edges:
                 nx.draw_networkx_edges(
-                    graph, layout_pos, edgelist=shift_edges, alpha=0.7,
-                    width=2, edge_color='cornflowerblue')
+                    graph, layout_pos, edgelist=shift_edges, alpha=0.2,
+                    width=1, edge_color='cornflowerblue')
         if display_hull:
             self._draw_class_id(graph,
                                 target_dict=target_dict,

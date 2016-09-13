@@ -5,9 +5,13 @@ import math
 import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix
+import multiprocessing as mp
+from scipy.sparse import vstack
 from collections import defaultdict, deque
 import joblib
 import networkx as nx
+from eden import apply_async
+from eden import chunks
 from eden import fast_hash, fast_hash_vec
 from eden import fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
@@ -33,6 +37,8 @@ class Vectorizer(AbstractVectorizer):
                  inner_normalization=True,
                  positional=False,
                  discrete=False,
+                 block_size=100,
+                 n_jobs=-1,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -126,6 +132,8 @@ class Vectorizer(AbstractVectorizer):
         self.inner_normalization = inner_normalization
         self.positional = positional
         self.discrete = discrete
+        self.block_size = block_size
+        self.n_jobs = n_jobs
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.key_label = key_label
@@ -205,6 +213,29 @@ class Vectorizer(AbstractVectorizer):
         >>> vec_to_hash(v.transform([g])) == vec_to_hash (v.transform([g2]))
         True
         """
+        if self.n_jobs == 1:
+            return self._transform_serial(graphs)
+
+        if self.n_jobs == -1:
+            pool = mp.Pool(mp.cpu_count())
+        else:
+            pool = mp.Pool(self.n_jobs)
+
+        results = [apply_async(
+            pool, self._transform_serial,
+            args=([subset_graphs]))
+            for subset_graphs in chunks(graphs, self.block_size)]
+        for i, p in enumerate(results):
+            pos_data_matrix = p.get()
+            if i == 0:
+                data_matrix = pos_data_matrix
+            else:
+                data_matrix = vstack([data_matrix, pos_data_matrix])
+        pool.close()
+        pool.join()
+        return data_matrix
+
+    def _transform_serial(self, graphs):
         instance_id = None
         feature_rows = []
         for instance_id, graph in enumerate(graphs):
@@ -213,7 +244,39 @@ class Vectorizer(AbstractVectorizer):
         if instance_id is None:
             raise Exception('ERROR: something went wrong:\
                 no graphs are present in current iterator.')
-        return self._convert_dict_to_sparse_matrix(feature_rows)
+        data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
+        return data_matrix
+
+    def vertex_transform(self, graphs):
+        """"Transform."""
+        if self.n_jobs == 1:
+            return self._vertex_transform_serial(graphs)
+
+        if self.n_jobs == -1:
+            pool = mp.Pool(mp.cpu_count())
+        else:
+            pool = mp.Pool(self.n_jobs)
+
+        results = [apply_async(
+            pool, self._vertex_transform_serial,
+            args=([subset_graphs]))
+            for subset_graphs in chunks(graphs, self.block_size)]
+        matrix_list = []
+        for i, p in enumerate(results):
+            matrix_list += p.get()
+        pool.close()
+        pool.join()
+        return matrix_list
+
+    def _vertex_transform_serial(self, graphs):
+        matrix_list = []
+        for instance_id, graph in enumerate(graphs):
+            self._test_goodness(graph)
+            graph = self._graph_preprocessing(graph)
+            # extract per vertex feature representation
+            data_matrix = self._compute_vertex_based_features(graph)
+            matrix_list.append(data_matrix)
+        return matrix_list
 
     def _test_goodness(self, graph):
         if graph.number_of_nodes() == 0:

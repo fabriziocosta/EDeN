@@ -88,6 +88,19 @@ def fast_hash_vec(vec, bitmask=_bitmask_):
     return hash_vec
 
 
+def chunks(iterable, n):
+    """chunks."""
+    iterable = iter(iterable)
+    while True:
+        items = []
+        try:
+            for i in range(n):
+                it = iterable.next()
+                items.append(it)
+        finally:
+            yield items
+
+
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
