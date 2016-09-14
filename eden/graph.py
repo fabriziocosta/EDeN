@@ -802,10 +802,10 @@ class Vectorizer(AbstractVectorizer):
         feature_rows = []
         for v, d in graph.nodes_iter(data=True):
             # only for vertices of type 'node', i.e. not for the 'edge' type
-            feature_list = defaultdict(lambda: defaultdict(float))
             if d.get('node', False):
+                feature_list = defaultdict(lambda: defaultdict(float))
                 self._transform_vertex(graph, v, feature_list)
-            feature_rows.append(self._normalization(feature_list))
+                feature_rows.append(self._normalization(feature_list))
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
