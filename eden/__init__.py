@@ -98,7 +98,8 @@ def chunks(iterable, n):
                 it = iterable.next()
                 items.append(it)
         finally:
-            yield items
+            if items:
+                yield items
 
 
 def grouper(iterable, n, fillvalue=None):

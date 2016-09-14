@@ -154,9 +154,6 @@ class Embedder(object):
                 kernel_matrix_sorted_ids=kernel_matrix_sorted_ids,
                 k_quick_shift=th,
                 target=target)
-            # use the links from the closest denser neighbor to
-            # build a tree and annotate each node with the size
-            # of the subtree that it dominates
             for i, link in enumerate(link_ids):
                 if i != link:
                     graph.add_edge(i, link, edge_type='shift', rank=th)

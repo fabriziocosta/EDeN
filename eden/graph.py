@@ -43,6 +43,7 @@ class Vectorizer(AbstractVectorizer):
                  key_weight='weight',
                  key_nesting='nesting',
                  key_importance='importance',
+                 key_class='class',
                  key_vec='vec',
                  key_svec='svec'):
         """Constructor.
@@ -107,6 +108,10 @@ class Vectorizer(AbstractVectorizer):
         key_importance : string (default 'importance')
             The key used to indicate the importance information in nodes.
 
+        key_class : string (default 'class')
+            The key used to indicate the predicted class associated to
+            the node.
+
         key_vec : string (default 'vec')
             The key used to indicate the vector label information in nodes.
 
@@ -140,6 +145,7 @@ class Vectorizer(AbstractVectorizer):
         self.key_weight = key_weight
         self.key_nesting = key_nesting
         self.key_importance = key_importance
+        self.key_class = key_class
         self.key_vec = key_vec
         self.key_svec = key_svec
 
