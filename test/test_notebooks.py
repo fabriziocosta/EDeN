@@ -9,6 +9,4 @@ def test_notebooks():
         cmd = 'jupyter nbconvert  --stdout --ExecutePreprocessor.enabled=True --ExecutePreprocessor.timeout=300 %s > /dev/null' % notebook
         res = os.system(cmd)
         os.system('rm -f %s' % notebook)
-        #os.system('rm -f %s' % notebook[:])
         assert res == 0
-
