@@ -12,7 +12,3 @@ def test_notebooks():
         os.system('rm -f %s' % notebook)
 
         assert res == 0
-
-
-
-
