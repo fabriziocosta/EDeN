@@ -107,7 +107,6 @@ def nx_to_rdkit(graph):
     atom_index = {}
     for n, d in graph.nodes(data=True):
         atom_index[n] = mw.AddAtom(Chem.Atom(d['label']))
-    print atom_index
     for a, b, d in graph.edges(data=True):
         start = atom_index[a]
         end = atom_index[b]
