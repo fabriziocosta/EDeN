@@ -67,7 +67,8 @@ class Vectorizer(AbstractVectorizer):
             The minimal distance size.
 
         weights_dict : dict of floats
-            Dictionary with keys pairs of radius distance and value weights.
+            Dictionary with keys = pairs (radius, distance) and
+            value = weights.
 
         auto_weights : bool (default False)
             Flag to set to 1 the weight of the kernels for r=i, d=i
@@ -93,8 +94,7 @@ class Vectorizer(AbstractVectorizer):
 
         discrete: bool (default False)
             Flag to activate more efficient computation of vectorization
-            under the guarantee that nodes only poses discrete labels and
-            do not have vector attributes.
+            considering only discrete labels and ignoring vector attributes.
 
         key_label : string (default 'label')
             The key used to indicate the label information in nodes.

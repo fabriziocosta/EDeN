@@ -48,6 +48,39 @@ def sigmoid(x, a, b):
     return 1 / (1 + np.exp(-(x - a) / b))
 
 
+class PValueEvaluator(object):
+    """Fit a parametrized sigmoid on the empirical cumulative distribution."""
+
+    def __init__(self, random_state=1):
+        """Constructor."""
+        self.random_state = random_state
+        self.a = -4
+        self.b = 1
+
+    def ecdf(self, x):
+        """Empirical cumulative distribution function."""
+        xs = np.sort(x)
+        ys = np.arange(1, len(xs) + 1) / float(len(xs))
+        return xs, ys
+
+    def fit(self, scores):
+        """fit."""
+        if scores:
+            xs, ys = self.ecdf(scores)
+            popt, pcov = curve_fit(sigmoid, xs, ys)
+            self.a, self.b = popt
+        else:
+            logger.debug('Warning: reverting to default values')
+        logger.debug('ECDF fit on %d values' % (len(scores)))
+        logger.debug('Optimal params: a:%.2f  b:%.2f' % (self.a, self.b))
+
+    def predict(self, value):
+        """pvalue."""
+        y = sigmoid(value, self.a, self.b)
+        p_val = 1 - y
+        return p_val
+
+
 def ecdf(x):
     """Empirical cumulative distribution function."""
     xs = np.sort(x)

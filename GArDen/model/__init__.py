@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Provides wrappers to predictive algorithms."""
 
-from eden.util import vectorize
 from eden.graph import Vectorizer
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from scipy.sparse import vstack
@@ -45,10 +44,6 @@ class TransformerWrapper(BaseEstimator, ClassifierMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_clusterer[param] = params[param]
         self.program.set_params(**params_clusterer)
@@ -107,10 +102,6 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_clusterer[param] = params[param]
         self.program.set_params(**params_clusterer)
@@ -121,9 +112,7 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
         """fit."""
         try:
             self.graphs = list(graphs)
-            data_matrix = vectorize(self.graphs,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs)
             self.program = self.program.fit(data_matrix)
             return self
         except Exception as e:
@@ -134,9 +123,7 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
         """predict."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             distances, indices = self.program.kneighbors(data_matrix)
             for knn_dists, knn_ids, graph in izip(distances, indices, graphs):
                 neighbor_graphs = []
@@ -183,10 +170,6 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_clusterer[param] = params[param]
         self.program.set_params(**params_clusterer)
@@ -197,9 +180,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
         """fit."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             y = self._extract_targets(graphs)
             # manage case for single class learning
             if len(set(y)) == 1:
@@ -223,9 +204,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
         """predict."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             predictions = self.program.predict(data_matrix)
             scores = self.program.decision_function(data_matrix)
             for score, prediction, graph in izip(scores, predictions, graphs):
@@ -267,11 +246,10 @@ class OneClassClassifierWrapper(ClassifierWrapper):
         try:
 
             # make matrix
-            data_matrix = vectorize(graphs,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs)
             data_matrix_neg = data_matrix.multiply(-1)
-            data_matrix_both = vstack([data_matrix, data_matrix_neg], format="csr")
+            data_matrix_both = vstack(
+                [data_matrix, data_matrix_neg], format="csr")
             # make labels
             length = data_matrix.shape[0]
             y = [-1] * length + [1] * length
@@ -287,7 +265,8 @@ class OneClassClassifierWrapper(ClassifierWrapper):
             estimator.intercept_ -= pivot
 
             # calibration:
-            data_y = np.asarray([1 if score >= pivot else -1 for score in scores])
+            data_y = np.asarray(
+                [1 if score >= pivot else -1 for score in scores])
             self.program = CalibratedClassifierCV(estimator, method='sigmoid')
             self.program.fit(data_matrix, data_y)
             return self
@@ -298,6 +277,7 @@ class OneClassClassifierWrapper(ClassifierWrapper):
 
     def predict(self, graphs):
         """predict.
+
         only overwrite is this:
         decision_function -> predict_proba
 
@@ -305,9 +285,7 @@ class OneClassClassifierWrapper(ClassifierWrapper):
         """
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             predictions = self.program.predict(data_matrix)
             # scores = self.program.decision_function(data_matrix)
             scores = self.program.predict_proba(data_matrix)
@@ -349,10 +327,6 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_clusterer[param] = params[param]
         self.program.set_params(**params_clusterer)
@@ -363,9 +337,7 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
         """fit."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             y = self._extract_targets(graphs)
             self.program = self.program.fit(data_matrix, y)
             return self
@@ -377,9 +349,7 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
         """predict."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             predictions = self.program.predict(data_matrix)
             for prediction, graph in izip(predictions, graphs):
                 graph.graph['prediction'] = prediction
