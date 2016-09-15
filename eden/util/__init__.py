@@ -302,7 +302,7 @@ def iterator_size(iterable):
 
 
 def random_bipartition(int_range, relative_size=.7, random_state=None):
-    if random_state == None:
+    if not random_state:
         random_state = random.random()
     random.seed(random_state)
     ids = range(int_range)
