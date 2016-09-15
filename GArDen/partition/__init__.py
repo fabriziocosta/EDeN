@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Provides wrappers to clustering algorithms."""
 
-from eden.util import vectorize
 from eden.graph import Vectorizer
 from sklearn.base import BaseEstimator, ClusterMixin
 
@@ -39,10 +38,6 @@ class ClustererWrapper(BaseEstimator, ClusterMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_clusterer[param] = params[param]
         self.program.set_params(**params_clusterer)
@@ -52,9 +47,7 @@ class ClustererWrapper(BaseEstimator, ClusterMixin):
     def fit_predict(self, graphs):
         """fit_predict."""
         try:
-            data_matrix = vectorize(graphs,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs)
             predictions = self.program.fit_predict(data_matrix)
             return predictions
         except Exception as e:
@@ -97,8 +90,7 @@ class ExplicitClusterer(BaseEstimator, ClusterMixin):
 
 
 class IsomorphicClusterer(BaseEstimator, ClusterMixin):
-    """IsomorphismClusterer.
-    """
+    """IsomorphismClusterer."""
 
     def __init__(self):
         """Construct."""

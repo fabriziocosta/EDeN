@@ -14,11 +14,11 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
 
     def __init__(self,
                  program=None,
-                 relabel=False,
+                 vertex_features=True,
                  reweight=1.0):
         """Construct."""
         self.program = program
-        self.relabel = relabel
+        self.vertex_features = vertex_features
         self.reweight = reweight
         self.vectorizer = Vectorizer()
         self.params_vectorize = dict()
@@ -53,7 +53,7 @@ class AnnotateImportance(BaseEstimator, ClassifierMixin):
                 graphs,
                 estimator=self.program,
                 reweight=self.reweight,
-                relabel=self.relabel)
+                vertex_features=self.vertex_features)
             for graph in annotated_graphs:
                 yield graph
         except Exception as e:

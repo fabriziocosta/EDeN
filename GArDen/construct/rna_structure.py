@@ -40,11 +40,7 @@ class KNNManager(object):
         # compute the nearest neighbors for the 'proposal_graphs' w.r.t. the
         # known graphs in the list 'known_graphs'
         parameters_priors = dict(n_neighbors=self.n_neighbors)
-        parameters_priors.update(dict(vectorizer__complexity=self.complexity,
-                                      vectorize__n_jobs=-1,
-                                      vectorize__fit_flag=False,
-                                      vectorize__n_blocks=5,
-                                      vectorize__block_size=100))
+        parameters_priors.update(dict(vectorizer__complexity=self.complexity))
         fit_wrapped_knn_predictor_known = \
             model(known_graphs,
                   program=KNNWrapper(program=NearestNeighbors()),
@@ -182,6 +178,7 @@ class RNAStructureGenerator(BaseEstimator, TransformerMixin):
                            program=AnnotateImportance(
                                program=self.fit_wrapped_predictor.program))
         graphs = list(graphs)
+        logger.debug('Working on %d graphs' % len(graphs))
 
         # mark the position of nodes with the attribute 'exclude' to remove
         # the influence of primers
