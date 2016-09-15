@@ -9,5 +9,5 @@ def test_notebooks():
         cmd = 'jupyter nbconvert --to=html --ExecutePreprocessor.enabled=True --ExecutePreprocessor.timeout=300 %s' % notebook
         res = os.system(cmd)
         os.system('rm -f %s' % notebook)
-
+        print "I AM HERE< CLICK ME "
         assert res == 0
