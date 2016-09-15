@@ -5,7 +5,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 from sklearn.neighbors import NearestNeighbors
 from eden.graph import Vectorizer
-from eden.util import vectorize
 from GArDen.model import KNNWrapper
 from sklearn import metrics
 import time
@@ -54,10 +53,8 @@ class KNNManager(object):
             distances = knn_candidate_graph.graph['distances']
             self.distances_to_known_graphs.append(distances)
         # compute candidate_graphs encodings
-        self.candidate_graphs_data_matrix = \
-            vectorize(candidate_graphs,
-                      vectorizer=Vectorizer(complexity=self.complexity),
-                      block_size=400, n_jobs=-1)
+        vec = Vectorizer(complexity=self.complexity)
+        self.candidate_graphs_data_matrix = vec.transform(candidate_graphs)
 
     def average_distances(self):
         """Average distances."""
