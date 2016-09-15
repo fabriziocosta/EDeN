@@ -301,7 +301,9 @@ def iterator_size(iterable):
         return 0
 
 
-def random_bipartition(int_range, relative_size=.7, random_state=1):
+def random_bipartition(int_range, relative_size=.7, random_state=None):
+    if random_state == None:
+        random_state = random.random()
     random.seed(random_state)
     ids = range(int_range)
     random.shuffle(ids)
