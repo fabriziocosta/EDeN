@@ -14,6 +14,5 @@ def test_notebooks():
         assert res == 0
 
 
-test_notebooks()
 
 
