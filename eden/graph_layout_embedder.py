@@ -49,7 +49,7 @@ class GraphEmbedder(object):
                  metric='cosine', **kwds):
         """Constructor."""
         self.name = self.__class__.__name__
-        self.__version__ = '2.0.0'
+        self.__version__ = '1.0.1'
 
         self.random_state = random_state
         self.k = k

@@ -19,7 +19,6 @@ from time import time
 import logging.handlers
 from eden import apply_async
 import json
-
 import logging
 logger = logging.getLogger(__name__)
 
