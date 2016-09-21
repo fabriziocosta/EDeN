@@ -39,7 +39,8 @@ class KNNManager(object):
         # compute the nearest neighbors for the 'proposal_graphs' w.r.t. the
         # known graphs in the list 'known_graphs'
         parameters_priors = dict(n_neighbors=self.n_neighbors)
-        parameters_priors.update(dict(vectorizer__complexity=self.complexity))
+        parameters_priors.update(dict(vectorizer__complexity=self.complexity,
+                                      vectorizer__discrete=True))
         fit_wrapped_knn_predictor_known = \
             model(known_graphs,
                   program=KNNWrapper(program=NearestNeighbors()),

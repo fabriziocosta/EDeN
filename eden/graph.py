@@ -120,6 +120,7 @@ class Vectorizer(AbstractVectorizer):
             in nodes.
         """
         self.name = self.__class__.__name__
+        self.__version__ = '2.0.0'
         self.complexity = complexity
         if r is None:
             r = complexity

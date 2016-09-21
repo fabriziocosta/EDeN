@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Provides wrappers to clustering algorithms."""
 
-from eden.util import vectorize
 from eden.graph import Vectorizer
 from sklearn.base import BaseEstimator, ClassifierMixin
 from itertools import tee
@@ -19,7 +18,6 @@ class OrdererWrapper(BaseEstimator, ClassifierMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.
@@ -38,10 +36,6 @@ class OrdererWrapper(BaseEstimator, ClassifierMixin):
                 key = param.split('__')[1]
                 val = params[param]
                 params_vectorizer[key] = val
-            elif "vectorize__" in param:
-                key = param.split('__')[1]
-                val = params[param]
-                self.params_vectorize[key] = val
             else:
                 params_orderer[param] = params[param]
         self.program.set_params(**params_orderer)
@@ -52,9 +46,7 @@ class OrdererWrapper(BaseEstimator, ClassifierMixin):
         """decision_function."""
         try:
             graphs, graphs_ = tee(graphs)
-            data_matrix = vectorize(graphs_,
-                                    vectorizer=self.vectorizer,
-                                    **self.params_vectorize)
+            data_matrix = self.vectorizer.transform(graphs_)
             scores = self.program.decision_function(data_matrix)
             return scores
         except Exception as e:

@@ -19,7 +19,6 @@ class ClustererWrapper(BaseEstimator, ClusterMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.

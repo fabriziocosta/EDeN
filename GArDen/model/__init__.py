@@ -25,7 +25,6 @@ class TransformerWrapper(BaseEstimator, ClassifierMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.
@@ -83,7 +82,6 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.
@@ -151,7 +149,6 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.
@@ -308,7 +305,6 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
         """Construct."""
         self.program = program
         self.vectorizer = Vectorizer()
-        self.params_vectorize = dict()
 
     def set_params(self, **params):
         """Set the parameters of this estimator.
