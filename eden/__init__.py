@@ -1,5 +1,8 @@
 import dill
-from itertools import izip_longest
+try:
+    from itertools import izip_longest
+except ImportError:
+    from itertools import zip_longest as izip_longest
 from sklearn.base import BaseEstimator, TransformerMixin
 
 __author__ = "Fabrizio Costa"
