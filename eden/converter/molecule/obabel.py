@@ -502,7 +502,7 @@ def flip_node_labels(orig_graph, new_label_name, old_label_name):
     graph = deepcopy(orig_graph)
     # If the specified new label name doesn't exist, assume
     # that it is already the main label - do nothing
-    if new_label_name not in graph.node[graph.nodes()[0]].keys():
+    if new_label_name not in list(graph.node[graph.nodes()[0]].keys()):
         return graph
     else:
         # Extract data from old label

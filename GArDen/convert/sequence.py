@@ -251,7 +251,7 @@ class FastaToSeq(BaseEstimator, TransformerMixin):
         iterable = self._fasta_to_fasta(data)
         for line in iterable:
             header = line
-            seq = iterable.next()
+            seq = next(iterable)
             if self.normalize:
                 seq = seq.upper()
                 seq = seq.replace('T', 'U')
@@ -312,8 +312,8 @@ class FastaWithConstraintsToPathGraph(BaseEstimator, TransformerMixin):
         iterable = self._fasta_to_fasta(data)
         for line in iterable:
             header = line
-            seq = iterable.next()
-            constr = iterable.next()
+            seq = next(iterable)
+            constr = next(iterable)
             if self.normalize:
                 seq = seq.upper()
                 seq = seq.replace('T', 'U')
@@ -387,8 +387,8 @@ class FastaWithStructureToGraph(BaseEstimator, TransformerMixin):
         iterable = self._fasta_to_fasta(data)
         for line in iterable:
             header = line
-            seq = iterable.next()
-            constr = iterable.next()
+            seq = next(iterable)
+            constr = next(iterable)
             if self.normalize:
                 seq = seq.upper()
                 seq = seq.replace('T', 'U')

@@ -38,7 +38,7 @@ def fasta_to_sequence(input, **options):
     lines = fasta_to_fasta(input, **options)
     for line in lines:
         header = line
-        seq = lines.next()
+        seq = next(lines)
         if len(seq) == 0:
             raise Exception('ERROR: empty sequence')
         yield header, seq

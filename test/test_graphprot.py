@@ -54,7 +54,7 @@ def test_fit_optimization_fail():
     # script should give non-zero return code
     assert run.returncode != 0
     # script should not create any files
-    assert len(run.files_created.keys()) == 0
+    assert len(list(run.files_created.keys())) == 0
 
 
 def test_simple_fit():

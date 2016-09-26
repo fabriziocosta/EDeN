@@ -11,7 +11,7 @@ class TestFastaToSequence:
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn)
         assert(is_iterable(seq))
-        (header, sequence) = seq.next()
+        (header, sequence) = next(seq)
         # header should contain the fasta header with '>' removed
         assert(header == "ID0")
         # sequence should be uppercased and all Ts should be replaced by Us
@@ -23,7 +23,7 @@ class TestFastaToSequence:
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn, normalize=True)
         assert(is_iterable(seq))
-        (header, sequence) = seq.next()
+        (header, sequence) = next(seq)
         # sequence should be uppercased and all Ts should be replaced by Us
         assert(sequence == "GUGGCGUACUCACGGCCACCUUAGGACUCCGCGGACUUUAUGCCCACCAAAAAAACGAGCCGUUUCUACGCGUCCUCCGUCGCCUGUGUCGAUAAAGCAA")
 
@@ -33,7 +33,7 @@ class TestFastaToSequence:
         fa_fn = "test/test_fasta_to_sequence.fa"
         seq = fasta_to_sequence(fa_fn, normalize=False)
         assert(is_iterable(seq))
-        (header, sequence) = seq.next()
+        (header, sequence) = next(seq)
         # sequence should correspond to the unmodified fasta string
         assert(sequence == "gtggcgtactcacggccaCCTTAGGACTCCGCGGACTTTATGCCCACCAAAAAAACGAGCCGTTTCTACGCGTCCTCCGTCGCCTgtgtcgataaagcaa")
 
@@ -42,5 +42,5 @@ class TestFastaToSequence:
 
         fa_fn = "test/test_fasta_to_sequence_with_center_annotation.fa"
         graphs = sequence_to_eden(fasta_to_sequence(fa_fn))
-        graph = graphs.next()
+        graph = next(graphs)
         assert graph.graph["id"] == "ID0 center:25"

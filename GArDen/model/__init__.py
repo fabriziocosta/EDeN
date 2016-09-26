@@ -5,7 +5,7 @@ from eden.graph import Vectorizer
 from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from scipy.sparse import vstack
 import numpy as np
-from itertools import tee, izip
+from itertools import tee
 from sklearn.neighbors import NearestNeighbors
 from sklearn.linear_model import SGDClassifier, SGDRegressor
 from sklearn.calibration import CalibratedClassifierCV
@@ -123,7 +123,7 @@ class KNNWrapper(BaseEstimator, ClassifierMixin):
             graphs, graphs_ = tee(graphs)
             data_matrix = self.vectorizer.transform(graphs_)
             distances, indices = self.program.kneighbors(data_matrix)
-            for knn_dists, knn_ids, graph in izip(distances, indices, graphs):
+            for knn_dists, knn_ids, graph in zip(distances, indices, graphs):
                 neighbor_graphs = []
                 for knn_id in knn_ids:
                     neighbor_graphs.append(self.graphs[knn_id])
@@ -204,7 +204,7 @@ class ClassifierWrapper(BaseEstimator, ClassifierMixin):
             data_matrix = self.vectorizer.transform(graphs_)
             predictions = self.program.predict(data_matrix)
             scores = self.program.decision_function(data_matrix)
-            for score, prediction, graph in izip(scores, predictions, graphs):
+            for score, prediction, graph in zip(scores, predictions, graphs):
                 graph.graph['prediction'] = prediction
                 graph.graph['score'] = score
                 yield graph
@@ -286,7 +286,7 @@ class OneClassClassifierWrapper(ClassifierWrapper):
             predictions = self.program.predict(data_matrix)
             # scores = self.program.decision_function(data_matrix)
             scores = self.program.predict_proba(data_matrix)
-            for score, prediction, graph in izip(scores, predictions, graphs):
+            for score, prediction, graph in zip(scores, predictions, graphs):
                 graph.graph['prediction'] = prediction
                 graph.graph['score'] = score
                 yield graph
@@ -347,7 +347,7 @@ class RegressorWrapper(BaseEstimator, RegressorMixin):
             graphs, graphs_ = tee(graphs)
             data_matrix = self.vectorizer.transform(graphs_)
             predictions = self.program.predict(data_matrix)
-            for prediction, graph in izip(predictions, graphs):
+            for prediction, graph in zip(predictions, graphs):
                 graph.graph['prediction'] = prediction
                 graph.graph['score'] = prediction
                 yield graph

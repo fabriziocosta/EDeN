@@ -68,7 +68,7 @@ class GEasyMKL():
 
         set_labels = set(labels)
         if len(set_labels) != 2:
-            print 'The different labels are not 2'
+            print('The different labels are not 2')
             return None
         elif (-1 in set_labels and 1 in set_labels):
             self.labels = labels
@@ -79,7 +79,7 @@ class GEasyMKL():
 
         # Sum of the kernels
         # ker_matrix = matrix(self.sum_kernels(self.list_Ktr.values())) / float(len(dict_list_Ktr))
-        ker_matrix = matrix(self.sum_kernels(self.list_Ktr.values()))
+        ker_matrix = matrix(self.sum_kernels(list(self.list_Ktr.values())))
 
         YY = matrix(np.diag(list(matrix(self.labels))))
         KLL = (1.0 - self.lam) * YY * ker_matrix * YY
@@ -105,7 +105,7 @@ class GEasyMKL():
             b = yg * kermat * yg.T
             self.weights[ik] = b[0]
 
-        norm2 = sum([w for w in self.weights.values()])
+        norm2 = sum([w for w in list(self.weights.values())])
         for iw in self.weights:
             self.weights[iw] = self.weights[iw] / norm2
 
@@ -131,4 +131,4 @@ if __name__ == "__main__":
 
     easy = GEasyMKL()
     weights_dict = easy.train(K_dict, y)
-    print weights_dict
+    print(weights_dict)

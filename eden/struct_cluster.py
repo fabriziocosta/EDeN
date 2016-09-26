@@ -193,7 +193,7 @@ class StructCluster(object):
         if not params:
             return self
         valid_params = self.__dict__
-        for key, value in params.iteritems():
+        for key, value in params.items():
             if key in valid_params:
                 self.__dict__.update({key: value})
         return self

@@ -12,7 +12,7 @@ def test_annotator():
     # annotate
     f = Annotator()
     # transform
-    g = f.transform([g], part_name='name', part_id='id').next()
+    g = next(f.transform([g], part_name='name', part_id='id'))
 
     # check if annotation is ok
     names = set()

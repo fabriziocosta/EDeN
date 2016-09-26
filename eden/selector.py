@@ -20,6 +20,7 @@ from sklearn.random_projection import SparseRandomProjection
 from sklearn.preprocessing import StandardScaler
 
 from eden.util import serialize_dict
+import collections
 
 logger = logging.getLogger(__name__)
 
@@ -425,7 +426,7 @@ class OnionSelector(AbstractSelector):
             data_matrix = SparseRandomProjection().fit_transform(data_matrix).toarray()
         current_data_matrix = data_matrix
         current_target = target
-        self.selected_instances_ids = np.array(range(data_matrix.shape[0]))
+        self.selected_instances_ids = np.array(list(range(data_matrix.shape[0])))
         self.selected_targets = None
         for i in range(self.n_layers):
             selected_instances_ids = self.select_layer(current_data_matrix)
@@ -706,12 +707,12 @@ class DecisionSurfaceSelector(AbstractSelector):
         # select maximally ambiguous (max entropy) or unpredictable instances
         self.estimator.fit(data_matrix, target)
         decision_function = getattr(self.estimator, "decision_function", None)
-        if decision_function and callable(decision_function):
+        if decision_function and isinstance(decision_function, collections.Callable):
             preds = self.estimator.decision_function(data_matrix)
             x0 = 0
         else:
             predict_proba = getattr(self.estimator, "predict_proba", None)
-            if predict_proba and callable(predict_proba):
+            if predict_proba and isinstance(predict_proba, collections.Callable):
                 preds = self.estimator.predict_proba(data_matrix)
                 x0 = 0.5
             else:

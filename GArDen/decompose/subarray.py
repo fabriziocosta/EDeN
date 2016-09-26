@@ -41,7 +41,7 @@ class MaxSubArray(BaseEstimator, TransformerMixin):
             max_subarray_size=self.max_subarray_size,
             output='non_minimal', margin=1)
         for subarray in subarrays:
-            ids = range(subarray['begin'], subarray['end'])
+            ids = list(range(subarray['begin'], subarray['end']))
             subgraph = nx.Graph(graph.subgraph(ids))
             graphs_list_out.append(subgraph)
         return graphs_list_out

@@ -20,7 +20,7 @@ def word_sequence_to_eden(input=None, options=dict()):
 def word_sequence_to_networkx(line):
     graph = nx.Graph()
     graph.graph['sequence'] = line
-    for id, token in enumerate(unicode(line, errors='replace').split()):
+    for id, token in enumerate(str(line, errors='replace').split()):
         graph.add_node(id, label=token)
         if id > 0:
             graph.add_edge(id - 1, id, label='-')

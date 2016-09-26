@@ -192,8 +192,8 @@ class SequenceGenerator(BaseEstimator, TransformerMixin):
         else:
             n_seqs_ids = sorted_pred_ids[:n_seqs]
         if show_score:
-            return zip(np.array(preds)[n_seqs_ids],
-                       np.array(gen_seqs)[n_seqs_ids])
+            return list(zip(np.array(preds)[n_seqs_ids],
+                       np.array(gen_seqs)[n_seqs_ids]))
         else:
             return np.array(gen_seqs)[n_seqs_ids]
 
@@ -211,7 +211,7 @@ class SequenceGenerator(BaseEstimator, TransformerMixin):
     def _find_key_positions(self, seq):
         # annotate seq using estimator
         annotation = self.vectorizer.annotate([seq], estimator=self.estimator)
-        seq_items, scores = annotation.next()
+        seq_items, scores = next(annotation)
         assert(len(seq_items) == len(seq))
         assert(len(scores) == len(seq))
         sorted_ids = np.argsort(scores)

@@ -57,7 +57,7 @@ class WinnerTakesAllHash():
 
     def extract_first_k_permuted_elements_sparse(self, vec, perm_index, k):
         hash_seed = self.fast_hash(perm_index)
-        data = [(self.fast_hash(key, hash_seed), value) for key, value in vec.iteritems()]
+        data = [(self.fast_hash(key, hash_seed), value) for key, value in vec.items()]
         heapq.heapify(data)
         res = heapq.nsmallest(k, data)
         return res
@@ -86,7 +86,7 @@ class WinnerTakesAllHash():
         return self.similarity_signature(sig_a, sig_b)
 
     def similarity_signature(self, sig_a, sig_b):
-        sim = float(len(filter(lambda (x, y): x == y, zip(sig_a, sig_b)))) / self.num_functions
+        sim = float(len([x_y for x_y in zip(sig_a, sig_b) if x_y[0] == x_y[1]])) / self.num_functions
         return sim
 
 

@@ -1,5 +1,5 @@
 import numpy as np
-from itertools import izip
+
 
 
 def incident_edge_label(graph_list=None, output_attribute='type', separator='', level=1):
@@ -72,7 +72,7 @@ def translate(graph_list=None,
 
 def colorize(graph_list=None, output_attribute='level', labels=['A', 'U', 'C', 'G'], mode=None):
     values = np.linspace(0.0, 1.0, num=len(labels))
-    color_dict = dict(zip(labels, values))
+    color_dict = dict(list(zip(labels, values)))
     for g in graph_list:
         # iterate over nodes
         for n, d in g.nodes_iter(data=True):
@@ -349,7 +349,7 @@ def reweight(graph_list, weight_vector_list, attribute='weight'):
     """Assigns a value to the weight attribute of each node in each graph according to
     the information supplied in the list of vectors."""
 
-    for g, w in izip(graph_list, weight_vector_list):
+    for g, w in zip(graph_list, weight_vector_list):
         # iterate over nodes
         for n, d in g.nodes_iter(data=True):
             if 'position' not in d:
@@ -395,6 +395,6 @@ def listof_list_reweight(graph_list, listof_start_end_weight_list=None, attribut
     to all nodes. Each element in listof_start_end_weight_list specifies the start_end_weight_list for a
     single graph."""
 
-    for g, start_end_weight_list in izip(graph_list, listof_start_end_weight_list):
+    for g, start_end_weight_list in zip(graph_list, listof_start_end_weight_list):
         g = start_end_weight_reweight(g, start_end_weight_list=start_end_weight_list, attribute=attribute)
         yield g

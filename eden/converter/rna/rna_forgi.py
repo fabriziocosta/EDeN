@@ -29,7 +29,7 @@ def forgi_to_graph(forgi):
         '''
         forgi gives me stuff like define STEM START,END,START,END .. we take indices and output a list
         '''
-        numbers = map(int, numbers)
+        numbers = list(map(int, numbers))
         ans = set()
         while len(numbers) > 1:
             a, b = numbers[:2]
@@ -153,7 +153,7 @@ def edge_parent_finder(abstract, graph):
                     abstract_intersect = set(nx.single_source_shortest_path(abstract, getabstr[n1], 2)) & set(
                         nx.single_source_shortest_path(abstract, getabstr[n2], 2))
                     if len(abstract_intersect) > 1:
-                        print "weired abs intersect..."
+                        print("weired abs intersect...")
 
                 for ai_node in abstract_intersect:
                     if 'contracted' in abstract.node[ai_node]:

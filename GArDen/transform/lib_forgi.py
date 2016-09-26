@@ -142,7 +142,7 @@ def pairtable_to_tuples(pt):
 
     # get rid of the first element which contains the length
     # of the sequence. We'll figure it out after the traversal
-    pt.next()
+    next(pt)
 
     tuples = []
     for i, p in enumerate(pt):
@@ -224,7 +224,7 @@ def print_bulges(bulges):
         bulge_str = "define b{} 1".format(i)
         bulge = bulges[i]
         bulge_str += " {} {}".format(bulge[0] + 1, bulge[1] + 1)
-        print bulge_str
+        print(bulge_str)
 
 
 def condense_stem_pairs(stem_pairs):
@@ -271,7 +271,7 @@ def print_brackets(brackets):
     """
     numbers = [chr(ord('0') + i % 10) for i in range(len(brackets))]
     tens = [chr(ord('0') + i / 10) for i in range(len(brackets))]
-    print "brackets:\n", brackets, "\n", "".join(tens), "\n", "".join(numbers)
+    print("brackets:\n", brackets, "\n", "".join(tens), "\n", "".join(numbers))
 
 
 def find_bulges_and_stems(brackets):
@@ -350,14 +350,14 @@ def find_bulges_and_stems(brackets):
         dots_end = i
         bulges = add_bulge(bulges, (dots_start, dots_end), context, "7")
     elif prev == '(':
-        print >> sys.stderr, "Unmatched bracket at the end"
+        print("Unmatched bracket at the end", file=sys.stderr)
         sys.exit(1)
     """
     elif prev == ')':
         bulges = add_bulge(bulges, (i+1, i+1), context, "8")
     """
 
-    if context in bulges.keys():
+    if context in list(bulges.keys()):
         finished_bulges += bulges[context]
 
     if len(opens) > 0:
@@ -370,7 +370,7 @@ def find_bulges_and_stems(brackets):
 
 
 def print_name(filename):
-    print "name", os.path.splitext(filename)[0]
+    print("name", os.path.splitext(filename)[0])
 
 
 class BulgeGraph(object):
@@ -468,9 +468,9 @@ class BulgeGraph(object):
         # a method for sorting the defines
         def define_sorter(k):
             drni = self.define_residue_num_iterator(k, adjacent=True)
-            return drni.next()
+            return next(drni)
 
-        for key in sorted(self.defines.keys(), key=define_sorter):
+        for key in sorted(list(self.defines.keys()), key=define_sorter):
             defines_str += self.get_single_define_str(key)
             # defines_str += "define %s %s" % ( key, " ".join([str(d) for d in
             # self.defines[key]]))
@@ -567,7 +567,7 @@ class BulgeGraph(object):
         """
         output_str = [' '] * (self.seq_length + 1)
 
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             for resi in self.define_residue_num_iterator(d, adjacent=False):
                 output_str[resi] = d[0]
 
@@ -724,7 +724,7 @@ class BulgeGraph(object):
                                         stem_stems_set.add(j)
                                     stem_stems[i] = stem_stems_set
 
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] != 'y':
                 continue
 
@@ -772,7 +772,7 @@ class BulgeGraph(object):
 
         That is, consolidate contiguous bulge region defines.
         """
-        for key in self.defines.keys():
+        for key in list(self.defines.keys()):
             if key[0] != 's':
                 assert (len(self.defines[key]) % 2 == 0)
                 new_j = 0
@@ -990,7 +990,7 @@ class BulgeGraph(object):
         An interior loop can only have two connections: to the two stems which it links.
         """
 
-        for key in self.defines.keys():
+        for key in list(self.defines.keys()):
             if key[0] == 'i':
                 yield key
 
@@ -1013,7 +1013,7 @@ class BulgeGraph(object):
         self.edges[new_name] = edge
 
         # replace the name of any edge that pointed to old_name
-        for k in self.edges.keys():
+        for k in list(self.edges.keys()):
             new_edges = set()
             for e in self.edges[k]:
                 if e == old_name:
@@ -1037,7 +1037,7 @@ class BulgeGraph(object):
     def compare_hairpins(self, b):
         connections = self.connections(b)
 
-        return (self.defines[connections[0]][1], sys.maxint)
+        return (self.defines[connections[0]][1], sys.maxsize)
 
     def relabel_nodes(self):
         """
@@ -1057,7 +1057,7 @@ class BulgeGraph(object):
         fiveprimes = []
         threeprimes = []
 
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] == 'y' or d[0] == 's':
                 stems += [d]
 
@@ -1236,8 +1236,8 @@ class BulgeGraph(object):
 
             # the whole stem is part of this multiloop
             if sides == [2, 3] or sides == [0, 1]:
-                residues += range(
-                    self.defines[s][sides[0]], self.defines[s][sides[1]] + 1)
+                residues += list(range(
+                    self.defines[s][sides[0]], self.defines[s][sides[1]] + 1))
             else:
                 residues += [
                     self.defines[s][sides[0]], self.defines[s][sides[1]]]
@@ -1471,7 +1471,7 @@ class BulgeGraph(object):
 
         tuples.sort()
         tuples = iter(tuples)
-        (t1, t2) = tuples.next()
+        (t1, t2) = next(tuples)
 
         prev_from = t1
         prev_to = t2
@@ -1534,7 +1534,7 @@ class BulgeGraph(object):
         Sort the defines of interior loops and stems so that the 5' region
         is always first.
         """
-        for k in self.defines.keys():
+        for k in list(self.defines.keys()):
             d = self.defines[k]
 
             if len(d) == 4:
@@ -1607,7 +1607,7 @@ class BulgeGraph(object):
         s2 are the stem identifiers and e1 denotes the element that separates
         them.
         """
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if len(self.edges[d]) == 2:
                 edges = list(self.edges[d])
 
@@ -1743,8 +1743,8 @@ class BulgeGraph(object):
                     bd = self.defines[e]
                     break
 
-        for i in xrange(4):
-            for k in xrange(len(bd)):
+        for i in range(4):
+            for k in range(len(bd)):
                 if s1d[i] - bd[k] == 1:
                     if i == 0:
                         s1b = 0
@@ -1789,7 +1789,7 @@ class BulgeGraph(object):
                     bd = self.defines[e]
                     break
 
-        for k in xrange(len(bd)):
+        for k in range(len(bd)):
             # before the stem on the 5' strand
             if s1d[0] - bd[k] == 1:
                 return (0, k)
@@ -1823,7 +1823,7 @@ class BulgeGraph(object):
         """
         Iterator over all of the stems in the structure.
         """
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] == 's':
                 yield d
 
@@ -1831,7 +1831,7 @@ class BulgeGraph(object):
         """
         Iterator over all of the hairpin in the structure.
         """
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] == 'h':
                 yield d
 
@@ -1839,7 +1839,7 @@ class BulgeGraph(object):
         """
         Iterator over all of the multiloops in the structure.
         """
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] == 'm':
                 yield d
 
@@ -1847,7 +1847,7 @@ class BulgeGraph(object):
         """
         Iterator over all of the interior loops in the structure.
         """
-        for d in self.defines.keys():
+        for d in list(self.defines.keys()):
             if d[0] == 'i':
                 yield d
 
@@ -1856,7 +1856,7 @@ class BulgeGraph(object):
         Yield the name of the 5' prime unpaired region if it is
         present in the structure.
         """
-        if 'f1' in self.defines.keys():
+        if 'f1' in list(self.defines.keys()):
             yield 'f1'
 
     def tloop_iterator(self):
@@ -1864,7 +1864,7 @@ class BulgeGraph(object):
         Yield the name of the 3' prime unpaired region if it is
         present in the structure.
         """
-        if 't1' in self.defines.keys():
+        if 't1' in list(self.defines.keys()):
             yield 't1'
 
     def pairing_partner(self, nucleotide_number):
@@ -1913,7 +1913,7 @@ class BulgeGraph(object):
         :return: An array containing the sequences corresponding to the defines
         """
         define = self.defines[d]
-        ranges = zip(*[iter(define)] * 2)
+        ranges = list(zip(*[iter(define)] * 2))
         c = self.connections(d)
 
         if d[0] == 'i':
@@ -2049,7 +2049,7 @@ class BulgeGraph(object):
         """
         Iterate over the defines and see which one encompasses this base.
         """
-        for key in self.defines.keys():
+        for key in list(self.defines.keys()):
             define = self.defines[key]
 
             for i in range(0, len(define), 2):
@@ -2227,9 +2227,9 @@ class BulgeGraph(object):
         :return: A list containing a the nodes comprising a random subgraph
         """
         if subgraph_length is None:
-            subgraph_length = random.randint(1, len(self.defines.keys()))
+            subgraph_length = random.randint(1, len(list(self.defines.keys())))
 
-        start_node = random.choice(self.defines.keys())
+        start_node = random.choice(list(self.defines.keys()))
         curr_length = 0
         visited = set()
         next_nodes = [start_node]
@@ -2283,7 +2283,7 @@ class BulgeGraph(object):
                 on each strand
         """
         resnames = []
-        ranges = zip(*[iter(self.defines[define])] * 2)
+        ranges = list(zip(*[iter(self.defines[define])] * 2))
 
         for r in ranges:
             strand_resnames = []
@@ -2523,14 +2523,14 @@ class BulgeGraph(object):
 
         for key, group in it.groupby(
             enumerate(self.define_residue_num_iterator(e1, adjacent=True)),
-                lambda(index, item): index - item):
-            group = map(oper.itemgetter(1), group)
+                lambda index_item: index_item[0] - index_item[1]):
+            group = list(map(oper.itemgetter(1), group))
             d1_corners += group
 
         for key, group in it.groupby(
             enumerate(self.define_residue_num_iterator(e2, adjacent=True)),
-                lambda(index, item): index - item):
-            group = map(oper.itemgetter(1), group)
+                lambda index_item1: index_item1[0] - index_item1[1]):
+            group = list(map(oper.itemgetter(1), group))
             d2_corners += group
 
         import networkx as nx
@@ -2634,7 +2634,7 @@ def bg_from_subgraph(bg, sg):
 
     # copy edges only if they connect elements which
     # are also in the new structure
-    for e in bg.edges.keys():
+    for e in list(bg.edges.keys()):
         for conn in bg.edges[e]:
             if conn in sg:
                 nbg.edges[e].add(conn)

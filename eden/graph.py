@@ -532,7 +532,7 @@ class Vectorizer(AbstractVectorizer):
         for r_d_key in feature_list:
             features = feature_list[r_d_key]
             norm = 0
-            for count in features.itervalues():
+            for count in features.values():
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
             if self.weights_dict is not None:
@@ -540,7 +540,7 @@ class Vectorizer(AbstractVectorizer):
                 if self.weights_dict.get(r_d_key, None) is not None:
                     sqrtw = math.sqrt(self.weights_dict[r_d_key])
                     sqrt_norm = sqrt_norm / sqrtw
-            for feature_id, count in features.iteritems():
+            for feature_id, count in features.items():
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
@@ -550,10 +550,10 @@ class Vectorizer(AbstractVectorizer):
         if self.normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
-            for value in feature_vector.itervalues():
+            for value in feature_vector.values():
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature_id, value in feature_vector.iteritems():
+            for feature_id, value in feature_vector.items():
                 feature_vector_value = value / sqrt_total_norm
                 normalized_feature_vector[feature_id] = feature_vector_value
             return normalized_feature_vector
@@ -571,7 +571,7 @@ class Vectorizer(AbstractVectorizer):
         hash_list = []
         # for all distances
         root_dist_dict = graph.node[root]['remote_neighbours']
-        for node_set in root_dist_dict.itervalues():
+        for node_set in root_dist_dict.values():
             # create a list of hashed labels
             hash_label_list = []
             for v in node_set:
@@ -622,7 +622,7 @@ class Vectorizer(AbstractVectorizer):
         edge_average = edge_weight_list[0]
         # for all distances
         root_dist_dict = graph.node[root]['remote_neighbours']
-        for distance, node_set in root_dist_dict.iteritems():
+        for distance, node_set in root_dist_dict.items():
             # extract array of weights at given distance
             weight_array_at_d = np.array([graph.node[v][self.key_weight]
                                           for v in node_set], dtype=np.float64)

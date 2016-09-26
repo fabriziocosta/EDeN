@@ -1,4 +1,4 @@
-import lib_forgi
+from . import lib_forgi
 
 '''
 from eden.modifier.rna.annotate_rna_structure import annotate_rna_structure
@@ -58,7 +58,7 @@ def annotate_single(graph, position_attribute='position'):
     # forgi gives me the node ids as (start,end) pairs...
 
     def make_node_set(numbers):
-        numbers = map(int, numbers)
+        numbers = list(map(int, numbers))
         ans = set()
         while len(numbers) > 1:
             a, b = numbers[:2]

@@ -14,7 +14,7 @@ class TestEdenModifierGraphVertexAttributes:
                                                          low_weight=0,
                                                          radius_high=1,
                                                          distance_high2low=2)
-            [x["weight"] for x in graph.next().node.values()]
+            [x["weight"] for x in list(graph.next().node.values())]
         except AssertionError:
             pass
         else:
@@ -30,7 +30,7 @@ class TestEdenModifierGraphVertexAttributes:
                                                          low_weight=0,
                                                          radius_high=1,
                                                          distance_high2low=2)
-            [x["weight"] for x in graph.next().node.values()]
+            [x["weight"] for x in list(graph.next().node.values())]
         except ValueError:
             pass
         else:
