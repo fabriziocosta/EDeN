@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Provides layout in 2D of vector instances."""
+"""Provides layout in 2D of vectors."""
 
 from collections import defaultdict
 import networkx as nx
