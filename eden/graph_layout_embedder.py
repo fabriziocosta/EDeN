@@ -11,6 +11,7 @@ from matplotlib.patches import Polygon
 import numpy as np
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics.pairwise import pairwise_kernels
+from sklearn.metrics.pairwise import pairwise_distances
 
 import logging
 logger = logging.getLogger(__name__)
@@ -46,10 +47,10 @@ class GraphEmbedder(object):
                  k=5,
                  class_bias=2,
                  random_state=1,
-                 metric='cosine', **kwds):
+                 metric='rbf', **kwds):
         """Constructor."""
         self.name = self.__class__.__name__
-        self.__version__ = '1.0.1'
+        self.__version__ = 'v2.0.1199'
 
         self.random_state = random_state
         self.k = k
@@ -116,9 +117,10 @@ class GraphEmbedder(object):
         # compute instance density as average pairwise similarity
         density = np.sum(kernel_matrix, 0) / size
         # compute list of nearest neighbors
-        kernel_matrix_sorted_ids = np.argsort(-kernel_matrix)
+        distance_matrix = pairwise_distances(data_matrix)
+        knn_ids = np.argsort(distance_matrix)
         # make matrix of densities ordered by nearest neighbor
-        density_matrix = density[kernel_matrix_sorted_ids]
+        density_matrix = density[knn_ids]
 
         # make a graph with instances as nodes
         graph = nx.Graph()
@@ -132,20 +134,20 @@ class GraphEmbedder(object):
                 graph,
                 target,
                 kernel_matrix=kernel_matrix,
-                kernel_matrix_sorted_ids=kernel_matrix_sorted_ids,
+                knn_ids=knn_ids,
                 nneighbors_th=k)
             self._annotate_outliers(
                 graph,
                 nneighbors_th=k,
                 kernel_matrix=kernel_matrix,
-                kernel_matrix_sorted_ids=kernel_matrix_sorted_ids)
+                knn_ids=knn_ids)
 
         # build shift tree
         for th in range(1, k + 1):
             link_ids = self._kernel_shift_links(
                 kernel_matrix=kernel_matrix,
                 density_matrix=density_matrix,
-                kernel_matrix_sorted_ids=kernel_matrix_sorted_ids,
+                knn_ids=knn_ids,
                 k_quick_shift=th,
                 target=target)
             for i, link in enumerate(link_ids):
@@ -193,7 +195,7 @@ class GraphEmbedder(object):
 
     def _kernel_shift_links(self, kernel_matrix=None,
                             density_matrix=None,
-                            kernel_matrix_sorted_ids=None,
+                            knn_ids=None,
                             k_quick_shift=None,
                             target=None):
         num_targets = len(set(target))
@@ -211,7 +213,7 @@ class GraphEmbedder(object):
             classes.add(target[i])
             # for all neighbors from the closest to the furthest
             for jj, j_density in enumerate(densities):
-                j = kernel_matrix_sorted_ids[i, jj]
+                j = knn_ids[i, jj]
                 if jj > 0:
                     # if the density of the neighbor is higher than the
                     # density of the instance and the class is different
@@ -226,13 +228,13 @@ class GraphEmbedder(object):
         return link_ids
 
     def _add_knn_links(self, graph, target, nneighbors_th=1,
-                       kernel_matrix=None, kernel_matrix_sorted_ids=None):
+                       kernel_matrix=None, knn_ids=None):
         size = kernel_matrix.shape[0]
         for i in range(size):
             # add edges to the k nns with same class
             k = 0
             for jj in range(size):
-                j = kernel_matrix_sorted_ids[i, jj]
+                j = knn_ids[i, jj]
                 if i != j:
                     if target[i] == target[j]:
                         graph.add_edge(i, j, edge_type='knn', rank=k)
@@ -243,18 +245,18 @@ class GraphEmbedder(object):
         return graph
 
     def _annotate_outliers(self, graph, nneighbors_th=1,
-                           kernel_matrix=None, kernel_matrix_sorted_ids=None):
+                           kernel_matrix=None, knn_ids=None):
         size = kernel_matrix.shape[0]
         for i in range(size):
             counter = 0
             # add edges to the knns
             for jj in range(1, int(nneighbors_th) + 1):
-                j = kernel_matrix_sorted_ids[i, jj]
+                j = knn_ids[i, jj]
                 if i != j:
                     # check that within the k-nn also i is a knn of j
                     # i.e. use the symmetric nneighbor notion
                     upto = int(nneighbors_th) + 1
-                    i_knns = kernel_matrix_sorted_ids[j, :upto]
+                    i_knns = knn_ids[j, :upto]
                     if i in list(i_knns):
                         counter += 1
                         break
