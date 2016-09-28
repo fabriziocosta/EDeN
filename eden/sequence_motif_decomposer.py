@@ -14,13 +14,13 @@ from eden import apply_async
 import numpy as np
 from scipy.sparse import vstack
 from eden.util.iterated_maximum_subarray import compute_max_subarrays_sequence
-from itertools import izip
+
 import time
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import SGDClassifier
 from sklearn.cluster import MiniBatchKMeans
 from eden.sequence import Vectorizer
-from StringIO import StringIO
+from io import StringIO
 from Bio import SeqIO
 from Bio.Align.Applications import MuscleCommandline
 from Bio.Alphabet import IUPAC
@@ -340,17 +340,17 @@ def plot_cumulative_score(smod,
                           fname=None):
     """plot_cumulative_score."""
     sig = cumulative_score(seqs, smod)
-    vals, starts, ends, widths = zip(*box_decomposition(sig, half_windw_size))
+    vals, starts, ends, widths = list(zip(*box_decomposition(sig, half_windw_size)))
     max_val = max(vals)
     vals = vals / max_val
 
     plt.figure(figsize=size)
     sigp = np.copy(sig)
     sigp[sigp < 0] = 0
-    plt.bar(range(len(sigp)), sigp, alpha=0.3, color='g')
+    plt.bar(list(range(len(sigp))), sigp, alpha=0.3, color='g')
     sign = np.copy(sig)
     sign[sign >= 0] = 0
-    plt.bar(range(len(sign)), sign, alpha=0.3, color='r')
+    plt.bar(list(range(len(sign))), sign, alpha=0.3, color='r')
     plt.bar(starts, vals, widths, alpha=0.2, color='y')
     plt.grid()
     plt.xlabel('Position')
@@ -380,7 +380,7 @@ def chunks(iterable, n):
     while True:
         items = []
         for i in range(n):
-            it = iterable.next()
+            it = next(iterable)
             items.append(it)
         yield items
 
@@ -447,7 +447,7 @@ def multiprocess_fit(pos_iterable, neg_iterable,
     logger.debug('Fitting')
 
     start_time = time.time()
-    for i, (p, n) in enumerate(izip(pos_results, neg_results)):
+    for i, (p, n) in enumerate(zip(pos_results, neg_results)):
         loc_start_time = time.time()
         pos_data_matrix = p.get()
         y = [1] * pos_data_matrix.shape[0]
@@ -496,7 +496,7 @@ def multiprocess_performance(pos_iterable, neg_iterable,
     preds = []
     binary_preds = []
     true_targets = []
-    for i, (p, n) in enumerate(izip(pos_results, neg_results)):
+    for i, (p, n) in enumerate(zip(pos_results, neg_results)):
         loc_start_time = time.time()
         pos_data_matrix = p.get()
         y = [1] * pos_data_matrix.shape[0]
@@ -719,7 +719,7 @@ class MuscleAlignWrapper(object):
             id = int(out[i].split(' ')[0].split('>')[1])
             motif_seqs[id] = out[i + 1]
 
-        return zip(headers, motif_seqs)
+        return list(zip(headers, motif_seqs))
 
     def transform(self, seqs=[]):
         """Carry out alignment."""

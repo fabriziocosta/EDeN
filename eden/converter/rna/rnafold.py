@@ -46,8 +46,8 @@ def rnafold_to_eden(iterable=None, **options):
         try:
             graph = string_to_networkx(header, seq, **options)
         except Exception as e:
-            print e.__doc__
-            print e.message
-            print 'Error in: %s' % seq
+            print(e.__doc__)
+            print(e.message)
+            print('Error in: %s' % seq)
             graph = seq_to_networkx(header, seq, **options)
         yield graph

@@ -352,7 +352,7 @@ class Embedder2D(object):
 
     def _build_graph(self, data_matrix):
         graph = nx.Graph()
-        graph.add_nodes_from(range(data_matrix.shape[0]))
+        graph.add_nodes_from(list(range(data_matrix.shape[0])))
 
         # build shift tree
         self.link_ids = self._kernel_shift_links(data_matrix)

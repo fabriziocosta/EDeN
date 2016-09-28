@@ -126,7 +126,7 @@ def forgi_to_graph(forgi, ignore_inserts=False):
         --------
             list of int
         '''
-        numbers = map(int, numbers)
+        numbers = list(map(int, numbers))
         ans = set()
         while len(numbers) > 1:
             a, b = numbers[:2]

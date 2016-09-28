@@ -98,8 +98,8 @@ def rnasubopt_to_eden(iterable, **options):
             for graph in string_to_networkx(header, seq, **options):
                 yield graph
         except Exception as e:
-            print e.__doc__
-            print e.message
-            print 'Error in: %s' % seq
+            print(e.__doc__)
+            print(e.message)
+            print('Error in: %s' % seq)
             graph = seq_to_networkx(header, seq, **options)
             yield graph

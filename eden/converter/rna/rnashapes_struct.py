@@ -105,8 +105,8 @@ def rnashapes_struct_to_eden(iterable, **options):
             for G in string_to_networkx(header, seq, **options):
                 yield G
         except Exception as e:
-            print e.__doc__
-            print e.message
-            print 'Error in: %s %s' % (header, seq)
+            print(e.__doc__)
+            print(e.message)
+            print('Error in: %s %s' % (header, seq))
             graph = seq_to_networkx(header, seq, **options)
             yield graph

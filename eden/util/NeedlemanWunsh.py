@@ -88,6 +88,6 @@ def align_sequences(seq_a, seq_b, gap_penalty=-1):
 
 def print_alignment(alignment_a, alignment_b):
     connector = ''.join(['_' if a == b else ' ' for a, b in zip(alignment_a, alignment_b)])
-    print connector
-    print alignment_a
-    print alignment_b
+    print(connector)
+    print(alignment_a)
+    print(alignment_b)

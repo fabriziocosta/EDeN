@@ -69,7 +69,7 @@ class Embedder2DSelector(object):
 
     def _init_graph(self, data_matrix):
         graph = nx.Graph()
-        graph.add_nodes_from(range(data_matrix.shape[0]))
+        graph.add_nodes_from(list(range(data_matrix.shape[0])))
         self.link_ids = self.links(data_matrix)
         for i, link in enumerate(self.link_ids):
             graph.add_edge(i, link)
@@ -1044,7 +1044,7 @@ def quick_shift_tree_embedding(data_matrix,
     # make a graph with instances as nodes
     import networkx as nx
     graph = nx.Graph()
-    graph.add_nodes_from(range(n_instances))
+    graph.add_nodes_from(list(range(n_instances)))
     # add edge between instance and parent
     for i in range(n_instances):
         j = parent_dict[i]

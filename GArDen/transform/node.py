@@ -132,7 +132,7 @@ class ColorNode(BaseEstimator, TransformerMixin):
     def transform(self, graphs):
         """transform."""
         values = np.linspace(0.0, 1.0, num=len(self.labels))
-        self.color_dict = dict(zip(self.labels, values))
+        self.color_dict = dict(list(zip(self.labels, values)))
 
         try:
             for graph in graphs:

@@ -142,8 +142,8 @@ def set_coordinates(chemlist):
 
 
 def get_smiles_strings(graphs):
-    compounds = map(nx_to_rdkit, graphs)
-    return map(Chem.MolToSmiles, compounds)
+    compounds = list(map(nx_to_rdkit, graphs))
+    return list(map(Chem.MolToSmiles, compounds))
 
 
 def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=None):
@@ -151,7 +151,7 @@ def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=No
     if isinstance(graphs, nx.Graph):
         raise Exception("give me a list of graphs")
     # make molecule objects
-    compounds = map(nx_to_rdkit, graphs)
+    compounds = list(map(nx_to_rdkit, graphs))
     # print compounds
 
     # take care of the subtitle of each graph
@@ -160,7 +160,7 @@ def nx_to_image(graphs, n_graphs_per_line=5, size=250, title_key=None, titles=No
     elif titles:
         legend = titles
     else:
-        legend = map(str, range(len(graphs)))
+        legend = list(map(str, list(range(len(graphs)))))
     return compounds_to_image(compounds, n_graphs_per_line=n_graphs_per_line, size=size, legend=legend)
 
 

@@ -3,7 +3,7 @@
 
 from eden.util import is_iterable
 import random
-from itertools import tee, izip
+from itertools import tee
 from collections import defaultdict
 from GArDen.order import OrdererWrapper
 
@@ -179,7 +179,7 @@ def partition(iterable, program=None, precondition=precondition,
         if postcondition(iterable=predictions, program=program) is False:
             raise Exception('postcondition failed')
         partition_dict = defaultdict(list)
-        for prediction, graph in izip(predictions, iterable):
+        for prediction, graph in zip(predictions, iterable):
             partition_dict[prediction].append(graph.copy())
         return partition_dict
     except Exception as e:
@@ -207,7 +207,7 @@ def order(iterable, program=None, precondition=precondition,
         scores = program.decision_function(iterable_)
         if postcondition(iterable=scores, program=program) is False:
             raise Exception('postcondition failed')
-        for score, graph in sorted(izip(scores, iterable)):
+        for score, graph in sorted(zip(scores, iterable)):
             yield graph
     except Exception as e:
         logger.debug('Error. Reason: %s' % e)

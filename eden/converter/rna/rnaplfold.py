@@ -99,11 +99,11 @@ def rnaplfold_to_eden(iterable, **options):
         try:
             graph = string_to_networkx(header, seq, **options)
         except Exception as e:
-            print
-            print '-' * 80
+            print()
+            print('-' * 80)
             # print e.__doc__
-            print e.message
-            print 'Error in: %s %s' % (header, seq)
-            print 'Reverting to path graph from sequence'
+            print(e.message)
+            print('Error in: %s %s' % (header, seq))
+            print('Reverting to path graph from sequence')
             graph = seq_to_networkx(header, seq, **options)
         yield graph

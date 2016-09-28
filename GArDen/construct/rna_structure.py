@@ -9,7 +9,7 @@ from GArDen.model import KNNWrapper
 from sklearn import metrics
 import time
 import datetime
-from itertools import izip
+
 import numpy as np
 from GArDen.transform.importance_annotation import AnnotateImportance
 from GArDen.interfaces import transform, model, predict
@@ -75,7 +75,7 @@ class KNNManager(object):
         # update self.distance_list by inserting the new element
         # and trimming the list
         new_distances_to_known_graphs = []
-        for d, d_list in izip(ds, self.distances_to_known_graphs):
+        for d, d_list in zip(ds, self.distances_to_known_graphs):
             augmented_list = list(d_list) + [d]
             sorted_augmented_list = sorted(augmented_list)
             trimmed_sorted_augmented_list = sorted_augmented_list[:-1]

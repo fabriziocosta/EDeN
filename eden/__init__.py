@@ -1,5 +1,8 @@
 import dill
-from itertools import izip_longest
+try:
+    from itertools import izip_longest # Python 2
+except ImportError:
+    from itertools import zip_longest as izip_longest # Python 3
 from sklearn.base import BaseEstimator, TransformerMixin
 
 __author__ = "Fabrizio Costa"
@@ -95,7 +98,7 @@ def chunks(iterable, n):
         items = []
         try:
             for i in range(n):
-                it = iterable.next()
+                it = next(iterable)
                 items.append(it)
         finally:
             if items:

@@ -122,7 +122,7 @@ class ListVectorizer(Vectorizer):
         if len(weights) == 0:
             weights = [1] * len(graphs_iterators_list)
         assert(len(graphs_iterators_list) == len(weights)), 'ERROR: weights size is different than iterators size.'
-        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
+        assert(len([x for x in weights if x < 0]) == 0), 'ERROR: weight list contains negative values.'
         for i, graphs in enumerate(graphs_iterators_list):
             if len(self.vectorizers) == 0:
                 data_matrix_curr = self.vectorizer.transform(graphs)
@@ -146,11 +146,11 @@ class ListVectorizer(Vectorizer):
             weights = [1] * len(graphs_iterators_list)
         assert(len(graphs_iterators_list) == len(weights)
                ), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) ==
+        assert(len([x for x in weights if x < 0]) ==
                0), 'ERROR: weight list contains negative values.'
         try:
             while True:
-                graphs = [G_iterator.next() for G_iterator in graphs_iterators_list]
+                graphs = [next(G_iterator) for G_iterator in graphs_iterators_list]
                 yield self._similarity(graphs, weights)
         except StopIteration:
             return
@@ -184,10 +184,10 @@ class ListVectorizer(Vectorizer):
         if len(weights) == 0:
             weights = [1] * len(graphs_iterators_list)
         assert(len(graphs_iterators_list) == len(weights)), 'ERROR: weights count is different than iterators count.'
-        assert(len(filter(lambda x: x < 0, weights)) == 0), 'ERROR: weight list contains negative values.'
+        assert(len([x for x in weights if x < 0]) == 0), 'ERROR: weight list contains negative values.'
         try:
             while True:
-                graphs = [G_iterator.next() for G_iterator in graphs_iterators_list]
+                graphs = [next(G_iterator) for G_iterator in graphs_iterators_list]
                 yield self._predict(graphs, weights)
         except StopIteration:
             return

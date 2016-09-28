@@ -17,10 +17,10 @@
 #   * negatives may be shuffled onto the wrong strand. investigate if this is a recent bedtools thing. otherwise shuffle separately for both strands
 #   * handle "crazy" bed formats (eg 7 fields from piranha)
 
-from __future__ import print_function
+
 import argparse
 from csv import reader
-from itertools import izip
+
 import logging
 from eden.util import configure_logging
 from pybedtools.featurefuncs import midpoint
@@ -200,7 +200,7 @@ def get_seqs(cores,
         fup_reader = reader(fup_tabseq, delimiter="\t")
         core_reader = reader(core_tabseq, delimiter="\t")
         fdown_reader = reader(fdown_tabseq, delimiter="\t")
-        for fup, core, fdown in izip(fup_reader, core_reader, fdown_reader):
+        for fup, core, fdown in zip(fup_reader, core_reader, fdown_reader):
             assert fup[0] == core[0] == fdown[0], "Error: sequence ids of cores and flanks don't match."
             # setup fasta headers and sequences
             fa_header = ">" + core[0]

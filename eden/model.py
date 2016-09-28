@@ -10,7 +10,7 @@ import joblib
 import copy
 from collections import defaultdict
 from sklearn.linear_model import SGDClassifier
-from itertools import tee, izip
+from itertools import tee
 from sklearn.metrics import classification_report, roc_auc_score, average_precision_score
 from eden.util import selection_iterator, is_iterable, report_base_statistics
 from eden.util import vectorize, mp_pre_process
@@ -105,7 +105,7 @@ class ActiveLearningBinaryClassificationModel(object):
     def get_info(self, iterable, key='id'):
         iterable = self.pre_processor(iterable, **self.pre_processor_args)
         for item in iterable:
-            if isinstance(item, basestring):
+            if isinstance(item, str):
                 # might be string
                 yield 'N/A'
             elif isinstance(item, tuple):
@@ -119,7 +119,7 @@ class ActiveLearningBinaryClassificationModel(object):
         iterable, iterable_ = tee(iterable)
         data_matrix = self._data_matrix(iterable)
         info_iterable = self.get_info(iterable_, key=key)
-        for margin, graph_info in izip(self.estimator.decision_function(data_matrix), info_iterable):
+        for margin, graph_info in zip(self.estimator.decision_function(data_matrix), info_iterable):
             yield margin, graph_info
 
     def estimate(self, iterable_pos, iterable_neg, report_cross_validation=False):
@@ -435,9 +435,9 @@ class ActiveLearningBinaryClassificationModel(object):
                               upper_bound_threshold_negative=1):
         # select the initial ids simply as the first occurrences
         if size_positive != -1:
-            positive_ids = range(size_positive)
+            positive_ids = list(range(size_positive))
         if size_negative != -1:
-            negative_ids = range(size_negative)
+            negative_ids = list(range(size_negative))
         # iterate: select instances according to current model and create novel
         # data matrix to fit the model in next round
         for i in range(n_active_learning_iterations):

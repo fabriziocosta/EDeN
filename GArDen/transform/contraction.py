@@ -15,7 +15,7 @@ def contraction_histogram(input_attribute=None, graph=None, id_nodes=None):
     """contraction_histogram."""
     labels = [graph.node[v].get(input_attribute, 'N/A') for v in id_nodes]
     dict_label = dict(Counter(labels).most_common())
-    sparse_vec = {str(key): value for key, value in dict_label.iteritems()}
+    sparse_vec = {str(key): value for key, value in dict_label.items()}
     return sparse_vec
 
 
@@ -188,7 +188,7 @@ class Contract(BaseEstimator, TransformerMixin):
                             # replicate all edges with n as endpoint instead of v
                             # i.e. move the endpoint of all edges ending in v to n
                             cntr_edge_set = g.edges(greater_position_neighbors, data=True)
-                            new_edges = map(lambda x: (n, x[1], x[2]), cntr_edge_set)
+                            new_edges = [(n, x[1], x[2]) for x in cntr_edge_set]
                             # we are going to remove the greater pos neighbors , so we better make sure not to
                             # loose their contracted sets.
                             gpn_contracted = set([removed_node for greater_position_node in

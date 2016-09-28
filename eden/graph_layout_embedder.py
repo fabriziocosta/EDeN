@@ -285,7 +285,7 @@ class GraphEmbedder(object):
                layout_pos[v][1] == layout_pos[v][1]):
                 pass
             else:
-                print v, layout_pos[v], graph.neighbors(v)
+                print(v, layout_pos[v], graph.neighbors(v))
                 raise Exception('Assigned NaN value to position')
             graph.node[v]['pos'] = layout_pos[v]
 
@@ -405,7 +405,7 @@ class GraphEmbedder(object):
             p = PatchCollection(patches,
                                 cmap=plt.get_cmap(cmap),
                                 alpha=0.2)
-            p.set_array(np.array(range(len(set(self.target)))))
+            p.set_array(np.array(list(range(len(set(self.target))))))
             ax.add_collection(p)
         layout_pos = self._get_node_layout_positions(graph)
         if true_target is not None:
@@ -540,7 +540,7 @@ class GraphEmbedder(object):
             norm=matplotlib.colors.Normalize(vmin=min(codes),
                                              vmax=max(codes)),
             cmap=cmap)
-        cols = np.array(range(min(codes), max(codes) + 1))
+        cols = np.array(list(range(min(codes), max(codes) + 1)))
         # remove 4th column=alpha
         rgba_color_codes = cm.to_rgba(cols)[:, :3]
 

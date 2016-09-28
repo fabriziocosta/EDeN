@@ -11,7 +11,7 @@ def test_annotator():
 
     # annotate
     a = Annotator()
-    graph = a.transform([graph], part_name='name', part_id='id').next()
+    graph = next(a.transform([graph], part_name='name', part_id='id'))
 
     # test annotation
     cyc = 0
