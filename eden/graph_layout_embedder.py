@@ -508,7 +508,7 @@ class GraphEmbedder(object):
     def _draw_class_id(self, graph,
                        target_dict=None,
                        cmap=None,
-                       node_size=700):
+                       node_size=800):
         group_coords = defaultdict(list)
         node_label_dict = dict()
         ids = graph.nodes()
@@ -522,17 +522,17 @@ class GraphEmbedder(object):
             coords = np.mean(coordinate_matrix, axis=0)
             average_graph.add_node(group_id, pos=coords)
         layout_pos = self._get_node_layout_positions(average_graph)
-        codes = np.array([u for u in average_graph.nodes()])
-        instance_cols = self._get_node_colors(codes, cmap=cmap)
+        # codes = np.array([u for u in average_graph.nodes()])
+        # instance_cols = self._get_node_colors(codes, cmap=cmap)
         nx.draw_networkx_nodes(average_graph, layout_pos,
-                               node_color=instance_cols,
+                               node_color='w',
                                cmap=cmap, node_size=node_size,
-                               alpha=.5, linewidths=0)
+                               alpha=.7, linewidths=1)
         nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
-                                font_size=18, font_weight='black',
+                                font_size=16, font_weight='black',
                                 font_color='w')
         nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
-                                font_size=18, font_weight='light',
+                                font_size=16, font_weight='light',
                                 font_color='k')
 
     def _get_node_colors(self, codes, cmap=None):

@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 """Provides drawing utilities."""
 
-import networkx as nx
+import numpy as np
 import pylab as plt
 import math
-from matplotlib.font_manager import FontProperties
+import networkx as nx
 import json
 from networkx.readwrite import json_graph
+from matplotlib.font_manager import FontProperties
+
+from sklearn.metrics import confusion_matrix
+
 from eden.util import _serialize_list
 
 
@@ -486,3 +490,44 @@ def plot_embeddings(data_matrix, y,
         plt.savefig(save_image_file_name)
     else:
         plt.show()
+
+
+def heatmap(values, xlabel, ylabel, xticklabels, yticklabels, cmap=None,
+            vmin=None, vmax=None, ax=None, fmt="%0.2f"):
+    """heatmap."""
+    if ax is None:
+        ax = plt.gca()
+    # plot the mean cross-validation scores
+    img = ax.pcolor(values, cmap=cmap, vmin=None, vmax=None)
+    img.update_scalarmappable()
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(np.arange(len(xticklabels)) + .5)
+    ax.set_yticks(np.arange(len(yticklabels)) + .5)
+    ax.set_xticklabels(xticklabels)
+    ax.set_yticklabels(yticklabels)
+    ax.set_aspect(1)
+
+    for p, color, value in zip(img.get_paths(),
+                               img.get_facecolors(),
+                               img.get_array()):
+        x, y = p.vertices[:-2, :].mean(0)
+        if np.mean(color[:3]) > 0.5:
+            c = 'k'
+        else:
+            c = 'w'
+        ax.text(x, y, fmt % value, color=c, ha="center", va="center")
+    return img
+
+
+def plot_confusion_matrix(y_true, y_pred):
+    """plot_confusion_matrix."""
+    cm = confusion_matrix(y_true, y_pred)
+    xticklabels = list(sorted(set(y_pred)))
+    yticklabels = list(sorted(set(y_true)))
+    heatmap(cm, xlabel='Predicted label', ylabel='True label',
+            xticklabels=xticklabels, yticklabels=yticklabels,
+            cmap=plt.cm.gray_r, fmt="%d")
+    plt.title("Confusion matrix")
+    plt.gca().invert_yaxis()
+    plt.show()
