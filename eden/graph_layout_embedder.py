@@ -2,6 +2,7 @@
 """Provides layout in 2D of vectors."""
 
 from collections import defaultdict
+from collections import Counter
 import networkx as nx
 import matplotlib
 import matplotlib.pyplot as plt
@@ -44,16 +45,22 @@ class GraphEmbedder(object):
     """
 
     def __init__(self,
-                 k=5,
                  class_bias=2,
+                 k=5,
+                 k_quick_shift=1,
+                 k_outliers=5,
+                 knn_horizon=10,
                  random_state=1,
-                 metric='rbf', **kwds):
+                 metric='cosine', **kwds):
         """Constructor."""
         self.name = self.__class__.__name__
-        self.__version__ = 'v2.0.1199'
+        self.__version__ = 'v2.0.1201'
 
         self.random_state = random_state
         self.k = k
+        self.k_quick_shift = k_quick_shift
+        self.k_outliers = k_outliers
+        self.knn_horizon = knn_horizon
         self.class_bias = class_bias
         self.metric = metric
         self.kwds = kwds
@@ -97,7 +104,10 @@ class GraphEmbedder(object):
             target = np.array([1] * data_matrix.shape[0])
         instance_graph = self.build_graph(data_matrix=data_matrix,
                                           target=target,
-                                          k=self.k)
+                                          k=self.k,
+                                          k_quick_shift=self.k_quick_shift,
+                                          k_outliers=self.k_outliers,
+                                          knn_horizon=self.knn_horizon)
         self.annotate_graph_with_graphviz_layout(instance_graph)
         embedded_data_matrix = [instance_graph.node[v]['pos']
                                 for v in instance_graph.nodes()]
@@ -107,7 +117,13 @@ class GraphEmbedder(object):
         self.target = target
         return self.embedded_data_matrix
 
-    def build_graph(self, data_matrix=None, target=None, k=3):
+    def build_graph(self,
+                    data_matrix=None,
+                    target=None,
+                    k=3,
+                    k_quick_shift=1,
+                    k_outliers=5,
+                    knn_horizon=5):
         """Build graph."""
         size = data_matrix.shape[0]
         # make kernel
@@ -138,18 +154,19 @@ class GraphEmbedder(object):
                 nneighbors_th=k)
             self._annotate_outliers(
                 graph,
-                nneighbors_th=k,
+                nneighbors_th=k_outliers,
                 kernel_matrix=kernel_matrix,
                 knn_ids=knn_ids)
 
         # build shift tree
-        for th in range(1, k + 1):
+        for th in range(1, k_quick_shift + 1):
             link_ids = self._kernel_shift_links(
                 kernel_matrix=kernel_matrix,
                 density_matrix=density_matrix,
                 knn_ids=knn_ids,
                 k_quick_shift=th,
-                target=target)
+                target=target,
+                knn_horizon=knn_horizon)
             for i, link in enumerate(link_ids):
                 if i != link:
                     graph.add_edge(i, link, edge_type='shift', rank=th)
@@ -197,7 +214,8 @@ class GraphEmbedder(object):
                             density_matrix=None,
                             knn_ids=None,
                             k_quick_shift=None,
-                            target=None):
+                            target=None,
+                            knn_horizon=5):
         num_targets = len(set(target))
         # if there are fewer targets than  k_quick_shift then reduce
         effective_threshold = min(k_quick_shift, num_targets)
@@ -214,11 +232,14 @@ class GraphEmbedder(object):
             # for all neighbors from the closest to the furthest
             for jj, j_density in enumerate(densities):
                 j = knn_ids[i, jj]
+                if jj > knn_horizon:
+                    break
                 if jj > 0:
                     # if the density of the neighbor is higher than the
                     # density of the instance and the class is different
                     # from previous classes then count +1
-                    if j_density > i_density and target[j] not in classes:
+                    # if j_density > i_density and target[j] not in classes:
+                    if j_density > i_density and target[j] != target[i]:
                         counter += 1
                         classes.add(target[j])
                 # proceed until counter reaches k_quick_shift
@@ -370,7 +391,7 @@ class GraphEmbedder(object):
             figure_size=figure_size,
             node_size=40,
             display_outliers=display_outliers,
-            display_edge=True,
+            display_edge=False,
             file_name=file_name + '_4_hull.pdf')
         if display:
             plt.show()
@@ -404,7 +425,7 @@ class GraphEmbedder(object):
                 patches.append(polygon)
             p = PatchCollection(patches,
                                 cmap=plt.get_cmap(cmap),
-                                alpha=0.2)
+                                alpha=0.8)
             p.set_array(np.array(range(len(set(self.target)))))
             ax.add_collection(p)
         layout_pos = self._get_node_layout_positions(graph)
@@ -423,39 +444,45 @@ class GraphEmbedder(object):
                                     font_size=14, font_weight='light',
                                     font_color='k')
         if display_outliers:
-            outliers = [(u, col)
-                        for u, col in zip(graph.nodes(), instance_cols)
-                        if graph.node[u]['outlier']]
-            nodelist = [u for u, col in outliers]
-            node_color = [col for u, col in outliers]
-            nx.draw_networkx_nodes(graph, layout_pos,
-                                   node_color=node_color,
-                                   nodelist=nodelist,
-                                   node_size=node_size,
-                                   alpha=.2,
-                                   linewidths=0)
-            nx.draw_networkx_nodes(graph, layout_pos,
-                                   node_color=node_color,
-                                   nodelist=nodelist,
-                                   node_size=node_size / 2,
-                                   alpha=.45,
-                                   linewidths=0)
-            non_outliers = [(u, col)
+            if display_hull:
+                pass
+            else:
+                outliers = [(u, col)
                             for u, col in zip(graph.nodes(), instance_cols)
-                            if not graph.node[u]['outlier']]
-            nodelist = [u for u, col in non_outliers]
-            node_color = [col for u, col in non_outliers]
-            nx.draw_networkx_nodes(graph, layout_pos,
-                                   node_color=node_color,
-                                   nodelist=nodelist,
-                                   node_size=node_size,
-                                   markeredgecolor='k',
-                                   linewidths=1)
+                            if graph.node[u]['outlier']]
+                nodelist = [u for u, col in outliers]
+                node_color = [col for u, col in outliers]
+                nx.draw_networkx_nodes(graph, layout_pos,
+                                       node_color=node_color,
+                                       nodelist=nodelist,
+                                       node_size=node_size,
+                                       alpha=.2,
+                                       linewidths=0)
+                nx.draw_networkx_nodes(graph, layout_pos,
+                                       node_color=node_color,
+                                       nodelist=nodelist,
+                                       node_size=node_size / 2,
+                                       alpha=.45,
+                                       linewidths=0)
+                non_outliers = [(u, col)
+                                for u, col in zip(graph.nodes(), instance_cols)
+                                if not graph.node[u]['outlier']]
+                nodelist = [u for u, col in non_outliers]
+                node_color = [col for u, col in non_outliers]
+                nx.draw_networkx_nodes(graph, layout_pos,
+                                       node_color=node_color,
+                                       nodelist=nodelist,
+                                       node_size=node_size,
+                                       markeredgecolor='k',
+                                       linewidths=1)
         else:
-            nx.draw_networkx_nodes(graph, layout_pos,
-                                   node_color=instance_cols,
-                                   cmap=cmap, node_size=node_size,
-                                   linewidths=1)
+            if display_hull:
+                pass
+            else:
+                nx.draw_networkx_nodes(graph, layout_pos,
+                                       node_color=instance_cols,
+                                       cmap=cmap, node_size=node_size,
+                                       linewidths=1)
         if display_edges:
             # knn edges
             knn_edges = [(u, v) for u, v in graph.edges()
@@ -494,6 +521,7 @@ class GraphEmbedder(object):
                     width=1, edge_color='cornflowerblue')
         if display_hull:
             self._draw_class_id(graph,
+                                target=true_target,
                                 target_dict=target_dict,
                                 cmap=cmap,
                                 node_size=600)
@@ -506,7 +534,9 @@ class GraphEmbedder(object):
                         transparent=True, pad_inches=0)
 
     def _draw_class_id(self, graph,
+                       target=None,
                        target_dict=None,
+                       count_th=1,
                        cmap=None,
                        node_size=800):
         group_coords = defaultdict(list)
@@ -522,18 +552,53 @@ class GraphEmbedder(object):
             coords = np.mean(coordinate_matrix, axis=0)
             average_graph.add_node(group_id, pos=coords)
         layout_pos = self._get_node_layout_positions(average_graph)
-        # codes = np.array([u for u in average_graph.nodes()])
-        # instance_cols = self._get_node_colors(codes, cmap=cmap)
+        edge_list = [(target[u], target[v]) if target[u] < target[v]
+                     else (target[v], target[u])
+                     for u, v in graph.edges()
+                     if graph[u][v].get('edge_type', '') == 'shift']
+
+        counts = Counter(edge_list)
+
+        # counts normalization
+        rel_counts = dict()
+        for key in counts:
+            class_a, class_b = key
+            c = counts[(class_a, class_b)]
+            if c > count_th:
+                rel_counts[key] = c
+
+        m = max(rel_counts[key] for key in rel_counts)
+        for key in rel_counts:
+            u, v = key
+            width = rel_counts[key] / float(m)
+            average_graph.add_edge(u, v, width=width)
+
+        widths = [average_graph.edge[i][j]['width'] * 20
+                  for i, j in average_graph.edges()]
+
+        nx.draw_networkx_edges(average_graph, layout_pos,
+                               width=widths, edge_color='cornflowerblue',
+                               alpha=.5)
         nx.draw_networkx_nodes(average_graph, layout_pos,
                                node_color='w',
-                               cmap=cmap, node_size=node_size,
-                               alpha=.7, linewidths=1)
-        nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
-                                font_size=16, font_weight='black',
-                                font_color='w')
+                               node_size=600,
+                               alpha=.85, linewidths=1)
         nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
                                 font_size=16, font_weight='light',
                                 font_color='k')
+
+        # codes = np.array([u for u in average_graph.nodes()])
+        # instance_cols = self._get_node_colors(codes, cmap=cmap)
+        # nx.draw_networkx_nodes(average_graph, layout_pos,
+        #                        node_color='w',
+        #                        cmap=cmap, node_size=node_size,
+        #                        alpha=.7, linewidths=1)
+        # nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
+        #                         font_size=16, font_weight='black',
+        #                         font_color='w')
+        # nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
+        #                         font_size=16, font_weight='light',
+        #                         font_color='k')
 
     def _get_node_colors(self, codes, cmap=None):
         cm = matplotlib.cm.ScalarMappable(

@@ -335,15 +335,10 @@ def trim_seqs(seqs, smod, half_windw_size=7):
 
 def plot_cumulative_score(smod,
                           seqs,
-                          half_windw_size=7,
                           size=(6, 2),
                           fname=None):
     """plot_cumulative_score."""
     sig = cumulative_score(seqs, smod)
-    vals, starts, ends, widths = zip(*box_decomposition(sig, half_windw_size))
-    max_val = max(vals)
-    vals = vals / max_val
-
     plt.figure(figsize=size)
     sigp = np.copy(sig)
     sigp[sigp < 0] = 0
@@ -351,7 +346,6 @@ def plot_cumulative_score(smod,
     sign = np.copy(sig)
     sign[sign >= 0] = 0
     plt.bar(range(len(sign)), sign, alpha=0.3, color='r')
-    plt.bar(starts, vals, widths, alpha=0.2, color='y')
     plt.grid()
     plt.xlabel('Position')
     plt.ylabel('Importance score')
@@ -1334,20 +1328,24 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             f.write(logo)
         return imagename
 
-    def _wrap_image(self, fname, fill_width=True):
+    def _wrap_image(self, fname, fill_width=True, output_type='screen'):
         pwd = os.getcwd()
         url = pwd + '/' + fname
         txt = []
         if fill_width:
-            txt.append('<p align="left"><img src="file://' + url +
-                       '" style="width: 100%"></p>')
-            txt.append('<p align="left"><img src="' + fname +
-                       '" style="width: 100%"></p>')
+            if output_type == 'pdf':
+                txt.append('<p align="left"><img src="file://' + url +
+                           '" style="width: 100%"></p>')
+            else:
+                txt.append('<p align="left"><img src="' + fname +
+                           '" style="width: 100%"></p>')
         else:
-            txt.append('<p align="left"><img src="file://' + url +
-                       '"></p>')
-            txt.append('<p align="left"><img src="' + fname +
-                       '"></p>')
+            if output_type == 'pdf':
+                txt.append('<p align="left"><img src="file://' + url +
+                           '"></p>')
+            else:
+                txt.append('<p align="left"><img src="' + fname +
+                           '"></p>')
         return '\n'.join(txt)
 
     def report(self,
@@ -1356,7 +1354,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                motives,
                nbins=40,
                size=(17, 2),
-               box_decomposition=True,
+               output_type='screen',
                fname=None):
         """Report in markdown format."""
         txt = []
@@ -1364,10 +1362,9 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
             _, norm_cooccurence_mtx, distances = compute_cooccurence(motives)
             info = '### Summary: %d motives' % len(motives)
             txt.append(info)
-            if box_decomposition:
-                figname = plot_cumulative_score(
-                    self, pos_seqs, size=size, fname=fname)
-                txt.append(self._wrap_image(figname))
+            figname = plot_cumulative_score(
+                self, pos_seqs, size=size, fname=fname)
+            txt.append(self._wrap_image(figname, output_type=output_type))
             for freq, cluster_id in sorted([(motives[i]['freq'], i)
                                             for i in motives], reverse=True):
                 info = '  - %.2s %s' % \
@@ -1392,12 +1389,14 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 st = motives[cluster_id]['std_pos']
                 info = '  - average location: %.1f +- %.1f' % (av, st)
                 txt.append(info)
-                txt.append(self._wrap_image(figname, fill_width=False))
+                txt.append(self._wrap_image(figname,
+                                            fill_width=False,
+                                            output_type=output_type))
                 regex_i = motives[cluster_id]['regex_seq']
                 figname = plot_location(
                     regex_i, all_seqs, cluster_id=cluster_id,
                     nbins=nbins, size=size, fname=fname)
-                txt.append(self._wrap_image(figname))
+                txt.append(self._wrap_image(figname, output_type=output_type))
                 for j in motives:
                     regex_i = motives[i]['regex_seq']
                     if j != cluster_id:
@@ -1412,7 +1411,9 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                                 regex_i, regex_j,
                                 distances,
                                 nbins=nbins, size=size, fname=fname)
-                            txt.append(self._wrap_image(figname))
+                            txt.append(self._wrap_image(
+                                figname,
+                                output_type=output_type))
                 txt.append('_' * 100)
         else:
             logger.warning(

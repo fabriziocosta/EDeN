@@ -520,11 +520,12 @@ def heatmap(values, xlabel, ylabel, xticklabels, yticklabels, cmap=None,
     return img
 
 
-def plot_confusion_matrix(y_true, y_pred):
+def plot_confusion_matrix(y_true, y_pred, size=7):
     """plot_confusion_matrix."""
     cm = confusion_matrix(y_true, y_pred)
     xticklabels = list(sorted(set(y_pred)))
     yticklabels = list(sorted(set(y_true)))
+    plt.figure(figsize=(size, size))
     heatmap(cm, xlabel='Predicted label', ylabel='True label',
             xticklabels=xticklabels, yticklabels=yticklabels,
             cmap=plt.cm.gray_r, fmt="%d")
