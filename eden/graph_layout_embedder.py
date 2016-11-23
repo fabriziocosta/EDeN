@@ -152,11 +152,12 @@ class GraphEmbedder(object):
                 kernel_matrix=kernel_matrix,
                 knn_ids=knn_ids,
                 nneighbors_th=k)
-            self._annotate_outliers(
-                graph,
-                nneighbors_th=k_outliers,
-                kernel_matrix=kernel_matrix,
-                knn_ids=knn_ids)
+            if k_outliers > 0:
+                self._annotate_outliers(
+                    graph,
+                    nneighbors_th=k_outliers,
+                    kernel_matrix=kernel_matrix,
+                    knn_ids=knn_ids)
 
         # build shift tree
         for th in range(1, k_quick_shift + 1):
@@ -523,8 +524,7 @@ class GraphEmbedder(object):
             self._draw_class_id(graph,
                                 target=true_target,
                                 target_dict=target_dict,
-                                cmap=cmap,
-                                node_size=600)
+                                cmap=cmap)
         plt.xticks([])
         plt.yticks([])
         plt.axis('off')
@@ -538,7 +538,7 @@ class GraphEmbedder(object):
                        target_dict=None,
                        count_th=1,
                        cmap=None,
-                       node_size=800):
+                       node_size=350):
         group_coords = defaultdict(list)
         node_label_dict = dict()
         ids = graph.nodes()
@@ -581,10 +581,10 @@ class GraphEmbedder(object):
                                alpha=.5)
         nx.draw_networkx_nodes(average_graph, layout_pos,
                                node_color='w',
-                               node_size=600,
+                               node_size=node_size,
                                alpha=.85, linewidths=1)
         nx.draw_networkx_labels(average_graph, layout_pos, node_label_dict,
-                                font_size=16, font_weight='light',
+                                font_size=12, font_weight='light',
                                 font_color='k')
 
         # codes = np.array([u for u in average_graph.nodes()])

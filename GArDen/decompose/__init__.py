@@ -15,9 +15,14 @@ logger = logging.getLogger(__name__)
 class ThresholdedConnectedComponents(BaseEstimator, TransformerMixin):
     """ThresholdedConnectedComponents."""
 
-    def __init__(self, attribute='importance', threshold=0, min_size=3, max_size=20,
+    def __init__(self,
+                 attribute='importance',
+                 threshold=0,
+                 min_size=3,
+                 max_size=20,
                  shrink_graphs=False,
-                 less_then=True, more_than=True):
+                 less_then=True,
+                 more_than=True):
         """Construct."""
         self.attribute = attribute
         self.threshold = threshold

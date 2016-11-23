@@ -17,6 +17,9 @@ interface as possible, but not more)
 Organize the collection ob the basis of the interfaces.
 """
 
+# NOTE: can we have the main toolz functions but adapted for ML,
+# i.e. with a trainable program in input, ex. groupby
+
 
 def sample_parameters_uniformly_at_random(parameters_priors):
     """Sample parameters in parameters dictionaries uniformly at random."""
@@ -154,6 +157,7 @@ def predict(iterable, program=None, precondition=precondition,
         logger.debug('Exception', exc_info=True)
 
 
+# NOTE: replace partition by groupby
 def partition(iterable, program=None, precondition=precondition,
               postcondition=postcondition, parameters_priors=None):
     """Map a graph to an iterator over the input graphs.

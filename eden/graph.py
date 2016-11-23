@@ -36,7 +36,7 @@ class Vectorizer(AbstractVectorizer):
                  normalization=True,
                  inner_normalization=True,
                  positional=False,
-                 discrete=False,
+                 discrete=True,
                  block_size=100,
                  n_jobs=-1,
                  key_label='label',
@@ -771,9 +771,20 @@ class Vectorizer(AbstractVectorizer):
                                         for v in predicted_score])
             else:
                 predicted_score = self.estimator.decision_function(data_matrix)
+                # when prediction is multiclass, use as importance the max
+                # prediction
+                if isinstance(predicted_score, np.ndarray):
+                    ids = np.argmax(predicted_score, axis=1)
+                    scores = np.array(
+                        [row[col] for row, col in zip(predicted_score, ids)])
+                    intercepts = np.array(
+                        [self.estimator.intercept_[id] for id in ids])
+                    margins = scores - intercepts + \
+                        intercepts / float(len(graph))
                 predictions = self.estimator.predict(data_matrix)
-            margins = predicted_score - self.estimator.intercept_ + \
-                self.estimator.intercept_ / float(len(graph))
+            if isinstance(predicted_score, np.ndarray) is False:
+                margins = predicted_score - self.estimator.intercept_ + \
+                    self.estimator.intercept_ / float(len(graph))
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in graph.nodes_iter(data=True):

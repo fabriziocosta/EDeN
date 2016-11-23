@@ -12,6 +12,7 @@ from matplotlib.font_manager import FontProperties
 from sklearn.metrics import confusion_matrix
 
 from eden.util import _serialize_list
+from eden.util.graph_layout import KKEmbedder
 
 
 class SetEncoder(json.JSONEncoder):
@@ -177,6 +178,8 @@ def draw_graph(graph,
             pos = nx.shell_layout(graph)
         elif layout == 'spectral':
             pos = nx.spectral_layout(graph)
+        elif layout == 'KK':
+            pos = KKEmbedder().transform(graph)
         else:
             raise Exception('Unknown layout format: %s' % layout)
 
@@ -281,11 +284,14 @@ def draw_graph_set(graphs,
     """draw_graph_set."""
     graphs = list(graphs)
     if pos:
-        for g, p in zip(graphs, pos):
-            g.graph['positiondictionary'] = p
+        for graph, pos_dict in zip(graphs, pos):
+            graph.graph['pos_dict'] = pos_dict
 
+    counter = 0
     while graphs:
+        counter += 1
         draw_graph_row(graphs[:n_graphs_per_line],
+                       index=counter,
                        n_graphs_per_line=n_graphs_per_line,
                        edge_label=edge_label,
                        size=size, **args)
@@ -293,20 +299,35 @@ def draw_graph_set(graphs,
 
 
 # draw a row of graphs
-def draw_graph_row(graphs, contract=True, n_graphs_per_line=5, size=4, **args):
+def draw_graph_row(graphs,
+                   index=0,
+                   contract=True,
+                   n_graphs_per_line=5,
+                   size=4,
+                   **args):
     """draw_graph_row."""
-    count = len(graphs)
+    dim = len(graphs)
     size_y = size
     size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio', 1)
     plt.figure(figsize=(size_x, size_y))
     plt.xlim(xmax=3)
 
-    for i in range(count):
+    for i in range(dim):
         plt.subplot(1, n_graphs_per_line, i + 1)
-        g = graphs[i]
-        draw_graph(g, size=None, pos=g.graph.get('positiondictionary', None),
+        graph = graphs[i]
+        draw_graph(graph,
+                   size=None,
+                   pos=graph.graph.get('pos_dict', None),
                    **args)
-    plt.show()
+    if args['file_name'] is None:
+        plt.show()
+    else:
+        row_file_name = '%d_' % (index) + args['file_name']
+        plt.savefig(row_file_name,
+                    bbox_inches='tight',
+                    transparent=True,
+                    pad_inches=0)
+        plt.close()
 
 
 def dendrogram(data,
