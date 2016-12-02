@@ -1241,7 +1241,7 @@ class SequenceMotifDecomposer(BaseEstimator, ClassifierMixin):
                 if std_th is None or std <= std_th:
                     _motives[cluster_id] = motives[cluster_id]
         if len(_motives) == 0:
-            logger.warning('Quality filter is too strict. Ignoring filter.')
+            logger.debug('Quality filter is too strict. Ignoring filter.')
             return motives
         else:
             logger.debug('After quality filter, %d motives' % len(_motives))
