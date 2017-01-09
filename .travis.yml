@@ -1,0 +1,11 @@
+sudo: required
+
+services:
+  - docker
+
+before_install:
+  - docker build -t eden .
+
+script:
+  - docker run eden /bin/bash -c "flake8 /opt/EDeN/ --ignore=E501"
+  - docker run eden /bin/bash -c "nosetests --where=/opt/EDeN --with-doctest"
