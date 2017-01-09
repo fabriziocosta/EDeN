@@ -7,6 +7,7 @@ import math
 from scipy.sparse import csr_matrix
 from eden import fast_hash_vec, fast_hash_2, fast_hash_4
 from eden import AbstractVectorizer
+
 import logging
 logger = logging.getLogger(__name__)
 
