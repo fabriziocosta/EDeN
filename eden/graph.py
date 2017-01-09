@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 """Provides vectorization of graphs."""
 
+import joblib
+import networkx as nx
+import multiprocessing as mp
 import math
 import numpy as np
 from scipy import stats
 from scipy.sparse import csr_matrix
-import multiprocessing as mp
 from scipy.sparse import vstack
 from collections import defaultdict, deque
-import joblib
-import networkx as nx
 from eden import apply_async
 from eden import chunks
 from eden import fast_hash, fast_hash_vec
@@ -20,6 +20,29 @@ from eden.util import serialize_dict
 import logging
 logger = logging.getLogger(__name__)
 
+
+def vectorize(graphs, **opts):
+    """Transform real vector labeled, weighted graphs in sparse vectors."""
+    return Vectorizer(**opts).transform(graphs)
+
+
+def vertex_vectorize(graphs, **opts):
+    """Transform a list of networkx graphs into a list of sparse matrices."""
+    return Vectorizer(**opts).vertex_transform(graphs)
+
+
+def annotate(graphs,
+             estimator=None,
+             reweight=1.0,
+             vertex_features=False, **opts):
+    """Return graphs with extra attributes: importance and features."""
+    return Vectorizer(**opts).annotate(graphs,
+                                       estimator=estimator,
+                                       reweight=reweight,
+                                       vertex_features=vertex_features)
+
+
+# --------------------------------------------------------------------------
 
 class Vectorizer(AbstractVectorizer):
     """Transform real vector labeled, weighted graphs in sparse vectors."""
@@ -32,7 +55,7 @@ class Vectorizer(AbstractVectorizer):
                  min_d=0,
                  weights_dict=None,
                  auto_weights=False,
-                 nbits=20,
+                 nbits=16,
                  normalization=True,
                  inner_normalization=True,
                  positional=False,
@@ -74,7 +97,7 @@ class Vectorizer(AbstractVectorizer):
             Flag to set to 1 the weight of the kernels for r=i, d=i
             for i in range(complexity)
 
-        nbits : int (default 20)
+        nbits : int (default 16)
             The number of bits that defines the feature space size:
             |feature space|=2^nbits.
 
