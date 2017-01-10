@@ -20,7 +20,7 @@ Examples
 
 A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
 
- * [Introduction](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
+ * [Introduction](https://github.com/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
  * [Graph format](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
  * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
  * [Annotation](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/annotation.ipynb)
