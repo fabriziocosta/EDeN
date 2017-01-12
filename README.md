@@ -20,9 +20,9 @@ Examples
 
 A few examples can be found as IPython Notebook at the following GitHub repository: [EDeN_examples](https://github.com/fabriziocosta/EDeN_examples).
 
- * [Introduction](https://github.com/fabriziocosta/EDeN_examples/blob/master/Sequence_example.ipynb)
+ * [Introduction](https://github.com/fabriziocosta/EDeN_examples/blob/master/sequence_example.ipynb)
  * [Graph format](https://github.com/fabriziocosta/EDeN_examples/blob/master/graph_format.ipynb)
- * [Classification](http://nbviewer.ipython.org/github/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
+ * [Classification](https://github.com/fabriziocosta/EDeN_examples/blob/master/classification.ipynb)
 
 
 Installation
