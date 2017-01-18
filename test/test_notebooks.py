@@ -2,7 +2,7 @@ import os
 
 
 def test_notebooks():
-    notebooks = ['Nearest_Neighbors_and_Gram_Matrix.ipynb']
+    notebooks = ['sequence_example.ipynb']
     for notebook in notebooks:
         cmd = 'wget -q https://raw.githubusercontent.com/fabriziocosta/EDeN_examples/master/%s' % notebook
         os.system(cmd)
