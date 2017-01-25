@@ -96,7 +96,8 @@ def chunks(iterable, n):
         try:
             for i in range(n):
                 it = iterable.next()
-                items.append(it)
+                if it:
+                    items.append(it)
         finally:
             if items:
                 yield items
