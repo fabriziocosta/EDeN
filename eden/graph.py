@@ -545,9 +545,11 @@ class Vectorizer(AbstractVectorizer):
                 weight_u = graph.node[vertex_u]['neigh_graph_weight']
                 weight_vu_radius = weight_v[radius] + weight_u[radius]
                 val = cw * weight_vu_radius
-                feature_list[radius_dist_key][feature] += val
-                half_val = cw * weight_u[radius]
-                feature_list[radius_dist_key][half_feature] += half_val
+                # Note: add a feature only if the value is not 0
+                if val != 0:
+                    feature_list[radius_dist_key][feature] += val
+                    half_val = cw * weight_u[radius]
+                    feature_list[radius_dist_key][half_feature] += half_val
 
     def _normalization(self, feature_list):
         # inner normalization per radius-distance
