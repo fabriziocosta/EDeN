@@ -3,7 +3,7 @@
 
 import joblib
 import networkx as nx
-import multiprocessing as mp
+import multiprocessing
 import math
 import numpy as np
 from scipy import stats
@@ -35,7 +35,7 @@ def annotate(graphs,
              estimator=None,
              reweight=1.0,
              vertex_features=False, **opts):
-    """Return graphs with extra attributes: importance and features."""
+    """Return graphs with extra node attributes: importance and features."""
     return Vectorizer(**opts).annotate(graphs,
                                        estimator=estimator,
                                        reweight=reweight,
@@ -247,9 +247,9 @@ class Vectorizer(AbstractVectorizer):
             return self._transform_serial(graphs)
 
         if self.n_jobs == -1:
-            pool = mp.Pool(mp.cpu_count())
+            pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
-            pool = mp.Pool(self.n_jobs)
+            pool = multiprocessing.Pool(self.n_jobs)
 
         results = [apply_async(
             pool, self._transform_serial,
@@ -299,9 +299,9 @@ class Vectorizer(AbstractVectorizer):
             return self._vertex_transform_serial(graphs)
 
         if self.n_jobs == -1:
-            pool = mp.Pool(mp.cpu_count())
+            pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
-            pool = mp.Pool(self.n_jobs)
+            pool = multiprocessing.Pool(self.n_jobs)
 
         results = [apply_async(
             pool, self._vertex_transform_serial,
@@ -348,15 +348,18 @@ class Vectorizer(AbstractVectorizer):
                                  shape=shape, dtype=np.float64)
         return data_matrix
 
-    def _weight_preprocessing(self, graph):
-        # if at least one vertex or edge is weighted then ensure that all
-        # vertices and edges are weighted in this case use a default weight
-        # of 1 if the weight attribute is missing
+    def _init_weight_preprocessing(self, graph):
         graph.graph['weighted'] = False
         for n, d in graph.nodes_iter(data=True):
             if self.key_weight in d:
                 graph.graph['weighted'] = True
                 break
+
+    def _weight_preprocessing(self, graph):
+        # if at least one vertex or edge is weighted then ensure that all
+        # vertices and edges are weighted in this case use a default weight
+        # of 1 if the weight attribute is missing
+        self._init_weight_preprocessing(graph)
         if graph.graph['weighted'] is True:
             for n, d in graph.nodes_iter(data=True):
                 if self.key_weight not in d:
@@ -757,9 +760,8 @@ class Vectorizer(AbstractVectorizer):
         graph = self._graph_preprocessing(original_graph)
         # extract per vertex feature representation
         data_matrix = self._compute_vertex_based_features(graph)
-        if self.estimator is not None:
-            # add or update weight and importance information
-            graph = self._annotate_importance(graph, data_matrix)
+        # add or update weight and importance information
+        graph = self._annotate_importance(graph, data_matrix)
         # add or update label information
         if self.vertex_features:
             graph = self._annotate_vector(graph, data_matrix)
@@ -781,35 +783,55 @@ class Vectorizer(AbstractVectorizer):
                 vertex_id += 1
         return graph
 
-    def _annotate_importance(self, graph, data_matrix):
-        # compute distance from hyperplane as proxy of vertex importance
-        if self.estimator is None:
+    def _compute_predictions_and_margins(self, graph, data_matrix):
+        def _null_estimator_case(graph, data_matrix):
             # if we do not provide an estimator then consider default margin of
             # 1/float(len(graph)) for all vertices
-            margins = np.array([1 / float(len(graph))] * data_matrix.shape[0],
-                               dtype=np.float64)
-            predictions = np.array([1] * data_matrix.shape[0])
+            n = len(graph)
+            m = data_matrix.shape[0]
+            importances = np.array([1 / n] * m, dtype=np.float64)
+            predictions = np.array([1] * m)
+            return predictions, importances
+
+        def _binary_classifier_case(graph, data_matrix):
+            predictions = self.estimator.predict(data_matrix)
+            importances = self.estimator.decision_function(data_matrix)
+            return predictions, importances
+
+        def _regression_case(graph, data_matrix):
+            predicted_score = self.estimator.predict(data_matrix)
+            p = [1 if v >= 0 else -1 for v in predicted_score]
+            predictions = np.array(p)
+            return predictions, predicted_score
+
+        def _multiclass_case(graph, data_matrix):
+            # when prediction is multiclass, use as importance the max
+            # prediction
+            n = len(graph)
+            predictions = self.estimator.predict(data_matrix)
+            predicted_score = self.estimator.decision_function(data_matrix)
+            ids = np.argmax(predicted_score, axis=1)
+            s = [row[col] for row, col in zip(predicted_score, ids)]
+            scores = np.array(s)
+            b = [self.estimator.intercept_[id] for id in ids]
+            intercepts = np.array(b)
+            importances = scores - intercepts + intercepts / n
+            return predictions, importances
+
+        if self.estimator is None:
+            return _null_estimator_case(graph, data_matrix)
+        if self.estimator.__class__.__name__ in ['SGDRegressor']:
+            return _regression_case(graph, data_matrix)
         else:
-            if self.estimator.__class__.__name__ in ['SGDRegressor']:
-                predicted_score = self.estimator.predict(data_matrix)
-                predictions = np.array([1 if v >= 0 else -1
-                                        for v in predicted_score])
+            predicted_score = self.estimator.decision_function(data_matrix)
+            if len(predicted_score.shape) > 1:
+                return _multiclass_case(graph, data_matrix)
             else:
-                predicted_score = self.estimator.decision_function(data_matrix)
-                # when prediction is multiclass, use as importance the max
-                # prediction
-                if isinstance(predicted_score, np.ndarray):
-                    ids = np.argmax(predicted_score, axis=1)
-                    scores = np.array(
-                        [row[col] for row, col in zip(predicted_score, ids)])
-                    intercepts = np.array(
-                        [self.estimator.intercept_[id] for id in ids])
-                    margins = scores - intercepts + \
-                        intercepts / float(len(graph))
-                predictions = self.estimator.predict(data_matrix)
-            if isinstance(predicted_score, np.ndarray) is False:
-                margins = predicted_score - self.estimator.intercept_ + \
-                    self.estimator.intercept_ / float(len(graph))
+                return _binary_classifier_case(graph, data_matrix)
+
+    def _annotate_importance(self, graph, data_matrix):
+        predictions, margins = self._compute_predictions_and_margins(
+            graph, data_matrix)
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in graph.nodes_iter(data=True):

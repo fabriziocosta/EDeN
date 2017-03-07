@@ -12,6 +12,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def vectorize(graphs, **opts):
+    """Transform real vector labeled, weighted graphs in sparse vectors."""
+    return Vectorizer(**opts).transform(graphs)
+
+
 class Vectorizer(AbstractVectorizer):
     """Transform real strings into sparse vectors.
 
