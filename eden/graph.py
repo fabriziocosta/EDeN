@@ -36,10 +36,11 @@ def annotate(graphs,
              reweight=1.0,
              vertex_features=False, **opts):
     """Return graphs with extra node attributes: importance and features."""
-    return Vectorizer(**opts).annotate(graphs,
-                                       estimator=estimator,
-                                       reweight=reweight,
-                                       vertex_features=vertex_features)
+    result = Vectorizer(**opts).annotate(graphs,
+                                         estimator=estimator,
+                                         reweight=reweight,
+                                         vertex_features=vertex_features)
+    return list(result)
 
 
 # --------------------------------------------------------------------------
@@ -823,8 +824,8 @@ class Vectorizer(AbstractVectorizer):
         if self.estimator.__class__.__name__ in ['SGDRegressor']:
             return _regression_case(graph, data_matrix)
         else:
-            predicted_score = self.estimator.decision_function(data_matrix)
-            if len(predicted_score.shape) > 1:
+            data_dim = self.estimator.intercept_.shape[0]
+            if data_dim > 1:
                 return _multiclass_case(graph, data_matrix)
             else:
                 return _binary_classifier_case(graph, data_matrix)
