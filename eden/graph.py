@@ -6,6 +6,7 @@ import networkx as nx
 import multiprocessing
 import math
 import numpy as np
+from sklearn import metrics
 from scipy import stats
 from scipy.sparse import csr_matrix
 from scipy.sparse import vstack
@@ -43,7 +44,13 @@ def annotate(graphs,
     return list(result)
 
 
+def kernel_matrix(graphs, **opts):
+    """Return the kernel matrix."""
+    data_matrix = vectorize(graphs, opts)
+    return metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
+
 # --------------------------------------------------------------------------
+
 
 class Vectorizer(AbstractVectorizer):
     """Transform real vector labeled, weighted graphs in sparse vectors."""
