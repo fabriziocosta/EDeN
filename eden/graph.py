@@ -46,7 +46,7 @@ def annotate(graphs,
 
 def kernel_matrix(graphs, **opts):
     """Return the kernel matrix."""
-    data_matrix = vectorize(graphs, opts)
+    data_matrix = vectorize(graphs, **opts)
     return metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
 
 # --------------------------------------------------------------------------
