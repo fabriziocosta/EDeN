@@ -7,6 +7,7 @@ import multiprocessing
 import math
 import numpy as np
 from sklearn import metrics
+from sklearn.cluster import MiniBatchKMeans
 from scipy import stats
 from scipy.sparse import csr_matrix
 from scipy.sparse import vstack
@@ -17,9 +18,39 @@ from eden import fast_hash, fast_hash_vec
 from eden import fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
 from eden.util import serialize_dict
-
+from itertools import tee
 import logging
 logger = logging.getLogger(__name__)
+
+
+def auto_label(graphs, n_clusters=16, **opts):
+    """Label nodes with cluster id.
+
+    Cluster nodes using as features the output of vertex_vectorize.
+    """
+    data_list = Vectorizer(**opts).vertex_transform(graphs)
+    data_matrix = vstack(data_list)
+    preds = MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data_matrix)
+    sizes = [m.shape[0] for m in data_list]
+    label_list = []
+    pointer = 0
+    for size in sizes:
+        labels = preds[pointer: pointer + size]
+        label_list.append(labels)
+        pointer += size
+    return label_list
+
+
+def auto_relabel(graphs, n_clusters=16, **opts):
+    """Label nodes with cluster id."""
+    graphs, graphs_ = tee(graphs)
+    label_list = auto_label(graphs_, n_clusters=n_clusters, **opts)
+    relabeled_graphs = []
+    for labels, graph in zip(label_list, graphs):
+        for label, u in zip(labels, graph.nodes()):
+            graph.node[u]['label'] = label
+        relabeled_graphs.append(graph.copy())
+    return relabeled_graphs
 
 
 def vectorize(graphs, **opts):
