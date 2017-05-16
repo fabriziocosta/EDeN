@@ -46,7 +46,7 @@ def draw_graph(graph,
                secondary_edge_label=None,
                vertex_color=None,
                vertex_alpha=0.6,
-               vertex_border=False,
+               vertex_border=1,
                vertex_size=600,
 
                edge_color=None,
@@ -196,12 +196,13 @@ def draw_graph(graph,
 
     graph.add_edges_from(tmp_edge_set)
 
-    nx.draw_networkx_nodes(graph, pos,
-                           node_color=node_color,
-                           alpha=vertex_alpha,
-                           node_size=vertex_size,
-                           linewidths=linewidths,
-                           cmap=plt.get_cmap(colormap))
+    nodes = nx.draw_networkx_nodes(graph, pos,
+                                   node_color=node_color,
+                                   alpha=vertex_alpha,
+                                   node_size=vertex_size,
+                                   linewidths=linewidths,
+                                   cmap=plt.get_cmap(colormap))
+    nodes.set_edgecolor('k')
 
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
