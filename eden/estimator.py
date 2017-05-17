@@ -3,6 +3,7 @@
 
 import numpy as np
 from eden.graph import vectorize
+from eden.util import timeit
 import random
 from toolz.sandbox.core import unzip
 from collections import Counter
@@ -24,12 +25,9 @@ from eden.display import plot_aucs
 from sklearn.cluster import MiniBatchKMeans
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import cross_val_predict
-
-
 import logging
-from eden.util import configure_logging
+
 logger = logging.getLogger()
-configure_logging(logger, verbosity=1)
 
 
 def paired_shuffle(iterable1, iterable2):
@@ -40,6 +38,7 @@ def paired_shuffle(iterable1, iterable2):
     return list(i1), list(i2)
 
 
+@timeit
 def subsample(graphs, targets, subsample_size=100):
     """subsample."""
     tg = zip(targets, graphs)
@@ -56,6 +55,7 @@ def subsample(graphs, targets, subsample_size=100):
     return list(subgraphs), list(subtargets)
 
 
+@timeit
 def balance(graphs, targets, estimator, ratio=2):
     """balance."""
     class_counts = Counter(targets)
@@ -78,8 +78,13 @@ def balance(graphs, targets, estimator, ratio=2):
     maj_graphs = [second(x) for x in class_graphs[majority_class]]
     min_graphs = [second(x) for x in class_graphs[minority_class]]
 
-    # select only the instances in the majority class that have a small margin
-    preds = estimator.decision_function(maj_graphs)
+    if estimator:
+        # select only the instances in the majority class that
+        # have a small margin
+        preds = estimator.decision_function(maj_graphs)
+    else:
+        # select at random
+        preds = [random.random() for i in range(len(maj_graphs))]
     preds = [abs(pred) for pred in preds]
     pred_graphs = sorted(zip(preds, maj_graphs))[:desired_size]
     maj_graphs = [g for p, g in pred_graphs]
@@ -118,15 +123,22 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         x = vectorize(graphs, r=self.r, d=self.d, discrete=self.discrete)
         return x
 
-    def fit(self, graphs, targets):
+    @timeit
+    def fit(self, graphs, targets, randomize=True):
         """fit."""
         if self.balance:
-            samp_graphs, samp_targets = subsample(
-                graphs, targets, subsample_size=self.subsample_size)
-            x = self.transform(samp_graphs)
-            self.model.fit(x, samp_targets)
-            bal_graphs, bal_targets = balance(
-                graphs, targets, self, ratio=self.ratio)
+            if randomize:
+                bal_graphs, bal_targets = balance(
+                    graphs, targets, None, ratio=self.ratio)
+            else:
+                samp_graphs, samp_targets = subsample(
+                    graphs, targets, subsample_size=self.subsample_size)
+                x = self.transform(samp_graphs)
+                self.model.fit(x, samp_targets)
+                bal_graphs, bal_targets = balance(
+                    graphs, targets, self, ratio=self.ratio)
+            size = len(bal_targets)
+            logger.debug('Dataset size=%d' % (size))
             x = self.transform(bal_graphs)
             self.model.fit(x, bal_targets)
         else:
@@ -134,23 +146,27 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             self.model.fit(x, targets)
         return self
 
+    @timeit
     def predict(self, graphs):
         """predict."""
         x = self.transform(graphs)
         preds = self.model.predict(x)
         return preds
 
+    @timeit
     def decision_function(self, graphs):
         """decision_function."""
         x = self.transform(graphs)
         preds = self.model.decision_function(x)
         return preds
 
+    @timeit
     def model_selection(self, graphs, targets, subsample_size=None):
         """model_selection."""
         return self._model_selection(
             graphs, targets, None, subsample_size, mode='grid')
 
+    @timeit
     def model_selection_randomized(self, graphs, targets,
                                    n_iter=30, subsample_size=None):
         """model_selection_randomized."""
@@ -175,6 +191,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         self = search.best_estimator_
         return self
 
+    @timeit
     def learning_curve(self, graphs, targets, cv=5, n_steps=10):
         """learning_curve."""
         x = self.transform(graphs)
@@ -187,6 +204,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         return train_sizes, train_scores, test_scores
 
 
+@timeit
 def process_vec_info(g, n_clusters=8, cv=3):
     """process_vec_info."""
     # extract node vec information and make np data matrix
@@ -196,15 +214,19 @@ def process_vec_info(g, n_clusters=8, cv=3):
     clusters = clu.fit_predict(data_matrix)
     # train and predict with KNN in crossvalidation
     est = KNeighborsClassifier(n_neighbors=5)
-    y_pred = cross_val_predict(est, data_matrix, clusters,
-                               cv=cv, method='predict_proba')
-    # replace vec information
+    y_probs = cross_val_predict(est, data_matrix, clusters,
+                                cv=cv, method='predict_proba')
+    y_preds = cross_val_predict(est, data_matrix, clusters,
+                                cv=cv, method='predict')
+    # replace node information
     graph = g.copy()
     for u in graph.nodes():
-        graph.node[u]['vec'] = list(y_pred[u])
+        graph.node[u]['label'] = str(y_preds[u])
+        graph.node[u]['vec'] = list(y_probs[u])
     return graph
 
 
+@timeit
 def estimate_predictive_performance(x_y,
                                     estimator=None,
                                     n_splits=10,
@@ -225,6 +247,7 @@ def output_avg_and_std(iterable):
     return iterable
 
 
+@timeit
 def perf(te_graphs, y_true, estimator):
     """perf."""
     y_pred = estimator.predict(te_graphs)

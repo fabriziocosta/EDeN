@@ -4,9 +4,13 @@
 import networkx as nx
 import numpy as np
 import random
+from eden.util import timeit
 from eden.estimator import paired_shuffle
 from eden.display import draw_graph
 import matplotlib.pyplot as plt
+import logging
+
+logger = logging.getLogger()
 
 
 def _bfs(graph, start, max_depth):
@@ -46,6 +50,7 @@ def _make_negative_set(graph, radius):
         yield _make_neighborhood_pair(graph, u, v, radius)
 
 
+@timeit
 def make_train_test_set(graph, radius, test_proportion=.3):
     """make_train_test_set."""
     pos = list(_make_positive_set(graph, radius))
@@ -83,24 +88,27 @@ def filter_if_degree_greater_then(g, th=1):
 
 def show_graph(g, vertex_color='typeof'):
     """show_graph."""
+    degrees = [len(g.neighbors(u)) for u in g.nodes()]
+
     print('num nodes=%d' % len(g))
     print('num edges=%d' % len(g.edges()))
     print('num non edges=%d' % len(list(nx.non_edges(g))))
-    max_degree = max([len(g.neighbors(u)) for u in g.nodes()])
-    print('max degree=%d' % max_degree)
+    print('max degree=%d' % max(degrees))
+    print('median degree=%d' % np.percentile(degrees, 50))
 
     draw_graph(g, size=15, colormap='Paired',
                vertex_color=vertex_color, vertex_label=None,
                vertex_size=200, edge_label=None)
 
-    degrees = [len(g.neighbors(u)) for u in g.nodes()]
     plt.hist(degrees, len(set(degrees)) - 1, alpha=0.75)
     plt.grid()
     plt.show()
 
 
+@timeit
 def display_edge_predictions(g, tr_graphs, tr_targets,
-                             te_graphs, te_targets, preds):
+                             te_graphs, te_targets, preds,
+                             vertex_color='_label_'):
     """display_edge_predictions."""
     tr_roots = [gg.graph['roots'] for gg in tr_graphs]
     graph = g.copy()
@@ -126,7 +134,7 @@ def display_edge_predictions(g, tr_graphs, tr_targets,
             if t == 1:
                 graph.edge[u][v]['color'] = 'crimson'
 
-    draw_graph(graph, size=15, colormap='Paired', vertex_color='typeof',
+    draw_graph(graph, size=15, colormap='Paired', vertex_color=vertex_color,
                vertex_size=100, vertex_label=None, edge_label=None,
                edge_color='color', edge_alpha=1,
                ignore_for_layout='nesting', dark_edge_alpha=.4,
