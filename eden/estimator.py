@@ -248,10 +248,8 @@ def output_avg_and_std(iterable):
 
 
 @timeit
-def perf(te_graphs, y_true, estimator):
+def perf(te_graphs, y_true, y_pred, y_score):
     """perf."""
-    y_pred = estimator.predict(te_graphs)
-    y_score = estimator.decision_function(te_graphs)
     print 'Accuracy: %.2f' % accuracy_score(y_true, y_pred)
     print ' AUC ROC: %.2f' % roc_auc_score(y_true, y_score)
     print '  AUC AP: %.2f' % average_precision_score(y_true, y_score)

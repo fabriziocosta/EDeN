@@ -40,29 +40,33 @@ def _make_neighborhood_pair(graph, endpoint_1, endpoint_2, radius):
     return neighborhood_pair
 
 
-def _make_positive_set(graph, radius):
-    for u, v in graph.edges():
-        yield _make_neighborhood_pair(graph, u, v, radius)
-
-
-def _make_negative_set(graph, radius):
-    for u, v in nx.non_edges(graph):
+def _make_subgraph_set(graph, radius, endpoints):
+    for u, v in endpoints:
         yield _make_neighborhood_pair(graph, u, v, radius)
 
 
 @timeit
 def make_train_test_set(graph, radius, test_proportion=.3):
     """make_train_test_set."""
-    pos = list(_make_positive_set(graph, radius))
-    neg = list(_make_negative_set(graph, radius))
+    pos = [(u, v) for u, v in graph.edges()]
+    neg = [(u, v) for u, v in nx.non_edges(graph)]
     random.shuffle(pos)
     random.shuffle(neg)
     pos_dim = len(pos)
     neg_dim = len(neg)
-    tr_pos_graphs = pos[:-int(pos_dim * test_proportion)]
-    te_pos_graphs = pos[-int(pos_dim * test_proportion):]
-    tr_neg_graphs = neg[:-int(neg_dim * test_proportion)]
-    te_neg_graphs = neg[-int(neg_dim * test_proportion):]
+    tr_pos = pos[:-int(pos_dim * test_proportion)]
+    te_pos = pos[-int(pos_dim * test_proportion):]
+    tr_neg = neg[:-int(neg_dim * test_proportion)]
+    te_neg = neg[-int(neg_dim * test_proportion):]
+
+    # remove edges
+    tr_graph = graph.copy()
+    tr_graph.remove_edges_from(te_pos)
+    tr_pos_graphs = list(_make_subgraph_set(tr_graph, radius, tr_pos))
+    tr_neg_graphs = list(_make_subgraph_set(tr_graph, radius, tr_neg))
+    te_pos_graphs = list(_make_subgraph_set(tr_graph, radius, te_pos))
+    te_neg_graphs = list(_make_subgraph_set(tr_graph, radius, te_neg))
+
     tr_graphs = tr_pos_graphs + tr_neg_graphs
     te_graphs = te_pos_graphs + te_neg_graphs
     tr_targets = [1] * len(tr_pos_graphs) + [0] * len(tr_neg_graphs)
@@ -100,8 +104,23 @@ def show_graph(g, vertex_color='typeof'):
                vertex_color=vertex_color, vertex_label=None,
                vertex_size=200, edge_label=None)
 
-    plt.hist(degrees, len(set(degrees)) - 1, alpha=0.75)
-    plt.grid()
+    size = int((max(degrees) - min(degrees)) / 1.5)
+    plt.figure(figsize=(size, 3))
+    plt.title('Degree distribution')
+    _bins = np.arange(min(degrees), max(degrees) + 2) - .5
+    n, bins, patches = plt.hist(degrees, _bins,
+                                alpha=0.3,
+                                facecolor='navy', histtype='bar',
+                                rwidth=0.8, edgecolor='k')
+    labels = np.array([str(int(i)) for i in n])
+    for xi, yi, label in zip(bins, n, labels):
+        plt.text(xi + 0.5, yi, label, ha='center', va='bottom')
+
+    plt.xticks(bins + 0.5)
+    plt.xlim((min(degrees) - 1, max(degrees) + 1))
+    plt.xlabel('Node degree')
+    plt.ylabel('Counts')
+    plt.grid(linestyle=":")
     plt.show()
 
 
