@@ -23,8 +23,6 @@ import pylab as plt
 from eden.display import plot_confusion_matrices
 from eden.display import plot_aucs
 from sklearn.cluster import MiniBatchKMeans
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import cross_val_predict
 import logging
 
 logger = logging.getLogger()
@@ -210,19 +208,16 @@ def process_vec_info(g, n_clusters=8, cv=3):
     # extract node vec information and make np data matrix
     data_matrix = np.array([g.node[u]['vec'] for u in g.nodes()])
     # cluster with kmeans
-    clu = MiniBatchKMeans(n_clusters=n_clusters)
-    clusters = clu.fit_predict(data_matrix)
-    # train and predict with KNN in crossvalidation
-    est = KNeighborsClassifier(n_neighbors=5)
-    y_probs = cross_val_predict(est, data_matrix, clusters,
-                                cv=cv, method='predict_proba')
-    y_preds = cross_val_predict(est, data_matrix, clusters,
-                                cv=cv, method='predict')
+    clu = MiniBatchKMeans(n_clusters=n_clusters, n_init=10)
+    clu.fit(data_matrix)
+    preds = clu.predict(data_matrix)
+    vecs = clu.transform(data_matrix)
+    vecs = 1 / (1 + vecs)
     # replace node information
     graph = g.copy()
     for u in graph.nodes():
-        graph.node[u]['label'] = str(y_preds[u])
-        graph.node[u]['vec'] = list(y_probs[u])
+        graph.node[u]['label'] = str(preds[u])
+        graph.node[u]['vec'] = list(vecs[u])
     return graph
 
 

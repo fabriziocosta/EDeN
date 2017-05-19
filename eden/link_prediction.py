@@ -35,7 +35,11 @@ def _make_neighborhood_pair(graph, endpoint_1, endpoint_2, radius):
     n2 = _bfs(graph, endpoint_2, radius)
     neighborhood_nodes = n1 | n2
     neighborhood_pair = nx.Graph(graph.subgraph(neighborhood_nodes))
-    neighborhood_pair.add_edge(endpoint_1, endpoint_2, label="#")
+    # add a new node connected to the two endpoints
+    edge_node_id = len(graph)
+    neighborhood_pair.add_node(edge_node_id, label='#')
+    neighborhood_pair.add_edge(endpoint_1, edge_node_id, label="#")
+    neighborhood_pair.add_edge(edge_node_id, endpoint_2, label="#")
     neighborhood_pair.graph['roots'] = (endpoint_1, endpoint_2)
     return neighborhood_pair
 
@@ -104,6 +108,7 @@ def show_graph(g, vertex_color='typeof'):
                vertex_color=vertex_color, vertex_label=None,
                vertex_size=200, edge_label=None)
 
+    # display degree distribution
     size = int((max(degrees) - min(degrees)) / 1.5)
     plt.figure(figsize=(size, 3))
     plt.title('Degree distribution')
@@ -118,6 +123,7 @@ def show_graph(g, vertex_color='typeof'):
 
     plt.xticks(bins + 0.5)
     plt.xlim((min(degrees) - 1, max(degrees) + 1))
+    plt.ylim((0, max(n) * 1.1))
     plt.xlabel('Node degree')
     plt.ylabel('Counts')
     plt.grid(linestyle=":")
