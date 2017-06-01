@@ -99,7 +99,7 @@ class Vectorizer(AbstractVectorizer):
                  inner_normalization=True,
                  positional=False,
                  discrete=True,
-                 block_size=100,
+                 block_size=None,
                  n_jobs=-1,
                  key_label='label',
                  key_weight='weight',
@@ -194,7 +194,7 @@ class Vectorizer(AbstractVectorizer):
         self.min_d = min_d
         self.weights_dict = weights_dict
         if auto_weights:
-            self.weights_dict = {(i, i): 1 for i in range(complexity)}
+            self.weights_dict = {(i, i + 1): 1 for i in range(max(r, d))}
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -287,8 +287,10 @@ class Vectorizer(AbstractVectorizer):
 
         if self.n_jobs == -1:
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
+            self.block_size = len(graphs) / (multiprocessing.cpu_count() - 1)
         else:
             pool = multiprocessing.Pool(self.n_jobs)
+            self.block_size = len(graphs) / self.n_jobs
 
         results = [apply_async(
             pool, self._transform_serial,
@@ -316,7 +318,7 @@ class Vectorizer(AbstractVectorizer):
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
-    def vertex_transform(self, graphs):
+    def vertex_transform(self, original_graphs):
         """Transform a list of networkx graphs into a list of sparse matrices.
 
         Each matrix has dimension n_nodes x n_features, i.e. each vertex is
@@ -334,13 +336,16 @@ class Vectorizer(AbstractVectorizer):
             Vector representation of each vertex in the input graphs.
 
         """
+        graphs = [nx.Graph(g) for g in original_graphs]
         if self.n_jobs == 1:
-            return self._vertex_transform_serial(graphs)
+            return self._transform_serial(graphs)
 
         if self.n_jobs == -1:
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
             pool = multiprocessing.Pool(self.n_jobs)
+
+        print multiprocessing.cpu_count(), self.block_size
 
         results = [apply_async(
             pool, self._vertex_transform_serial,
@@ -650,12 +655,10 @@ class Vectorizer(AbstractVectorizer):
                 # position of the vertex v w.r.t. the root vertex
                 if self.positional:
                     vhlabel = fast_hash_2(
-                        graph.node[v]['hlabel'],
-                        root - v)
+                        graph.node[v]['hlabel'], root - v)
                 else:
-                    vhlabel = \
-                        fast_hash_2(graph.node[v]['hlabel'],
-                                    len(graph[v]))
+                    vhlabel = fast_hash_2(
+                        graph.node[v]['hlabel'], len(graph[v]))
                 hash_label_list.append(vhlabel)
             # sort it
             hash_label_list.sort()

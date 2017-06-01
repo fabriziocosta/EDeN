@@ -23,6 +23,9 @@ import pylab as plt
 from eden.display import plot_confusion_matrices
 from eden.display import plot_aucs
 from sklearn.cluster import MiniBatchKMeans
+from dask.diagnostics import Profiler, ResourceProfiler, CacheProfiler
+from dask.diagnostics import visualize
+import multiprocessing as mp
 import logging
 
 logger = logging.getLogger()
@@ -95,30 +98,54 @@ def balance(graphs, targets, estimator, ratio=2):
     return paired_shuffle(bal_graphs, bal_targets)
 
 
+def make_train_test_sets(pos_graphs, neg_graphs,
+                         test_proportion=.3, random_state=2):
+    """make_train_test_sets."""
+    random.seed(random_state)
+    random.shuffle(pos_graphs)
+    random.shuffle(neg_graphs)
+    pos_dim = len(pos_graphs)
+    neg_dim = len(neg_graphs)
+    tr_pos_graphs = pos_graphs[:-int(pos_dim * test_proportion)]
+    te_pos_graphs = pos_graphs[-int(pos_dim * test_proportion):]
+    tr_neg_graphs = neg_graphs[:-int(neg_dim * test_proportion)]
+    te_neg_graphs = neg_graphs[-int(neg_dim * test_proportion):]
+    tr_graphs = tr_pos_graphs + tr_neg_graphs
+    te_graphs = te_pos_graphs + te_neg_graphs
+    tr_targets = [1] * len(tr_pos_graphs) + [0] * len(tr_neg_graphs)
+    te_targets = [1] * len(te_pos_graphs) + [0] * len(te_neg_graphs)
+    tr_graphs, tr_targets = paired_shuffle(tr_graphs, tr_targets)
+    te_graphs, te_targets = paired_shuffle(te_graphs, te_targets)
+    return (tr_graphs, np.array(tr_targets)), (te_graphs, np.array(te_targets))
+
+
 class EdenEstimator(BaseEstimator, ClassifierMixin):
     """Build an estimator for graphs."""
 
-    def __init__(self, r=2, d=2, discrete=True,
+    def __init__(self, r=1, d=1, n_jobs=-1, discrete=True,
                  balance=False, subsample_size=200, ratio=2):
         """construct."""
-        self.set_params(r, d, discrete, balance, subsample_size, ratio)
+        self.set_params(r, d, n_jobs, discrete, balance, subsample_size, ratio)
 
-    def set_params(self, r=2, d=2, discrete=True,
+    def set_params(self, r=2, d=2, n_jobs=-1, discrete=True,
                    balance=False, subsample_size=200, ratio=2):
         """setter."""
         self.r = r
         self.d = d
+        self.n_jobs = n_jobs
         self.discrete = discrete
         self.balance = balance
         self.subsample_size = subsample_size
         self.ratio = ratio
         self.model = SGDClassifier(
-            average=True, class_weight='balanced', shuffle=True, n_jobs=-1)
+            average=True, class_weight='balanced', shuffle=True, n_jobs=n_jobs)
         return self
 
     def transform(self, graphs):
         """transform."""
-        x = vectorize(graphs, r=self.r, d=self.d, discrete=self.discrete)
+        x = vectorize(
+            graphs, r=self.r, d=self.d,
+            discrete=self.discrete, n_jobs=self.n_jobs)
         return x
 
     @timeit
@@ -138,10 +165,10 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             size = len(bal_targets)
             logger.debug('Dataset size=%d' % (size))
             x = self.transform(bal_graphs)
-            self.model.fit(x, bal_targets)
+            self.model = self.model.fit(x, bal_targets)
         else:
             x = self.transform(graphs)
-            self.model.fit(x, targets)
+            self.model = self.model.fit(x, targets)
         return self
 
     @timeit
@@ -159,34 +186,59 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         return preds
 
     @timeit
+    def cross_val_score(self, graphs, target,
+                        scoring='roc_auc', cv=5):
+        """cross_val_score."""
+        x = self.transform(graphs)
+        scores = cross_val_score(
+            self.model, x, target, cv=cv,
+            scoring=scoring, n_jobs=self.n_jobs)
+        return scores
+
+    @timeit
     def model_selection(self, graphs, targets, subsample_size=None):
         """model_selection."""
         return self._model_selection(
             graphs, targets, None, subsample_size, mode='grid')
 
     @timeit
-    def model_selection_randomized(self, graphs, targets,
-                                   n_iter=30, subsample_size=None):
+    def model_selection_rand(self, graphs, targets,
+                             n_iter=30, subsample_size=None):
         """model_selection_randomized."""
-        return self._model_selection(
-            graphs, targets, n_iter, subsample_size, mode='randomized')
-
-    def _model_selection(self, graphs, targets, n_iter=30,
-                         subsample_size=None, mode='randomized'):
-        param_distr = {"r": list(range(1, 4)), "d": list(range(0, 4))}
-        if mode == 'randomized':
-            search = dcv.RandomizedSearchCV(
-                self, param_distr, cv=3, n_iter=n_iter)
-            logger.debug("Best parameters in %d iter:\n%s" %
-                         (n_iter, search.best_params_))
-        else:
-            search = dcv.GridSearchCV(self, param_distr, cv=3)
-            logger.debug("Best parameters:\n%s" % (search.best_params_))
+        param_distr = {"r": list(range(1, 5)), "d": list(range(0, 6))}
         if subsample_size:
             graphs, targets = subsample(
                 graphs, targets, subsample_size=subsample_size)
-        search.fit(graphs, targets)
-        self = search.best_estimator_
+
+        pool = mp.Pool()
+        scores = pool.map(_eval, [(graphs, targets, param_distr)] * n_iter)
+        pool.close()
+        pool.join()
+
+        best_params = max(scores)[1]
+        logger.debug("Best parameters:\n%s" % (best_params))
+        self = EdenEstimator(**best_params)
+        return self
+
+    def _model_selection(self, graphs, targets, n_iter=30,
+                         subsample_size=None, mode='randomized'):
+        with Profiler() as prof, ResourceProfiler(dt=0.25) as rprof, CacheProfiler() as cprof:
+            param_distr = {"r": list(range(1, 4)), "d": list(range(0, 5))}
+            if mode == 'randomized':
+                search = dcv.RandomizedSearchCV(
+                    self, param_distr, cv=3, n_iter=n_iter)
+            else:
+                search = dcv.GridSearchCV(
+                    self, param_distr, cv=3)
+            if subsample_size:
+                graphs, targets = subsample(
+                    graphs, targets, subsample_size=subsample_size)
+            search = search.fit(graphs, targets)
+            logger.debug("Best parameters:\n%s" % (search.best_params_))
+            self = search.best_estimator_
+            self.r = search.best_params_['r']
+            self.d = search.best_params_['d']
+            visualize([prof, rprof, cprof])
         return self
 
     @timeit
@@ -198,8 +250,34 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         train_sizes, train_scores, test_scores = learning_curve(
             self.model, x, targets,
             cv=cv, train_sizes=train_sizes,
-            scoring=scoring)
+            scoring=scoring, n_jobs=self.n_jobs)
         return train_sizes, train_scores, test_scores
+
+    def bias_variance_decomposition(self, graphs, n_bootstraps=10):
+        """bias_variance_decomposition."""
+        pass
+
+
+def _sample_params(param_distr):
+    params = dict()
+    for key in param_distr:
+        params[key] = random.choice(param_distr[key])
+    return params
+
+
+def _eval_params(graphs, targets, param_distr):
+    # sample parameters
+    params = _sample_params(param_distr)
+    # create model with those parameters
+    est = EdenEstimator(n_jobs=1, **params)
+    # run a cross_val_score
+    scores = est.cross_val_score(graphs, targets)
+    # return average
+    return np.mean(scores), params
+
+
+def _eval(data):
+    return _eval_params(*data)
 
 
 @timeit
@@ -243,7 +321,7 @@ def output_avg_and_std(iterable):
 
 
 @timeit
-def perf(te_graphs, y_true, y_pred, y_score):
+def perf(y_true, y_pred, y_score):
     """perf."""
     print 'Accuracy: %.2f' % accuracy_score(y_true, y_pred)
     print ' AUC ROC: %.2f' % roc_auc_score(y_true, y_score)
