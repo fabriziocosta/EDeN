@@ -278,7 +278,8 @@ class Vectorizer(AbstractVectorizer):
         >>> g2[2][3]['label']='2'
         >>> v = Vectorizer()
         >>> def vec_to_hash(vec):
-        ...     return  hash(tuple(vec.data + vec.indices))
+        ...     retu
+        rn  hash(tuple(vec.data + vec.indices))
         >>> vec_to_hash(v.transform([g])) == vec_to_hash (v.transform([g2]))
         True
         """
@@ -344,8 +345,6 @@ class Vectorizer(AbstractVectorizer):
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
             pool = multiprocessing.Pool(self.n_jobs)
-
-        print multiprocessing.cpu_count(), self.block_size
 
         results = [apply_async(
             pool, self._vertex_transform_serial,
