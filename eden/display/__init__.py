@@ -39,12 +39,26 @@ def serialize_graph(graph):
     return serial_data
 
 
+def map_labels_to_colors(graphs):
+    """Map all node labels into a real in [0,1]."""
+    label_set = set()
+    for g in graphs:
+        for u in g.nodes():
+            label_set.add(g.node[u]['label'])
+    dim = len(label_set)
+    label_colors = dict()
+    for i, label in enumerate(sorted(label_set)):
+        label_colors[label] = float(i) / dim
+    return label_colors
+
+
 def draw_graph(graph,
                vertex_label='label',
                secondary_vertex_label=None,
                edge_label='label',
                secondary_edge_label=None,
                vertex_color=None,
+               vertex_color_dict=None,
                vertex_alpha=0.6,
                vertex_border=1,
                vertex_size=600,
@@ -115,10 +129,10 @@ def draw_graph(graph,
         node_color = []
         for u, d in graph.nodes(data=True):
             label = d.get('label', '.')
-            node_color.append(hash(_serialize_list(label)))
-        color_set = set(node_color)
-        color_map = {c: i for i, c in enumerate(color_set)}
-        node_color = [color_map[c] for c in node_color]
+            if vertex_color_dict is not None:
+                node_color.append(vertex_color_dict.get(label, 0))
+            else:
+                node_color.append(hash(_serialize_list(label)))
     else:
         if invert_colormap:
             node_color = [- d.get(vertex_color, 0)
@@ -168,7 +182,7 @@ def draw_graph(graph,
                 graph_copy.edge[u][v] = {}
             pos = nx.graphviz_layout(graph_copy,
                                      prog=prog,
-                                     args="-Gmode=KK")
+                                     args="-Gmaxiter=1000")
         elif layout == "RNA":
             import RNA
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
@@ -201,7 +215,8 @@ def draw_graph(graph,
                                    alpha=vertex_alpha,
                                    node_size=vertex_size,
                                    linewidths=linewidths,
-                                   cmap=plt.get_cmap(colormap))
+                                   cmap=plt.get_cmap(colormap),
+                                   vmin=0, vmax=1)
     nodes.set_edgecolor('k')
 
     nx.draw_networkx_edges(graph, pos,
@@ -416,11 +431,11 @@ def plot_embedding(data_matrix, y,
         ax = plt.subplot(111)
         for i in range(num_instances):
             img = Image.open(image_file_name + str(i) + '.png')
-            imagebox = \
-                offsetbox.AnnotationBbox(offsetbox.OffsetImage(img, zoom=1),
-                                         data_matrix[i],
-                                         pad=0,
-                                         frameon=False)
+            imagebox = offsetbox.AnnotationBbox(
+                offsetbox.OffsetImage(img, zoom=1),
+                data_matrix[i],
+                pad=0,
+                frameon=False)
             ax.add_artist(imagebox)
     if labels is not None:
         for id in range(data_matrix.shape[0]):
