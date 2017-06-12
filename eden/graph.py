@@ -6,6 +6,8 @@ import networkx as nx
 import multiprocessing
 import math
 import numpy as np
+from sklearn import metrics
+from sklearn.cluster import MiniBatchKMeans
 from scipy import stats
 from scipy.sparse import csr_matrix
 from scipy.sparse import vstack
@@ -16,9 +18,39 @@ from eden import fast_hash, fast_hash_vec
 from eden import fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
 from eden.util import serialize_dict
-
+from itertools import tee
 import logging
 logger = logging.getLogger(__name__)
+
+
+def auto_label(graphs, n_clusters=16, **opts):
+    """Label nodes with cluster id.
+
+    Cluster nodes using as features the output of vertex_vectorize.
+    """
+    data_list = Vectorizer(**opts).vertex_transform(graphs)
+    data_matrix = vstack(data_list)
+    preds = MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data_matrix)
+    sizes = [m.shape[0] for m in data_list]
+    label_list = []
+    pointer = 0
+    for size in sizes:
+        labels = preds[pointer: pointer + size]
+        label_list.append(labels)
+        pointer += size
+    return label_list
+
+
+def auto_relabel(graphs, n_clusters=16, **opts):
+    """Label nodes with cluster id."""
+    graphs, graphs_ = tee(graphs)
+    label_list = auto_label(graphs_, n_clusters=n_clusters, **opts)
+    relabeled_graphs = []
+    for labels, graph in zip(label_list, graphs):
+        for label, u in zip(labels, graph.nodes()):
+            graph.node[u]['label'] = label
+        relabeled_graphs.append(graph.copy())
+    return relabeled_graphs
 
 
 def vectorize(graphs, **opts):
@@ -36,13 +68,20 @@ def annotate(graphs,
              reweight=1.0,
              vertex_features=False, **opts):
     """Return graphs with extra node attributes: importance and features."""
-    return Vectorizer(**opts).annotate(graphs,
-                                       estimator=estimator,
-                                       reweight=reweight,
-                                       vertex_features=vertex_features)
+    result = Vectorizer(**opts).annotate(graphs,
+                                         estimator=estimator,
+                                         reweight=reweight,
+                                         vertex_features=vertex_features)
+    return list(result)
 
+
+def kernel_matrix(graphs, **opts):
+    """Return the kernel matrix."""
+    data_matrix = vectorize(graphs, **opts)
+    return metrics.pairwise.pairwise_kernels(data_matrix, metric='linear')
 
 # --------------------------------------------------------------------------
+
 
 class Vectorizer(AbstractVectorizer):
     """Transform real vector labeled, weighted graphs in sparse vectors."""
@@ -60,7 +99,7 @@ class Vectorizer(AbstractVectorizer):
                  inner_normalization=True,
                  positional=False,
                  discrete=True,
-                 block_size=100,
+                 block_size=None,
                  n_jobs=-1,
                  key_label='label',
                  key_weight='weight',
@@ -155,7 +194,7 @@ class Vectorizer(AbstractVectorizer):
         self.min_d = min_d
         self.weights_dict = weights_dict
         if auto_weights:
-            self.weights_dict = {(i, i): 1 for i in range(complexity)}
+            self.weights_dict = {(i, i + 1): 1 for i in range(max(r, d))}
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
@@ -248,8 +287,10 @@ class Vectorizer(AbstractVectorizer):
 
         if self.n_jobs == -1:
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
+            self.block_size = len(graphs) / (multiprocessing.cpu_count() - 1)
         else:
             pool = multiprocessing.Pool(self.n_jobs)
+            self.block_size = len(graphs) / self.n_jobs
 
         results = [apply_async(
             pool, self._transform_serial,
@@ -277,7 +318,7 @@ class Vectorizer(AbstractVectorizer):
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
-    def vertex_transform(self, graphs):
+    def vertex_transform(self, original_graphs):
         """Transform a list of networkx graphs into a list of sparse matrices.
 
         Each matrix has dimension n_nodes x n_features, i.e. each vertex is
@@ -295,13 +336,16 @@ class Vectorizer(AbstractVectorizer):
             Vector representation of each vertex in the input graphs.
 
         """
+        graphs = [nx.Graph(g) for g in original_graphs]
         if self.n_jobs == 1:
-            return self._vertex_transform_serial(graphs)
+            return self._transform_serial(graphs)
 
         if self.n_jobs == -1:
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
             pool = multiprocessing.Pool(self.n_jobs)
+
+        print multiprocessing.cpu_count(), self.block_size
 
         results = [apply_async(
             pool, self._vertex_transform_serial,
@@ -611,12 +655,10 @@ class Vectorizer(AbstractVectorizer):
                 # position of the vertex v w.r.t. the root vertex
                 if self.positional:
                     vhlabel = fast_hash_2(
-                        graph.node[v]['hlabel'],
-                        root - v)
+                        graph.node[v]['hlabel'], root - v)
                 else:
-                    vhlabel = \
-                        fast_hash_2(graph.node[v]['hlabel'],
-                                    len(graph[v]))
+                    vhlabel = fast_hash_2(
+                        graph.node[v]['hlabel'], len(graph[v]))
                 hash_label_list.append(vhlabel)
             # sort it
             hash_label_list.sort()
@@ -823,8 +865,8 @@ class Vectorizer(AbstractVectorizer):
         if self.estimator.__class__.__name__ in ['SGDRegressor']:
             return _regression_case(graph, data_matrix)
         else:
-            predicted_score = self.estimator.decision_function(data_matrix)
-            if len(predicted_score.shape) > 1:
+            data_dim = self.estimator.intercept_.shape[0]
+            if data_dim > 1:
                 return _multiclass_case(graph, data_matrix)
             else:
                 return _binary_classifier_case(graph, data_matrix)

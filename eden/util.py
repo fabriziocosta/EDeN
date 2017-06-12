@@ -11,17 +11,40 @@ from collections import deque
 from itertools import tee
 import random
 import logging.handlers
-import json
+
+import multiprocessing as mp
+import time
+
+from toolz.curried import concat
+
 import logging
 logger = logging.getLogger(__name__)
 
 
-def print_json(text):
-    """print_json."""
-    print json.dumps(json.loads(text),
-                     sort_keys=True,
-                     indent=4,
-                     separators=(',', ': '))
+def timeit(method):
+    """Time decorator."""
+    def timed(*args, **kw):
+        ts = time.time()
+        result = method(*args, **kw)
+        te = time.time()
+        logger.debug('%s  %2.2f sec' % (method.__name__, te - ts))
+        return result
+    return timed
+
+
+def pmap(func, iterable, chunk_size=1):
+    """Multi-core map."""
+    pool = mp.Pool()
+    result = pool.map(func, iterable, chunksize=chunk_size)
+    pool.close()
+    pool.join()
+    return list(result)
+
+
+def ppipe(iterable, func, chunk_size=1):
+    """Multi-core pipe."""
+    out = pmap(func, iterable, chunk_size)
+    return list(concat(out))
 
 
 def configure_logging(logger, verbosity=0, filename=None):
@@ -133,14 +156,17 @@ def is_iterable(test):
 
 
 def describe(data_matrix):
-    """describe."""
+    """Get the shape of a sparse matrix and its average nnz."""
     return 'Instances: %3d ; Features: %d with an avg of %d per instance' % \
         (data_matrix.shape[0], data_matrix.shape[1],
          data_matrix.getnnz() / data_matrix.shape[0])
 
 
 def iterator_size(iterable):
-    """Length of an iterator."""
+    """Length of an iterator.
+
+    Note: if the iterable is a generator it consumes it.
+    """
     if hasattr(iterable, '__len__'):
         return len(iterable)
 
@@ -166,7 +192,7 @@ def selection_iterator(iterable, ids):
     """selection_iterator.
 
     Given an iterable and a list of ids (zero based) yield only the
-    items whose id matches
+    items whose id matches.
     """
     ids = sorted(ids)
     counter = 0
@@ -241,9 +267,8 @@ def report_base_statistics(vec, separator='\n'):
     c = Counter(vec)
     msg = ''
     for k in c:
-        msg += "class: %s count:%d (%0.2f)%s" % (k,
-                                                 c[k], c[k] / float(len(vec)),
-                                                 separator)
+        msg += "class: %s count:%d (%0.2f)%s" % (
+            k, c[k], c[k] / float(len(vec)), separator)
     return msg
 
 

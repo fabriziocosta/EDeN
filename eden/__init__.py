@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides interface for vectorizer."""
+
 import dill
 from itertools import izip_longest
 from sklearn.base import BaseEstimator, TransformerMixin
@@ -23,28 +26,10 @@ class AbstractVectorizer(BaseEstimator, TransformerMixin):
     def set_params(self, **args):
         raise NotImplementedError("Should have implemented this")
 
-    def fit(self, graphs):
-        raise NotImplementedError("Should have implemented this")
-
-    def partial_fit(self, graphs):
-        raise NotImplementedError("Should have implemented this")
-
-    def fit_transform(self, graphs):
-        raise NotImplementedError("Should have implemented this")
-
     def transform(self, graphs):
         raise NotImplementedError("Should have implemented this")
 
-    def transform_single(self, graph):
-        raise NotImplementedError("Should have implemented this")
-
-    def predict(self, graphs, estimator):
-        raise NotImplementedError("Should have implemented this")
-
-    def similarity(self, graphs, ref_instance=None):
-        raise NotImplementedError("Should have implemented this")
-
-    def distance(self, graphs, ref_instance=None):
+    def vertex_transform(self, graph):
         raise NotImplementedError("Should have implemented this")
 
 
@@ -104,7 +89,7 @@ def chunks(iterable, n):
 
 
 def grouper(iterable, n, fillvalue=None):
-    "Collect data into fixed-length chunks or blocks"
+    """Collect data into fixed-length chunks or blocks."""
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return izip_longest(*args, fillvalue=fillvalue)
