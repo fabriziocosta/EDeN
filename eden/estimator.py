@@ -15,6 +15,7 @@ from sklearn.model_selection import learning_curve
 from sklearn.model_selection import ShuffleSplit
 from sklearn.metrics import classification_report
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_predict
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import roc_auc_score
@@ -29,6 +30,25 @@ import multiprocessing as mp
 import logging
 
 logger = logging.getLogger()
+
+
+@timeit
+def process_vec_info(g, n_clusters=8):
+    """process_vec_info."""
+    # extract node vec information and make np data matrix
+    data_matrix = np.array([g.node[u]['vec'] for u in g.nodes()])
+    # cluster with kmeans
+    clu = MiniBatchKMeans(n_clusters=n_clusters, n_init=10)
+    clu.fit(data_matrix)
+    preds = clu.predict(data_matrix)
+    vecs = clu.transform(data_matrix)
+    vecs = 1 / (1 + vecs)
+    # replace node information
+    graph = g.copy()
+    for u in graph.nodes():
+        graph.node[u]['label'] = str(preds[u])
+        graph.node[u]['vec'] = list(vecs[u])
+    return graph
 
 
 def paired_shuffle(iterable1, iterable2):
@@ -122,29 +142,39 @@ def make_train_test_sets(pos_graphs, neg_graphs,
 class EdenEstimator(BaseEstimator, ClassifierMixin):
     """Build an estimator for graphs."""
 
-    def __init__(self, r=1, d=1, n_jobs=-1, discrete=True,
-                 balance=False, subsample_size=200, ratio=2):
+    def __init__(self, r=3, d=8, n_jobs=-1, discrete=True,
+                 balance=False, subsample_size=200, ratio=2,
+                 normalization=False, inner_normalization=False,
+                 penalty='elasticnet'):
         """construct."""
-        self.set_params(r, d, n_jobs, discrete, balance, subsample_size, ratio)
+        self.set_params(r, d, n_jobs, discrete, balance, subsample_size, ratio,
+                        normalization, inner_normalization, penalty)
 
-    def set_params(self, r=2, d=2, n_jobs=-1, discrete=True,
-                   balance=False, subsample_size=200, ratio=2):
+    def set_params(self, r=3, d=8, n_jobs=-1, discrete=True,
+                   balance=False, subsample_size=200, ratio=2,
+                   normalization=False, inner_normalization=False,
+                   penalty='elasticnet'):
         """setter."""
         self.r = r
         self.d = d
         self.n_jobs = n_jobs
+        self.normalization = normalization
+        self.inner_normalization = inner_normalization
         self.discrete = discrete
         self.balance = balance
         self.subsample_size = subsample_size
         self.ratio = ratio
         self.model = SGDClassifier(
-            average=True, class_weight='balanced', shuffle=True, n_jobs=n_jobs)
+            average=True, class_weight='balanced', shuffle=True,
+            penalty=penalty)
         return self
 
     def transform(self, graphs):
         """transform."""
         x = vectorize(
             graphs, r=self.r, d=self.d,
+            normalization=self.normalization,
+            inner_normalization=self.inner_normalization,
             discrete=self.discrete, n_jobs=self.n_jobs)
         return x
 
@@ -186,13 +216,21 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         return preds
 
     @timeit
-    def cross_val_score(self, graphs, target,
+    def cross_val_score(self, graphs, targets,
                         scoring='roc_auc', cv=5):
         """cross_val_score."""
         x = self.transform(graphs)
         scores = cross_val_score(
-            self.model, x, target, cv=cv,
+            self.model, x, targets, cv=cv,
             scoring=scoring, n_jobs=self.n_jobs)
+        return scores
+
+    @timeit
+    def cross_val_predict(self, graphs, targets, cv=5):
+        """cross_val_score."""
+        x = self.transform(graphs)
+        scores = cross_val_predict(
+            self.model, x, targets, cv=cv, method='decision_function')
         return scores
 
     @timeit
@@ -205,7 +243,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
     def model_selection_rand(self, graphs, targets,
                              n_iter=30, subsample_size=None):
         """model_selection_randomized."""
-        param_distr = {"r": list(range(1, 5)), "d": list(range(0, 6))}
+        param_distr = {"r": list(range(1, 5)), "d": list(range(0, 10))}
         if subsample_size:
             graphs, targets = subsample(
                 graphs, targets, subsample_size=subsample_size)
@@ -242,10 +280,12 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         return self
 
     @timeit
-    def learning_curve(self, graphs, targets, cv=5, n_steps=10):
+    def learning_curve(self, graphs, targets,
+                       cv=5, n_steps=10, start_fraction=0.1):
         """learning_curve."""
+        graphs, targets = paired_shuffle(graphs, targets)
         x = self.transform(graphs)
-        train_sizes = np.linspace(0.1, 1.0, n_steps)
+        train_sizes = np.linspace(start_fraction, 1.0, n_steps)
         scoring = 'roc_auc'
         train_sizes, train_scores, test_scores = learning_curve(
             self.model, x, targets,
@@ -253,9 +293,20 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             scoring=scoring, n_jobs=self.n_jobs)
         return train_sizes, train_scores, test_scores
 
-    def bias_variance_decomposition(self, graphs, n_bootstraps=10):
+    def bias_variance_decomposition(self, graphs, targets,
+                                    cv=5, n_bootstraps=10):
         """bias_variance_decomposition."""
-        pass
+        x = self.transform(graphs)
+        score_list = []
+        for i in range(n_bootstraps):
+            scores = cross_val_score(
+                self.model, x, targets, cv=cv,
+                n_jobs=self.n_jobs)
+            score_list.append(scores)
+        score_list = np.array(score_list)
+        mean_scores = np.mean(score_list, axis=1)
+        std_scores = np.std(score_list, axis=1)
+        return mean_scores, std_scores
 
 
 def _sample_params(param_distr):
@@ -278,25 +329,6 @@ def _eval_params(graphs, targets, param_distr):
 
 def _eval(data):
     return _eval_params(*data)
-
-
-@timeit
-def process_vec_info(g, n_clusters=8, cv=3):
-    """process_vec_info."""
-    # extract node vec information and make np data matrix
-    data_matrix = np.array([g.node[u]['vec'] for u in g.nodes()])
-    # cluster with kmeans
-    clu = MiniBatchKMeans(n_clusters=n_clusters, n_init=10)
-    clu.fit(data_matrix)
-    preds = clu.predict(data_matrix)
-    vecs = clu.transform(data_matrix)
-    vecs = 1 / (1 + vecs)
-    # replace node information
-    graph = g.copy()
-    for u in graph.nodes():
-        graph.node[u]['label'] = str(preds[u])
-        graph.node[u]['vec'] = list(vecs[u])
-    return graph
 
 
 @timeit

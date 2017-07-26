@@ -129,7 +129,7 @@ def read(uri):
     """Abstract read function.
 
     EDeN can accept a URL, a file path and a python list.
-    In all cases an iteratatable object should be returned.
+    In all cases an iterable object should be returned.
     """
     if hasattr(uri, '__iter__'):
         # test if it is iterable: works for lists and generators, but not for

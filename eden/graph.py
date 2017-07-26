@@ -30,26 +30,32 @@ def auto_label(graphs, n_clusters=16, **opts):
     """
     data_list = Vectorizer(**opts).vertex_transform(graphs)
     data_matrix = vstack(data_list)
-    preds = MiniBatchKMeans(n_clusters=n_clusters).fit_predict(data_matrix)
+    clu = MiniBatchKMeans(n_clusters=n_clusters, n_init=10)
+    clu.fit(data_matrix)
+    preds = clu.predict(data_matrix)
+    vecs = clu.transform(data_matrix)
     sizes = [m.shape[0] for m in data_list]
     label_list = []
+    vecs_list = []
     pointer = 0
     for size in sizes:
-        labels = preds[pointer: pointer + size]
-        label_list.append(labels)
+        label_list.append(preds[pointer: pointer + size])
+        vecs_list.append(vecs[pointer: pointer + size])
         pointer += size
-    return label_list
+    return label_list, vecs_list
 
 
 def auto_relabel(graphs, n_clusters=16, **opts):
     """Label nodes with cluster id."""
     graphs, graphs_ = tee(graphs)
-    label_list = auto_label(graphs_, n_clusters=n_clusters, **opts)
+    label_list, vecs_list = auto_label(graphs_, n_clusters=n_clusters, **opts)
     relabeled_graphs = []
-    for labels, graph in zip(label_list, graphs):
-        for label, u in zip(labels, graph.nodes()):
+    for labels, vecs, orig_graph in zip(label_list, vecs_list, graphs):
+        graph = nx.Graph(orig_graph)
+        for label, vec, u in zip(labels, vecs, graph.nodes()):
             graph.node[u]['label'] = label
-        relabeled_graphs.append(graph.copy())
+            graph.node[u]['vec'] = list(vec)
+        relabeled_graphs.append(graph)
     return relabeled_graphs
 
 
@@ -338,11 +344,11 @@ class Vectorizer(AbstractVectorizer):
 
         """
         graphs = [nx.Graph(g) for g in original_graphs]
-        if self.n_jobs == 1:
+        if self.n_jobs == 1 or len(graphs) < self.block_size:
             return self._transform_serial(graphs)
 
         if self.n_jobs == -1:
-            pool = multiprocessing.Pool(multiprocessing.cpu_count())
+            pool = multiprocessing.Pool()
         else:
             pool = multiprocessing.Pool(self.n_jobs)
 
@@ -752,6 +758,7 @@ class Vectorizer(AbstractVectorizer):
                  graphs,
                  estimator=None,
                  reweight=1.0,
+                 threshold=None,
                  vertex_features=False):
         """Return graphs with extra attributes: importance and features.
 
@@ -780,6 +787,10 @@ class Vectorizer(AbstractVectorizer):
             If reweight = 0.5 then update with the arithmetic mean of the
             current weight information and the abs( score )
 
+        threshold : float (default: None)
+            If not None, threshold the importance value before computing
+            the weight.
+
         vertex_features : bool (default false)
             Flag to compute the sparse vector encoding of all features that
             have that vertex as root. An attribute with key 'features' is
@@ -789,6 +800,7 @@ class Vectorizer(AbstractVectorizer):
         """
         self.estimator = estimator
         self.reweight = reweight
+        self.threshold = threshold
         self.vertex_features = vertex_features
 
         for graph in graphs:
@@ -873,6 +885,8 @@ class Vectorizer(AbstractVectorizer):
     def _annotate_importance(self, graph, data_matrix):
         predictions, margins = self._compute_predictions_and_margins(
             graph, data_matrix)
+        if self.threshold is not None:
+            margins[margins < self.threshold] = self.threshold
         # annotate graph structure with vertex importance
         vertex_id = 0
         for v, d in graph.nodes_iter(data=True):
