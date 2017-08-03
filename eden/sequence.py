@@ -407,7 +407,6 @@ class Vectorizer(AbstractVectorizer):
 
         >>> ## annotation with weights
         >>> from sklearn.linear_model import SGDClassifier
-        >>> from eden.util import fit
         >>> vectorizer = Vectorizer(r=1, d=1)
         >>> estimator=fit(pos, neg, vectorizer)
         >>> weighttups_A = [('IDA', 'BAM', [1,1,1])]
