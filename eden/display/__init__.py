@@ -363,20 +363,15 @@ def dendrogram(data,
 
     "median","centroid","weighted","single","ward","complete","average"
     """
-    if hasattr(data, '__iter__'):
-        iterable = data
-    else:
-        raise Exception('ERROR: Input must be iterable')
-    import itertools
-    iterable_1, iterable_2 = itertools.tee(iterable)
+    data = list(data)
     # get labels
     labels = []
-    for graph in iterable_2:
+    for graph in data:
         label = graph.graph.get('id', None)
         if label:
             labels.append(label)
     # transform input into sparse vectors
-    data_matrix = vectorizer.transform(iterable_1)
+    data_matrix = vectorizer.transform(data)
 
     # labels
     if not labels:

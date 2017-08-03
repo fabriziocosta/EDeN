@@ -100,8 +100,7 @@ def filter_if_degree_greater_then(g, th=1):
     return nx.Graph(g.subgraph(subset))
 
 
-def show_graph(g, vertex_color='typeof', size=15,
-               colormap='Paired', vertex_label=None):
+def show_graph(g, vertex_color='typeof', size=15, vertex_label=None):
     """show_graph."""
     degrees = [len(g.neighbors(u)) for u in g.nodes()]
 
@@ -111,7 +110,7 @@ def show_graph(g, vertex_color='typeof', size=15,
     print('max degree=%d' % max(degrees))
     print('median degree=%d' % np.percentile(degrees, 50))
 
-    draw_graph(g, size=size, colormap=colormap,
+    draw_graph(g, size=size,
                vertex_color=vertex_color, vertex_label=vertex_label,
                vertex_size=200, edge_label=None)
 
@@ -140,7 +139,7 @@ def show_graph(g, vertex_color='typeof', size=15,
 @timeit
 def display_edge_predictions(g, tr_graphs, tr_targets,
                              te_graphs, te_targets, preds,
-                             vertex_color='_label_', size=15):
+                             vertex_color='typeof', size=15):
     """display_edge_predictions."""
     tr_roots = [gg.graph['roots'] for gg in tr_graphs]
     graph = g.copy()
@@ -166,7 +165,7 @@ def display_edge_predictions(g, tr_graphs, tr_targets,
             if t == 1:
                 graph.edge[u][v]['color'] = 'crimson'
 
-    draw_graph(graph, size=size, colormap='Paired', vertex_color=vertex_color,
+    draw_graph(graph, size=size, vertex_color=vertex_color,
                vertex_size=100, vertex_label=None, edge_label=None,
                edge_color='color', edge_alpha=1,
                ignore_for_layout='nesting', dark_edge_alpha=.9,
