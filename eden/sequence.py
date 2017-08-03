@@ -9,6 +9,7 @@ from eden import fast_hash_vec, fast_hash_2, fast_hash_4
 from eden import AbstractVectorizer
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,7 +143,7 @@ class Vectorizer(AbstractVectorizer):
             self.min_d,
             self.nbits,
             self.normalization,
-            self. inner_normalization)
+            self.inner_normalization)
         return representation
 
     def transform(self, seq_list):
@@ -379,16 +380,16 @@ class Vectorizer(AbstractVectorizer):
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
-	>>> from scipy.sparse import vstack
-	>>> import numpy as np 
+        >>> from scipy.sparse import vstack
+        >>> import numpy as np
 
-	>>> def fit(a,b,vec):
-	>>> 	aX,bX=vec.transform(a), vec.transform(b)
-	>>> 	X = vstack((aX, bX))
-   	>>> 	y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
-   	>>> 	clas= SGDClassifier(loss='log')
-   	>>> 	clas.fit(X,y)
-   	>>> 	return clas
+        >>> def fit(a,b,vec):
+        >>>     aX,bX=vec.transform(a), vec.transform(b)
+        >>>     X = vstack((aX, bX))
+        >>>     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
+        >>>     clas= SGDClassifier(loss='log')
+        >>>     clas.fit(X,y)
+        >>>     return clas
 
 
         >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
