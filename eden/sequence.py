@@ -384,13 +384,13 @@ class Vectorizer(AbstractVectorizer):
         >>> import numpy as np
 
         >>> def fit(a,b,vec):
-        >>>     aX,bX=vec.transform(a), vec.transform(b)
-        >>>     X = vstack((aX, bX))
-        >>>     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
-        >>>     clas= SGDClassifier(loss='log')
-        >>>     clas.fit(X,y)
-        >>>     return clas
-
+        ...     aX,bX=vec.transform(a), vec.transform(b)
+        ...     X = vstack((aX, bX))
+        ...     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
+        ...     clas= SGDClassifier(loss='log')
+        ...     clas.fit(X,y)
+        ...     return clas
+        ...
 
         >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
         >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
