@@ -420,7 +420,7 @@ class Vectorizer(AbstractVectorizer):
         [True, True, True]
         >>> # annotation should differ
         >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
-        [True, False, False]
+        [False, False, False]
         """
         self.estimator = estimator
         self.relabel = relabel
