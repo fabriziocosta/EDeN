@@ -387,7 +387,7 @@ class Vectorizer(AbstractVectorizer):
         ...     aX,bX=vec.transform(a), vec.transform(b)
         ...     X = vstack((aX, bX))
         ...     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
-        ...     clas= SGDClassifier(loss='log')
+        ...     clas= SGDClassifier(loss='log',random_state=99)
         ...     clas.fit(X,y)
         ...     return clas
         ...
@@ -401,8 +401,11 @@ class Vectorizer(AbstractVectorizer):
         2
         >>> # access annotation of position 0
         >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
-        array([-1.91850717, -1.71341379,  6.40518671,  6.40518671, -1.71341379,
-            6.97567134, -1.71341379])
+        array([ 0.73179924, -1.62902312,  5.76605577,  5.76605577, -1.62902312,
+            6.30819081, -1.62902312])
+
+
+
 
         >>> ## annotation with weights
         >>> from sklearn.linear_model import SGDClassifier
