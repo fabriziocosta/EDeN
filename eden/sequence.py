@@ -379,7 +379,18 @@ class Vectorizer(AbstractVectorizer):
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
-        >>> from eden.util import fit
+	>>> from scipy.sparse import vstack
+	>>> import numpy as np 
+
+	>>> def fit(a,b,vec):
+	>>> 	aX,bX=vec.transform(a), vec.transform(b)
+	>>> 	X = vstack((aX, bX))
+   	>>> 	y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
+   	>>> 	clas= SGDClassifier(loss='log')
+   	>>> 	clas.fit(X,y)
+   	>>> 	return clas
+
+
         >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
         >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
         >>> vectorizer = Vectorizer(r=0, d=0)
