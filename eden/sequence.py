@@ -402,10 +402,7 @@ class Vectorizer(AbstractVectorizer):
         >>> # access annotation of position 0
         >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
         array([ 0.73179924, -1.62902312,  5.76605577,  5.76605577, -1.62902312,
-            6.30819081, -1.62902312])
-
-
-
+        6.30819081, -1.62902312])
 
         >>> ## annotation with weights
         >>> from sklearn.linear_model import SGDClassifier
