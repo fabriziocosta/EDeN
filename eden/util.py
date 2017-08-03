@@ -63,9 +63,11 @@ def configure_logging(logger, verbosity=0, filename=None):
     log_level = logging.WARNING
     if verbosity == 1:
         log_level = logging.INFO
-    elif verbosity >= 2:
+    elif verbosity == 2:
         log_level = logging.DEBUG
-    logger.setLevel(logging.DEBUG)
+    else:
+        log_level = 4
+    logger.setLevel(log_level)
     # create console handler
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(log_level)
