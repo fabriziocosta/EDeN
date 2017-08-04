@@ -7,12 +7,9 @@ from eden.util import timeit
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import SGDClassifier
 from sklearn.linear_model import Perceptron
-import dask_searchcv as dcv
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
-from dask.diagnostics import Profiler, ResourceProfiler, CacheProfiler
-from dask.diagnostics import visualize
 import multiprocessing as mp
 from eden.estimator_utils import balance, subsample, paired_shuffle
 import random
@@ -123,14 +120,8 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         return scores
 
     @timeit
-    def model_selection(self, graphs, targets, subsample_size=None):
-        """model_selection."""
-        return self._model_selection(
-            graphs, targets, None, subsample_size, mode='grid')
-
-    @timeit
-    def model_selection_rand(self, graphs, targets,
-                             n_iter=30, subsample_size=None):
+    def model_selection(self, graphs, targets,
+                        n_iter=30, subsample_size=None):
         """model_selection_randomized."""
         param_distr = {"r": list(range(1, 5)), "d": list(range(0, 10))}
         if subsample_size:
@@ -145,27 +136,6 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         best_params = max(scores)[1]
         logger.debug("Best parameters:\n%s" % (best_params))
         self = EdenEstimator(**best_params)
-        return self
-
-    def _model_selection(self, graphs, targets, n_iter=30,
-                         subsample_size=None, mode='randomized'):
-        with Profiler() as prof, ResourceProfiler(dt=0.25) as rprof, CacheProfiler() as cprof:
-            param_distr = {"r": list(range(1, 4)), "d": list(range(0, 5))}
-            if mode == 'randomized':
-                search = dcv.RandomizedSearchCV(
-                    self, param_distr, cv=3, n_iter=n_iter)
-            else:
-                search = dcv.GridSearchCV(
-                    self, param_distr, cv=3)
-            if subsample_size:
-                graphs, targets = subsample(
-                    graphs, targets, subsample_size=subsample_size)
-            search = search.fit(graphs, targets)
-            logger.debug("Best parameters:\n%s" % (search.best_params_))
-            self = search.best_estimator_
-            self.r = search.best_params_['r']
-            self.d = search.best_params_['d']
-            visualize([prof, rprof, cprof])
         return self
 
     @timeit
