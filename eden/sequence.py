@@ -9,6 +9,7 @@ from eden import fast_hash_vec, fast_hash_2, fast_hash_4
 from eden import AbstractVectorizer
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,7 +143,7 @@ class Vectorizer(AbstractVectorizer):
             self.min_d,
             self.nbits,
             self.normalization,
-            self. inner_normalization)
+            self.inner_normalization)
         return representation
 
     def transform(self, seq_list):
@@ -379,7 +380,18 @@ class Vectorizer(AbstractVectorizer):
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
-        >>> from eden.util import fit
+        >>> from scipy.sparse import vstack
+        >>> import numpy as np
+
+        >>> def fit(a,b,vec):
+        ...     aX,bX=vec.transform(a), vec.transform(b)
+        ...     X = vstack((aX, bX))
+        ...     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
+        ...     clas= SGDClassifier(loss='log',random_state=99)
+        ...     clas.fit(X,y)
+        ...     return clas
+        ...
+
         >>> pos = ["GATTACA", "MATTACA", "RATTACA"]
         >>> neg = ["MAULATA", "BAULATA", "GAULATA"]
         >>> vectorizer = Vectorizer(r=0, d=0)
@@ -389,13 +401,11 @@ class Vectorizer(AbstractVectorizer):
         2
         >>> # access annotation of position 0
         >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
-        array([  2.20464994e-03,  -1.07586432e+00,   4.47379743e+00,
-                 4.47379743e+00,  -1.07586432e+00,   4.83241431e+00,
-                -1.07586432e+00])
+        array([ 0.73179924, -1.62902312,  5.76605577,  5.76605577, -1.62902312,
+                6.30819081, -1.62902312])
 
         >>> ## annotation with weights
         >>> from sklearn.linear_model import SGDClassifier
-        >>> from eden.util import fit
         >>> vectorizer = Vectorizer(r=1, d=1)
         >>> estimator=fit(pos, neg, vectorizer)
         >>> weighttups_A = [('IDA', 'BAM', [1,1,1])]
@@ -409,7 +419,7 @@ class Vectorizer(AbstractVectorizer):
         [True, True, True]
         >>> # annotation should differ
         >>> [a == b for a, b in zip(annot_A[1], annot_C[1])]
-        [True, False, False]
+        [False, False, False]
         """
         self.estimator = estimator
         self.relabel = relabel
