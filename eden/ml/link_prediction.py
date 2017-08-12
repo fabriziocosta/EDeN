@@ -5,7 +5,7 @@ import networkx as nx
 import numpy as np
 import random
 from eden.util import timeit
-from eden.estimator import paired_shuffle
+from eden.ml.estimator_utils import paired_shuffle
 import logging
 
 logger = logging.getLogger()
