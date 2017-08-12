@@ -11,7 +11,7 @@ from sklearn.model_selection import learning_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
 import multiprocessing as mp
-from eden.estimator_utils import balance, subsample, paired_shuffle
+from eden.ml.estimator_utils import balance, subsample, paired_shuffle
 import random
 import logging
 
