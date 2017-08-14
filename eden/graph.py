@@ -243,6 +243,16 @@ class Vectorizer(AbstractVectorizer):
         if args.get('positional', None) is not None:
             self.positional = args['positional']
 
+    def get_params(self):
+        """Get parameters for teh vectorizer.
+
+        Returns
+        -------
+        params : mapping of string to any
+            Parameter names mapped to their values.
+        """
+        return self.__dict__
+
     def __repr__(self):
         """string."""
         return serialize_dict(self.__dict__, offset='large')
