@@ -232,6 +232,7 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
+                           cmap=plt.get_cmap(colormap),
                            edge_color=dark_edge_colors,
                            style=style,
                            alpha=dark_edge_alpha)

@@ -3,7 +3,6 @@
 
 import joblib
 import networkx as nx
-import multiprocessing
 import math
 import numpy as np
 from sklearn import metrics
@@ -12,8 +11,6 @@ from scipy import stats
 from scipy.sparse import csr_matrix
 from scipy.sparse import vstack
 from collections import defaultdict, deque
-from eden import apply_async
-from eden import chunks
 from eden import fast_hash, fast_hash_vec
 from eden import fast_hash_2, fast_hash_3, fast_hash_4
 from eden import AbstractVectorizer
@@ -105,8 +102,6 @@ class Vectorizer(AbstractVectorizer):
                  inner_normalization=True,
                  positional=False,
                  discrete=True,
-                 block_size=None,
-                 n_jobs=-1,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -206,8 +201,6 @@ class Vectorizer(AbstractVectorizer):
         self.inner_normalization = inner_normalization
         self.positional = positional
         self.discrete = discrete
-        self.block_size = block_size
-        self.n_jobs = n_jobs
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.key_label = key_label
@@ -298,31 +291,6 @@ class Vectorizer(AbstractVectorizer):
         >>> vec_to_hash(v.transform([g])) == vec_to_hash (v.transform([g2]))
         True
         """
-        if self.n_jobs == 1:
-            return self._transform_serial(graphs)
-
-        if self.n_jobs == -1:
-            pool = multiprocessing.Pool(multiprocessing.cpu_count())
-            self.block_size = len(graphs) / (multiprocessing.cpu_count() - 1)
-        else:
-            pool = multiprocessing.Pool(self.n_jobs)
-            self.block_size = len(graphs) / self.n_jobs
-
-        results = [apply_async(
-            pool, self._transform_serial,
-            args=([subset_graphs]))
-            for subset_graphs in chunks(graphs, self.block_size)]
-        for i, p in enumerate(results):
-            pos_data_matrix = p.get()
-            if i == 0:
-                data_matrix = pos_data_matrix
-            else:
-                data_matrix = vstack([data_matrix, pos_data_matrix])
-        pool.close()
-        pool.join()
-        return data_matrix
-
-    def _transform_serial(self, graphs):
         instance_id = None
         feature_rows = []
         for instance_id, graph in enumerate(graphs):
@@ -334,7 +302,7 @@ class Vectorizer(AbstractVectorizer):
         data_matrix = self._convert_dict_to_sparse_matrix(feature_rows)
         return data_matrix
 
-    def vertex_transform(self, original_graphs):
+    def vertex_transform(self, graphs):
         """Transform a list of networkx graphs into a list of sparse matrices.
 
         Each matrix has dimension n_nodes x n_features, i.e. each vertex is
@@ -352,27 +320,6 @@ class Vectorizer(AbstractVectorizer):
             Vector representation of each vertex in the input graphs.
 
         """
-        graphs = [nx.Graph(g) for g in original_graphs]
-        if self.n_jobs == 1 or len(graphs) < self.block_size:
-            return self._transform_serial(graphs)
-
-        if self.n_jobs == -1:
-            pool = multiprocessing.Pool()
-        else:
-            pool = multiprocessing.Pool(self.n_jobs)
-
-        results = [apply_async(
-            pool, self._vertex_transform_serial,
-            args=([subset_graphs]))
-            for subset_graphs in chunks(graphs, self.block_size)]
-        matrix_list = []
-        for i, p in enumerate(results):
-            matrix_list += p.get()
-        pool.close()
-        pool.join()
-        return matrix_list
-
-    def _vertex_transform_serial(self, graphs):
         matrix_list = []
         for instance_id, graph in enumerate(graphs):
             self._test_goodness(graph)
@@ -471,16 +418,30 @@ class Vectorizer(AbstractVectorizer):
                 if distance in root_dist_dict:
                     node_set = root_dist_dict[distance]
                     for vertex_u in node_set:
-                        self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                    distance,
-                                                    node_feature_list)
-            self._transform_vertex_nesting(graph, vertex_v, node_feature_list)
+                        self._transform_vertex_pair(
+                            graph,
+                            vertex_v,
+                            vertex_u,
+                            distance,
+                            node_feature_list)
+            self._transform_vertex_nesting(
+                graph,
+                vertex_v,
+                node_feature_list)
             node_feature_list = self._add_vector_labes(
-                graph, vertex_v, node_feature_list)
-            self._update_feature_list(node_feature_list, feature_list)
+                graph,
+                vertex_v,
+                node_feature_list)
+            self._update_feature_list(
+                node_feature_list,
+                feature_list)
             node_sparse_feature_list = self._add_sparse_vector_labes(
-                graph, vertex_v, node_feature_list)
-            self._update_feature_list(node_sparse_feature_list, feature_list)
+                graph,
+                vertex_v,
+                node_feature_list)
+            self._update_feature_list(
+                node_sparse_feature_list,
+                feature_list)
 
     def _add_vector_labes(self, graph, vertex_v, node_feature_list):
         # add the vector with an offset given by the feature, multiplied by val
