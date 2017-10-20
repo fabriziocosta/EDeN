@@ -216,7 +216,7 @@ def draw_graph(graph,
                                    node_size=vertex_size,
                                    linewidths=linewidths,
                                    cmap=plt.get_cmap(colormap),
-                                   vmin=0, vmax=1)
+                                   vmin=vmin, vmax=vmax)
     nodes.set_edgecolor('k')
 
     nx.draw_networkx_edges(graph, pos,
@@ -232,6 +232,7 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
+                           cmap=plt.get_cmap(colormap),
                            edge_color=dark_edge_colors,
                            style=style,
                            alpha=dark_edge_alpha)
@@ -537,7 +538,7 @@ def heatmap(values, xlabel, ylabel, xticklabels, yticklabels, cmap=None,
     if ax is None:
         ax = plt.gca()
     # plot the mean cross-validation scores
-    img = ax.pcolor(values, cmap=cmap, vmin=None, vmax=None)
+    img = ax.pcolor(values, cmap=cmap, vmin=vmin, vmax=vmax)
     img.update_scalarmappable()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
