@@ -327,13 +327,21 @@ def draw_graph_row(graphs,
                    contract=True,
                    n_graphs_per_line=5,
                    size=4,
+                   xlim=None,
+                   ylim=None,
                    **args):
     """draw_graph_row."""
     dim = len(graphs)
     size_y = size
     size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio', 1)
     plt.figure(figsize=(size_x, size_y))
-    plt.xlim(xmax=3)
+    
+
+    if xlim is not None:
+        plt.xlim(xlim) 
+        plt.ylim(ylim) 
+    else:
+        plt.xlim(xmax=3)
 
     for i in range(dim):
         plt.subplot(1, n_graphs_per_line, i + 1)
