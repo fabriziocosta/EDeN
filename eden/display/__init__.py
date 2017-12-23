@@ -62,10 +62,21 @@ def draw_graph(graph,
                vertex_alpha=0.6,
                vertex_border=1,
                vertex_size=600,
+               colormap='YlOrRd',
+               vmin=0,
+               vmax=1,
+               invert_colormap=False,
 
+               edge_colormap='YlOrRd',
+               edge_vmin=0,
+               edge_vmax=1,
                edge_color=None,
+               edge_width=None,
                edge_alpha=0.5,
 
+               dark_edge_colormap='YlOrRd',
+               dark_edge_vmin=0,
+               dark_edge_vmax=1,
                dark_edge_color=None,
                dark_edge_dotted=True,
                dark_edge_alpha=0.3,
@@ -77,10 +88,6 @@ def draw_graph(graph,
                prog='neato',
                pos=None,
 
-               colormap='YlOrRd',
-               vmin=0,
-               vmax=1,
-               invert_colormap=False,
                verbose=True,
                file_name=None,
                title_key='id',
@@ -145,7 +152,14 @@ def draw_graph(graph,
             node_color = [math.log(c) if c > log_threshold
                           else math.log(log_threshold)
                           for c in node_color]
-
+    if edge_width is None:
+        widths = 1
+    elif isinstance(edge_width, int):
+        widths = edge_width
+    else:
+        widths = [d.get(edge_width, 1)
+                  for u, v, d in graph.edges(data=True)
+                  if 'nesting' not in d]
     if edge_color is None:
         edge_colors = 'black'
     elif edge_color in ['_labels_', '_label_', '__labels__', '__label__']:
@@ -216,14 +230,15 @@ def draw_graph(graph,
                                    node_size=vertex_size,
                                    linewidths=linewidths,
                                    cmap=plt.get_cmap(colormap),
-                                   vmin=0, vmax=1)
+                                   vmin=vmin, vmax=vmax)
     nodes.set_edgecolor('k')
 
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
-                           width=2,
+                           width=widths,
                            edge_color=edge_colors,
-                           cmap=plt.get_cmap(colormap),
+                           edge_cmap=plt.get_cmap(edge_colormap),
+                           edge_vmin=edge_vmin, edge_vmax=edge_vmax,
                            alpha=edge_alpha)
     if dark_edge_dotted:
         style = 'dotted'
@@ -232,7 +247,8 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
-                           cmap=plt.get_cmap(colormap),
+                           edge_cmap=plt.get_cmap(dark_edge_colormap),
+                           edge_vmin=dark_edge_vmin, edge_vmax=dark_edge_vmax,
                            edge_color=dark_edge_colors,
                            style=style,
                            alpha=dark_edge_alpha)
