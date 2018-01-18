@@ -54,9 +54,6 @@ def map_labels_to_colors(graphs):
 
 def draw_graph(graph,
                vertex_label='label',
-               secondary_vertex_label=None,
-               edge_label='label',
-               secondary_edge_label=None,
                vertex_color=None,
                vertex_color_dict=None,
                vertex_alpha=0.6,
@@ -66,7 +63,17 @@ def draw_graph(graph,
                vmin=0,
                vmax=1,
                invert_colormap=False,
+               secondary_vertex_label=None,
+               secondary_vertex_color=None,
+               secondary_vertex_alpha=0.6,
+               secondary_vertex_border=1,
+               secondary_vertex_size=600,
+               secondary_vertex_colormap='YlOrRd',
+               secondary_vertex_vmin=0,
+               secondary_vertex_vmax=1,
 
+               edge_label='label',
+               secondary_edge_label=None,
                edge_colormap='YlOrRd',
                edge_vmin=0,
                edge_vmax=1,
@@ -224,6 +231,24 @@ def draw_graph(graph,
 
     graph.add_edges_from(tmp_edge_set)
 
+    if secondary_vertex_color is not None:
+        if secondary_vertex_border is False:
+            secondary_linewidths = 0.001
+        else:
+            secondary_linewidths = 1
+        secondary_node_color = [d.get(secondary_vertex_color, 0)
+                                for u, d in graph.nodes(data=True)]
+        secondary_nodes = nx.draw_networkx_nodes(
+            graph, pos,
+            node_color=secondary_node_color,
+            alpha=secondary_vertex_alpha,
+            node_size=secondary_vertex_size,
+            linewidths=secondary_linewidths,
+            cmap=plt.get_cmap(
+                secondary_vertex_colormap),
+            vmin=secondary_vertex_vmin, vmax=secondary_vertex_vmax)
+        secondary_nodes.set_edgecolor('k')
+
     nodes = nx.draw_networkx_nodes(graph, pos,
                                    node_color=node_color,
                                    alpha=vertex_alpha,
@@ -262,6 +287,7 @@ def draw_graph(graph,
                                 pos,
                                 vertex_labels,
                                 font_size=font_size,
+                                font_weight='normal',
                                 font_color='black')
     if title_key:
         title = str(graph.graph.get(title_key, ''))
