@@ -54,18 +54,36 @@ def map_labels_to_colors(graphs):
 
 def draw_graph(graph,
                vertex_label='label',
-               secondary_vertex_label=None,
-               edge_label='label',
-               secondary_edge_label=None,
                vertex_color=None,
                vertex_color_dict=None,
                vertex_alpha=0.6,
                vertex_border=1,
                vertex_size=600,
+               colormap='YlOrRd',
+               vmin=0,
+               vmax=1,
+               invert_colormap=False,
+               secondary_vertex_label=None,
+               secondary_vertex_color=None,
+               secondary_vertex_alpha=0.6,
+               secondary_vertex_border=1,
+               secondary_vertex_size=600,
+               secondary_vertex_colormap='YlOrRd',
+               secondary_vertex_vmin=0,
+               secondary_vertex_vmax=1,
 
+               edge_label='label',
+               secondary_edge_label=None,
+               edge_colormap='YlOrRd',
+               edge_vmin=0,
+               edge_vmax=1,
                edge_color=None,
+               edge_width=None,
                edge_alpha=0.5,
 
+               dark_edge_colormap='YlOrRd',
+               dark_edge_vmin=0,
+               dark_edge_vmax=1,
                dark_edge_color=None,
                dark_edge_dotted=True,
                dark_edge_alpha=0.3,
@@ -77,10 +95,6 @@ def draw_graph(graph,
                prog='neato',
                pos=None,
 
-               colormap='YlOrRd',
-               vmin=0,
-               vmax=1,
-               invert_colormap=False,
                verbose=True,
                file_name=None,
                title_key='id',
@@ -145,7 +159,14 @@ def draw_graph(graph,
             node_color = [math.log(c) if c > log_threshold
                           else math.log(log_threshold)
                           for c in node_color]
-
+    if edge_width is None:
+        widths = 1
+    elif isinstance(edge_width, int):
+        widths = edge_width
+    else:
+        widths = [d.get(edge_width, 1)
+                  for u, v, d in graph.edges(data=True)
+                  if 'nesting' not in d]
     if edge_color is None:
         edge_colors = 'black'
     elif edge_color in ['_labels_', '_label_', '__labels__', '__label__']:
@@ -210,6 +231,24 @@ def draw_graph(graph,
 
     graph.add_edges_from(tmp_edge_set)
 
+    if secondary_vertex_color is not None:
+        if secondary_vertex_border is False:
+            secondary_linewidths = 0.001
+        else:
+            secondary_linewidths = 1
+        secondary_node_color = [d.get(secondary_vertex_color, 0)
+                                for u, d in graph.nodes(data=True)]
+        secondary_nodes = nx.draw_networkx_nodes(
+            graph, pos,
+            node_color=secondary_node_color,
+            alpha=secondary_vertex_alpha,
+            node_size=secondary_vertex_size,
+            linewidths=secondary_linewidths,
+            cmap=plt.get_cmap(
+                secondary_vertex_colormap),
+            vmin=secondary_vertex_vmin, vmax=secondary_vertex_vmax)
+        secondary_nodes.set_edgecolor('k')
+
     nodes = nx.draw_networkx_nodes(graph, pos,
                                    node_color=node_color,
                                    alpha=vertex_alpha,
@@ -221,9 +260,10 @@ def draw_graph(graph,
 
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
-                           width=2,
+                           width=widths,
                            edge_color=edge_colors,
-                           cmap=plt.get_cmap(colormap),
+                           edge_cmap=plt.get_cmap(edge_colormap),
+                           edge_vmin=edge_vmin, edge_vmax=edge_vmax,
                            alpha=edge_alpha)
     if dark_edge_dotted:
         style = 'dotted'
@@ -232,7 +272,8 @@ def draw_graph(graph,
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
-                           cmap=plt.get_cmap(colormap),
+                           edge_cmap=plt.get_cmap(dark_edge_colormap),
+                           edge_vmin=dark_edge_vmin, edge_vmax=dark_edge_vmax,
                            edge_color=dark_edge_colors,
                            style=style,
                            alpha=dark_edge_alpha)
@@ -246,6 +287,7 @@ def draw_graph(graph,
                                 pos,
                                 vertex_labels,
                                 font_size=font_size,
+                                font_weight='normal',
                                 font_color='black')
     if title_key:
         title = str(graph.graph.get(title_key, ''))

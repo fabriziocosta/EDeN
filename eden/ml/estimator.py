@@ -7,6 +7,8 @@ from eden.util import timeit
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import SGDClassifier
 from sklearn.linear_model import Perceptron
+from sklearn.cluster import MiniBatchKMeans
+from sklearn import metrics
 from sklearn.model_selection import learning_curve
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import cross_val_predict
@@ -21,16 +23,16 @@ logger = logging.getLogger()
 class EdenEstimator(BaseEstimator, ClassifierMixin):
     """Build an estimator for graphs."""
 
-    def __init__(self, r=3, d=8, nbits=16, n_jobs=-1, discrete=True,
+    def __init__(self, r=3, d=8, nbits=16, discrete=True,
                  balance=False, subsample_size=200, ratio=2,
                  normalization=False, inner_normalization=False,
                  penalty='elasticnet', n_iter=500):
         """construct."""
-        self.set_params(r, d, nbits, n_jobs, discrete, balance, subsample_size,
+        self.set_params(r, d, nbits, discrete, balance, subsample_size,
                         ratio, normalization, inner_normalization,
                         penalty, n_iter)
 
-    def set_params(self, r=3, d=8, nbits=16, n_jobs=-1, discrete=True,
+    def set_params(self, r=3, d=8, nbits=16, discrete=True,
                    balance=False, subsample_size=200, ratio=2,
                    normalization=False, inner_normalization=False,
                    penalty='elasticnet', n_iter=500):
@@ -38,7 +40,6 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         self.r = r
         self.d = d
         self.nbits = nbits
-        self.n_jobs = n_jobs
         self.normalization = normalization
         self.inner_normalization = inner_normalization
         self.discrete = discrete
@@ -60,9 +61,14 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             normalization=self.normalization,
             inner_normalization=self.inner_normalization,
             discrete=self.discrete,
-            nbits=self.nbits,
-            n_jobs=self.n_jobs)
+            nbits=self.nbits)
         return x
+
+    @timeit
+    def kernel_matrix(self, graphs):
+        """kernel_matrix."""
+        x = self.transform(graphs)
+        return metrics.pairwise.pairwise_kernels(x, metric='linear')
 
     @timeit
     def fit(self, graphs, targets, randomize=True):
@@ -107,8 +113,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         """cross_val_score."""
         x = self.transform(graphs)
         scores = cross_val_score(
-            self.model, x, targets, cv=cv,
-            scoring=scoring, n_jobs=self.n_jobs)
+            self.model, x, targets, cv=cv, scoring=scoring)
         return scores
 
     @timeit
@@ -118,6 +123,14 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         scores = cross_val_predict(
             self.model, x, targets, cv=cv, method='decision_function')
         return scores
+
+    @timeit
+    def cluster(self, graphs, n_clusters=16):
+        """cluster."""
+        x = self.transform(graphs)
+        clust_est = MiniBatchKMeans(n_clusters=n_clusters)
+        cluster_ids = clust_est.fit_predict(x)
+        return cluster_ids
 
     @timeit
     def model_selection(self, graphs, targets,
@@ -149,7 +162,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         train_sizes, train_scores, test_scores = learning_curve(
             self.model, x, targets,
             cv=cv, train_sizes=train_sizes,
-            scoring=scoring, n_jobs=self.n_jobs)
+            scoring=scoring)
         return train_sizes, train_scores, test_scores
 
     def bias_variance_decomposition(self, graphs, targets,
@@ -159,8 +172,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         score_list = []
         for i in range(n_bootstraps):
             scores = cross_val_score(
-                self.model, x, targets, cv=cv,
-                n_jobs=self.n_jobs)
+                self.model, x, targets, cv=cv)
             score_list.append(scores)
         score_list = np.array(score_list)
         mean_scores = np.mean(score_list, axis=1)
@@ -179,7 +191,7 @@ def _eval_params(graphs, targets, param_distr):
     # sample parameters
     params = _sample_params(param_distr)
     # create model with those parameters
-    est = EdenEstimator(n_jobs=1, **params)
+    est = EdenEstimator(**params)
     # run a cross_val_score
     scores = est.cross_val_score(graphs, targets)
     # return average
