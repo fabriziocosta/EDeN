@@ -205,7 +205,7 @@ def draw_graph(graph,
                                      prog=prog,
                                      args="-Gmaxiter=1000")
         elif layout == "RNA":
-            import RNA
+            import RNA # this is part of the vienna RNA package
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
             pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
                    for i in range(len(graph.graph['structure']))}
