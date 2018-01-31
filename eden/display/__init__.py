@@ -44,7 +44,7 @@ def map_labels_to_colors(graphs):
     label_set = set()
     for g in graphs:
         for u in g.nodes():
-            label_set.add(g.node[u]['label'])
+            label_set.add(g.nodes[u]['label'])
     dim = len(label_set)
     label_colors = dict()
     for i, label in enumerate(sorted(label_set)):
@@ -59,6 +59,7 @@ def draw_graph(graph,
                vertex_alpha=0.6,
                vertex_border=1,
                vertex_size=600,
+               compact=False,
                colormap='YlOrRd',
                vmin=0,
                vmax=1,
@@ -196,14 +197,9 @@ def draw_graph(graph,
     if pos is None:
         if layout == 'graphviz':
             graph_copy = graph.copy()
-            # remove all attributes for graphviz layout
-            for u, d in graph_copy.nodes(data=True):
-                graph_copy.node[u] = {}
-            for u, v, d in graph_copy.edges(data=True):
-                graph_copy.edge[u][v] = {}
-            pos = nx.graphviz_layout(graph_copy,
-                                     prog=prog,
-                                     args="-Gmaxiter=1000")
+            pos = nx.nx_pydot.graphviz_layout(graph_copy,
+                                              prog=prog,
+                                              args="-Gmaxiter=1000")
         elif layout == "RNA":
             import RNA
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
@@ -227,7 +223,7 @@ def draw_graph(graph,
     if vertex_border is False:
         linewidths = 0.001
     else:
-        linewidths = 1
+        linewidths = vertex_border
 
     graph.add_edges_from(tmp_edge_set)
 
@@ -235,7 +231,7 @@ def draw_graph(graph,
         if secondary_vertex_border is False:
             secondary_linewidths = 0.001
         else:
-            secondary_linewidths = 1
+            secondary_linewidths = secondary_vertex_border
         secondary_node_color = [d.get(secondary_vertex_color, 0)
                                 for u, d in graph.nodes(data=True)]
         secondary_nodes = nx.draw_networkx_nodes(
@@ -249,14 +245,30 @@ def draw_graph(graph,
             vmin=secondary_vertex_vmin, vmax=secondary_vertex_vmax)
         secondary_nodes.set_edgecolor('k')
 
-    nodes = nx.draw_networkx_nodes(graph, pos,
-                                   node_color=node_color,
-                                   alpha=vertex_alpha,
-                                   node_size=vertex_size,
-                                   linewidths=linewidths,
-                                   cmap=plt.get_cmap(colormap),
-                                   vmin=vmin, vmax=vmax)
-    nodes.set_edgecolor('k')
+    if compact:
+        nodes = nx.draw_networkx_nodes(graph, pos,
+                                       node_color='w',
+                                       alpha=1,
+                                       node_size=vertex_size,
+                                       linewidths=linewidths)
+        nodes.set_edgecolor('k')
+        nx.draw_networkx_nodes(graph, pos,
+                               node_color=node_color,
+                               alpha=vertex_alpha,
+                               node_size=vertex_size,
+                               linewidths=None,
+                               cmap=plt.get_cmap(colormap),
+                               vmin=vmin, vmax=vmax)
+
+    else:
+        nodes = nx.draw_networkx_nodes(graph, pos,
+                                       node_color=node_color,
+                                       alpha=vertex_alpha,
+                                       node_size=vertex_size,
+                                       linewidths=linewidths,
+                                       cmap=plt.get_cmap(colormap),
+                                       vmin=vmin, vmax=vmax)
+        nodes.set_edgecolor('k')
 
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,

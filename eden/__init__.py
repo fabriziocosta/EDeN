@@ -2,7 +2,6 @@
 """Provides interface for vectorizer."""
 
 import dill
-from itertools import izip_longest
 from sklearn.base import BaseEstimator, TransformerMixin
 
 __author__ = "Fabrizio Costa"
@@ -71,25 +70,3 @@ def fast_hash_vec(vec, bitmask=_bitmask_):
         running_hash ^= hash((running_hash, vec_item, i))
         hash_vec.append(int(running_hash & bitmask) + 1)
     return hash_vec
-
-
-def chunks(iterable, n):
-    """chunks."""
-    iterable = iter(iterable)
-    while True:
-        items = []
-        try:
-            for i in range(n):
-                it = iterable.next()
-                if it:
-                    items.append(it)
-        finally:
-            if items:
-                yield items
-
-
-def grouper(iterable, n, fillvalue=None):
-    """Collect data into fixed-length chunks or blocks."""
-    # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx"
-    args = [iter(iterable)] * n
-    return izip_longest(*args, fillvalue=fillvalue)

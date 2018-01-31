@@ -94,6 +94,8 @@ def configure_logging(logger, verbosity=0, filename=None):
 
 
 def _serialize_list(items, separator='_'):
+    if isinstance(items, str):
+        return items
     if is_iterable(items):
         if isinstance(items, list):
             return str(separator.join([str(item) for item in items]))

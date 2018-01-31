@@ -50,8 +50,8 @@ def auto_relabel(graphs, n_clusters=16, **opts):
     for labels, vecs, orig_graph in zip(label_list, vecs_list, graphs):
         graph = nx.Graph(orig_graph)
         for label, vec, u in zip(labels, vecs, graph.nodes()):
-            graph.node[u]['label'] = label
-            graph.node[u]['vec'] = list(vec)
+            graph.nodes[u]['label'] = label
+            graph.nodes[u]['vec'] = list(vec)
         relabeled_graphs.append(graph)
     return relabeled_graphs
 
@@ -355,8 +355,8 @@ class Vectorizer(AbstractVectorizer):
 
     def _init_weight_preprocessing(self, graph):
         graph.graph['weighted'] = False
-        for n, d in graph.nodes_iter(data=True):
-            if self.key_weight in d:
+        for u in graph.nodes():
+            if graph.nodes[u].get(self.key_weight, False):
                 graph.graph['weighted'] = True
                 break
 
@@ -366,9 +366,9 @@ class Vectorizer(AbstractVectorizer):
         # of 1 if the weight attribute is missing
         self._init_weight_preprocessing(graph)
         if graph.graph['weighted'] is True:
-            for n, d in graph.nodes_iter(data=True):
-                if self.key_weight not in d:
-                    graph.node[n][self.key_weight] = 1
+            for u in graph.nodes():
+                if graph.nodes[u].get(self.key_weight, False) is False:
+                    graph.nodes[u][self.key_weight] = 1
 
     def _graph_preprocessing(self, original_graph):
         graph = _edge_to_vertex_transform(original_graph)
@@ -386,9 +386,9 @@ class Vectorizer(AbstractVectorizer):
         graph = self._graph_preprocessing(original_graph)
         # collect all features for all vertices for each label_index
         feature_list = defaultdict(lambda: defaultdict(float))
-        for v, d in graph.nodes_iter(data=True):
+        for v in graph.nodes():
             # only for vertices of type 'node', i.e. not for the 'edge' type
-            if d.get('node', False):
+            if graph.nodes[v].get('node', False):
                 self._transform_vertex(graph, v, feature_list)
         _clean_graph(graph)
         return self._normalization(feature_list)
@@ -402,7 +402,7 @@ class Vectorizer(AbstractVectorizer):
     def _transform_vertex(self, graph, vertex_v, feature_list):
         if self.discrete:
             # for all distances
-            root_dist_dict = graph.node[vertex_v]['remote_neighbours']
+            root_dist_dict = graph.nodes[vertex_v]['remote_neighbours']
             for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
                 if distance in root_dist_dict:
                     node_set = root_dist_dict[distance]
@@ -413,7 +413,7 @@ class Vectorizer(AbstractVectorizer):
         else:
             node_feature_list = defaultdict(lambda: defaultdict(float))
             # for all distances
-            root_dist_dict = graph.node[vertex_v]['remote_neighbours']
+            root_dist_dict = graph.nodes[vertex_v]['remote_neighbours']
             for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
                 if distance in root_dist_dict:
                     node_set = root_dist_dict[distance]
@@ -445,7 +445,7 @@ class Vectorizer(AbstractVectorizer):
 
     def _add_vector_labes(self, graph, vertex_v, node_feature_list):
         # add the vector with an offset given by the feature, multiplied by val
-        vec = graph.node[vertex_v].get(self.key_vec, None)
+        vec = graph.nodes[vertex_v].get(self.key_vec, None)
         if vec:
             vec_feature_list = defaultdict(lambda: defaultdict(float))
             for radius_dist_key in node_feature_list:
@@ -461,7 +461,7 @@ class Vectorizer(AbstractVectorizer):
         # add the vector with a feature resulting from hashing
         # the discrete labeled graph sparse encoding with the sparse vector
         # feature, the val is then multiplied.
-        svec = graph.node[vertex_v].get(self.key_svec, None)
+        svec = graph.nodes[vertex_v].get(self.key_svec, None)
         if svec:
             vec_feature_list = defaultdict(lambda: defaultdict(float))
             for radius_dist_key in node_feature_list:
@@ -479,7 +479,7 @@ class Vectorizer(AbstractVectorizer):
         endpoints = self._find_second_endpoint_of_nesting_edge(graph, vertex_v)
         for endpoint, connection_weight in endpoints:
             # for all vertices at distance d from each such second endpoint
-            endpoint_dist_dict = graph.node[endpoint]['remote_neighbours']
+            endpoint_dist_dict = graph.nodes[endpoint]['remote_neighbours']
             for distance in range(self.min_d * 2, (self.d + 1) * 2, 2):
                 if distance in endpoint_dist_dict:
                     node_set = endpoint_dist_dict[distance]
@@ -495,12 +495,12 @@ class Vectorizer(AbstractVectorizer):
         # find all neighbors
         for u in graph.neighbors(vertex_v):
             # test for type
-            if graph.node[u].get(self.key_nesting, False):
+            if graph.nodes[u].get(self.key_nesting, False):
                 # if type is nesting
                 # find endpoint that is not original vertex_v
                 vertices = [j for j in graph.neighbors(u) if j != vertex_v]
                 assert(len(vertices) == 1)
-                connection_weight = graph.node[u].get(self.key_weight, 1)
+                connection_weight = graph.nodes[u].get(self.key_weight, 1)
                 endpoints.append((vertices[0], connection_weight))
         return endpoints
 
@@ -539,14 +539,14 @@ class Vectorizer(AbstractVectorizer):
         # we need to revert to r/2 and d/2
         radius_dist_key = (radius / 2, distance / 2)
         # reweight using external weight dictionary
-        len_v = len(graph.node[vertex_v]['neigh_graph_hash'])
-        len_u = len(graph.node[vertex_u]['neigh_graph_hash'])
+        len_v = len(graph.nodes[vertex_v]['neigh_graph_hash'])
+        len_u = len(graph.nodes[vertex_u]['neigh_graph_hash'])
         if radius < len_v and radius < len_u:
             # feature as a pair of neighborhoods at a radius,distance
             # canonicalization of pair of neighborhoods
-            vertex_v_labels = graph.node[vertex_v]['neigh_graph_hash']
+            vertex_v_labels = graph.nodes[vertex_v]['neigh_graph_hash']
             vertex_v_hash = vertex_v_labels[radius]
-            vertex_u_labels = graph.node[vertex_u]['neigh_graph_hash']
+            vertex_u_labels = graph.nodes[vertex_u]['neigh_graph_hash']
             vertex_u_hash = vertex_u_labels[radius]
             if vertex_v_hash < vertex_u_hash:
                 first_hash, second_hash = (vertex_v_hash, vertex_u_hash)
@@ -563,8 +563,8 @@ class Vectorizer(AbstractVectorizer):
                 feature_list[radius_dist_key][feature] += cw
                 feature_list[radius_dist_key][half_feature] += cw
             else:
-                weight_v = graph.node[vertex_v]['neigh_graph_weight']
-                weight_u = graph.node[vertex_u]['neigh_graph_weight']
+                weight_v = graph.nodes[vertex_v]['neigh_graph_weight']
+                weight_u = graph.nodes[vertex_u]['neigh_graph_weight']
                 weight_vu_radius = weight_v[radius] + weight_u[radius]
                 val = cw * weight_vu_radius
                 # Note: add a feature only if the value is not 0
@@ -609,15 +609,15 @@ class Vectorizer(AbstractVectorizer):
 
     def _compute_neighborhood_graph_hash_cache(self, graph):
         assert (len(graph) > 0), 'ERROR: Empty graph'
-        for u, d in graph.nodes_iter(data=True):
-            if d.get('node', False):
+        for u in graph.nodes():
+            if graph.nodes[u].get('node', False):
                 self._compute_neighborhood_graph_hash(u, graph)
 
     def _compute_neighborhood_graph_hash(self, root, graph):
         # list all hashed labels at increasing distances
         hash_list = []
         # for all distances
-        root_dist_dict = graph.node[root]['remote_neighbours']
+        root_dist_dict = graph.nodes[root]['remote_neighbours']
         for node_set in root_dist_dict.itervalues():
             # create a list of hashed labels
             hash_label_list = []
@@ -630,10 +630,10 @@ class Vectorizer(AbstractVectorizer):
                 # position of the vertex v w.r.t. the root vertex
                 if self.positional:
                     vhlabel = fast_hash_2(
-                        graph.node[v]['hlabel'], root - v)
+                        graph.nodes[v]['hlabel'], root - v)
                 else:
                     vhlabel = fast_hash_2(
-                        graph.node[v]['hlabel'], len(graph[v]))
+                        graph.nodes[v]['hlabel'], len(graph[v]))
                 hash_label_list.append(vhlabel)
             # sort it
             hash_label_list.sort()
@@ -644,12 +644,12 @@ class Vectorizer(AbstractVectorizer):
         # hash the sequence of hashes of the node set at increasing
         # distances into a list of features
         hash_neighborhood = fast_hash_vec(hash_list)
-        graph.node[root]['neigh_graph_hash'] = hash_neighborhood
+        graph.nodes[root]['neigh_graph_hash'] = hash_neighborhood
 
     def _compute_neighborhood_graph_weight_cache(self, graph):
         assert (len(graph) > 0), 'ERROR: Empty graph'
-        for u, d in graph.nodes_iter(data=True):
-            if d.get('node', False):
+        for u in graph.nodes():
+            if graph.nodes[u].get('node', False):
                 self._compute_neighborhood_graph_weight(u, graph)
 
     def _compute_neighborhood_graph_weight(self, root, graph):
@@ -660,16 +660,16 @@ class Vectorizer(AbstractVectorizer):
         # compute the product of the two
         # make a list of the neighborhood_graph_weight at every distance
         neighborhood_graph_weight_list = []
-        w = graph.node[root][self.key_weight]
+        w = graph.nodes[root][self.key_weight]
         node_weight_list = np.array([w], dtype=np.float64)
         node_average = node_weight_list[0]
         edge_weight_list = np.array([1], dtype=np.float64)
         edge_average = edge_weight_list[0]
         # for all distances
-        root_dist_dict = graph.node[root]['remote_neighbours']
+        root_dist_dict = graph.nodes[root]['remote_neighbours']
         for distance, node_set in root_dist_dict.iteritems():
             # extract array of weights at given distance
-            weight_array_at_d = np.array([graph.node[v][self.key_weight]
+            weight_array_at_d = np.array([graph.nodes[v][self.key_weight]
                                           for v in node_set], dtype=np.float64)
             if distance % 2 == 0:  # nodes
                 node_weight_list = np.concatenate(
@@ -681,7 +681,7 @@ class Vectorizer(AbstractVectorizer):
                 edge_average = stats.gmean(edge_weight_list)
             weight = node_average * edge_average
             neighborhood_graph_weight_list.append(weight)
-        graph.node[root]['neigh_graph_weight'] = \
+        graph.nodes[root]['neigh_graph_weight'] = \
             neighborhood_graph_weight_list
 
     def _single_vertex_breadth_first_visit(self, graph, root, max_depth):
@@ -708,7 +708,7 @@ class Vectorizer(AbstractVectorizer):
                 for v in graph.neighbors(u):
                     if v not in visited:
                         # skip nesting edge-nodes
-                        if graph.node[v].get(self.key_nesting, False) is False:
+                        if not graph.nodes[v].get(self.key_nesting, False):
                             dist[v] = d
                             visited.add(v)
                             q.append(v)
@@ -717,11 +717,11 @@ class Vectorizer(AbstractVectorizer):
                             else:
                                 dist_list[d] = set()
                                 dist_list[d].add(v)
-        graph.node[root]['remote_neighbours'] = dist_list
+        graph.nodes[root]['remote_neighbours'] = dist_list
 
     def _compute_distant_neighbours(self, graph, max_depth):
-        for n, d in graph.nodes_iter(data=True):
-            if d.get('node', False):
+        for n in graph.nodes():
+            if graph.nodes[n].get('node', False):
                 self._single_vertex_breadth_first_visit(graph, n, max_depth)
 
     def annotate(self,
@@ -729,6 +729,7 @@ class Vectorizer(AbstractVectorizer):
                  estimator=None,
                  reweight=1.0,
                  threshold=None,
+                 scale=1,
                  vertex_features=False):
         """Return graphs with extra attributes: importance and features.
 
@@ -761,6 +762,9 @@ class Vectorizer(AbstractVectorizer):
             If not None, threshold the importance value before computing
             the weight.
 
+        scale : float (default: 1)
+            Multiplicative factor to rescale all weights.
+
         vertex_features : bool (default false)
             Flag to compute the sparse vector encoding of all features that
             have that vertex as root. An attribute with key 'features' is
@@ -771,6 +775,7 @@ class Vectorizer(AbstractVectorizer):
         self.estimator = estimator
         self.reweight = reweight
         self.threshold = threshold
+        self.scale = scale
         self.vertex_features = vertex_features
 
         for graph in graphs:
@@ -795,14 +800,14 @@ class Vectorizer(AbstractVectorizer):
     def _annotate_vector(self, graph, data_matrix):
         # annotate graph structure with vertex importance
         vertex_id = 0
-        for v, d in graph.nodes_iter(data=True):
-            if d.get('node', False):
+        for v in graph.nodes():
+            if graph.nodes[v].get('node', False):
                 # annotate 'vector' information
                 row = data_matrix.getrow(vertex_id)
-                graph.node[v]['features'] = row
+                graph.nodes[v]['features'] = row
                 vec_dict = {str(index): value
                             for index, value in zip(row.indices, row.data)}
-                graph.node[v]['vector'] = vec_dict
+                graph.nodes[v]['vector'] = vec_dict
                 vertex_id += 1
         return graph
 
@@ -859,34 +864,36 @@ class Vectorizer(AbstractVectorizer):
             margins[margins < self.threshold] = self.threshold
         # annotate graph structure with vertex importance
         vertex_id = 0
-        for v, d in graph.nodes_iter(data=True):
-            if d.get('node', False):
-                graph.node[v][self.key_class] = predictions[vertex_id]
+        for v in graph.nodes():
+            if graph.nodes[v].get('node', False):
+                graph.nodes[v][self.key_class] = predictions[vertex_id]
                 # annotate the 'importance' attribute with the margin
-                graph.node[v][self.key_importance] = margins[vertex_id]
+                graph.nodes[v][self.key_importance] = margins[vertex_id]
                 # update the self.key_weight information as a linear
                 # combination of the previous weight and the absolute margin
-                if self.key_weight in graph.node[v] and self.reweight != 0:
-                    graph.node[v][self.key_weight] = self.reweight * \
+                if self.key_weight in graph.nodes[v] and self.reweight != 0:
+                    graph.nodes[v][self.key_weight] = self.reweight * \
                         abs(margins[vertex_id]) +\
                         (1 - self.reweight) * \
-                        graph.node[v][self.key_weight]
+                        graph.nodes[v][self.key_weight]
                 # in case the original graph was not weighted then instantiate
                 # the self.key_weight with the absolute margin
                 else:
-                    graph.node[v][self.key_weight] = abs(margins[vertex_id])
+                    graph.nodes[v][self.key_weight] = abs(margins[vertex_id])
+                # in all cases, rescale the weight by the scale factor
+                graph.nodes[v][self.key_weight] *= self.scale
                 vertex_id += 1
-            if d.get('edge', False):  # keep the weight of edges
+            if graph.nodes[v].get('edge', False):  # keep the weight of edges
                 # ..unless they were unweighted, in this case add unit weight
-                if self.key_weight not in graph.node[v]:
-                    graph.node[v][self.key_weight] = 1
+                if self.key_weight not in graph.nodes[v]:
+                    graph.nodes[v][self.key_weight] = 1
         return graph
 
     def _compute_vertex_based_features(self, graph):
         feature_rows = []
-        for v, d in graph.nodes_iter(data=True):
+        for v in graph.nodes():
             # only for vertices of type 'node', i.e. not for the 'edge' type
-            if d.get('node', False):
+            if graph.nodes[v].get('node', False):
                 feature_list = defaultdict(lambda: defaultdict(float))
                 self._transform_vertex(graph, v, feature_list)
                 feature_rows.append(self._normalization(feature_list))
@@ -894,11 +901,14 @@ class Vectorizer(AbstractVectorizer):
         return data_matrix
 
 
+# -------------------------------------------------------------------
+
 def _label_preprocessing(graph,
                          key_label='label',
                          bitmask=2 ** 20 - 1):
-    for n, d in graph.nodes_iter(data=True):
-        graph.node[n]['hlabel'] = int(hash(d[key_label]) & bitmask) + 1
+    for n in graph.nodes():
+        label = graph.nodes[n][key_label]
+        graph.nodes[n]['hlabel'] = int(hash(label) & bitmask) + 1
 
 
 def _edge_to_vertex_transform(original_graph):
@@ -909,23 +919,24 @@ def _edge_to_vertex_transform(original_graph):
     if 'expanded' in original_graph.graph:
         return original_graph
     else:
-        graph = nx.Graph()
-        graph.graph.update(original_graph.graph)
-        graph.graph['expanded'] = True
         # build a graph that has as vertices the original vertex set
-        for n, d in original_graph.nodes_iter(data=True):
-            d['node'] = True
-            graph.add_node(n, d)
-        # and in addition a vertex for each edge
-        new_node_id = max(original_graph.nodes()) + 1
-        for u, v, d in original_graph.edges_iter(data=True):
+        graph = nx.create_empty_copy(original_graph)
+        graph.graph['expanded'] = True
+        # add the node attribute 'node' and set it to True
+        for n in graph:
+            graph.nodes[n]['node'] = True
+        # add a new vertex for each edge
+        w = graph.number_of_nodes() + 1
+        for u, v in original_graph.edges:
             if u != v:
-                d['edge'] = True
-                graph.add_node(new_node_id, d)
-                # and the corresponding edges
-                graph.add_edge(new_node_id, u, label=None)
-                graph.add_edge(new_node_id, v, label=None)
-                new_node_id += 1
+                graph.add_node(w)
+                # copy the attributes of the edge
+                graph.nodes[w].update(original_graph.edges[u, v])
+                graph.nodes[w]['edge'] = True
+                # and connect it to u and v
+                graph.add_edge(w, u, label=None)
+                graph.add_edge(w, v, label=None)
+                w += 1
         return graph
 
 
@@ -936,8 +947,8 @@ def _revert_edge_to_vertex_transform(original_graph):
         graph = nx.Graph(original_graph)
         _clean_graph(graph)
         # re-wire the endpoints of edge-vertices
-        for n, d in original_graph.nodes_iter(data=True):
-            if 'edge' in d:
+        for n in original_graph.nodes():
+            if original_graph.nodes[n].get('edge', False):
                 # extract the endpoints
                 endpoints = [u for u in original_graph.neighbors(n)]
                 if len(endpoints) != 2:
@@ -946,7 +957,8 @@ def _revert_edge_to_vertex_transform(original_graph):
                 u = endpoints[0]
                 v = endpoints[1]
                 # add the corresponding edge
-                graph.add_edge(u, v, d)
+                graph.add_edge(u, v)
+                graph.edges[u, v].update(original_graph.nodes[n])
                 # remove the edge-vertex
                 graph.remove_node(n)
         return graph
@@ -956,10 +968,10 @@ def _revert_edge_to_vertex_transform(original_graph):
 
 def _clean_graph(graph):
     graph.graph.pop('expanded', None)
-    for n, d in graph.nodes_iter(data=True):
-        if 'node' in d:
+    for n in graph.nodes():
+        if graph.nodes[n].get('node', False):
             # remove stale information
-            graph.node[n].pop('remote_neighbours', None)
-            graph.node[n].pop('neigh_graph_hash', None)
-            graph.node[n].pop('neigh_graph_weight', None)
-            graph.node[n].pop('hlabel', None)
+            graph.nodes[n].pop('remote_neighbours', None)
+            graph.nodes[n].pop('neigh_graph_hash', None)
+            graph.nodes[n].pop('neigh_graph_weight', None)
+            graph.nodes[n].pop('hlabel', None)

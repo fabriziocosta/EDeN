@@ -2,7 +2,7 @@
 """Provides scikit interface."""
 
 import numpy as np
-from eden.graph import vectorize
+from eden.graph import Vectorizer
 from eden.util import timeit
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.linear_model import SGDClassifier
@@ -52,16 +52,17 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             self.model = SGDClassifier(
                 average=True, class_weight='balanced', shuffle=True,
                 penalty=penalty)
-        return self
-
-    def transform(self, graphs):
-        """transform."""
-        x = vectorize(
-            graphs, r=self.r, d=self.d,
+        self.vectorizer = Vectorizer(
+            r=self.r, d=self.d,
             normalization=self.normalization,
             inner_normalization=self.inner_normalization,
             discrete=self.discrete,
             nbits=self.nbits)
+        return self
+
+    def transform(self, graphs):
+        """transform."""
+        x = self.vectorizer.transform(graphs)
         return x
 
     @timeit
