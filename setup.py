@@ -110,7 +110,6 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "dill",
-        "flakes8",
         "joblib",
         "matplotlib",
         "networkx >= 2.0",
