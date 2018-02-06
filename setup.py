@@ -111,6 +111,7 @@ setup(
     install_requires=[
         "dill",
         "joblib",
+        "toolz",
         "matplotlib",
         "networkx >= 2.0",
         "nose",

@@ -1,10 +1,8 @@
-dill==0.2.1
-joblib==0.8.4
-networkx==1.9
-numpy==1.10.4
+dill>=0.2.1
+joblib>=0.8.4
+networkx>=2.0
+numpy>=1.10.4
 pygraphviz==1.2
-requests==2.7.0
-scikit-learn==0.18.2
-scikit-neuralnetwork==0.3
-scipy==0.14.0
-dask_searchcv==0.0.2
+requests>=2.7.0
+scikit-learn>=0.18.2
+scipy>=0.14.0

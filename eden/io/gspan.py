@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+"""Provides io of graphs."""
+
 import json
 import networkx as nx
 from eden import util
@@ -6,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 def load(input):
+    """load."""
     return gspan_to_eden(input)
 
 
@@ -19,7 +23,6 @@ def gspan_to_eden(input, options=dict()):
     Raises:
         Exception: if a graph is empty
     """
-
     header = ''
     string_list = []
     for line in util.read(input):
@@ -36,7 +39,7 @@ def gspan_to_eden(input, options=dict()):
 
 
 def gspan_to_networkx(header, lines):
-    """Take a string list in the extended gSpan format and returns a NetworkX graph.
+    """Take a string list in the extended gSpan format and returns a graph.
 
     Args:
         header: string to be used as id for the graph
@@ -46,7 +49,6 @@ def gspan_to_networkx(header, lines):
     Raises:
         Exception: if a graph is empty
     """
-
     # remove empty lines
     lines = [line for line in lines if line.strip()]
 
@@ -61,18 +63,19 @@ def gspan_to_networkx(header, lines):
             label = tokens[2]
             weight = 1.0
 
-            # uppercase V indicates no-viewpoint, in the new EDeN this is simulated via a smaller weight
+            # uppercase V indicates no-viewpoint, in the new EDeN
+            # this is simulated via a smaller weight
             if fc == 'V':
                 weight = 0.1
 
             graph.add_node(id, ID=id, label=label, weight=weight)
 
-            # extract the rest of the line  as a JSON string that contains all attributes
+            # extract the rest of the line  as a JSON string that
+            # contains all attributes
             attribute_str = ' '.join(tokens[3:])
             if attribute_str.strip():
                 attribute_dict = json.loads(attribute_str)
                 graph.node[id].update(attribute_dict)
-
         # process edges
         elif fc == 'e':
             src = int(tokens[1])
@@ -82,10 +85,10 @@ def gspan_to_networkx(header, lines):
             attribute_str = ' '.join(tokens[4:])
             if attribute_str.strip():
                 attribute_dict = json.loads(attribute_str)
-                graph.edge[src][dst].update(attribute_dict)
+                graph.edge[src, dst].update(attribute_dict)
         else:
             logger.debug('line begins with unrecognized code: %s' % fc)
-    if len(graph) == 0:
+    if graph.number_of_nodes() == 0:
         raise Exception('ERROR: generated empty graph. Perhaps wrong format?')
     return graph
 
@@ -99,7 +102,6 @@ def eden_to_gspan(graphs, filename):
     Raises:
         Exception: if a graph is empty
     """
-
     with open(filename, 'w') as f:
         for i, graph in enumerate(graphs):
             f.write('t #  %s\n' % i)

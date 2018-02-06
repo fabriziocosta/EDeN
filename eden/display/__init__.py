@@ -198,8 +198,7 @@ def draw_graph(graph,
         if layout == 'graphviz':
             graph_copy = graph.copy()
             pos = nx.nx_pydot.graphviz_layout(graph_copy,
-                                              prog=prog,
-                                              args="-Gmaxiter=1000")
+                                              prog=prog)
         elif layout == "RNA":
             import RNA
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
