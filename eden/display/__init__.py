@@ -200,7 +200,7 @@ def draw_graph(graph,
             pos = nx.nx_pydot.graphviz_layout(graph_copy,
                                               prog=prog)
         elif layout == "RNA":
-            import RNA
+            import RNA # this is part of the vienna RNA package
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
             pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
                    for i in range(len(graph.graph['structure']))}
@@ -381,13 +381,21 @@ def draw_graph_row(graphs,
                    contract=True,
                    n_graphs_per_line=5,
                    size=4,
+                   xlim=None,
+                   ylim=None,
                    **args):
     """draw_graph_row."""
     dim = len(graphs)
     size_y = size
     size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio', 1)
     plt.figure(figsize=(size_x, size_y))
-    plt.xlim(xmax=3)
+    
+
+    if xlim is not None:
+        plt.xlim(xlim) 
+        plt.ylim(ylim) 
+    else:
+        plt.xlim(xmax=3)
 
     for i in range(dim):
         plt.subplot(1, n_graphs_per_line, i + 1)
@@ -591,7 +599,7 @@ def heatmap(values, xlabel, ylabel, xticklabels, yticklabels, cmap=None,
     if ax is None:
         ax = plt.gca()
     # plot the mean cross-validation scores
-    img = ax.pcolor(values, cmap=cmap, vmin=None, vmax=None)
+    img = ax.pcolor(values, cmap=cmap, vmin=vmin, vmax=vmax)
     img.update_scalarmappable()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
