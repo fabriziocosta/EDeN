@@ -17,6 +17,8 @@ from sklearn.metrics import roc_auc_score
 
 from eden.util import _serialize_list
 from eden.display.graph_layout import KKEmbedder
+from sklearn.preprocessing import minmax_scale
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 
 class SetEncoder(json.JSONEncoder):
@@ -56,9 +58,12 @@ def draw_graph(graph,
                vertex_label='label',
                vertex_color=None,
                vertex_color_dict=None,
+               vertex_fixed_color=None,
                vertex_alpha=0.6,
                vertex_border=1,
                vertex_size=600,
+               vertex_images=None,
+               vertex_image_scale=0.1,
                compact=False,
                colormap='YlOrRd',
                vmin=0,
@@ -66,6 +71,7 @@ def draw_graph(graph,
                invert_colormap=False,
                secondary_vertex_label=None,
                secondary_vertex_color=None,
+               secondary_vertex_fixed_color=None,
                secondary_vertex_alpha=0.6,
                secondary_vertex_border=1,
                secondary_vertex_size=600,
@@ -79,6 +85,7 @@ def draw_graph(graph,
                edge_vmin=0,
                edge_vmax=1,
                edge_color=None,
+               edge_fixed_color=None,
                edge_width=None,
                edge_alpha=0.5,
 
@@ -86,6 +93,7 @@ def draw_graph(graph,
                dark_edge_vmin=0,
                dark_edge_vmax=1,
                dark_edge_color=None,
+               dark_edge_fixed_color=None,
                dark_edge_dotted=True,
                dark_edge_alpha=0.3,
 
@@ -107,8 +115,10 @@ def draw_graph(graph,
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
         plt.figure(figsize=(size_x, size_y))
+        axes = plt.gca()
     plt.grid(False)
     plt.axis('off')
+    plt.axis('equal')
 
     if vertex_label is not None:
         if secondary_vertex_label:
@@ -189,10 +199,11 @@ def draw_graph(graph,
         dark_edge_colors = [d.get(dark_edge_color, 0)
                             for u, v, d in graph.edges(data=True)
                             if 'nesting' in d]
-    tmp_edge_set = [(a, b, d)
-                    for (a, b, d) in graph.edges(data=True)
-                    if ignore_for_layout in d]
-    graph.remove_edges_from(tmp_edge_set)
+    tmp_edge_set = [(u, v)
+                    for u, v in graph.edges()
+                    if graph.edges[u, v].get(ignore_for_layout, False)]
+    if tmp_edge_set:
+        graph.remove_edges_from(tmp_edge_set)
 
     if pos is None:
         if layout == 'graphviz':
@@ -200,7 +211,7 @@ def draw_graph(graph,
             pos = nx.nx_pydot.graphviz_layout(graph_copy,
                                               prog=prog)
         elif layout == "RNA":
-            import RNA # this is part of the vienna RNA package
+            import RNA  # this is part of the vienna RNA package
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
             pos = {i: (rna_object.get(i).X, rna_object.get(i).Y)
                    for i in range(len(graph.graph['structure']))}
@@ -218,21 +229,28 @@ def draw_graph(graph,
             pos = KKEmbedder().transform(graph)
         else:
             raise Exception('Unknown layout format: %s' % layout)
+        _pos = minmax_scale(np.array([pos[i] for i in pos]))
+        pos = {i: (p[0], p[1]) for i, p in zip(pos, _pos)}
 
     if vertex_border is False:
         linewidths = 0.001
     else:
         linewidths = vertex_border
 
-    graph.add_edges_from(tmp_edge_set)
+    if tmp_edge_set:
+        graph.add_edges_from(tmp_edge_set)
 
+    if secondary_vertex_border is False:
+        secondary_linewidths = 0.001
+    else:
+        secondary_linewidths = secondary_vertex_border
+    if secondary_vertex_fixed_color is not None:
+        secondary_node_color = secondary_vertex_fixed_color
     if secondary_vertex_color is not None:
-        if secondary_vertex_border is False:
-            secondary_linewidths = 0.001
-        else:
-            secondary_linewidths = secondary_vertex_border
         secondary_node_color = [d.get(secondary_vertex_color, 0)
                                 for u, d in graph.nodes(data=True)]
+    if secondary_vertex_fixed_color is not None or \
+            secondary_vertex_color is not None:
         secondary_nodes = nx.draw_networkx_nodes(
             graph, pos,
             node_color=secondary_node_color,
@@ -243,7 +261,8 @@ def draw_graph(graph,
                 secondary_vertex_colormap),
             vmin=secondary_vertex_vmin, vmax=secondary_vertex_vmax)
         secondary_nodes.set_edgecolor('k')
-
+    if vertex_fixed_color is not None:
+        node_color = vertex_fixed_color
     if compact:
         nodes = nx.draw_networkx_nodes(graph, pos,
                                        node_color='w',
@@ -269,6 +288,8 @@ def draw_graph(graph,
                                        vmin=vmin, vmax=vmax)
         nodes.set_edgecolor('k')
 
+    if edge_fixed_color is not None:
+        edge_colors = edge_fixed_color
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_normal,
                            width=widths,
@@ -280,6 +301,8 @@ def draw_graph(graph,
         style = 'dotted'
     else:
         style = 'solid'
+    if dark_edge_fixed_color is not None:
+        dark_edge_colors = dark_edge_fixed_color
     nx.draw_networkx_edges(graph, pos,
                            edgelist=edges_nesting,
                            width=1,
@@ -300,6 +323,12 @@ def draw_graph(graph,
                                 font_size=font_size,
                                 font_weight='normal',
                                 font_color='black')
+    if vertex_images is not None:
+        for im, xy_pos in zip(vertex_images, pos):
+            x, y = pos[xy_pos]
+            oi = OffsetImage(im, zoom=vertex_image_scale, alpha=.5)
+            box = AnnotationBbox(oi, (x, y), frameon=False)
+            axes.add_artist(box)
     if title_key:
         title = str(graph.graph.get(title_key, ''))
         font = FontProperties()
@@ -389,11 +418,10 @@ def draw_graph_row(graphs,
     size_y = size
     size_x = size * n_graphs_per_line * args.get('size_x_to_y_ratio', 1)
     plt.figure(figsize=(size_x, size_y))
-    
 
     if xlim is not None:
-        plt.xlim(xlim) 
-        plt.ylim(ylim) 
+        plt.xlim(xlim)
+        plt.ylim(ylim)
     else:
         plt.xlim(xmax=3)
 

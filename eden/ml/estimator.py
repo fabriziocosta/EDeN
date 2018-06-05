@@ -4,8 +4,9 @@
 import numpy as np
 from eden.graph import Vectorizer
 from eden.util import timeit
-from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 from sklearn.linear_model import SGDClassifier
+from sklearn.linear_model import SGDRegressor
 from sklearn.linear_model import Perceptron
 from sklearn.cluster import MiniBatchKMeans
 from sklearn import metrics
@@ -26,16 +27,16 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
     def __init__(self, r=3, d=8, nbits=16, discrete=True,
                  balance=False, subsample_size=200, ratio=2,
                  normalization=False, inner_normalization=False,
-                 penalty='elasticnet', n_iter=500):
+                 penalty='elasticnet'):
         """construct."""
         self.set_params(r, d, nbits, discrete, balance, subsample_size,
                         ratio, normalization, inner_normalization,
-                        penalty, n_iter)
+                        penalty)
 
     def set_params(self, r=3, d=8, nbits=16, discrete=True,
                    balance=False, subsample_size=200, ratio=2,
                    normalization=False, inner_normalization=False,
-                   penalty='elasticnet', n_iter=500):
+                   penalty='elasticnet'):
         """setter."""
         self.r = r
         self.d = d
@@ -47,11 +48,11 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         self.subsample_size = subsample_size
         self.ratio = ratio
         if penalty == 'perceptron':
-            self.model = Perceptron(n_iter=n_iter)
+            self.model = Perceptron(max_iter=5, tol=None)
         else:
             self.model = SGDClassifier(
                 average=True, class_weight='balanced', shuffle=True,
-                penalty=penalty)
+                penalty=penalty, max_iter=5, tol=None)
         self.vectorizer = Vectorizer(
             r=self.r, d=self.d,
             normalization=self.normalization,
@@ -71,7 +72,6 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         x = self.transform(graphs)
         return metrics.pairwise.pairwise_kernels(x, metric='linear')
 
-    @timeit
     def fit(self, graphs, targets, randomize=True):
         """fit."""
         if self.balance:
@@ -94,14 +94,12 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             self.model = self.model.fit(x, targets)
         return self
 
-    @timeit
     def predict(self, graphs):
         """predict."""
         x = self.transform(graphs)
         preds = self.model.predict(x)
         return preds
 
-    @timeit
     def decision_function(self, graphs):
         """decision_function."""
         x = self.transform(graphs)
@@ -166,6 +164,7 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
             scoring=scoring)
         return train_sizes, train_scores, test_scores
 
+    @timeit
     def bias_variance_decomposition(self, graphs, targets,
                                     cv=5, n_bootstraps=10):
         """bias_variance_decomposition."""
@@ -179,6 +178,67 @@ class EdenEstimator(BaseEstimator, ClassifierMixin):
         mean_scores = np.mean(score_list, axis=1)
         std_scores = np.std(score_list, axis=1)
         return mean_scores, std_scores
+
+
+class EdenRegressor(BaseEstimator, RegressorMixin):
+    """Build a regressor for graphs."""
+
+    def __init__(self, r=3, d=8, nbits=16, discrete=True,
+                 normalization=True, inner_normalization=True,
+                 penalty='elasticnet', loss='squared_loss'):
+        """construct."""
+        self.set_params(r, d, nbits, discrete,
+                        normalization, inner_normalization,
+                        penalty, loss)
+
+    def set_params(self, r=3, d=8, nbits=16, discrete=True,
+                   normalization=True, inner_normalization=True,
+                   penalty='elasticnet', loss='squared_loss'):
+        """setter."""
+        self.r = r
+        self.d = d
+        self.nbits = nbits
+        self.normalization = normalization
+        self.inner_normalization = inner_normalization
+        self.discrete = discrete
+        self.model = SGDRegressor(
+            loss=loss, penalty=penalty,
+            average=True, shuffle=True,
+            max_iter=5, tol=None)
+        self.vectorizer = Vectorizer(
+            r=self.r, d=self.d,
+            normalization=self.normalization,
+            inner_normalization=self.inner_normalization,
+            discrete=self.discrete,
+            nbits=self.nbits)
+        return self
+
+    def transform(self, graphs):
+        """transform."""
+        x = self.vectorizer.transform(graphs)
+        return x
+
+    @timeit
+    def kernel_matrix(self, graphs):
+        """kernel_matrix."""
+        x = self.transform(graphs)
+        return metrics.pairwise.pairwise_kernels(x, metric='linear')
+
+    def fit(self, graphs, targets, randomize=True):
+        """fit."""
+        x = self.transform(graphs)
+        self.model = self.model.fit(x, targets)
+        return self
+
+    def predict(self, graphs):
+        """predict."""
+        x = self.transform(graphs)
+        preds = self.model.predict(x)
+        return preds
+
+    def decision_function(self, graphs):
+        """decision_function."""
+        return self.predict(graphs)
 
 
 def _sample_params(param_distr):

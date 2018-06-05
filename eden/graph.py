@@ -407,8 +407,10 @@ class Vectorizer(AbstractVectorizer):
                 if distance in root_dist_dict:
                     node_set = root_dist_dict[distance]
                     for vertex_u in node_set:
-                        self._transform_vertex_pair(graph, vertex_v, vertex_u,
-                                                    distance, feature_list)
+                        if graph.nodes[vertex_u].get('node', False):
+                            self._transform_vertex_pair(
+                                graph, vertex_v, vertex_u,
+                                distance, feature_list)
             self._transform_vertex_nesting(graph, vertex_v, feature_list)
         else:
             node_feature_list = defaultdict(lambda: defaultdict(float))
@@ -418,12 +420,13 @@ class Vectorizer(AbstractVectorizer):
                 if distance in root_dist_dict:
                     node_set = root_dist_dict[distance]
                     for vertex_u in node_set:
-                        self._transform_vertex_pair(
-                            graph,
-                            vertex_v,
-                            vertex_u,
-                            distance,
-                            node_feature_list)
+                        if graph.nodes[vertex_u].get('node', False):
+                            self._transform_vertex_pair(
+                                graph,
+                                vertex_v,
+                                vertex_u,
+                                distance,
+                                node_feature_list)
             self._transform_vertex_nesting(
                 graph,
                 vertex_v,
@@ -485,10 +488,11 @@ class Vectorizer(AbstractVectorizer):
                     node_set = endpoint_dist_dict[distance]
                     # for all nodes u at distance distance from endpoint
                     for vertex_u in node_set:
-                        self._transform_vertex_pair(
-                            graph, vertex_v, vertex_u,
-                            distance, feature_list,
-                            connection_weight=connection_weight)
+                        if graph.nodes[vertex_u].get('node', False):
+                            self._transform_vertex_pair(
+                                graph, vertex_v, vertex_u,
+                                distance, feature_list,
+                                connection_weight=connection_weight)
 
     def _find_second_endpoint_of_nesting_edge(self, graph, vertex_v):
         endpoints = []
