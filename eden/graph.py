@@ -273,7 +273,7 @@ class Vectorizer(AbstractVectorizer):
 
         >>> # transforming the same graph (with different node-ids).
         >>> import networkx as nx
-        >>> def get_path_graph(length=4):
+            >>> def get_path_graph(length=4):
         ...     g = nx.path_graph(length)
         ...     for n,d in g.nodes(data=True):
         ...         d['label'] = 'C'
