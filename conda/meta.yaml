@@ -1,6 +1,6 @@
 package:
   name: eden
-  version: 2.0_{{ environ['VERSION'] }}
+  version: {{ environ['VERSION'] }}
 
 source:
     path: ../

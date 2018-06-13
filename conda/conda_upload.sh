@@ -13,4 +13,4 @@ anaconda \
 -u $USER \
 -l nightly \
 --force \
-$CONDA_BLD_PATH/$OS/$PKG_NAME-`date +%Y.%m.%d`-py`echo ${TRAVIS_PYTHON_VERSION} | tr -d '.'`_0.tar.bz2
+$CONDA_BLD_PATH/$OS/$PKG_NAME-$VERSION-py`echo ${TRAVIS_PYTHON_VERSION} | tr -d '.'`_0.tar.bz2
