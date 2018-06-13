@@ -75,3 +75,4 @@ examples/model_comparison/models/
 working_examples/
 testenv*
 examples
+.pytest_cache/
