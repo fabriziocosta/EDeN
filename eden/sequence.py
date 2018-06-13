@@ -370,16 +370,16 @@ class Vectorizer(AbstractVectorizer):
         >>> ## annotate importance with relabeling
         >>> vectorizer = Vectorizer(r=0, d=0)
         >>> # check length of returned tuple
-        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next())
+        >>> len(next(vectorizer.annotate(['GATTACA'], relabel=True)))
         3
         >>> # check length of feature list
-        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
+        >>> len(next(vectorizer.annotate(['GATTACA'], relabel=True))[2])
         7
         >>> # access importance of position 0
-        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
+        >>> next(vectorizer.annotate(['GATTACA'], relabel=True))[1]
         array([1, 1, 1, 1, 1, 1, 1])
         >>> # access single feature of position 0
-        >>> str(vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0])
+        >>> next(str(vectorizer.annotate(['GATTACA'], relabel=True))[2][0])
         '  (0, 584224)\\t1.0'
 
         >>> ## annotate importance using simple estimator
@@ -401,10 +401,10 @@ class Vectorizer(AbstractVectorizer):
         >>> vectorizer = Vectorizer(r=0, d=0)
         >>> estimator=fit(pos, neg, vectorizer)
         >>> # check result size
-        >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
+        >>> len(next(vectorizer.annotate(['GATTACA'], estimator)))
         2
         >>> # access annotation of position 0
-        >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
+        >>> next(vectorizer.annotate(['GATTACA'], estimator))[1]
         array([ 0.73179924, -1.62902312,  5.76605577,  5.76605577, -1.62902312,
                 6.30819081, -1.62902312])
 
@@ -415,9 +415,9 @@ class Vectorizer(AbstractVectorizer):
         >>> weighttups_A = [('IDA', 'BAM', [1,1,1])]
         >>> weighttups_B = [('IDB', 'BAM', [2,2,2])]
         >>> weighttups_C = [('IDC', 'BAM', [1,2,3])]
-        >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
-        >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
-        >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
+        >>> annot_A = next(vectorizer.annotate(weighttups_A, estimator))
+        >>> annot_B = next(vectorizer.annotate(weighttups_B, estimator))
+        >>> annot_C = next(vectorizer.annotate(weighttups_C, estimator))
         >>> # annotation should be the same
         >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
         [True, True, True]

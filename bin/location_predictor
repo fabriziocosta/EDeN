@@ -341,7 +341,7 @@ class CasLociPredictor(object):
             margins = self.estimator.decision_function(test_data_matrix)
             score, begin, end = self.overlap_score(margins, test_y)
             centers = self.get_position(graphs_)
-            graph = graphs.next()
+            graph = next(graphs)
             id = graph.graph['id']
             if begin is not None and end is not None:
                 yield score, centers[begin], centers[end], id, margins
