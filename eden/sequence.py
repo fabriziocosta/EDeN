@@ -379,7 +379,7 @@ class Vectorizer(AbstractVectorizer):
         >>> next(vectorizer.annotate(['GATTACA'], relabel=True))[1]
         array([1, 1, 1, 1, 1, 1, 1])
         >>> # access single feature of position 0
-        >>> next(str(vectorizer.annotate(['GATTACA'], relabel=True))[2][0])
+        >>> str(next(vectorizer.annotate(['GATTACA'], relabel=True))[2][0])
         '  (0, 584224)\\t1.0'
 
         >>> ## annotate importance using simple estimator
