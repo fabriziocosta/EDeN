@@ -271,7 +271,7 @@ class Vectorizer(AbstractVectorizer):
         data_matrix : array-like, shape = [n_samples, n_features]
             Vector representation of input graphs.
 
-        >>> # transforming the same graph (with different node-ids).
+        >>> # transforming the same graph
         >>> import networkx as nx
         >>> def get_path_graph(length=4):
         ...     g = nx.path_graph(length)
@@ -282,13 +282,11 @@ class Vectorizer(AbstractVectorizer):
         ...     return g
         >>> g = get_path_graph(4)
         >>> g2 = get_path_graph(5)
-        >>> g2.remove_node(0)
-        >>> g[1][2]['label']='2'
-        >>> g2[2][3]['label']='2'
+        >>> g2.remove_node(4)
         >>> v = Vectorizer()
         >>> def vec_to_hash(vec):
-        ...     return  hash(tuple(vec.data + vec.indices))
-        >>> vec_to_hash(v.transform([g])) == vec_to_hash (v.transform([g2]))
+        ...     return hash(tuple(vec.data + vec.indices))
+        >>> vec_to_hash(v.transform([g])) == vec_to_hash(v.transform([g2]))
         True
         """
         instance_id = None
