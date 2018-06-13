@@ -76,3 +76,4 @@ working_examples/
 testenv*
 examples
 .pytest_cache/
+eden/_version.py
