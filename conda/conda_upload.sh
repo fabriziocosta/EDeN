@@ -8,7 +8,7 @@ conda config --set anaconda_upload no
 export CONDA_BLD_PATH=~/conda-bld
 # update version from tags
 python setup.py sdist
-export VERSION=`python setup.py --version`_`date +%Y.%m.%d`
+export VERSION=`python setup.py --version | grep --only-matching '^[0-9\.]\+'`_`date +%Y.%m.%d`
 conda build . && \
 anaconda \
 -t $CONDA_UPLOAD_TOKEN upload \
