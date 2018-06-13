@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides vectorization of graphs."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import joblib
 import networkx as nx
 import math
@@ -581,7 +585,7 @@ class Vectorizer(AbstractVectorizer):
         for r_d_key in feature_list:
             features = feature_list[r_d_key]
             norm = 0
-            for count in features.values():
+            for count in list(features.values()):
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
             if self.weights_dict is not None:
@@ -589,7 +593,7 @@ class Vectorizer(AbstractVectorizer):
                 if self.weights_dict.get(r_d_key, None) is not None:
                     sqrtw = math.sqrt(self.weights_dict[r_d_key])
                     sqrt_norm = sqrt_norm / sqrtw
-            for feature_id, count in features.items():
+            for feature_id, count in list(features.items()):
                 if self.inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
                 else:
@@ -599,10 +603,10 @@ class Vectorizer(AbstractVectorizer):
         if self.normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
-            for value in feature_vector.values():
+            for value in list(feature_vector.values()):
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature_id, value in feature_vector.items():
+            for feature_id, value in list(feature_vector.items()):
                 feature_vector_value = value / sqrt_total_norm
                 normalized_feature_vector[feature_id] = feature_vector_value
             return normalized_feature_vector
@@ -620,7 +624,7 @@ class Vectorizer(AbstractVectorizer):
         hash_list = []
         # for all distances
         root_dist_dict = graph.nodes[root]['remote_neighbours']
-        for node_set in root_dist_dict.keys():
+        for node_set in list(root_dist_dict.keys()):
             # create a list of hashed labels
             hash_label_list = []
             for v in root_dist_dict[node_set]:
@@ -669,7 +673,7 @@ class Vectorizer(AbstractVectorizer):
         edge_average = edge_weight_list[0]
         # for all distances
         root_dist_dict = graph.nodes[root]['remote_neighbours']
-        for dist in root_dist_dict.keys():
+        for dist in list(root_dist_dict.keys()):
             # extract array of weights at given dist
             weight_array_at_d = np.array([graph.nodes[v][self.key_weight]
                                           for v in root_dist_dict[dist]],

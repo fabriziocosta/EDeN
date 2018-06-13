@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides scikit interface."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 from eden.util import timeit
 import random
@@ -44,7 +48,7 @@ def process_vec_info(g, n_clusters=8):
 
 def paired_shuffle(iterable1, iterable2):
     """paired_shuffle."""
-    i1i2 = zip(iterable1, iterable2)
+    i1i2 = list(zip(iterable1, iterable2))
     random.shuffle(i1i2)
     i1, i2 = unzip(i1i2)
     return list(i1), list(i2)
@@ -53,7 +57,7 @@ def paired_shuffle(iterable1, iterable2):
 @timeit
 def subsample(graphs, targets, subsample_size=100):
     """subsample."""
-    tg = zip(targets, graphs)
+    tg = list(zip(targets, graphs))
     num_classes = len(set(targets))
     class_graphs = groupby(lambda x: first(x), tg)
     subgraphs = []
@@ -85,7 +89,7 @@ def balance(graphs, targets, estimator, ratio=2):
 
     desired_size = int(min_count * ratio)
 
-    tg = zip(targets, graphs)
+    tg = list(zip(targets, graphs))
     class_graphs = groupby(lambda x: first(x), tg)
     maj_graphs = [second(x) for x in class_graphs[majority_class]]
     min_graphs = [second(x) for x in class_graphs[minority_class]]
@@ -147,22 +151,22 @@ def estimate_predictive_performance(x_y,
 
 def output_avg_and_std(iterable):
     """output_avg_and_std."""
-    print('score: %.2f +-%.2f' % (np.mean(iterable), np.std(iterable)))
+    print(('score: %.2f +-%.2f' % (np.mean(iterable), np.std(iterable))))
     return iterable
 
 
 @timeit
 def perf(y_true, y_pred, y_score):
     """perf."""
-    print 'Accuracy: %.2f' % accuracy_score(y_true, y_pred)
-    print ' AUC ROC: %.2f' % roc_auc_score(y_true, y_score)
-    print '  AUC AP: %.2f' % average_precision_score(y_true, y_score)
-    print
-    print 'Classification Report:'
-    print classification_report(y_true, y_pred)
-    print
+    print('Accuracy: %.2f' % accuracy_score(y_true, y_pred))
+    print(' AUC ROC: %.2f' % roc_auc_score(y_true, y_score))
+    print('  AUC AP: %.2f' % average_precision_score(y_true, y_score))
+    print()
+    print('Classification Report:')
+    print(classification_report(y_true, y_pred))
+    print()
     plot_confusion_matrices(y_true, y_pred, size=int(len(set(y_true)) * 2.5))
-    print
+    print()
     plot_aucs(y_true, y_score, size=10)
 
 

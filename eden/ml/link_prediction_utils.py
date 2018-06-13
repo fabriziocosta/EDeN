@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides link prediction utilities."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import networkx as nx
 import numpy as np
 from eden.util import timeit
@@ -27,11 +31,11 @@ def show_graph(g, vertex_color='typeof', size=15, vertex_label=None):
     """show_graph."""
     degrees = [len(g.neighbors(u)) for u in g.nodes()]
 
-    print('num nodes=%d' % len(g))
-    print('num edges=%d' % len(g.edges()))
-    print('num non edges=%d' % len(list(nx.non_edges(g))))
-    print('max degree=%d' % max(degrees))
-    print('median degree=%d' % np.percentile(degrees, 50))
+    print(('num nodes=%d' % len(g)))
+    print(('num edges=%d' % len(g.edges())))
+    print(('num non edges=%d' % len(list(nx.non_edges(g)))))
+    print(('max degree=%d' % max(degrees)))
+    print(('median degree=%d' % np.percentile(degrees, 50)))
 
     draw_graph(g, size=size,
                vertex_color=vertex_color, vertex_label=vertex_label,

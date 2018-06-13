@@ -28,10 +28,11 @@ install:
   - conda config --add channels defaults
   - conda config --add channels conda-forge
   - conda config --add channels bioconda
-  - conda install flake8 scripttest pytest pytest-cov --file requirements.txt
+  - conda install flake8 scripttest pytest --file requirements.txt
 
 script:
   - flake8 --ignore=E501
+  - pylint --py3k eden test
   - pytest  --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
 
 after_success:

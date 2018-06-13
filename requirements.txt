@@ -1,4 +1,5 @@
 dill>=0.2.1
+future
 joblib>=0.8.4
 matplotlib
 networkx>=2.0

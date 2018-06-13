@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides vectorization of sequences."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import defaultdict
 import numpy as np
 import math
@@ -175,7 +179,7 @@ class Vectorizer(AbstractVectorizer):
     def _get_sequence_and_weights(self, seq):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
-        if isinstance(seq, basestring):
+        if isinstance(seq, str):
             return seq, None
         elif isinstance(seq, tuple) and len(seq) == 2 and len(seq[1]) > 0:
             # assume the instance is a pair (header,seq) and extract only seq
@@ -226,8 +230,8 @@ class Vectorizer(AbstractVectorizer):
                             seq_len=None,
                             neigh_hash_cache=None,
                             neighborhood_weight_cache=None):
-        distances = range(self.min_d, self.d + 1)
-        distances += range(-self.d, -self.min_d)
+        distances = list(range(self.min_d, self.d + 1))
+        distances += list(range(-self.d, -self.min_d))
         for distance in distances:
             end = pos + distance
             # Note: after having computed pos, we now treat
@@ -256,12 +260,12 @@ class Vectorizer(AbstractVectorizer):
                        inner_normalization=False, normalization=False):
         # inner normalization per radius-distance
         feature_vector = {}
-        for features in feature_list.itervalues():
+        for features in feature_list.values():
             norm = 0
-            for count in features.itervalues():
+            for count in features.values():
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
-            for feature, count in features.iteritems():
+            for feature, count in features.items():
                 feature_vector_key = feature
                 if inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
@@ -272,10 +276,10 @@ class Vectorizer(AbstractVectorizer):
         if normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
-            for feature, value in feature_vector.iteritems():
+            for feature, value in feature_vector.items():
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature, value in feature_vector.iteritems():
+            for feature, value in feature_vector.items():
                 normalized_feature_vector[feature] = value / sqrt_total_norm
             return normalized_feature_vector
         else:

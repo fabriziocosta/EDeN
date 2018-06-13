@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides interface for vectorizer."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import dill
 from sklearn.base import BaseEstimator, TransformerMixin
 

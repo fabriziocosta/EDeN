@@ -111,6 +111,7 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "dill",
+        "future",
         "joblib",
         "toolz",
         "matplotlib",
