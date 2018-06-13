@@ -5,6 +5,7 @@ from __future__ import print_function
 from collections import defaultdict
 import numpy as np
 
+
 def find_smallest_positive(alist):
     # find first positive value
     minpos = -1
