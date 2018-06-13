@@ -116,11 +116,9 @@ setup(
         "matplotlib",
         "networkx >= 2.0",
         "numpy >= 1.10.4",
-        "pytest",
         "requests",
         "scikit-learn >= 0.18.2",
         "scipy >= 0.14.0",
-        "scripttest",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
