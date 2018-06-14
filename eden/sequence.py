@@ -34,12 +34,12 @@ class Vectorizer(AbstractVectorizer):
     >>> # vectorize a sequence
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
-    '  (0, 304234)\\t0.5\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.5'
+    '  (0, 304234)\\t0.5\\n  (0, 431837)\\t0.7071067811865476\\n  (0, 930612)\\t0.5'
 
     >>> # for comparison vectorize a sequence containing zero weight
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
     >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
-    '  (0, 304234)\\t0.707106781187\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.0'
+    '  (0, 304234)\\t0.7071067811865475\\n  (0, 431837)\\t0.7071067811865475\\n  (0, 930612)\\t0.0'
     """
 
     def __init__(self,

@@ -13,6 +13,7 @@ import colorsys
 def color_code(index, index_size):
     return colors.Color(*colorsys.hsv_to_rgb(index / float(index_size), 0.7, 0.8), alpha=0.5)
 
+
 inFasta = str(sys.argv[1])
 outDir = str(sys.argv[2])
 motives_dir = os.path.join(outDir, "motives_dir")

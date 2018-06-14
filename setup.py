@@ -87,6 +87,7 @@ class install(_install):
         except Exception as e:
             sys.stderr.write("Error: {}".format(e))
 
+
 setup(
     name='eden',
     version=get_version(),
@@ -114,12 +115,10 @@ setup(
         "toolz",
         "matplotlib",
         "networkx >= 2.0",
-        "nose",
-        "numpy >= 1.8.0",
+        "numpy >= 1.10.4",
         "requests",
-        "scikit-learn >= 0.17.0",
+        "scikit-learn >= 0.18.2",
         "scipy >= 0.14.0",
-        "scripttest",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )
