@@ -33,7 +33,7 @@ install:
 script:
   - flake8 --ignore=E501
   - pylint --py3k eden test
-  - pytest  --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
+  - pytest eden test --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
 
 after_success:
   - test $CONDA_UPLOAD = "yes" && test $TRAVIS_BRANCH = "nightly" && test $TRAVIS_PULL_REQUEST = "false" && conda install conda-build && conda install anaconda-client && bash conda/conda_upload.sh
