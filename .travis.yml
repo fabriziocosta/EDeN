@@ -28,7 +28,7 @@ install:
   - conda config --add channels defaults
   - conda config --add channels conda-forge
   - conda config --add channels bioconda
-  - conda install flake8 scripttest pytest pytest-cov --file requirements.txt
+  - conda install flake8 pylint pytest pytest-cov scripttest --file requirements.txt
 
 script:
   - flake8 --ignore=E501
