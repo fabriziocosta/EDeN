@@ -333,7 +333,7 @@ class Vectorizer(AbstractVectorizer):
 
         Given a list of sequences, and a fitted estimator, it computes a vector
         of importance values for each char in the sequence. The importance
-        corresponds to the part of the score that is imputable  to the features
+        corresponds to the part of the score that is imputable to the features
         that involve the specific char.
 
         Args:
@@ -350,7 +350,6 @@ class Vectorizer(AbstractVectorizer):
             If relabel is False: for each input sequence a pair: 1) the input
             string, 2) a list of real  numbers with size equal to the number of
             characters in each input sequence.
-
 
             If relabel is True: for each input sequence a triplet: 1) the input
             string, 2) a list of real  numbers with size equal to the number of
@@ -378,9 +377,10 @@ class Vectorizer(AbstractVectorizer):
         >>> # access importance of position 0
         >>> next(vectorizer.annotate(['GATTACA'], relabel=True))[1]
         array([1, 1, 1, 1, 1, 1, 1])
-        >>> # access single feature of position 0
-        >>> str(next(vectorizer.annotate(['GATTACA'], relabel=True))[2][0])
-        '  (0, 584224)\\t1.0'
+        >>> # access feature weights of the induced features
+        >>> import scipy.sparse
+        >>> [scipy.sparse.find(x)[2][0] for x in next(vectorizer.annotate(['GATTACA'], relabel=True))[2]]
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
