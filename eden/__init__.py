@@ -17,6 +17,10 @@ __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
 
+__magic__ = ('EDeN',42)
+__magic_py2hash__ = -7048895691955021301
+__magic_py3hash__ = -1821860980875793120
+
 _bitmask_ = 4294967295
 
 
