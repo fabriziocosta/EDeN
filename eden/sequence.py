@@ -27,23 +27,32 @@ class Vectorizer(AbstractVectorizer):
 
     >>> # vectorize a sequence using default parameters
     >>> seqstrings = ['A']
-    >>> str(Vectorizer().transform(seqstrings))
-    '  (0, 930612)\\t1.0'
+    >>> v1 = Vectorizer().transform(seqstrings)
+    >>> type(v1)
+    <class 'scipy.sparse.csr.csr_matrix'>
 
     >>> # vectorize a sequence using weights
     >>> weighttups = [('ID1', 'A', [0.5])]
-    >>> str(Vectorizer().transform(weighttups))
-    '  (0, 930612)\\t1.0'
+    >>> v2 = Vectorizer().transform(weighttups)
+    >>> type(v2)
+    <class 'scipy.sparse.csr.csr_matrix'>
 
     >>> # vectorize a sequence
+    >>> # this gives three nonzero features
+    >>> import scipy
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
-    >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
-    '  (0, 304234)\\t0.5\\n  (0, 431837)\\t0.7071067811865476\\n  (0, 930612)\\t0.5'
+    >>> v3 = Vectorizer(r=1, d=0).transform(weighttups_ones)
+    >>> type(v3)
+    <class 'scipy.sparse.csr.csr_matrix'>
+    >>> len(scipy.sparse.find(v3)[2])
+    3
 
     >>> # for comparison vectorize a sequence containing zero weight
+    >>> # we lose one feature due to this
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
-    >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
-    '  (0, 304234)\\t0.7071067811865475\\n  (0, 431837)\\t0.7071067811865475\\n  (0, 930612)\\t0.0'
+    >>> v4 = Vectorizer(r=1, d=0).transform(weighttups_zero)
+    >>> len(scipy.sparse.find(v4)[2])
+    2
     """
 
     def __init__(self,
