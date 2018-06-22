@@ -34,7 +34,7 @@ def update_version_py():
     if p.returncode != 0:
         print("unable to run git, leaving eden/_version.py alone")
         return
-    ver = stdout.strip()
+    ver = stdout.strip().decode()
     f = open("eden/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()

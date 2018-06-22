@@ -1,5 +1,5 @@
 # Only need to change these two variables
-PKG_NAME=misc_scripts
+PKG_NAME=eden
 USER=dmaticzka
 
 OS=linux-64
