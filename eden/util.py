@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides utilities for file handling."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 from scipy import io
 from sklearn.externals import joblib
@@ -184,7 +188,7 @@ def random_bipartition(int_range, relative_size=.7, random_state=None):
     if not random_state:
         random_state = random.random()
     random.seed(random_state)
-    ids = range(int_range)
+    ids = list(range(int_range))
     random.shuffle(ids)
     split_point = int(int_range * relative_size)
     return ids[:split_point], ids[split_point:]

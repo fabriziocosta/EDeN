@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides vectorization of graphs."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import joblib
 import networkx as nx
 import math
@@ -602,7 +606,7 @@ class Vectorizer(AbstractVectorizer):
             for value in feature_vector.values():
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature_id, value in feature_vector.items():
+            for feature_id, value in list(feature_vector.items()):
                 feature_vector_value = value / sqrt_total_norm
                 normalized_feature_vector[feature_id] = feature_vector_value
             return normalized_feature_vector

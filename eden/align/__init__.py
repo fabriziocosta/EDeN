@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides utilities for aligning graphs."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import random
 import numpy as np
 import networkx as nx
@@ -56,8 +60,7 @@ def stable(rankings, list_a, list_b):
                         partners[a] = (rankings[(a, a_n + 1)], a_n + 1)
                     else:
                         is_paired = True
-    stable_list = sorted((a, b)
-                         for (a, (b, n)) in partners.items())
+    stable_list = sorted((a, b) for (a, (b, n)) in partners.items())
     return stable_list
 
 
@@ -168,7 +171,7 @@ def match(GA_orig, GB_orig, order=3, max_depth=10, complexity=4):
 
     # remove dummy node pairings
     npairings = trim_pairings(pairings, GA_orig, GB_orig)
-    orderA, orderB = zip(*sorted(npairings))
+    orderA, orderB = list(zip(*sorted(npairings)))
     return orderB
 
 
