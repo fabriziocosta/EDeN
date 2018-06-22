@@ -60,8 +60,7 @@ def stable(rankings, list_a, list_b):
                         partners[a] = (rankings[(a, a_n + 1)], a_n + 1)
                     else:
                         is_paired = True
-    stable_list = sorted((a, b)
-                         for (a, (b, n)) in list(partners.items()))
+    stable_list = sorted((a, b) for (a, (b, n)) in partners.items())
     return stable_list
 
 
@@ -163,8 +162,8 @@ def match(GA_orig, GB_orig, order=3, max_depth=10, complexity=4):
     A = ['A%d' % (i + 1) for i in range(len(GA))]
     B = ['B%d' % (i + 1) for i in range(len(GB))]
 
-    Arankings = dict(((A[i], j + 1), B[AprefB[i, j]]) for i, j in product(list(range(len(GA))), list(range(len(GA)))))
-    Brankings = dict(((B[i], j + 1), A[BprefA[i, j]]) for i, j in product(list(range(len(GB))), list(range(len(GB)))))
+    Arankings = dict(((A[i], j + 1), B[AprefB[i, j]]) for i, j in product(range(len(GA)), range(len(GA))))
+    Brankings = dict(((B[i], j + 1), A[BprefA[i, j]]) for i, j in product(range(len(GB)), range(len(GB))))
 
     rankings = Arankings
     rankings.update(Brankings)
@@ -291,9 +290,9 @@ def line_optimize(
         best_depth):
 
     best_quality = -1
-    c_range = list(range(8, 0, -1))
-    order_range = list(range(10, 0, -1))
-    depth_range = list(range(20, 0, -1))
+    c_range = range(8, 0, -1)
+    order_range = range(10, 0, -1)
+    depth_range = range(20, 0, -1)
 
     for it in range(n_iter):
         c = best_c

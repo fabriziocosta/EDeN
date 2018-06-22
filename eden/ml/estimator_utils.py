@@ -57,7 +57,7 @@ def paired_shuffle(iterable1, iterable2):
 @timeit
 def subsample(graphs, targets, subsample_size=100):
     """subsample."""
-    tg = list(zip(targets, graphs))
+    tg = zip(targets, graphs)
     num_classes = len(set(targets))
     class_graphs = groupby(lambda x: first(x), tg)
     subgraphs = []
@@ -89,7 +89,7 @@ def balance(graphs, targets, estimator, ratio=2):
 
     desired_size = int(min_count * ratio)
 
-    tg = list(zip(targets, graphs))
+    tg = zip(targets, graphs)
     class_graphs = groupby(lambda x: first(x), tg)
     maj_graphs = [second(x) for x in class_graphs[majority_class]]
     min_graphs = [second(x) for x in class_graphs[minority_class]]
