@@ -31,7 +31,7 @@ install:
   - conda install flake8 pytest pytest-cov scripttest --file requirements.txt
 
 script:
-  - flake8 --ignore=E501
+  - flake8 eden test bin --ignore=E501
   - PYTHONHASHSEED=0 pytest eden test bin --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
 
 after_success:

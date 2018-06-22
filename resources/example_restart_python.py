@@ -3,6 +3,7 @@ import subprocess
 import sys
 import os
 
+
 def main():
     env = os.environ.copy()
 
@@ -24,6 +25,7 @@ def main():
     # run program and exit
     print("This is the magic python hash restart script.")
     exit(0)
+
 
 if __name__ == "__main__":
     main()
