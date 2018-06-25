@@ -31,8 +31,8 @@ install:
   - conda install flake8 pytest pytest-cov scripttest --file requirements.txt
 
 script:
-  - flake8 eden test bin --ignore=E501
-  - PYTHONHASHSEED=0 pytest eden test bin --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
+  - flake8 eden test --ignore=E501
+  - PYTHONHASHSEED=0 pytest eden test --cov eden --ignore test/disabled_tests --ignore bin/motif_display.py --doctest-modules
 
 after_success:
   - test $CONDA_UPLOAD = "yes" && test $TRAVIS_BRANCH = "nightly" && test $TRAVIS_PULL_REQUEST = "false" && conda install conda-build && conda install anaconda-client && bash conda/conda_upload.sh
