@@ -34,19 +34,6 @@ You can install EDeN with pip directly from github.
 pip install git+https://github.com/fabriziocosta/EDeN.git --user
 ```
 
-### Docker
-
-You can create a docker image containing your versions of EDeN with all necessary dependencies installed using the command
-
-```bash
-docker build -t eden .
-```
-
-Running this image will start a Jupyter notebook server. You can access this server on your machine via [http://localhost:8080](http://localhost:8080). Using  option ```-v /home/user/EDeN/examples/:/export/``` will make the notebooks in your local folder ```/home/user/EDeN/examples/``` accessible to Jupyter.
-
-```bash
-docker run -i -p 8080:8888 -v /home/user/EDeN/examples/:/export/ eden
-```
 
 References
 ==========
