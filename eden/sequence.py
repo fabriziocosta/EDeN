@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides vectorization of sequences."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import defaultdict
 import numpy as np
 import math
@@ -23,23 +27,32 @@ class Vectorizer(AbstractVectorizer):
 
     >>> # vectorize a sequence using default parameters
     >>> seqstrings = ['A']
-    >>> str(Vectorizer().transform(seqstrings))
-    '  (0, 930612)\\t1.0'
+    >>> v1 = Vectorizer().transform(seqstrings)
+    >>> type(v1)
+    <class 'scipy.sparse.csr.csr_matrix'>
 
     >>> # vectorize a sequence using weights
     >>> weighttups = [('ID1', 'A', [0.5])]
-    >>> str(Vectorizer().transform(weighttups))
-    '  (0, 930612)\\t1.0'
+    >>> v2 = Vectorizer().transform(weighttups)
+    >>> type(v2)
+    <class 'scipy.sparse.csr.csr_matrix'>
 
     >>> # vectorize a sequence
+    >>> # this gives three nonzero features
+    >>> import scipy
     >>> weighttups_ones = [('ID2', 'HA', [1,1])]
-    >>> str(Vectorizer(r=1, d=0).transform(weighttups_ones))
-    '  (0, 304234)\\t0.5\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.5'
+    >>> v3 = Vectorizer(r=1, d=0).transform(weighttups_ones)
+    >>> type(v3)
+    <class 'scipy.sparse.csr.csr_matrix'>
+    >>> len(scipy.sparse.find(v3)[2])
+    3
 
     >>> # for comparison vectorize a sequence containing zero weight
+    >>> # we lose one feature due to this
     >>> weighttups_zero = [('ID2', 'HA', [1,0])]
-    >>> str(Vectorizer(r=1, d=0).transform(weighttups_zero))
-    '  (0, 304234)\\t0.707106781187\\n  (0, 431837)\\t0.707106781187\\n  (0, 930612)\\t0.0'
+    >>> v4 = Vectorizer(r=1, d=0).transform(weighttups_zero)
+    >>> len(scipy.sparse.find(v4)[2])
+    2
     """
 
     def __init__(self,
@@ -175,7 +188,7 @@ class Vectorizer(AbstractVectorizer):
     def _get_sequence_and_weights(self, seq):
         if seq is None or len(seq) == 0:
             raise Exception('ERROR: something went wrong, empty instance.')
-        if isinstance(seq, basestring):
+        if isinstance(seq, str):
             return seq, None
         elif isinstance(seq, tuple) and len(seq) == 2 and len(seq[1]) > 0:
             # assume the instance is a pair (header,seq) and extract only seq
@@ -226,8 +239,8 @@ class Vectorizer(AbstractVectorizer):
                             seq_len=None,
                             neigh_hash_cache=None,
                             neighborhood_weight_cache=None):
-        distances = range(self.min_d, self.d + 1)
-        distances += range(-self.d, -self.min_d)
+        distances = list(range(self.min_d, self.d + 1))
+        distances += list(range(-self.d, -self.min_d))
         for distance in distances:
             end = pos + distance
             # Note: after having computed pos, we now treat
@@ -256,12 +269,12 @@ class Vectorizer(AbstractVectorizer):
                        inner_normalization=False, normalization=False):
         # inner normalization per radius-distance
         feature_vector = {}
-        for features in feature_list.itervalues():
+        for features in feature_list.values():
             norm = 0
-            for count in features.itervalues():
+            for count in features.values():
                 norm += count * count
             sqrt_norm = math.sqrt(norm)
-            for feature, count in features.iteritems():
+            for feature, count in features.items():
                 feature_vector_key = feature
                 if inner_normalization:
                     feature_vector_value = float(count) / sqrt_norm
@@ -272,10 +285,10 @@ class Vectorizer(AbstractVectorizer):
         if normalization:
             normalized_feature_vector = {}
             total_norm = 0.0
-            for feature, value in feature_vector.iteritems():
+            for feature, value in feature_vector.items():
                 total_norm += value * value
             sqrt_total_norm = math.sqrt(float(total_norm))
-            for feature, value in feature_vector.iteritems():
+            for feature, value in feature_vector.items():
                 normalized_feature_vector[feature] = value / sqrt_total_norm
             return normalized_feature_vector
         else:
@@ -329,7 +342,7 @@ class Vectorizer(AbstractVectorizer):
 
         Given a list of sequences, and a fitted estimator, it computes a vector
         of importance values for each char in the sequence. The importance
-        corresponds to the part of the score that is imputable  to the features
+        corresponds to the part of the score that is imputable to the features
         that involve the specific char.
 
         Args:
@@ -346,7 +359,6 @@ class Vectorizer(AbstractVectorizer):
             If relabel is False: for each input sequence a pair: 1) the input
             string, 2) a list of real  numbers with size equal to the number of
             characters in each input sequence.
-
 
             If relabel is True: for each input sequence a triplet: 1) the input
             string, 2) a list of real  numbers with size equal to the number of
@@ -366,17 +378,18 @@ class Vectorizer(AbstractVectorizer):
         >>> ## annotate importance with relabeling
         >>> vectorizer = Vectorizer(r=0, d=0)
         >>> # check length of returned tuple
-        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next())
+        >>> len(next(vectorizer.annotate(['GATTACA'], relabel=True)))
         3
         >>> # check length of feature list
-        >>> len(vectorizer.annotate(['GATTACA'], relabel=True).next()[2])
+        >>> len(next(vectorizer.annotate(['GATTACA'], relabel=True))[2])
         7
         >>> # access importance of position 0
-        >>> vectorizer.annotate(['GATTACA'], relabel=True).next()[1]
+        >>> next(vectorizer.annotate(['GATTACA'], relabel=True))[1]
         array([1, 1, 1, 1, 1, 1, 1])
-        >>> # access single feature of position 0
-        >>> str(vectorizer.annotate(['GATTACA'], relabel=True).next()[2][0])
-        '  (0, 584224)\\t1.0'
+        >>> # access feature weights of the induced features
+        >>> import scipy.sparse
+        >>> [scipy.sparse.find(x)[2][0] for x in next(vectorizer.annotate(['GATTACA'], relabel=True))[2]]
+        [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 
         >>> ## annotate importance using simple estimator
         >>> from sklearn.linear_model import SGDClassifier
@@ -387,7 +400,7 @@ class Vectorizer(AbstractVectorizer):
         ...     aX,bX=vec.transform(a), vec.transform(b)
         ...     X = vstack((aX, bX))
         ...     y = np.array([1] * aX.shape[0] + [-1] * bX.shape[0])
-        ...     clas= SGDClassifier(loss='log',random_state=99)
+        ...     clas = SGDClassifier(loss='log', random_state=99, max_iter=5, tol=None)
         ...     clas.fit(X,y)
         ...     return clas
         ...
@@ -397,10 +410,10 @@ class Vectorizer(AbstractVectorizer):
         >>> vectorizer = Vectorizer(r=0, d=0)
         >>> estimator=fit(pos, neg, vectorizer)
         >>> # check result size
-        >>> len(vectorizer.annotate(['GATTACA'], estimator).next())
+        >>> len(next(vectorizer.annotate(['GATTACA'], estimator)))
         2
         >>> # access annotation of position 0
-        >>> vectorizer.annotate(['GATTACA'], estimator).next()[1]
+        >>> next(vectorizer.annotate(['GATTACA'], estimator))[1]
         array([ 0.73179924, -1.62902312,  5.76605577,  5.76605577, -1.62902312,
                 6.30819081, -1.62902312])
 
@@ -411,9 +424,9 @@ class Vectorizer(AbstractVectorizer):
         >>> weighttups_A = [('IDA', 'BAM', [1,1,1])]
         >>> weighttups_B = [('IDB', 'BAM', [2,2,2])]
         >>> weighttups_C = [('IDC', 'BAM', [1,2,3])]
-        >>> annot_A = vectorizer.annotate(weighttups_A, estimator).next()
-        >>> annot_B = vectorizer.annotate(weighttups_B, estimator).next()
-        >>> annot_C = vectorizer.annotate(weighttups_C, estimator).next()
+        >>> annot_A = next(vectorizer.annotate(weighttups_A, estimator))
+        >>> annot_B = next(vectorizer.annotate(weighttups_B, estimator))
+        >>> annot_C = next(vectorizer.annotate(weighttups_C, estimator))
         >>> # annotation should be the same
         >>> [a == b for a, b in zip(annot_A[1], annot_B[1])]
         [True, True, True]

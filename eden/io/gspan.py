@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides io of graphs."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import json
 import networkx as nx
 from eden import util

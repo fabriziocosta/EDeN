@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides layout in 2D of vector instances."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import math
 
 import networkx as nx

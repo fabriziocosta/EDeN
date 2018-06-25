@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides interface for vectorizer."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import dill
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -12,6 +16,10 @@ __version__ = "v2.0.1202"
 __maintainer__ = "Fabrizio Costa"
 __email__ = "costa@informatik.uni-freiburg.de"
 __status__ = "Production"
+
+__magic__ = ('EDeN', 42)
+__magic_py2hash__ = -7048895691955021301
+__magic_py3hash__ = -1821860980875793120
 
 _bitmask_ = 4294967295
 

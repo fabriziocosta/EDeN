@@ -34,7 +34,7 @@ def update_version_py():
     if p.returncode != 0:
         print("unable to run git, leaving eden/_version.py alone")
         return
-    ver = stdout.strip()
+    ver = stdout.strip().decode()
     f = open("eden/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()
@@ -87,6 +87,7 @@ class install(_install):
         except Exception as e:
             sys.stderr.write("Error: {}".format(e))
 
+
 setup(
     name='eden',
     version=get_version(),
@@ -110,16 +111,15 @@ setup(
     long_description=open('README.md').read(),
     install_requires=[
         "dill",
+        "future",
         "joblib",
         "toolz",
         "matplotlib",
         "networkx >= 2.0",
-        "nose",
-        "numpy >= 1.8.0",
+        "numpy >= 1.10.4",
         "requests",
-        "scikit-learn >= 0.17.0",
+        "scikit-learn >= 0.18.2",
         "scipy >= 0.14.0",
-        "scripttest",
     ],
     cmdclass={'sdist': sdist, 'install': install}
 )

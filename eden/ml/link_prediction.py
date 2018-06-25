@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 """Provides link prediction utilities."""
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import networkx as nx
 import numpy as np
 import random
