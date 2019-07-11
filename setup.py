@@ -18,27 +18,30 @@ VERSION_PY = """
 __version__ = '%s'
 """
 
-
 def update_version_py():
     if not os.path.isdir(".git"):
         print("This does not appear to be a Git repository.")
         return
     try:
-        p = subprocess.Popen(["git", "describe",
-                              "--tags", "--always"],
-                             stdout=subprocess.PIPE)
+        #p = subprocess.Popen(["git", "describe","--tags", "--always"],
+        #        stdout=subprocess.PIPE)
+        p = subprocess.Popen("git rev-list HEAD --count".split(),
+                stdout=subprocess.PIPE)
+
+
     except EnvironmentError:
-        print("unable to run git, leaving eden/_version.py alone")
+        print("unable to run git, leaving shaker/_version.py alone")
         return
     stdout = p.communicate()[0]
     if p.returncode != 0:
-        print("unable to run git, leaving eden/_version.py alone")
+        print("unable to run git, leaving shaker/_version.py alone")
         return
-    ver = stdout.strip().decode()
-    f = open("eden/_version.py", "w")
+    ver = "0.3."+stdout.strip()
+    #ver = str(int(ver,16)) # pypi doesnt like base 16
+    f = open("shaker/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()
-    print("set eden/_version.py to '%s'" % ver)
+    print("set shaker/_version.py to '%s'" % ver)
 
 
 def get_version():
@@ -89,7 +92,7 @@ class install(_install):
 
 
 setup(
-    name='eden',
+    name='eden-kernel',
     version=get_version(),
     author='Fabrizio Costa',
     author_email='graph-eden@googlegroups.com',
@@ -100,8 +103,8 @@ setup(
               ],
     scripts=[],
     include_package_data=True,
-    package_data={},
-    url='http://pypi.python.org/pypi/eden/',
+    package_data={},   
+    url='https://github.com/smautner/',
     license='LICENSE',
     description='The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel \
     based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce \
