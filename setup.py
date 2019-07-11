@@ -30,18 +30,18 @@ def update_version_py():
 
 
     except EnvironmentError:
-        print("unable to run git, leaving shaker/_version.py alone")
+        print("unable to run git, leaving eden/_version.py alone")
         return
     stdout = p.communicate()[0]
     if p.returncode != 0:
-        print("unable to run git, leaving shaker/_version.py alone")
+        print("unable to run git, leaving eden/_version.py alone")
         return
     ver = "0.3."+stdout.strip()
     #ver = str(int(ver,16)) # pypi doesnt like base 16
-    f = open("shaker/_version.py", "w")
+    f = open("eden/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()
-    print("set shaker/_version.py to '%s'" % ver)
+    print("set eden/_version.py to '%s'" % ver)
 
 
 def get_version():
@@ -106,12 +106,8 @@ setup(
     package_data={},   
     url='https://github.com/smautner/',
     license='LICENSE',
-    description='The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel \
-    based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce \
-    an explicit feature representation for graphs. This in turn allows the adoption of machine learning\
-    algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast\
-    stochastic gradient descent methods in classification).',
-    long_description=open('README.md').read(),
+    description='Explicit Decomposition with Neighborhoods',
+    long_description='',
     install_requires=[
         "dill",
         "future",
