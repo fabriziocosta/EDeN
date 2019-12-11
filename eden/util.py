@@ -145,7 +145,7 @@ def read(uri):
         return uri
     else:
         try:
-                    # try if it is a URL and if we can open it
+            # try if it is a URL and if we can open it
             f = requests.get(uri).text.split('\n')
         except ValueError:
             # assume it is a file object

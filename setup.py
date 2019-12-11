@@ -18,16 +18,16 @@ VERSION_PY = """
 __version__ = '%s'
 """
 
+
 def update_version_py():
     if not os.path.isdir(".git"):
         print("This does not appear to be a Git repository.")
         return
     try:
-        #p = subprocess.Popen(["git", "describe","--tags", "--always"],
+        # p = subprocess.Popen(["git", "describe","--tags", "--always"],
         #        stdout=subprocess.PIPE)
         p = subprocess.Popen("git rev-list HEAD --count".split(),
-                stdout=subprocess.PIPE)
-
+                             stdout=subprocess.PIPE)
 
     except EnvironmentError:
         print("unable to run git, leaving eden/_version.py alone")
@@ -37,7 +37,7 @@ def update_version_py():
         print("unable to run git, leaving eden/_version.py alone")
         return
     ver = "0.3."+stdout.strip()
-    #ver = str(int(ver,16)) # pypi doesnt like base 16
+    # ver = str(int(ver,16)) # pypi doesnt like base 16
     f = open("eden/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()
@@ -103,7 +103,7 @@ setup(
               ],
     scripts=[],
     include_package_data=True,
-    package_data={},   
+    package_data={},
     url='https://github.com/smautner/',
     license='LICENSE',
     description='Explicit Decomposition with Neighborhoods',
