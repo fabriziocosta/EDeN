@@ -7,7 +7,7 @@ from __future__ import print_function
 
 import numpy as np
 from scipy import io
-from sklearn.externals import joblib
+import joblib
 import requests
 import os
 import sys
