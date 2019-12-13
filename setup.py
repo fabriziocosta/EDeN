@@ -24,9 +24,11 @@ def update_version_py():
         print("This does not appear to be a Git repository.")
         return
     try:
-        p = subprocess.Popen(["git", "describe",
-                              "--tags", "--always"],
+        # p = subprocess.Popen(["git", "describe","--tags", "--always"],
+        #        stdout=subprocess.PIPE)
+        p = subprocess.Popen("git rev-list HEAD --count".split(),
                              stdout=subprocess.PIPE)
+
     except EnvironmentError:
         print("unable to run git, leaving eden/_version.py alone")
         return
@@ -34,7 +36,8 @@ def update_version_py():
     if p.returncode != 0:
         print("unable to run git, leaving eden/_version.py alone")
         return
-    ver = stdout.strip().decode()
+    ver = "0.3."+stdout.strip()
+    # ver = str(int(ver,16)) # pypi doesnt like base 16
     f = open("eden/_version.py", "w")
     f.write(VERSION_PY % ver)
     f.close()
@@ -89,7 +92,7 @@ class install(_install):
 
 
 setup(
-    name='eden',
+    name='eden-kernel',
     version=get_version(),
     author='Fabrizio Costa',
     author_email='graph-eden@googlegroups.com',
@@ -101,14 +104,10 @@ setup(
     scripts=[],
     include_package_data=True,
     package_data={},
-    url='http://pypi.python.org/pypi/eden/',
+    url='https://github.com/smautner/',
     license='LICENSE',
-    description='The Explicit Decomposition with Neighborhoods (EDeN) is a decompositional kernel \
-    based on the Neighborhood Subgraph Pairwise Distance Kernel (NSPDK) that can be used to induce \
-    an explicit feature representation for graphs. This in turn allows the adoption of machine learning\
-    algorithm to perform supervised and unsupervised learning task in a scalable way (e.g. fast\
-    stochastic gradient descent methods in classification).',
-    long_description=open('README.md').read(),
+    description='Explicit Decomposition with Neighborhoods',
+    long_description='',
     install_requires=[
         "dill",
         "future",

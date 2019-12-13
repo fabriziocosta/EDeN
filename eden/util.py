@@ -7,7 +7,7 @@ from __future__ import print_function
 
 import numpy as np
 from scipy import io
-from sklearn.externals import joblib
+import joblib
 import requests
 import os
 import sys
@@ -145,7 +145,7 @@ def read(uri):
         return uri
     else:
         try:
-                    # try if it is a URL and if we can open it
+            # try if it is a URL and if we can open it
             f = requests.get(uri).text.split('\n')
         except ValueError:
             # assume it is a file object
