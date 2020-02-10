@@ -14,7 +14,7 @@ __credits__ = ["Fabrizio Costa", "Bjoern Gruening"]
 __license__ = "MIT"
 __version__ = "v2.0.1202"
 __maintainer__ = "Fabrizio Costa"
-__email__ = "costa@informatik.uni-freiburg.de"
+__email__ = "f.costa@exeter.ac.uk"
 __status__ = "Production"
 
 __magic__ = ('EDeN', 42)

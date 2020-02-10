@@ -58,20 +58,23 @@ def map_labels_to_colors(graphs):
     return label_colors
 
 
-def draw_graph(graph,
+def draw_graph(graph_orig,
                vertex_label='label',
                vertex_color=None,
                vertex_color_dict=None,
                vertex_fixed_color=None,
                vertex_alpha=0.6,
                vertex_border=1,
+               vertex_position=None,
                vertex_size=600,
                vertex_images=None,
                vertex_image_scale=0.1,
+               vertex_image_alpha=.5,
+               vertex_shape='o',
                compact=False,
                colormap='YlOrRd',
-               vmin=0,
-               vmax=1,
+               vmin=None,
+               vmax=None,
                invert_colormap=False,
                secondary_vertex_label=None,
                secondary_vertex_color=None,
@@ -80,14 +83,14 @@ def draw_graph(graph,
                secondary_vertex_border=1,
                secondary_vertex_size=600,
                secondary_vertex_colormap='YlOrRd',
-               secondary_vertex_vmin=0,
-               secondary_vertex_vmax=1,
+               secondary_vertex_vmin=None,
+               secondary_vertex_vmax=None,
 
                edge_label='label',
                secondary_edge_label=None,
                edge_colormap='YlOrRd',
-               edge_vmin=0,
-               edge_vmax=1,
+               edge_vmin=None,
+               edge_vmax=None,
                edge_color=None,
                edge_fixed_color=None,
                edge_width=None,
@@ -115,6 +118,7 @@ def draw_graph(graph,
 
                logscale=False):
     """Plot graph layout."""
+    graph = graph_orig.copy()
     if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
@@ -174,6 +178,11 @@ def draw_graph(graph,
             node_color = [math.log(c) if c > log_threshold
                           else math.log(log_threshold)
                           for c in node_color]
+    if isinstance(node_color, list):
+        if vmax is None:
+            vmax = max(node_color)
+        if vmin is None:
+            vmin = min(node_color)
     if edge_width is None:
         widths = 1
     elif isinstance(edge_width, int):
@@ -197,6 +206,11 @@ def draw_graph(graph,
             edge_colors = [d.get(edge_color, 0)
                            for u, v, d in graph.edges(data=True)
                            if 'nesting' not in d]
+    if isinstance(edge_colors, list):
+        if edge_vmax is None:
+            edge_vmax = max(edge_colors)
+        if edge_vmin is None:
+            edge_vmin = min(edge_colors)
     if dark_edge_color is None:
         dark_edge_colors = 'black'
     else:
@@ -206,12 +220,16 @@ def draw_graph(graph,
     tmp_edge_set = [(u, v)
                     for u, v in graph.edges()
                     if graph.edges[u, v].get(ignore_for_layout, False)]
-    if tmp_edge_set:
+    if len(tmp_edge_set) > 0:
         graph.remove_edges_from(tmp_edge_set)
 
     if pos is None:
         if layout == 'graphviz':
             graph_copy = graph.copy()
+            for u in graph_copy.nodes():
+                graph_copy.nodes[u].pop('label', None)
+                graph_copy.nodes[u].pop('vec', None)
+                graph_copy.nodes[u].pop('svec', None)
             pos = nx.nx_pydot.graphviz_layout(graph_copy,
                                               prog=prog)
         elif layout == "RNA":
@@ -235,13 +253,15 @@ def draw_graph(graph,
             raise Exception('Unknown layout format: %s' % layout)
         _pos = minmax_scale(np.array([pos[i] for i in pos]))
         pos = {i: (p[0], p[1]) for i, p in zip(pos, _pos)}
+    if vertex_position is not None:
+        pos = {u: (graph.nodes[u][vertex_position][0], graph.nodes[u][vertex_position][1]) for u in graph.nodes()}
 
     if vertex_border is False:
         linewidths = 0.001
     else:
         linewidths = vertex_border
 
-    if tmp_edge_set:
+    if len(tmp_edge_set) > 0:
         graph.add_edges_from(tmp_edge_set)
 
     if secondary_vertex_border is False:
@@ -265,16 +285,23 @@ def draw_graph(graph,
                 secondary_vertex_colormap),
             vmin=secondary_vertex_vmin, vmax=secondary_vertex_vmax)
         secondary_nodes.set_edgecolor('k')
+    if isinstance(secondary_vertex_color, list):
+        if secondary_vertex_vmax is None:
+            secondary_vertex_vmax = max(secondary_vertex_color)
+        if secondary_vertex_vmin is None:
+            secondary_vertex_vmin = min(secondary_vertex_color)
     if vertex_fixed_color is not None:
         node_color = vertex_fixed_color
     if compact:
         nodes = nx.draw_networkx_nodes(graph, pos,
+                                       node_shape=vertex_shape,
                                        node_color='w',
                                        alpha=1,
                                        node_size=vertex_size,
                                        linewidths=linewidths)
         nodes.set_edgecolor('k')
         nx.draw_networkx_nodes(graph, pos,
+                               node_shape=vertex_shape,
                                node_color=node_color,
                                alpha=vertex_alpha,
                                node_size=vertex_size,
@@ -284,6 +311,7 @@ def draw_graph(graph,
 
     else:
         nodes = nx.draw_networkx_nodes(graph, pos,
+                                       node_shape=vertex_shape,
                                        node_color=node_color,
                                        alpha=vertex_alpha,
                                        node_size=vertex_size,
@@ -330,7 +358,9 @@ def draw_graph(graph,
     if vertex_images is not None:
         for im, xy_pos in zip(vertex_images, pos):
             x, y = pos[xy_pos]
-            oi = OffsetImage(im, zoom=vertex_image_scale, alpha=.5)
+            oi = OffsetImage(im,
+                             zoom=vertex_image_scale,
+                             alpha=vertex_image_alpha)
             box = AnnotationBbox(oi, (x, y), frameon=False)
             axes.add_artist(box)
     if title_key:

@@ -97,17 +97,25 @@ def configure_logging(logger, verbosity=0, filename=None):
         logger.addHandler(fh)
 
 
-def _serialize_list(items, separator='_'):
+def _serialize_list(items, separator='_', max_size=20):
     if isinstance(items, str):
-        return items
-    if is_iterable(items):
-        if isinstance(items, list):
-            return str(separator.join([str(item) for item in items]))
+        data = items
+    elif isinstance(items, float):
+        data = '%.1f' % items
+    elif is_iterable(items):
+        if isinstance(items, list) or isinstance(items, tuple):
+            data = str(separator.join([str(item) for item in items]))
         if isinstance(items, dict):
-            return str(separator.join([str(key) + ':' + str(items[key])
+            data = str(separator.join([str(key) + ':' + str(items[key])
                                        for key in items]))
     else:
-        return str(items)
+        data = str(items).encode('utf-8')
+    txt = ''
+    for i, c in enumerate(data):
+        if i > 0 and i % max_size == 0:
+            c = str(c) + '\n'
+        txt += str(c)
+    return txt
 
 
 def serialize_dict(the_dict, full=True, offset='small'):
