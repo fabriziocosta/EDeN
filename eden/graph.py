@@ -933,7 +933,7 @@ def _edge_to_vertex_transform(original_graph):
         for n in graph:
             graph.nodes[n]['node'] = True
         # add a new vertex for each edge
-        w = graph.number_of_nodes()
+        w = 1+max(graph.nodes())
         for u, v in original_graph.edges():
             if u != v:
                 graph.add_node(w)
