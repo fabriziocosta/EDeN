@@ -118,7 +118,7 @@ def draw_graph(graph_orig,
 
                logscale=False):
     """Plot graph layout."""
-    graph = graph_orig.copy()
+    graph = nx.convert_node_labels_to_integers(graph_orig)
     if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
@@ -158,7 +158,7 @@ def draw_graph(graph_orig,
 
     if vertex_color is None:
         node_color = 'white'
-    elif vertex_color in ['_labels_', '_label_', '__labels__', '__label__']:
+    elif vertex_color in ['-label-', '_labels_', '_label_', '__labels__', '__label__']:
         node_color = []
         for u, d in graph.nodes(data=True):
             label = d.get('label', '.')
@@ -193,7 +193,7 @@ def draw_graph(graph_orig,
                   if 'nesting' not in d]
     if edge_color is None:
         edge_colors = 'black'
-    elif edge_color in ['_labels_', '_label_', '__labels__', '__label__']:
+    elif edge_color in ['-label-', '_labels_', '_label_', '__labels__', '__label__']:
         edge_colors = [hash(str(d.get('label', '.')))
                        for u, v, d in graph.edges(data=True)
                        if 'nesting' not in d]
@@ -247,6 +247,8 @@ def draw_graph(graph_orig,
             pos = nx.shell_layout(graph)
         elif layout == 'spectral':
             pos = nx.spectral_layout(graph)
+        elif layout == 'kk':
+            pos = nx.kamada_kawai_layout(graph)
         elif layout == 'KK':
             pos = KKEmbedder().transform(graph)
         else:

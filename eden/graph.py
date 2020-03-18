@@ -933,7 +933,7 @@ def _edge_to_vertex_transform(original_graph):
         for n in graph:
             graph.nodes[n]['node'] = True
         # add a new vertex for each edge
-        w = 1+max(graph.nodes())
+        w = 1 + max(graph.nodes())
         for u, v in original_graph.edges():
             if u != v:
                 graph.add_node(w)
@@ -959,8 +959,11 @@ def _revert_edge_to_vertex_transform(original_graph):
                 # extract the endpoints
                 endpoints = [u for u in original_graph.neighbors(n)]
                 if len(endpoints) != 2:
-                    raise Exception('ERROR: more than 2 endpoints in \
-                        a single edge: %s' % endpoints)
+                    for u in original_graph.nodes():
+                        print(original_graph.nodes[u])
+                    for u, v in original_graph.edges():
+                        print(original_graph.edges[u, v])
+                    raise Exception('ERROR: expecting 2 endpoints in a single edge, instead got: %s' % endpoints)
                 u = endpoints[0]
                 v = endpoints[1]
                 # add the corresponding edge

@@ -38,6 +38,7 @@ class KKEmbedder(BaseEstimator, ClassifierMixin):
 
     def _compute_all_pairs(self, graph, weight=None, normalize=False):
         lengths = nx.all_pairs_dijkstra_path_length(graph, weight=weight)
+        lengths = dict(lengths)
         max_length = max([max(lengths[i].values()) for i in lengths])
         if normalize:
             for i in lengths:
@@ -145,7 +146,7 @@ class KKEmbedder(BaseEstimator, ClassifierMixin):
     def _compute_weights(self, graph):
         weights = np.ones((len(graph), len(graph)))
         for u, v in graph.edges():
-            val = graph.edge[u][v].get('weight', 1)
+            val = graph.edges[u, v].get('weight', 1)
             weights[u][v] = val
         return weights
 
