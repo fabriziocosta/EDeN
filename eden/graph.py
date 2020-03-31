@@ -106,6 +106,7 @@ class Vectorizer(AbstractVectorizer):
                  inner_normalization=True,
                  positional=False,
                  discrete=True,
+                 use_only_context=False,
                  key_label='label',
                  key_weight='weight',
                  key_nesting='nesting',
@@ -163,6 +164,10 @@ class Vectorizer(AbstractVectorizer):
             Flag to activate more efficient computation of vectorization
             considering only discrete labels and ignoring vector attributes.
 
+        use_only_context: bool (default False)
+            Flag to deactivate the central part of the information
+            and retain only the context.
+
         key_label : string (default 'label')
             The key used to indicate the label information in nodes.
 
@@ -205,6 +210,7 @@ class Vectorizer(AbstractVectorizer):
         self.inner_normalization = inner_normalization
         self.positional = positional
         self.discrete = discrete
+        self.use_only_context = use_only_context
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
         self.key_label = key_label
@@ -566,7 +572,8 @@ class Vectorizer(AbstractVectorizer):
             half_feature = fast_hash_3(vertex_u_hash,
                                        radius, distance, self.bitmask)
             if graph.graph.get('weighted', False) is False:
-                feature_list[radius_dist_key][feature] += cw
+                if self.use_only_context is False:
+                    feature_list[radius_dist_key][feature] += cw
                 feature_list[radius_dist_key][half_feature] += cw
             else:
                 weight_v = graph.nodes[vertex_v]['neigh_graph_weight']
@@ -575,7 +582,8 @@ class Vectorizer(AbstractVectorizer):
                 val = cw * weight_vu_radius
                 # Note: add a feature only if the value is not 0
                 if val != 0:
-                    feature_list[radius_dist_key][feature] += val
+                    if self.use_only_context is False:
+                        feature_list[radius_dist_key][feature] += val
                     half_val = cw * weight_u[radius]
                     feature_list[radius_dist_key][half_feature] += half_val
 
