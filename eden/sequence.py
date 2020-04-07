@@ -63,9 +63,10 @@ class Vectorizer(AbstractVectorizer):
                  min_d=0,
                  weights_dict=None,
                  auto_weights=False,
-                 nbits=20,
+                 nbits=16,
                  normalization=True,
-                 inner_normalization=True):
+                 inner_normalization=True,
+                 use_only_context=False):
         """Constructor.
 
         Parameters
@@ -106,6 +107,10 @@ class Vectorizer(AbstractVectorizer):
             radius and distance size to have unit euclidean norm.
             When used together with the 'normalization' flag it will be applied
             first and then the resulting feature vector will be normalized.
+
+        use_only_context: bool (default False)
+            Flag to deactivate the central part of the information
+            and retain only the context.
         """
         if complexity is not None:
             self.r = complexity
@@ -121,6 +126,7 @@ class Vectorizer(AbstractVectorizer):
         self.nbits = nbits
         self.normalization = normalization
         self.inner_normalization = inner_normalization
+        self.use_only_context = use_only_context
         self.bitmask = pow(2, nbits) - 1
         self.feature_size = self.bitmask + 2
 
@@ -146,6 +152,11 @@ class Vectorizer(AbstractVectorizer):
         if args.get('inner_normalization', None) is not None:
             self.inner_normalization = args['inner_normalization']
 
+        if self.min_r > self.r:
+            self.min_r = self.r
+        if self.min_d > self.d:
+            self.min_d = self.d
+
     def __repr__(self):
         """Pretty print of vectorizer parameters."""
         representation = """path_graph.Vectorizer(r = %d, d = %d, min_r = %d, min_d = %d, nbits = %d, \
@@ -158,6 +169,15 @@ class Vectorizer(AbstractVectorizer):
             self.normalization,
             self.inner_normalization)
         return representation
+
+    def fit(self, seq_list, targets):
+        """fit."""
+        return self
+
+    def fit_transform(self, seq_list, targets):
+        """fit_transform."""
+        self.fit(seq_list, targets)
+        return self.transform(seq_list)
 
     def transform(self, seq_list):
         """Transform.
@@ -249,7 +269,10 @@ class Vectorizer(AbstractVectorizer):
             cond1 = self.weights_dict is None
             if cond1 or self.weights_dict.get((radius, distance), 0) != 0:
                 if end >= 0 and end + radius < seq_len:
-                    pfeat = neigh_hash_cache[pos][radius]
+                    if self.use_only_context:
+                        pfeat = 42
+                    else:
+                        pfeat = neigh_hash_cache[pos][radius]
                     efeat = neigh_hash_cache[end][radius]
                     feature_code = fast_hash_4(pfeat,
                                                efeat,
@@ -459,14 +482,18 @@ class Vectorizer(AbstractVectorizer):
         if self.estimator is None:
             # if we do not provide an estimator then consider default margin of
             # 1 for all vertices
-            margins = np.array([1] * data_matrix.shape[0])
+            scores = np.array([1] * data_matrix.shape[0])
         else:
-            margins = self.estimator.decision_function(data_matrix)
+            if hasattr(self.estimator, 'decision_function'):
+                scores = self.estimator.decision_function(data_matrix)
+            elif hasattr(self.estimator, 'predict_proba'):
+                scores = self.estimator.predict_proba(data_matrix)
+                scores = scores[:, -1]
         # compute the list of sparse vectors representation
         vec = []
         for i in range(data_matrix.shape[0]):
             vec.append(data_matrix.getrow(i))
-        return margins, vec
+        return scores, vec
 
     def _compute_vertex_based_features(self, seq, weights=None):
         if seq is None or len(seq) == 0:
