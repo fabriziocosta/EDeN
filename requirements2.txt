@@ -16,7 +16,7 @@ pybedtools==0.7.4
 pygraphviz==1.2
 git+https://github.com/nils-werner/pymf.git@9d3b8d49941b018473de01cb28b97d42b8675857
 reportlab==3.2.0
-requests==2.7.0
+requests==2.31.0
 scikit-learn==0.17.0
 scikit-neuralnetwork==0.3
 scipy==0.14.0
