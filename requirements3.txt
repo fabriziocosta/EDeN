@@ -1,5 +1,5 @@
 biopython==1.66
-cvxopt==1.1.7
+cvxopt==1.2.7
 cvxpy==0.2.12
 dill==0.2.1
 esmre==0.3.1
