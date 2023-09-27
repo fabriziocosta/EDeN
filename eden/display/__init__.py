@@ -44,6 +44,10 @@ def serialize_graph(graph):
                              cls=SetEncoder)
     return serial_data
 
+def line_serialize_graph(graph):
+    """Make single line."""
+    texts = ['%s:%s %s' % (u, graph.nodes[u]['label'], list(nx.neighbors(graph, u))) for u in graph.nodes()]
+    return '--'.join(texts)
 
 def map_labels_to_colors(graphs):
     """Map all node labels into a real in [0,1]."""
@@ -58,7 +62,7 @@ def map_labels_to_colors(graphs):
     return label_colors
 
 
-def draw_graph(graph_orig,
+def draw_graph(graph,
                vertex_label='label',
                vertex_color=None,
                vertex_color_dict=None,
@@ -106,9 +110,12 @@ def draw_graph(graph_orig,
 
                size=10,
                size_x_to_y_ratio=1,
+               ax=None,
                font_size=9,
-               layout='graphviz',
-               prog='neato',
+               layout='kk',
+               spring_k=None,
+               spring_iterations=50,
+               prog='',
                pos=None,
 
                verbose=True,
@@ -118,12 +125,13 @@ def draw_graph(graph_orig,
 
                logscale=False):
     """Plot graph layout."""
-    graph = nx.convert_node_labels_to_integers(graph_orig)
+    #graph = nx.convert_node_labels_to_integers(graph_orig)
     if size is not None:
         size_x = size
         size_y = int(float(size) / size_x_to_y_ratio)
         plt.figure(figsize=(size_x, size_y))
-        axes = plt.gca()
+    axes = plt.gca()
+    axes.margins(0.4)
     plt.grid(False)
     plt.axis('off')
     plt.axis('equal')
@@ -230,8 +238,7 @@ def draw_graph(graph_orig,
                 graph_copy.nodes[u].pop('label', None)
                 graph_copy.nodes[u].pop('vec', None)
                 graph_copy.nodes[u].pop('svec', None)
-            pos = nx.nx_pydot.graphviz_layout(graph_copy,
-                                              prog=prog)
+            pos = nx.nx_pydot.graphviz_layout(graph_copy, prog=prog)
         elif layout == "RNA":
             import RNA  # this is part of the vienna RNA package
             rna_object = RNA.get_xy_coordinates(graph.graph['structure'])
@@ -242,7 +249,7 @@ def draw_graph(graph_orig,
         elif layout == 'random':
             pos = nx.random_layout(graph)
         elif layout == 'spring':
-            pos = nx.spring_layout(graph)
+            pos = nx.spring_layout(graph, k=spring_k, iterations=spring_iterations)
         elif layout == 'shell':
             pos = nx.shell_layout(graph)
         elif layout == 'spectral':
@@ -251,6 +258,8 @@ def draw_graph(graph_orig,
             pos = nx.kamada_kawai_layout(graph)
         elif layout == 'KK':
             pos = KKEmbedder().transform(graph)
+        elif layout == 'planar':
+            pos = nx.planar_layout(graph)
         else:
             raise Exception('Unknown layout format: %s' % layout)
         _pos = minmax_scale(np.array([pos[i] for i in pos]))
@@ -279,6 +288,7 @@ def draw_graph(graph_orig,
             secondary_vertex_color is not None:
         secondary_nodes = nx.draw_networkx_nodes(
             graph, pos,
+            ax=ax,
             node_color=secondary_node_color,
             alpha=secondary_vertex_alpha,
             node_size=secondary_vertex_size,
@@ -296,41 +306,45 @@ def draw_graph(graph_orig,
         node_color = vertex_fixed_color
     if compact:
         nodes = nx.draw_networkx_nodes(graph, pos,
-                                       node_shape=vertex_shape,
-                                       node_color='w',
-                                       alpha=1,
-                                       node_size=vertex_size,
-                                       linewidths=linewidths)
+                                        ax=ax,
+                                        node_shape=vertex_shape,
+                                        node_color='w',
+                                        alpha=1,
+                                        node_size=vertex_size,
+                                        linewidths=linewidths)
         nodes.set_edgecolor('k')
         nx.draw_networkx_nodes(graph, pos,
-                               node_shape=vertex_shape,
-                               node_color=node_color,
-                               alpha=vertex_alpha,
-                               node_size=vertex_size,
-                               linewidths=None,
-                               cmap=plt.get_cmap(colormap),
-                               vmin=vmin, vmax=vmax)
+                                ax=ax,
+                                node_shape=vertex_shape,
+                                node_color=node_color,
+                                alpha=vertex_alpha,
+                                node_size=vertex_size,
+                                linewidths=None,
+                                cmap=plt.get_cmap(colormap),
+                                vmin=vmin, vmax=vmax)
 
     else:
         nodes = nx.draw_networkx_nodes(graph, pos,
-                                       node_shape=vertex_shape,
-                                       node_color=node_color,
-                                       alpha=vertex_alpha,
-                                       node_size=vertex_size,
-                                       linewidths=linewidths,
-                                       cmap=plt.get_cmap(colormap),
-                                       vmin=vmin, vmax=vmax)
+                                        ax=ax,
+                                        node_shape=vertex_shape,
+                                        node_color=node_color,
+                                        alpha=vertex_alpha,
+                                        node_size=vertex_size,
+                                        linewidths=linewidths,
+                                        cmap=plt.get_cmap(colormap),
+                                        vmin=vmin, vmax=vmax)
         nodes.set_edgecolor('k')
 
     if edge_fixed_color is not None:
         edge_colors = edge_fixed_color
     nx.draw_networkx_edges(graph, pos,
-                           edgelist=edges_normal,
-                           width=widths,
-                           edge_color=edge_colors,
-                           edge_cmap=plt.get_cmap(edge_colormap),
-                           edge_vmin=edge_vmin, edge_vmax=edge_vmax,
-                           alpha=edge_alpha)
+                            ax=ax,
+                            edgelist=edges_normal,
+                            width=widths,
+                            edge_color=edge_colors,
+                            edge_cmap=plt.get_cmap(edge_colormap),
+                            edge_vmin=edge_vmin, edge_vmax=edge_vmax,
+                            alpha=edge_alpha)
     if dark_edge_dotted:
         style = 'dotted'
     else:
@@ -338,22 +352,25 @@ def draw_graph(graph_orig,
     if dark_edge_fixed_color is not None:
         dark_edge_colors = dark_edge_fixed_color
     nx.draw_networkx_edges(graph, pos,
-                           edgelist=edges_nesting,
-                           width=1,
-                           edge_cmap=plt.get_cmap(dark_edge_colormap),
-                           edge_vmin=dark_edge_vmin, edge_vmax=dark_edge_vmax,
-                           edge_color=dark_edge_colors,
-                           style=style,
-                           alpha=dark_edge_alpha)
+                            ax=ax,
+                            edgelist=edges_nesting,
+                            width=1,
+                            edge_cmap=plt.get_cmap(dark_edge_colormap),
+                            edge_vmin=dark_edge_vmin, edge_vmax=dark_edge_vmax,
+                            edge_color=dark_edge_colors,
+                            style=style,
+                            alpha=dark_edge_alpha)
     if edge_label is not None:
         nx.draw_networkx_edge_labels(graph,
                                      pos,
+                                     ax=ax,
                                      edge_labels=edge_labels,
                                      font_size=font_size)
     if vertex_label is not None:
         nx.draw_networkx_labels(graph,
                                 pos,
                                 vertex_labels,
+                                ax=ax,
                                 font_size=font_size,
                                 font_weight='normal',
                                 font_color='black')
@@ -375,6 +392,7 @@ def draw_graph(graph_orig,
         # note: if size is not set, the canvas has been created outside
         # of this function.
         # we wont write on a canvas that we didn't create ourselves.
+        
         if file_name is None:
             plt.show()
         else:

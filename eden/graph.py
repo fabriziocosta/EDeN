@@ -246,7 +246,7 @@ class Vectorizer(AbstractVectorizer):
         if args.get('positional', None) is not None:
             self.positional = args['positional']
 
-    def get_params(self):
+    def get_params(self, deep=False):
         """Get parameters for teh vectorizer.
 
         Returns
@@ -267,6 +267,14 @@ class Vectorizer(AbstractVectorizer):
     def load(self, obj):
         """load."""
         self.__dict__.update(joblib.load(obj).__dict__)
+
+    def fit(self, graphs):
+        """fit."""
+        return self
+
+    def fit_transform(self, graphs):
+        """fit_transform."""
+        return self.transform(graphs)
 
     def transform(self, graphs):
         """Transform a list of networkx graphs into a sparse matrix.
@@ -525,7 +533,9 @@ class Vectorizer(AbstractVectorizer):
                                connection_weight=1):
         cw = connection_weight
         # for all radii
-        for radius in range(self.min_r * 2, (self.r + 1) * 2, 2):
+        radius_range_start = self.min_r * 2
+        radius_range_end = (self.r + 1) * 2
+        for radius in range(radius_range_start, radius_range_end, 2):
             # Note: to be compatible with external radius, distance
             # we need to revert to r/2 and d/2
             radius_dist_key = (radius / 2, distance / 2)
