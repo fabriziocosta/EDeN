@@ -5,8 +5,8 @@ import numpy as np
 import multiprocessing as mp
 from collections import deque
 from sklearn.linear_model import SGDClassifier
-from sklearn.grid_search import RandomizedSearchCV
-from sklearn import cross_validation
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import cross_validate
 from sklearn.metrics import classification_report
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import average_precision_score
